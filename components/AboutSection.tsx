@@ -65,7 +65,7 @@ export default function AboutSection() {
         className="absolute inset-0 z-0"
       >
         <Image
-          src="/images/about_us_2.jpeg"
+          src="/images/abou_us_3.png"
           alt="About Us Background"
           fill
           className="object-cover opacity-90 brightness-[0.8]"

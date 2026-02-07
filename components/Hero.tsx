@@ -120,7 +120,7 @@ export default function Hero() {
       </div>
 
       {/* Content */}
-      <div className="relative z-20 max-w-full mx-0 px-6 sm:px-12 lg:px-20 w-full h-full flex flex-col justify-center pt-20">
+      <div className="relative z-20 max-w-full mx-0 px-6 sm:px-12 lg:px-20 w-full h-full flex flex-col justify-start pt-40">
         <div className="flex flex-col items-start text-left">
           <motion.div 
             variants={containerVars}
