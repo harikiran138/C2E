@@ -77,7 +77,7 @@ export default function AboutSection() {
             priority
           />
           {/* Blend from Hero Curve (#faf9f6) into Top Image */}
-          <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-[#faf9f6] via-[#faf9f6]/95 to-transparent" />
+          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-[#faf9f6] to-transparent z-20" />
           {/* Fade transition between the two images */}
           <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-transparent via-white/10 to-transparent" />
         </div>

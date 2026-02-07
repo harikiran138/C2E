@@ -40,8 +40,8 @@ export default function Hero() {
     if (bgRef.current) {
       // Parallax + Zoom Effect
       gsap.to(bgRef.current, {
-        yPercent: 20,
-        scale: 1.25,
+        yPercent: 15,
+        scale: 1.1,
         ease: "none",
         scrollTrigger: {
           trigger: containerRef.current,
@@ -81,33 +81,32 @@ export default function Hero() {
   };
 
   return (
-    <section ref={containerRef} className="relative h-[90vh] min-h-[800px] flex items-center overflow-hidden bg-primary-dark pt-16 pb-40">
+    <section ref={containerRef} className="relative h-[95vh] min-h-[850px] flex items-center overflow-hidden bg-primary-dark pt-16 pb-48">
       {/* Background Image with Parallax */}
-      <div ref={bgRef} className="absolute inset-0 z-0 scale-110">
+      <div ref={bgRef} className="absolute inset-0 z-0 scale-100">
         <Image
-          src="/images/hero.png"
+          src="/images/hero1.png"
           alt="C2E Hero"
           fill
           priority
-          className="object-cover object-[center_top] brightness-105 contrast-[0.9] opacity-90"
+          className="object-cover object-[center_top]"
         />
-        <div className="absolute inset-0 bg-gradient-to-l from-white/20 via-transparent to-transparent" />
       </div>
 
       {/* Content */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex flex-col items-end md:pr-0 text-left space-y-8 md:space-y-6">
+      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full h-full flex flex-col justify-end pb-52">
+        <div className="flex flex-col items-start text-left">
           <motion.div 
             variants={containerVars}
             initial="hidden"
             animate="visible"
-            className="space-y-4 max-w-2xl -mt-12 flex flex-col items-start md:-mr-[50px]"
+            className="space-y-3 max-w-2xl flex flex-col items-start"
           >
             <h1 className="flex flex-col gap-y-1 text-left items-start">
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
                   variants={wordVars}
-                  className="inline-block text-[36px] md:text-[50px] text-black font-sans font-black leading-[1.05] uppercase tracking-tighter"
+                  className="inline-block text-[31px] md:text-[45px] text-white font-sans font-black leading-[1.05] uppercase tracking-tighter text-left"
                 >
                   Compliance
                 </motion.span>
@@ -115,17 +114,17 @@ export default function Hero() {
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
                   variants={wordVars}
-                  className="inline-block text-[36px] md:text-[50px] text-black font-sans font-black leading-[1.05] uppercase tracking-tighter"
+                  className="inline-block text-[31px] md:text-[45px] text-white font-sans font-black leading-[1.05] uppercase tracking-tighter text-left"
                 >
                   To Excellence
                 </motion.span>
               </span>
             </h1>
             <motion.p 
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1.2, duration: 0.8 }}
-              className="text-base md:text-[20px] text-[#a6423d] font-bold tracking-tight text-left leading-tight"
+              className="text-[13px] md:text-[15px] text-[#a6423d] font-bold tracking-tight text-left leading-tight"
             >
               Stand confident, stay competent, and distinguish yourself
             </motion.p>
@@ -194,9 +193,13 @@ export default function Hero() {
           ))}
         </div>
 
-        <div className="relative overflow-hidden leading-[0]">
-          <svg className="relative block w-[calc(100%+1.3px)] h-[120px] md:h-[180px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-            <path d="M0,20 Q600,120 1200,20 V120 H0 Z" fill="#faf9f6"></path>
+        <div className="relative h-[180px] md:h-[220px] w-full">
+          <svg 
+            className="absolute bottom-[-1px] left-0 w-full h-full z-20 pointer-events-none" 
+            viewBox="0 0 1200 120" 
+            preserveAspectRatio="none"
+          >
+            <path d="M0,0 Q600,120 1200,0 V120 H0 Z" fill="#faf9f6"></path>
           </svg>
         </div>
       </div>
