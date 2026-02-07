@@ -26,36 +26,28 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${
-        scrolled ? "glass-nav py-4" : "bg-transparent py-8"
+        scrolled ? "glass-nav py-2" : "bg-transparent py-4"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link href="/" className="relative group">
-            <span className={`text-4xl font-black tracking-tighter transition-colors ${scrolled ? "text-primary-dark" : "text-white"}`}>
+          <Link href="/" className="relative group flex flex-col items-center">
+            <span className={`text-2xl font-black tracking-tighter transition-colors text-primary-dark`}>
               C2E
             </span>
-            <motion.div 
-              initial={{ scaleX: 0 }}
-              whileHover={{ scaleX: 1 }}
-              className="absolute -bottom-1 left-0 w-full h-1.5 bg-primary-gold rounded-full origin-left transition-transform duration-500"
-            />
-            <div className={`absolute -bottom-1 left-0 w-2/3 h-1.5 bg-primary-gold rounded-full transition-opacity ${scrolled ? "opacity-100" : "opacity-0"}`} />
+            <div className="w-full h-1.5 bg-primary-gold rounded-full -mt-1 scale-x-110" style={{ borderRadius: '0 0 100% 100%' }} />
           </Link>
 
           {/* Center Links (Desktop) */}
-          <div className="hidden md:flex items-center space-x-12">
+          <div className="hidden md:flex flex-1 justify-center items-center space-x-12">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-sm font-black uppercase tracking-[0.2em] transition-colors relative group ${
-                  scrolled ? "text-primary-dark hover:text-primary-gold" : "text-white hover:text-primary-gold"
-                }`}
+                className={`text-xs font-black uppercase tracking-[0.2em] transition-colors relative group text-primary-dark hover:text-primary-gold`}
               >
                 {link.name}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary-gold transition-all duration-300 group-hover:w-full" />
               </Link>
             ))}
           </div>

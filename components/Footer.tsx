@@ -8,23 +8,12 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-[#111827] text-white pt-32 pb-12 relative overflow-hidden">
-      {/* Background Micro-particles */}
-      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div 
-            key={i}
-            className="absolute bg-primary-gold rounded-full blur-[1px] animate-pulse"
-            style={{
-              width: Math.random() * 4 + 'px',
-              height: Math.random() * 4 + 'px',
-              top: Math.random() * 100 + '%',
-              left: Math.random() * 100 + '%',
-              animationDelay: Math.random() * 5 + 's',
-              animationDuration: Math.random() * 3 + 2 + 's'
-            }}
-          />
-        ))}
+    <footer className="bg-[#111827] text-white pt-24 pb-8 relative overflow-hidden">
+      {/* Decorative Background Curve */}
+      <div className="absolute inset-0 z-0 opacity-10 pointer-events-none overflow-hidden">
+        <svg className="absolute -top-24 left-0 w-full h-[300px] text-primary-gold/20" viewBox="0 0 1200 120" preserveAspectRatio="none">
+          <path d="M0,0 Q600,120 1200,0 V120 H0 Z" fill="currentColor" />
+        </svg>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -32,14 +21,14 @@ export default function Footer() {
           {/* Company Identity */}
           <div className="space-y-8">
             <Link href="/" className="inline-block">
-              <span className="text-5xl font-black tracking-tighter text-white">
+              <span className="text-3xl font-black tracking-tighter text-white">
                 C2E
               </span>
               <div className="h-2 w-full bg-primary-gold rounded-full" />
             </Link>
             <div className="space-y-4">
-              <h4 className="text-2xl font-black text-white/90">Compliance To Excellence</h4>
-              <p className="text-sm font-bold text-gray-500 uppercase tracking-widest leading-relaxed">
+              <h4 className="text-xl font-black text-white/90">Compliance To Excellence</h4>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest leading-relaxed">
                 Empowering institutions to build OBE-driven ecosystems for sustainable innovation and academic leadership.
               </p>
             </div>
