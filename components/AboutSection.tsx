@@ -155,7 +155,7 @@ export default function AboutSection() {
         {/* Our Approach */}
         <div className="mb-24">
           <SectionHeader title="Our Approach" subtitle="Clarity. Structure. Sustainability." />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
             {[
               { label: "Design", sub: "Precedes documentation" },
               { label: "Logic", sub: "Precedes mapping" },
@@ -164,11 +164,11 @@ export default function AboutSection() {
             ].map((step, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.1 }}
-                viewport={{ once: true }}
-                className="bg-white/5 p-6 rounded-2xl border border-white/10 text-center group hover:bg-primary-gold transition-all duration-500"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.15, duration: 0.8 }}
+                viewport={{ once: true, amount: 0.3 }}
+                className="bg-white/5 p-8 rounded-2xl border border-white/10 text-center group hover:bg-primary-gold transition-all duration-500"
               >
                 <div className="text-primary-gold group-hover:text-white font-black text-xl mb-1 uppercase tracking-tighter">{step.label}</div>
                 <div className="text-gray-500 group-hover:text-white/80 text-[10px] uppercase font-bold tracking-widest">{step.sub}</div>

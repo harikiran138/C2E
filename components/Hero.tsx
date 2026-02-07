@@ -120,19 +120,19 @@ export default function Hero() {
       </div>
 
       {/* Content */}
-      <div className="relative z-20 max-w-full mx-0 px-6 sm:px-12 lg:px-20 w-full h-full flex flex-col justify-start pt-40">
-        <div className="flex flex-col items-start text-left">
+      <div className="relative z-20 max-w-full mx-0 px-6 sm:px-12 lg:px-20 w-full h-full flex flex-col justify-start pt-32 sm:pt-40 lg:pt-48">
+        <div className="flex flex-col items-start text-left w-full">
           <motion.div 
             variants={containerVars}
             initial="hidden"
             animate="visible"
-            className="space-y-6 max-w-3xl flex flex-col items-start"
+            className="space-y-6 md:space-y-8 w-full max-w-full sm:max-w-4xl flex flex-col items-start"
           >
-            <h1 className="flex flex-col gap-y-2 text-left items-start">
+            <h1 className="flex flex-col gap-y-2 md:gap-y-4 text-left items-start w-full">
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
                   variants={wordVars}
-                  className="inline-block text-[42px] md:text-[68px] text-white font-sans font-black leading-[0.95] uppercase tracking-tighter text-left"
+                  className="inline-block text-[38px] sm:text-[50px] md:text-[68px] lg:text-[84px] text-white font-sans font-black leading-[0.95] uppercase tracking-tighter text-left"
                 >
                   Compliance
                 </motion.span>
@@ -140,7 +140,7 @@ export default function Hero() {
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
                   variants={wordVars}
-                  className="inline-block text-[42px] md:text-[68px] text-[#c9a961] font-sans font-black leading-[0.95] uppercase tracking-tighter text-left"
+                  className="inline-block text-[38px] sm:text-[50px] md:text-[68px] lg:text-[84px] text-[#c9a961] font-sans font-black leading-[0.95] uppercase tracking-tighter text-left"
                 >
                   To Excellence
                 </motion.span>
@@ -150,7 +150,7 @@ export default function Hero() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1.2, duration: 0.8 }}
-              className="text-[18px] md:text-[22px] text-[#a6423d] font-black tracking-tight text-left leading-tight max-w-2xl"
+              className="text-[16px] sm:text-[18px] md:text-[22px] lg:text-[24px] text-white/90 font-bold tracking-tight text-left leading-snug max-w-2xl border-l-2 border-[#c9a961] pl-6 py-2"
             >
               Building academic systems that stand up to scrutiny—and improve with time.
             </motion.p>
