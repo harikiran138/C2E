@@ -86,9 +86,9 @@ export default function Navbar() {
                 initial={{ opacity: 0, scale: 0.9, y: 5 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: -5 }}
-                className="flex items-center justify-center space-x-2 text-white/90"
+                className="flex items-center justify-center space-x-2 text-white"
               >
-                <span className="text-[11px] font-black uppercase tracking-[0.3em] whitespace-nowrap">
+                <span className="text-[11px] font-black tracking-[0.3em] whitespace-nowrap">
                   {activeSection}
                 </span>
               </motion.div>
@@ -106,7 +106,7 @@ export default function Navbar() {
                     <Link
                       key={link.name}
                       href={link.href}
-                      className="text-[12px] font-black uppercase tracking-[0.2em] transition-colors relative group text-white hover:text-primary-gold"
+                      className="text-[12px] font-black tracking-[0.2em] transition-colors relative group text-white hover:text-primary-gold"
                     >
                       {link.name}
                     </Link>
@@ -116,14 +116,13 @@ export default function Navbar() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="px-6 py-2 rounded-full font-black uppercase tracking-widest text-[10px] shadow-xl transition-all duration-500 bg-white text-primary-dark hover:bg-primary-gold hover:text-white border border-white/20 ml-4"
+                      className="px-6 py-2 rounded-full font-black tracking-widest text-[10px] shadow-xl transition-all duration-500 bg-white text-primary-dark hover:bg-primary-gold hover:text-white border border-white/20 ml-8"
                     >
                       Login
                     </motion.button>
                   </Link>
                 </div>
 
-                {/* Hamburger (Mobile) */}
                 <div className="md:hidden flex items-center px-4">
                   <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -163,14 +162,14 @@ export default function Navbar() {
                 <Link
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-2xl font-black text-white hover:text-primary-gold uppercase tracking-tighter"
+                  className="text-2xl font-black text-white hover:text-primary-gold tracking-tighter"
                 >
                   {link.name}
                 </Link>
               </motion.div>
             ))}
             <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="w-full">
-              <button className="w-full py-4 bg-primary-gold text-white rounded-full font-black uppercase tracking-widest text-sm shadow-2xl">
+              <button className="w-full py-4 bg-primary-gold text-white rounded-full font-black tracking-widest text-sm shadow-2xl">
                 Institution Login
               </button>
             </Link>

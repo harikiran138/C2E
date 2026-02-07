@@ -20,7 +20,7 @@ export default function Footer() {
           {/* Copyright */}
           <div className="flex flex-col md:flex-row items-center space-y-1 md:space-y-0 md:space-x-4">
               <span className="text-primary-gold font-black text-xl tracking-tighter">C2E</span>
-              <p className="text-[10px] md:text-[12px] font-bold uppercase tracking-[0.2em] text-gray-400 whitespace-nowrap">
+              <p className="text-[10px] md:text-[12px] font-bold tracking-[0.2em] text-gray-400 whitespace-nowrap">
                 © {currentYear} Compliance To Excellence. All Rights Reserved.
               </p>
           </div>
@@ -37,7 +37,7 @@ export default function Footer() {
               >
                 <Link
                   href={item === "Login" ? "/login" : `/#${item.toLowerCase()}`}
-                  className="text-[11px] md:text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-gold transition-all duration-300 relative group"
+                  className="text-[11px] md:text-[12px] font-black tracking-[0.2em] text-gray-400 hover:text-primary-gold transition-all duration-300 relative group"
                 >
                   {item}
                   <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-primary-gold transition-all duration-300 group-hover:w-full" />

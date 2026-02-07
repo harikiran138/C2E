@@ -16,26 +16,9 @@ export default function Hero() {
   const pathRef = useRef<SVGPathElement>(null);
   const pathOutlineRef = useRef<SVGPathElement>(null);
   const [mounted, setMounted] = useState(false);
-  const [sparkles, setSparkles] = useState<{x: string, y: string, delay: number, dur: number}[]>([]);
-  const [stars, setStars] = useState<{x: string, y: string, delay: number, dur: number}[]>([]);
 
   useEffect(() => {
     setMounted(true);
-    // Generate sparkles only on client to avoid hydration mismatch
-    const newSparkles = [...Array(15)].map(() => ({
-      x: `${Math.random() * 100}%`,
-      y: "100%",
-      delay: Math.random() * 5,
-      dur: 2 + Math.random() * 3
-    }));
-    const newStars = [...Array(10)].map(() => ({
-      x: `${Math.random() * 100}%`,
-      y: `${60 + Math.random() * 40}%`,
-      delay: Math.random() * 4,
-      dur: 3 + Math.random() * 2
-    }));
-    setSparkles(newSparkles);
-    setStars(newStars);
   }, []);
 
   useEffect(() => {
@@ -55,29 +38,6 @@ export default function Hero() {
     }
   }, []);
 
-  useEffect(() => {
-    if (pathRef.current && containerRef.current) {
-      // Dynamic Curve Flattening on Scroll
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: true,
-        },
-      });
-
-      tl.to(pathRef.current, {
-        attr: { d: "M0,0 Q600,0 1200,0 V120 H0 Z" },
-        ease: "none",
-      }, 0);
-
-      tl.to(pathOutlineRef.current, {
-        attr: { d: "M0,0 Q600,0 1200,0" },
-        ease: "none",
-      }, 0);
-    }
-  }, [mounted]);
 
   const titleWords = "Compliance To Excellence".split(" ");
 
@@ -149,7 +109,7 @@ export default function Hero() {
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
                   variants={wordVars}
-                  className="inline-block text-[38px] sm:text-[50px] md:text-[68px] lg:text-[84px] text-white font-sans font-black leading-[0.95] uppercase tracking-tighter text-left"
+                  className="inline-block text-[32px] sm:text-[42px] md:text-[56px] lg:text-[72px] text-white font-sans font-black leading-[0.95] tracking-tight text-left"
                 >
                   Compliance
                 </motion.span>
@@ -157,7 +117,7 @@ export default function Hero() {
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
                   variants={wordVars}
-                  className="inline-block text-[38px] sm:text-[50px] md:text-[68px] lg:text-[84px] text-[#c9a961] font-sans font-black leading-[0.95] uppercase tracking-tighter text-left"
+                  className="inline-block text-[32px] sm:text-[42px] md:text-[56px] lg:text-[72px] text-[#c9a961] font-sans font-black leading-[0.95] tracking-tight text-left"
                 >
                   To Excellence
                 </motion.span>
@@ -167,9 +127,9 @@ export default function Hero() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1.2, duration: 0.8 }}
-              className="text-[16px] sm:text-[18px] md:text-[22px] lg:text-[24px] text-white/90 font-bold tracking-tight text-left leading-snug max-w-2xl border-l-2 border-[#c9a961] pl-6 py-2"
+              className="text-[14px] sm:text-[16px] md:text-[18px] lg:text-[20px] text-white/90 font-medium tracking-tight text-left leading-snug max-w-2xl border-l-2 border-[#c9a961] pl-6 py-1"
             >
-              Building academic systems that stand up to scrutiny and improve with time.
+              Building Academic Systems That Stand Up To Scrutiny And Improve With Time.
             </motion.p>
           </motion.div>
         </div>
@@ -180,61 +140,6 @@ export default function Hero() {
         {/* Deep Golden Glow */}
         <div className="absolute bottom-0 left-0 w-full h-48 bg-gradient-to-t from-[#c9a961]/50 via-[#c9a961]/10 to-transparent" />
         
-        {/* Animated Sparkles along the curve */}
-        <div className="absolute bottom-0 left-0 w-full h-[180px] overflow-hidden">
-          {mounted && sparkles.map((s, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-[#c9a961] rounded-full"
-              initial={{ 
-                x: s.x, 
-                y: "100%",
-                opacity: 0,
-                scale: 0 
-              }}
-              animate={{ 
-                y: [null, `${40 + Math.random() * 40}%`, "100%"],
-                opacity: [0, 1, 0],
-                scale: [0, 1, 0.5],
-              }}
-              transition={{ 
-                duration: s.dur, 
-                repeat: Infinity,
-                delay: s.delay,
-                ease: "easeInOut"
-              }}
-              style={{
-                filter: 'blur(1px) drop-shadow(0 0 4px #c9a961)',
-              }}
-            />
-          ))}
-          {mounted && stars.map((s, i) => (
-            <motion.div
-              key={`star-${i}`}
-              className="absolute text-[#c9a961]"
-              initial={{ 
-                x: s.x, 
-                y: s.y,
-                opacity: 0,
-                scale: 0
-              }}
-              animate={{ 
-                opacity: [0, 0.8, 0],
-                scale: [0, 1, 0],
-                rotate: [0, 180, 360]
-              }}
-              transition={{ 
-                duration: s.dur, 
-                repeat: Infinity,
-                delay: s.delay,
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0l3.09 8.91H24l-7.35 5.35 2.81 8.74L12 17.65l-7.46 5.35 2.81-8.74L0 8.91h8.91L12 0z" />
-              </svg>
-            </motion.div>
-          ))}
-        </div>
 
         <div className="relative h-[180px] md:h-[220px] w-full">
           <svg 

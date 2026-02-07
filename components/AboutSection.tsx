@@ -14,10 +14,10 @@ const SectionHeader = ({ title, subtitle }: { title: string; subtitle?: string }
       className="flex items-center space-x-3 mb-4"
     >
       <div className="h-1 w-12 bg-primary-gold" />
-      <span className="text-primary-gold text-xs font-black uppercase tracking-[0.3em]">{title}</span>
+      <span className="text-primary-gold text-xs font-black tracking-[0.3em]">{title}</span>
     </motion.div>
     {subtitle && (
-      <h3 className="text-2xl md:text-3xl text-white font-black leading-tight uppercase tracking-tighter">
+      <h3 className="text-2xl md:text-3xl text-black font-black leading-tight tracking-tighter">
         {subtitle}
       </h3>
     )}
@@ -35,11 +35,11 @@ const FeatureCard = ({ icon: Icon, title, items }: { icon: any; title: string; i
       <div className="p-3 bg-primary-gold/10 rounded-2xl group-hover:bg-primary-gold/20 transition-colors">
         <Icon className="h-6 w-6 text-primary-gold" />
       </div>
-      <h4 className="text-white font-black uppercase tracking-tight text-lg">{title}</h4>
+      <h4 className="text-black font-black tracking-tight text-lg">{title}</h4>
     </div>
-    <ul className="space-y-3">
+    <ul className="space-y-2">
       {items.map((item, idx) => (
-        <li key={idx} className="flex items-start space-x-3 text-sm text-gray-400 group-hover:text-gray-200 transition-colors">
+        <li key={idx} className="flex items-start space-x-3 text-sm text-gray-600 group-hover:text-black transition-colors">
           <div className="h-1 w-1 bg-primary-gold/50 rounded-full mt-2" />
           <span>{item}</span>
         </li>
@@ -58,7 +58,7 @@ export default function AboutSection() {
   const titleUnderline = useTransform(scrollYProgress, [0.1, 0.3], [0, 100]);
 
   return (
-    <section ref={sectionRef} id="about" className="pt-0 pb-24 md:pb-32 relative overflow-hidden bg-black">
+    <section ref={sectionRef} id="about" className="pt-0 pb-16 md:pb-20 relative overflow-hidden bg-white">
       {/* Background Media */}
       <motion.div 
         style={{ scale: useTransform(scrollYProgress, [0, 1], [1, 1.1]) }}
@@ -70,8 +70,8 @@ export default function AboutSection() {
           fill
           className="object-cover opacity-90 brightness-[0.8]"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black z-10" />
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] z-20" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-transparent to-white z-10" />
+        <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-20" />
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-30">
@@ -84,18 +84,18 @@ export default function AboutSection() {
             viewport={{ once: true }}
             className="text-center"
           >
-            <h2 className="text-[32px] md:text-[52px] text-white font-black relative pb-6 mb-8 uppercase tracking-tighter inline-block mx-auto">
+            <h2 className="text-[32px] md:text-[52px] text-black font-black relative pb-4 mb-6 tracking-tighter inline-block mx-auto">
               About Us
               <motion.div 
                 style={{ width: `${titleUnderline}%` }}
                 className="absolute bottom-0 left-1/2 -translate-x-1/2 h-2 bg-primary-gold rounded-full shadow-[0_0_20px_rgba(201,169,97,0.8)]"
               />
             </h2>
-            <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto font-bold leading-relaxed mb-6 italic">
-              "C2E (Compliance to Excellence) is a focused academic transformation firm that helps higher-education institutions build Outcome Based Education (OBE) systems from first principles."
+            <p className="text-xl md:text-2xl text-gray-800 max-w-4xl mx-auto font-bold leading-relaxed mb-4">
+              "C2E (Compliance To Excellence) Is A Focused Academic Transformation Firm That Helps Higher-Education Institutions Build Outcome Based Education (OBE) Systems From First Principles."
             </p>
-            <p className="text-lg text-gray-400 max-w-3xl mx-auto leading-relaxed">
-              We enable institutions to move beyond regulatory checklists and establish robust, measurable, and sustainable academic outcome frameworks aligned with national and international accreditation standards.
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              We Enable Institutions To Move Beyond Regulatory Checklists And Establish Robust, Measurable, And Sustainable Academic Outcome Frameworks Aligned With National And International Accreditation Standards.
             </p>
           </motion.div>
         </div>
@@ -111,12 +111,12 @@ export default function AboutSection() {
           >
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
               <div className="space-y-2">
-                <span className="text-gray-500 uppercase font-black text-xs tracking-widest">Principles</span>
-                <p className="text-white text-2xl font-black italic">"Compliance ensures eligibility. Excellence demands systems."</p>
+                <span className="text-gray-500 font-black text-xs tracking-widest">Principles</span>
+                <p className="text-black text-2xl font-black">"Compliance Ensures Eligibility. Excellence Demands Systems."</p>
               </div>
               <div className="h-px md:h-24 w-full md:w-px bg-primary-gold/30" />
-              <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
-                At C2E, we believe OBE is not a document or a one-time exercise—it is a governance framework. We ensure outcomes are clearly defined, objectively measured, and continuously improved.
+              <p className="text-gray-600 text-sm leading-relaxed max-w-xs">
+                At C2E, We Believe OBE Is Not A Document Or A One-Time Exercise—It Is A Governance Framework. We Ensure Outcomes Are Clearly Defined, Objectively Measured, And Continuously Improved.
               </p>
             </div>
           </motion.div>
@@ -147,8 +147,8 @@ export default function AboutSection() {
               items={["CQI systems", "Scalable ecosystems", "Systemic academic resets"]} 
             />
           </div>
-          <p className="mt-8 text-primary-gold/60 text-xs font-black uppercase tracking-widest text-center">
-            Each engagement results in a coherent, auditable, and scalable OBE ecosystem.
+          <p className="mt-8 text-primary-gold/80 text-xs font-black tracking-widest text-center">
+            Each Engagement Results In A Coherent, Auditable, And Scalable OBE Ecosystem.
           </p>
         </div>
 
@@ -170,13 +170,13 @@ export default function AboutSection() {
                 viewport={{ once: true, amount: 0.3 }}
                 className="bg-white/5 p-8 rounded-2xl border border-white/10 text-center group hover:bg-primary-gold transition-all duration-500"
               >
-                <div className="text-primary-gold group-hover:text-white font-black text-xl mb-1 uppercase tracking-tighter">{step.label}</div>
-                <div className="text-gray-500 group-hover:text-white/80 text-[10px] uppercase font-bold tracking-widest">{step.sub}</div>
+                <div className="text-primary-gold group-hover:text-white font-black text-xl mb-1 tracking-tighter">{step.label}</div>
+                <div className="text-gray-500 group-hover:text-white/80 text-[10px] font-bold tracking-widest">{step.sub}</div>
               </motion.div>
             ))}
           </div>
-          <p className="mt-12 text-center text-gray-400 max-w-2xl mx-auto italic">
-            We work closely with institutional leadership and faculty teams to ensure OBE becomes embedded practice, not external dependency.
+          <p className="mt-8 text-center text-gray-600 max-w-2xl mx-auto">
+            We Work Closely With Institutional Leadership And Faculty Teams To Ensure OBE Becomes Embedded Practice, Not External Dependency.
           </p>
         </div>
 
@@ -185,7 +185,7 @@ export default function AboutSection() {
           <div className="bg-white/5 backdrop-blur-md rounded-[2.5rem] p-10 border border-white/10">
             <div className="flex items-center space-x-4 mb-8">
               <Cpu className="text-primary-gold h-8 w-8" />
-              <h3 className="text-white text-2xl font-black uppercase tracking-tight">Digital Enablement</h3>
+              <h3 className="text-black text-2xl font-black tracking-tight">Digital Enablement</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
@@ -195,14 +195,14 @@ export default function AboutSection() {
                 "Actionable outcome analytics",
                 "Long-term CQI tracking"
               ].map((item, i) => (
-                <div key={i} className="flex items-center space-x-3 text-sm text-gray-300">
+                <div key={i} className="flex items-center space-x-3 text-sm text-slate-700">
                   <div className="h-1.5 w-1.5 bg-primary-gold rounded-full" />
                   <span>{item}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-8 text-gray-500 text-xs uppercase font-black tracking-widest border-t border-white/5 pt-6">
-              Technology is used to simplify adoption, not increase complexity.
+            <p className="mt-8 text-gray-500 text-xs font-black tracking-widest border-t border-gray-200 pt-6">
+              Technology Is Used To Simplify Adoption, Not Increase Complexity.
             </p>
           </div>
 
@@ -210,25 +210,17 @@ export default function AboutSection() {
             <div>
               <div className="flex items-center space-x-4 mb-8">
                 <Users className="text-primary-gold h-8 w-8" />
-                <h3 className="text-white text-2xl font-black uppercase tracking-tight">Who We Work With</h3>
+                <h3 className="text-black text-2xl font-black tracking-tight">Who We Work With</h3>
               </div>
               <div className="flex flex-wrap gap-3">
-                {[
-                  "Engineering Institutions",
-                  "Autonomous Colleges",
-                  "Deemed-to-be Universities",
-                  "Universities",
-                  "Professional Institutions"
-                ].map((tag, i) => (
-                  <span key={i} className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs font-black text-gray-300 uppercase tracking-widest">
-                    {tag}
-                  </span>
-                ))}
+                <span className="px-4 py-2 bg-primary-gold/10 border border-primary-gold/20 rounded-full text-xs font-black text-primary-gold tracking-widest">
+                  Higher Educational Institutions
+                </span>
               </div>
             </div>
             <div className="mt-12 space-y-4">
               <div className="h-px bg-primary-gold/20 w-full" />
-              <p className="text-sm text-primary-gold/80 font-bold uppercase tracking-[0.2em]">Our Vision</p>
+              <p className="text-sm text-primary-gold/80 font-bold tracking-[0.2em]">Our Vision</p>
               <p className="text-white text-lg font-black leading-snug">
                 To be a trusted partner in academic quality transformation, enabling institutions to evolve from input-based instruction to outcome-driven education.
               </p>
@@ -245,12 +237,12 @@ export default function AboutSection() {
         >
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary-gold/20 blur-[120px] rounded-full -z-10" />
           <Quote className="h-16 w-16 text-primary-gold/20 mx-auto mb-8 transform -scale-x-100" />
-          <h2 className="text-4xl md:text-6xl text-white font-black uppercase tracking-tighter mb-4">Our Promise</h2>
-          <div className="space-y-2 mb-12">
-            <p className="text-xl md:text-2xl text-gray-400 font-bold italic">Compliance is necessary.</p>
-            <p className="text-xl md:text-2xl text-primary-gold font-black uppercase tracking-widest italic">Excellence is deliberate.</p>
+          <h2 className="text-4xl md:text-5xl text-black font-black tracking-tighter mb-4">Our Promise</h2>
+          <div className="space-y-2 mb-8">
+            <p className="text-xl md:text-2xl text-gray-500 font-bold">Compliance Is Necessary.</p>
+            <p className="text-xl md:text-2xl text-primary-gold font-black tracking-widest">Excellence Is Deliberate.</p>
           </div>
-          <p className="text-3xl md:text-4xl text-white font-black uppercase tracking-tight">C2E enables the transition.</p>
+          <p className="text-3xl md:text-4xl text-black font-black tracking-tight">C2E Enables The Transition.</p>
         </motion.div>
       </div>
     </section>

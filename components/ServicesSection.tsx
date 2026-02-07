@@ -33,34 +33,46 @@ const services = [
 
 export default function ServicesSection() {
   return (
-    <section id="services" className="py-24 md:py-32 relative overflow-hidden bg-black">
-      {/* Background Media */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src="/images/abou_us_3.png"
-          alt="Services Background"
-          fill
-          className="object-cover opacity-30 md:opacity-40 brightness-[0.5] scale-110"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black z-10" />
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[4px] z-20" />
-      </div>
+    <section id="services" className="py-24 md:py-32 relative overflow-hidden bg-white">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-gold/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary-gold/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-30">
-        <div className="text-center mb-16 md:mb-20">
-          <motion.h2 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
+          <div className="max-w-2xl">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="flex items-center space-x-3 mb-6"
+            >
+              <div className="h-0.5 w-12 bg-primary-gold" />
+              <span className="text-primary-gold text-xs font-black tracking-[0.4em] uppercase">Core Expertise</span>
+            </motion.div>
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              className="text-4xl md:text-6xl text-black font-black tracking-tighter leading-[0.9]"
+            >
+              Our Strategic <br />
+              <span className="text-primary-gold">Solutions</span>
+            </motion.h2>
+          </div>
+          <motion.p 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
             viewport={{ once: true }}
-            className="text-[32px] md:text-[52px] text-white font-black mb-6 uppercase tracking-tighter"
+            className="text-lg text-slate-500 max-w-sm font-medium tracking-tight leading-relaxed"
           >
-            Our Services
-            <div className="h-1.5 w-32 bg-primary-gold mx-auto mt-4 rounded-full shadow-[0_0_20px_rgba(201,169,97,0.8)]" />
-          </motion.h2>
+            Engineering excellence in educational compliance and quality transformation through data-driven strategies.
+          </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
           {services.map((service, index) => (
             <motion.div
               key={index}
@@ -68,26 +80,27 @@ export default function ServicesSection() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1, duration: 0.6 }}
               viewport={{ once: true }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="group relative backdrop-blur-xl bg-white/5 border border-white/10 p-8 md:p-10 rounded-[2.5rem] overflow-hidden transition-all duration-500 hover:bg-white/10 hover:border-primary-gold/40 shadow-2xl hover:shadow-primary-gold/5"
+              className="group relative flex flex-col sm:flex-row items-start gap-6 p-8 rounded-3xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-primary-gold/30 hover:shadow-2xl hover:shadow-primary-gold/10 transition-all duration-500"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${service.color} opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
-              
-              <div className="relative z-10 flex flex-col h-full">
-                <div className="relative h-16 w-16 md:h-20 md:w-20 mb-6 md:mb-8 mx-auto">
-                    <div className="absolute inset-0 bg-primary-gold rounded-full blur-xl opacity-0 group-hover:opacity-40 transition-opacity" />
-                    <div className="h-full w-full bg-white/5 rounded-2xl flex items-center justify-center ring-1 ring-white/10 group-hover:ring-primary-gold/50 transition-all duration-700 group-hover:bg-primary-gold">
-                        <service.icon className="h-8 w-8 md:h-10 md:w-10 text-primary-gold group-hover:text-white transition-colors duration-500" />
-                    </div>
+              <div className="relative shrink-0">
+                <div className="h-16 w-16 rounded-2xl bg-white shadow-sm flex items-center justify-center group-hover:bg-primary-gold transition-colors duration-500">
+                  <service.icon className="h-8 w-8 text-primary-gold group-hover:text-white transition-colors duration-500" />
                 </div>
+                <div className="absolute -top-3 -left-3 h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:text-primary-gold/50 transition-colors">
+                  0{index + 1}
+                </div>
+              </div>
 
-                <h3 className="text-lg md:text-xl font-black text-white mb-4 text-center group-hover:text-primary-gold transition-colors uppercase tracking-tight">{service.title}</h3>
-                <p className="text-xs md:text-[13px] font-medium text-gray-400 leading-relaxed text-center group-hover:text-gray-200 transition-colors uppercase tracking-wide">
+              <div className="flex-1">
+                <h3 className="text-2xl font-black text-black mb-3 tracking-tight group-hover:text-primary-gold transition-colors">
+                  {service.title}
+                </h3>
+                <p className="text-slate-600 font-medium leading-relaxed mb-6">
                   {service.description}
                 </p>
-
-                <div className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity text-center">
-                    <span className="text-[10px] font-black text-primary-gold uppercase tracking-[0.3em] cursor-pointer hover:underline decoration-primary-gold decoration-2 underline-offset-4">Explore Service +</span>
+                <div className="flex items-center text-xs font-black tracking-widest text-primary-gold uppercase group-hover:gap-4 transition-all duration-300 gap-2">
+                  <span>Explore Service</span>
+                  <div className="h-px w-8 bg-primary-gold/30 group-hover:w-12 transition-all" />
                 </div>
               </div>
             </motion.div>
