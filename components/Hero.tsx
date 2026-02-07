@@ -107,7 +107,7 @@ export default function Hero() {
   };
 
   return (
-    <section ref={containerRef} className="relative h-[95vh] min-h-[850px] flex items-center overflow-hidden bg-primary-dark pt-16 pb-48">
+    <section ref={containerRef} id="hero" className="relative h-[95vh] min-h-[850px] flex items-center overflow-hidden bg-primary-dark pt-16 pb-48">
       {/* Background Image with Parallax */}
       <div ref={bgRef} className="absolute inset-0 z-0 scale-100">
         <Image
@@ -119,6 +119,22 @@ export default function Hero() {
         />
       </div>
 
+      {/* Logo Integration - Top Left Corner */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: -20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+        className="absolute top-[15px] left-6 sm:left-12 lg:left-20 z-30"
+      >
+        <Image 
+          src="/logo.svg" 
+          alt="C2E Logo" 
+          width={100} 
+          height={100} 
+          className="w-16 md:w-20 lg:w-24 h-auto drop-shadow-[0_0_20px_rgba(201,169,97,0.4)] brightness-110"
+        />
+      </motion.div>
+
       {/* Content */}
       <div className="relative z-20 max-w-full mx-0 px-6 sm:px-12 lg:px-20 w-full h-full flex flex-col justify-start pt-32 sm:pt-40 lg:pt-48">
         <div className="flex flex-col items-start text-left w-full">
@@ -128,6 +144,7 @@ export default function Hero() {
             animate="visible"
             className="space-y-6 md:space-y-8 w-full max-w-full sm:max-w-4xl flex flex-col items-start"
           >
+
             <h1 className="flex flex-col gap-y-2 md:gap-y-4 text-left items-start w-full">
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
@@ -152,7 +169,7 @@ export default function Hero() {
               transition={{ delay: 1.2, duration: 0.8 }}
               className="text-[16px] sm:text-[18px] md:text-[22px] lg:text-[24px] text-white/90 font-bold tracking-tight text-left leading-snug max-w-2xl border-l-2 border-[#c9a961] pl-6 py-2"
             >
-              Building academic systems that stand up to scrutiny—and improve with time.
+              Building academic systems that stand up to scrutiny and improve with time.
             </motion.p>
           </motion.div>
         </div>

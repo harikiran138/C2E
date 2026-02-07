@@ -9,13 +9,41 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [activeSection, setActiveSection] = useState("Exploring");
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
     };
+
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -70% 0px",
+      threshold: 0
+    };
+
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          const name = id === "hero" ? "Overview" : id.charAt(0).toUpperCase() + id.slice(1);
+          setActiveSection(name);
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions);
+    const sections = ["hero", "about", "services"];
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      observer.disconnect();
+    };
   }, []);
 
   const navLinks = [
@@ -33,13 +61,20 @@ export default function Navbar() {
       onMouseLeave={() => setIsHovered(false)}
     >
       <motion.div 
+        layout
         animate={{
-          width: isCollapsed ? "120px" : "auto",
+          width: isCollapsed ? "200px" : "auto",
           paddingLeft: isCollapsed ? "0px" : "24px",
           paddingRight: isCollapsed ? "0px" : "24px",
         }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`mx-auto flex items-center justify-center h-[56px] rounded-[2rem] border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] backdrop-blur-xl transition-all duration-500 ${
+        transition={{ 
+          type: "spring", 
+          stiffness: 150, 
+          damping: 22,
+          mass: 1.2,
+          layout: { duration: 0.5, ease: "circOut" }
+        }}
+        className={`mx-auto flex items-center justify-center h-[56px] rounded-[2rem] border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] backdrop-blur-xl transition-colors duration-500 ${
           scrolled ? "bg-black/40" : "bg-white/5"
         }`}
       >
@@ -48,20 +83,21 @@ export default function Navbar() {
             {isCollapsed ? (
               <motion.div
                 key="menu-label"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex items-center space-x-2 text-white/80"
+                initial={{ opacity: 0, scale: 0.9, y: 5 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -5 }}
+                className="flex items-center justify-center space-x-2 text-white/90"
               >
-                <Menu size={18} className="text-primary-gold" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Menu</span>
+                <span className="text-[11px] font-black uppercase tracking-[0.3em] whitespace-nowrap">
+                  {activeSection}
+                </span>
               </motion.div>
             ) : (
               <motion.div
                 key="nav-links"
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                exit={{ opacity: 0, scale: 0.98 }}
                 className="flex items-center"
               >
                 {/* Links (Desktop) */}
@@ -70,7 +106,7 @@ export default function Navbar() {
                     <Link
                       key={link.name}
                       href={link.href}
-                      className="text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative group text-white hover:text-primary-gold"
+                      className="text-[12px] font-black uppercase tracking-[0.2em] transition-colors relative group text-white hover:text-primary-gold"
                     >
                       {link.name}
                     </Link>
