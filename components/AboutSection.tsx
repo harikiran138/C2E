@@ -1,50 +1,52 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
-import { CheckCircle2, Quote } from "lucide-react";
-import { useRef, useState } from "react";
+import { CheckCircle2, Quote, Sparkles, Target, Zap, Shield, Cpu, Users } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
 
-const BenefitCard = ({ children, index }: { children: React.ReactNode; index: number }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [rotate, setRotate] = useState({ x: 0, y: 0 });
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!cardRef.current) return;
-    const { left, top, width, height } = cardRef.current.getBoundingClientRect();
-    const x = (e.clientX - left) / width;
-    const y = (e.clientY - top) / height;
-    setRotate({ x: (y - 0.5) * 15, y: (x - 0.5) * -15 });
-  };
-
-  return (
+const SectionHeader = ({ title, subtitle }: { title: string; subtitle?: string }) => (
+  <div className="mb-12">
     <motion.div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setRotate({ x: 0, y: 0 })}
-      animate={{ rotateX: rotate.x, rotateY: rotate.y }}
-      transition={{ type: "spring", stiffness: 100, damping: 15 }}
-      initial={{ opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, x: -20 }}
+      whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true }}
-      className="relative flex items-start space-x-4 p-6 bg-white/5 backdrop-blur-md rounded-2xl shadow-sm border border-white/10 hover:shadow-2xl hover:border-primary-gold/40 hover:bg-white/10 transition-all duration-300 group"
+      className="flex items-center space-x-3 mb-4"
     >
-      <div className="flex-shrink-0 mt-1">
-        <motion.div
-          initial={{ scale: 0, rotate: -45 }}
-          whileInView={{ scale: 1, rotate: 0 }}
-          transition={{ delay: 0.2 + (index * 0.1), type: "spring" }}
-          viewport={{ once: true }}
-        >
-          <CheckCircle2 className="h-6 w-6 text-primary-gold" />
-        </motion.div>
-      </div>
-      <p className="text-sm font-bold text-gray-300 leading-relaxed uppercase tracking-tight group-hover:text-white transition-colors duration-300">
-        {children}
-      </p>
+      <div className="h-1 w-12 bg-primary-gold" />
+      <span className="text-primary-gold text-xs font-black uppercase tracking-[0.3em]">{title}</span>
     </motion.div>
-  );
-};
+    {subtitle && (
+      <h3 className="text-2xl md:text-3xl text-white font-black leading-tight uppercase tracking-tighter">
+        {subtitle}
+      </h3>
+    )}
+  </div>
+);
+
+const FeatureCard = ({ icon: Icon, title, items }: { icon: any; title: string; items: string[] }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 30 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    className="bg-white/5 backdrop-blur-md border border-white/10 p-8 rounded-3xl hover:bg-white/10 hover:border-primary-gold/30 transition-all duration-500 group"
+  >
+    <div className="flex items-center space-x-4 mb-6">
+      <div className="p-3 bg-primary-gold/10 rounded-2xl group-hover:bg-primary-gold/20 transition-colors">
+        <Icon className="h-6 w-6 text-primary-gold" />
+      </div>
+      <h4 className="text-white font-black uppercase tracking-tight text-lg">{title}</h4>
+    </div>
+    <ul className="space-y-3">
+      {items.map((item, idx) => (
+        <li key={idx} className="flex items-start space-x-3 text-sm text-gray-400 group-hover:text-gray-200 transition-colors">
+          <div className="h-1 w-1 bg-primary-gold/50 rounded-full mt-2" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  </motion.div>
+);
 
 export default function AboutSection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -56,103 +58,198 @@ export default function AboutSection() {
   const titleUnderline = useTransform(scrollYProgress, [0.1, 0.3], [0, 100]);
 
   return (
-    <section ref={sectionRef} id="about" className="pt-12 pb-24 md:pt-16 md:pb-32 relative overflow-hidden bg-black">
-      {/* Dual-Image Background Stack */}
-      <div className="absolute inset-0 z-0 bg-black">
-        {/* Main Background (Scrolls with section) */}
+    <section ref={sectionRef} id="about" className="pt-0 pb-24 md:pb-32 relative overflow-hidden bg-black">
+      {/* Background Media */}
+      <div className="absolute inset-0 z-0">
         <Image
-          src="/images/about_us.jpeg"
+          src="/images/about_us_2.jpeg"
           alt="About Us Background"
           fill
-          className="object-cover opacity-60 md:opacity-75 grayscale brightness-[0.6]"
+          className="object-cover opacity-80 brightness-[0.7]"
         />
-
-        {/* Blend from Hero Curve (Black) into Top Image */}
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-black to-transparent z-20" />
-        {/* Fade transition at the bottom */}
-        <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-black via-transparent to-transparent z-20" />
-
-        {/* Unified Glass Overlay */}
-        <div className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[1px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black z-10" />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-20" />
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.98 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.2, ease: "easeOut" }}
-        viewport={{ once: true, margin: "-100px" }}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10"
-      >
-        <div className="text-center mb-10 md:mb-16 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-30">
+        {/* Intro Header */}
+        <div className="mb-24 pt-12 md:pt-16">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="inline-block"
+            className="text-center"
           >
-            <h2 className="text-[32px] md:text-[42px] text-white font-black relative pb-6 mb-4">
-              About C2E
+            <h2 className="text-[32px] md:text-[52px] text-white font-black relative pb-6 mb-8 uppercase tracking-tighter inline-block mx-auto">
+              About Us
               <motion.div 
                 style={{ width: `${titleUnderline}%` }}
-                className="absolute bottom-0 left-0 h-1.5 bg-primary-gold rounded-full shadow-[0_0_15px_rgba(201,169,97,0.6)]"
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 h-2 bg-primary-gold rounded-full shadow-[0_0_20px_rgba(201,169,97,0.8)]"
               />
             </h2>
+            <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto font-bold leading-relaxed mb-6 italic">
+              "C2E (Compliance to Excellence) is a focused academic transformation firm that helps higher-education institutions build Outcome Based Education (OBE) systems from first principles."
+            </p>
+            <p className="text-lg text-gray-400 max-w-3xl mx-auto leading-relaxed">
+              We enable institutions to move beyond regulatory checklists and establish robust, measurable, and sustainable academic outcome frameworks aligned with national and international accreditation standards.
+            </p>
           </motion.div>
-          <motion.p
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 1 }}
+        </div>
+
+        {/* Belief System */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
+          <SectionHeader title="What We Believe" subtitle="OBE is a governance framework for academic quality." />
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-base md:text-lg text-gray-300 max-w-3xl mx-auto leading-relaxed font-bold italic drop-shadow-lg"
+            className="md:col-span-2 bg-primary-gold/5 border border-primary-gold/20 p-8 md:p-12 rounded-[2rem] flex flex-col justify-center"
           >
-            "We are committed to handholding higher Education Institutions (HEIs) in achieving prescribed standards, setting meaningful benchmarks in academic excellence."
-          </motion.p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-10 md:mb-16">
-          {[
-            "Through robust quality systems, structured processes, and proven best practices we ensure institutions meet all statutory and regulatory requirements effectively.",
-            "Our focus remains on embedding clarity of purpose, continuous improvement, and systemic resets reaching into every academic activity.",
-            "Beyond compliance, we promote a culture of excellence centered around Outcomes-Based Education (OBE).",
-            "Committing institutions to thinking strong Institutional Development Plans in the long run."
-          ].map((text, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              viewport={{ once: true }}
-              className="backdrop-blur-md bg-white/5 border border-white/10 p-5 md:p-6 rounded-2xl shadow-xl hover:bg-white/10 hover:border-primary-gold/30 transition-all duration-300 group"
-            >
-              <div className="flex items-start space-x-4">
-                <CheckCircle2 className="h-5 w-5 text-primary-gold flex-shrink-0 mt-0.5" />
-                <p className="text-xs md:text-[13px] font-black text-white leading-relaxed uppercase tracking-tight group-hover:text-primary-gold transition-colors duration-300">
-                  {text}
-                </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+              <div className="space-y-2">
+                <span className="text-gray-500 uppercase font-black text-xs tracking-widest">Principles</span>
+                <p className="text-white text-2xl font-black italic">"Compliance ensures eligibility. Excellence demands systems."</p>
               </div>
-            </motion.div>
-          ))}
+              <div className="h-px md:h-24 w-full md:w-px bg-primary-gold/30" />
+              <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
+                At C2E, we believe OBE is not a document or a one-time exercise—it is a governance framework. We ensure outcomes are clearly defined, objectively measured, and continuously improved.
+              </p>
+            </div>
+          </motion.div>
         </div>
 
-        {/* Quote Section with Reveal */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-          viewport={{ once: true }}
-          className="relative p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] overflow-hidden group shadow-2xl backdrop-blur-xl bg-white/5 border border-white/10"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-gold/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-          
-          <div className="relative z-10 text-center space-y-6">
-            <Quote className="h-10 md:h-14 w-10 md:w-14 text-primary-gold/30 mx-auto transform -scale-x-100" />
-            <p className="text-lg md:text-xl font-serif italic text-gray-200 max-w-4xl mx-auto leading-snug drop-shadow-lg">
-              This initiative promotes the core values of <span className="text-primary-gold font-black not-italic">OBE</span> to enhance employability, nurture <span className="text-primary-gold font-black not-italic">OBE</span> Monks, and build champions for a better teaching- and learning ecosystem.
+        {/* What We Do */}
+        <div className="mb-24">
+          <SectionHeader title="What We Do" subtitle="End-to-end institutionalization of OBE frameworks." />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FeatureCard 
+              icon={Target} 
+              title="Strategic Alignment" 
+              items={["Vision and Mission alignment", "PEOs, POs, and PSOs", "Institutional Development Plans"]} 
+            />
+            <FeatureCard 
+              icon={Zap} 
+              title="Academic Logic" 
+              items={["Bloom's Taxonomy COs", "CO–PO–PSO mapping logic", "Outcome-Based Evaluation"]} 
+            />
+            <FeatureCard 
+              icon={Shield} 
+              title="Quality Control" 
+              items={["Assessment & attainment", "Rubrics & evaluation", "Audit-ready ecosystems"]} 
+            />
+            <FeatureCard 
+              icon={Sparkles} 
+              title="Continuous Growth" 
+              items={["CQI systems", "Scalable ecosystems", "Systemic academic resets"]} 
+            />
+          </div>
+          <p className="mt-8 text-primary-gold/60 text-xs font-black uppercase tracking-widest text-center">
+            Each engagement results in a coherent, auditable, and scalable OBE ecosystem.
+          </p>
+        </div>
+
+        {/* Our Approach */}
+        <div className="mb-24">
+          <SectionHeader title="Our Approach" subtitle="Clarity. Structure. Sustainability." />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+            {[
+              { label: "Design", sub: "Precedes documentation" },
+              { label: "Logic", sub: "Precedes mapping" },
+              { label: "Measurement", sub: "Precedes improvement" },
+              { label: "Ownership", sub: "Precedes compliance" }
+            ].map((step, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.1 }}
+                viewport={{ once: true }}
+                className="bg-white/5 p-6 rounded-2xl border border-white/10 text-center group hover:bg-primary-gold transition-all duration-500"
+              >
+                <div className="text-primary-gold group-hover:text-white font-black text-xl mb-1 uppercase tracking-tighter">{step.label}</div>
+                <div className="text-gray-500 group-hover:text-white/80 text-[10px] uppercase font-bold tracking-widest">{step.sub}</div>
+              </motion.div>
+            ))}
+          </div>
+          <p className="mt-12 text-center text-gray-400 max-w-2xl mx-auto italic">
+            We work closely with institutional leadership and faculty teams to ensure OBE becomes embedded practice, not external dependency.
+          </p>
+        </div>
+
+        {/* Digital Enablement & Partners */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
+          <div className="bg-white/5 backdrop-blur-md rounded-[2.5rem] p-10 border border-white/10">
+            <div className="flex items-center space-x-4 mb-8">
+              <Cpu className="text-primary-gold h-8 w-8" />
+              <h3 className="text-white text-2xl font-black uppercase tracking-tight">Digital Enablement</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                "Consistent faculty workflows",
+                "Reliable attainment computation",
+                "Evidence-ready repositories",
+                "Actionable outcome analytics",
+                "Long-term CQI tracking"
+              ].map((item, i) => (
+                <div key={i} className="flex items-center space-x-3 text-sm text-gray-300">
+                  <div className="h-1.5 w-1.5 bg-primary-gold rounded-full" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-8 text-gray-500 text-xs uppercase font-black tracking-widest border-t border-white/5 pt-6">
+              Technology is used to simplify adoption, not increase complexity.
             </p>
           </div>
+
+          <div className="bg-primary-gold/5 rounded-[2.5rem] p-10 border border-primary-gold/20 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center space-x-4 mb-8">
+                <Users className="text-primary-gold h-8 w-8" />
+                <h3 className="text-white text-2xl font-black uppercase tracking-tight">Who We Work With</h3>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  "Engineering Institutions",
+                  "Autonomous Colleges",
+                  "Deemed-to-be Universities",
+                  "Universities",
+                  "Professional Institutions"
+                ].map((tag, i) => (
+                  <span key={i} className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs font-black text-gray-300 uppercase tracking-widest">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="mt-12 space-y-4">
+              <div className="h-px bg-primary-gold/20 w-full" />
+              <p className="text-sm text-primary-gold/80 font-bold uppercase tracking-[0.2em]">Our Vision</p>
+              <p className="text-white text-lg font-black leading-snug">
+                To be a trusted partner in academic quality transformation, enabling institutions to evolve from input-based instruction to outcome-driven education.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Final Promise */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="relative py-24 px-8 text-center"
+        >
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary-gold/20 blur-[120px] rounded-full -z-10" />
+          <Quote className="h-16 w-16 text-primary-gold/20 mx-auto mb-8 transform -scale-x-100" />
+          <h2 className="text-4xl md:text-6xl text-white font-black uppercase tracking-tighter mb-4">Our Promise</h2>
+          <div className="space-y-2 mb-12">
+            <p className="text-xl md:text-2xl text-gray-400 font-bold italic">Compliance is necessary.</p>
+            <p className="text-xl md:text-2xl text-primary-gold font-black uppercase tracking-widest italic">Excellence is deliberate.</p>
+          </div>
+          <p className="text-3xl md:text-4xl text-white font-black uppercase tracking-tight">C2E enables the transition.</p>
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   );
 }

@@ -8,6 +8,7 @@ import { Menu, X } from "lucide-react";
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,108 +24,120 @@ export default function Navbar() {
     { name: "Services", href: "/#services" },
   ];
 
+  const isCollapsed = scrolled && !isHovered;
+
   return (
-    <nav
-      className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${
-        scrolled ? "glass-nav py-2" : "bg-transparent py-4"
-      }`}
+    <nav 
+      className="fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-500"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center">
-          {/* Logo & Navigation */}
-          <div className="flex items-center space-x-12">
-            <Link href="/" className="relative group flex flex-col items-center">
-              <span className={`text-2xl font-black tracking-tighter transition-colors text-white`}>
-                C2E
-              </span>
-              <div className="w-full h-1.5 bg-primary-gold rounded-full -mt-1 scale-x-110" style={{ borderRadius: '0 0 100% 100%' }} />
-            </Link>
-
-            {/* Links (Desktop) */}
-            <div className="hidden md:flex items-center space-x-10">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className={`text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative group text-white hover:text-primary-gold`}
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Login Button (Desktop) */}
-          <div className="hidden md:block">
-            <Link href="/login">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`px-8 py-3 rounded-full font-black uppercase tracking-widest text-xs shadow-xl transition-all duration-500 ${
-                  scrolled
-                    ? "bg-primary-dark text-white hover:bg-primary-gold"
-                    : "bg-white text-primary-dark hover:bg-primary-gold hover:text-white"
-                }`}
+      <motion.div 
+        animate={{
+          width: isCollapsed ? "120px" : "auto",
+          paddingLeft: isCollapsed ? "0px" : "24px",
+          paddingRight: isCollapsed ? "0px" : "24px",
+        }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className={`mx-auto flex items-center justify-center h-[56px] rounded-[2rem] border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] backdrop-blur-xl transition-all duration-500 ${
+          scrolled ? "bg-black/40" : "bg-white/5"
+        }`}
+      >
+        <div className="flex items-center">
+          <AnimatePresence mode="wait">
+            {isCollapsed ? (
+              <motion.div
+                key="menu-label"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center space-x-2 text-white/80"
               >
-                Institution Login
-              </motion.button>
-            </Link>
-          </div>
+                <Menu size={18} className="text-primary-gold" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Menu</span>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="nav-links"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex items-center"
+              >
+                {/* Links (Desktop) */}
+                <div className="hidden md:flex items-center space-x-10">
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.name}
+                      href={link.href}
+                      className="text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative group text-white hover:text-primary-gold"
+                    >
+                      {link.name}
+                    </Link>
+                  ))}
+                  
+                  <Link href="/login">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-6 py-2 rounded-full font-black uppercase tracking-widest text-[10px] shadow-xl transition-all duration-500 bg-white text-primary-dark hover:bg-primary-gold hover:text-white border border-white/20 ml-4"
+                    >
+                      Login
+                    </motion.button>
+                  </Link>
+                </div>
 
-          {/* Hamburger (Mobile) */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={scrolled ? "text-primary-dark" : "text-white"}
-            >
-              {mobileMenuOpen ? <X size={32} /> : <Menu size={32} />}
-            </button>
-          </div>
+                {/* Hamburger (Mobile) */}
+                <div className="md:hidden flex items-center px-4">
+                  <button
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    className="text-white hover:text-primary-gold transition-colors"
+                  >
+                    <Menu size={24} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "100vh" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="fixed inset-0 bg-primary-dark z-[60] flex flex-col items-center justify-center space-y-12 px-8"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 w-[90vw] bg-primary-dark/95 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 flex flex-col items-center space-y-8 shadow-2xl z-[60]"
           >
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="absolute top-10 right-10 text-white"
+              className="absolute top-6 right-8 text-white/50 hover:text-white transition-colors"
             >
-              <X size={48} />
+              <X size={24} />
             </button>
             {navLinks.map((link, idx) => (
               <motion.div
                 key={link.name}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
               >
                 <Link
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-4xl font-black text-white hover:text-primary-gold uppercase tracking-tighter"
+                  className="text-2xl font-black text-white hover:text-primary-gold uppercase tracking-tighter"
                 >
                   {link.name}
                 </Link>
               </motion.div>
             ))}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                <button className="px-12 py-5 bg-primary-gold text-white rounded-full font-black uppercase tracking-widest text-lg shadow-2xl">
-                  Institution Login
-                </button>
-              </Link>
-            </motion.div>
+            <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="w-full">
+              <button className="w-full py-4 bg-primary-gold text-white rounded-full font-black uppercase tracking-widest text-sm shadow-2xl">
+                Institution Login
+              </button>
+            </Link>
           </motion.div>
         )}
       </AnimatePresence>

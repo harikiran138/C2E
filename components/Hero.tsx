@@ -68,12 +68,12 @@ export default function Hero() {
       });
 
       tl.to(pathRef.current, {
-        attr: { d: "M0,20 Q600,60 1200,20 V120 H0 Z" },
+        attr: { d: "M0,0 Q600,0 1200,0 V120 H0 Z" },
         ease: "none",
       }, 0);
 
       tl.to(pathOutlineRef.current, {
-        attr: { d: "M0,20 Q600,60 1200,20" },
+        attr: { d: "M0,0 Q600,0 1200,0" },
         ease: "none",
       }, 0);
     }
@@ -120,19 +120,19 @@ export default function Hero() {
       </div>
 
       {/* Content */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full h-full flex flex-col justify-end pb-52">
+      <div className="relative z-20 max-w-full mx-0 px-6 sm:px-12 lg:px-20 w-full h-full flex flex-col justify-center pt-20">
         <div className="flex flex-col items-start text-left">
           <motion.div 
             variants={containerVars}
             initial="hidden"
             animate="visible"
-            className="space-y-3 max-w-2xl flex flex-col items-start"
+            className="space-y-6 max-w-3xl flex flex-col items-start"
           >
-            <h1 className="flex flex-col gap-y-1 text-left items-start">
+            <h1 className="flex flex-col gap-y-2 text-left items-start">
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
                   variants={wordVars}
-                  className="inline-block text-[31px] md:text-[45px] text-white font-sans font-black leading-[1.05] uppercase tracking-tighter text-left"
+                  className="inline-block text-[42px] md:text-[68px] text-white font-sans font-black leading-[0.95] uppercase tracking-tighter text-left"
                 >
                   Compliance
                 </motion.span>
@@ -140,7 +140,7 @@ export default function Hero() {
               <span className="overflow-hidden inline-block py-0">
                 <motion.span 
                   variants={wordVars}
-                  className="inline-block text-[31px] md:text-[45px] text-white font-sans font-black leading-[1.05] uppercase tracking-tighter text-left"
+                  className="inline-block text-[42px] md:text-[68px] text-[#c9a961] font-sans font-black leading-[0.95] uppercase tracking-tighter text-left"
                 >
                   To Excellence
                 </motion.span>
@@ -150,7 +150,7 @@ export default function Hero() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 1.2, duration: 0.8 }}
-              className="text-[13px] md:text-[15px] text-[#a6423d] font-bold tracking-tight text-left leading-tight"
+              className="text-[18px] md:text-[22px] text-[#a6423d] font-black tracking-tight text-left leading-tight max-w-2xl"
             >
               Building academic systems that stand up to scrutiny—and improve with time.
             </motion.p>
