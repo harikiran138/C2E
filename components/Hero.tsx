@@ -96,12 +96,12 @@ export default function Hero() {
 
       {/* Content */}
       <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex flex-col items-end md:pr-[10px] text-left space-y-8 md:space-y-6">
+        <div className="flex flex-col items-end md:pr-0 text-left space-y-8 md:space-y-6">
           <motion.div 
             variants={containerVars}
             initial="hidden"
             animate="visible"
-            className="space-y-4 max-w-2xl -mt-12 flex flex-col items-start"
+            className="space-y-4 max-w-2xl -mt-12 flex flex-col items-start md:-mr-[50px]"
           >
             <h1 className="flex flex-col gap-y-1 text-left items-start">
               <span className="overflow-hidden inline-block py-0">
@@ -130,18 +130,6 @@ export default function Hero() {
               Stand confident, stay competent, and distinguish yourself
             </motion.p>
           </motion.div>
-          
-          <MagneticButton className="z-30">
-            <motion.button 
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 1.5, type: "spring" }}
-              className="inline-flex items-center px-10 py-4 bg-gradient-to-r from-[#c9a961] to-[#806a3d] text-white font-black rounded-lg shadow-lg hover:brightness-110 transition-all duration-500 text-base space-x-3 group"
-            >
-              <span className="tracking-tight uppercase">Learn More</span>
-              <ChevronDown className="h-5 w-5 opacity-70" />
-            </motion.button>
-          </MagneticButton>
         </div>
       </div>
 
