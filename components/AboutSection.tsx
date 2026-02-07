@@ -55,8 +55,14 @@ export default function AboutSection() {
   const titleUnderline = useTransform(scrollYProgress, [0.1, 0.3], [0, 100]);
 
   return (
-    <section ref={sectionRef} id="about" className="py-24 relative overflow-hidden bg-[#faf9f6]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+    <section ref={sectionRef} id="about" className="py-40 relative overflow-hidden bg-[#faf9f6]">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1.2, ease: "easeOut" }}
+        viewport={{ once: true, margin: "-100px" }}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10"
+      >
         <div className="text-center mb-20 space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -113,7 +119,7 @@ export default function AboutSection() {
             </p>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
     </section>
   );
 }
