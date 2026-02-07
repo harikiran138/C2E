@@ -1,57 +1,83 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary: #1e3a8a;
-  --gold: #c5a059;
-  --gold-light: #e6d5b8;
-  --accent: #f59e0b;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --primary-gold: #c9a961;
+    --primary-dark: #1a2332;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --background-light: #faf9f6;
+    --background-cream: #f5f1e8;
+    --accent-blue: #3b82f6;
+    --success-green: #10b981;
+    --shadow-soft: rgba(0, 0, 0, 0.08);
+  }
+
+  body {
+    @apply text-slate-800 bg-[#faf9f6] selection:bg-[#c9a961]/30;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family:
-    "Inter",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+/* Fluid Typography */
+.text-fluid-h1 {
+  font-size: clamp(2.5rem, 8vw, 5.5rem);
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -0.04em;
 }
 
-/* Premium micro-animations */
+.text-fluid-h2 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.25;
+}
+
+/* Premium micro-interactions */
 .hover-lift {
-  transition:
-    transform 0.2s cubic-bezier(0.33, 1, 0.68, 1),
-    box-shadow 0.2s ease;
+  @apply transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)];
 }
 
 .hover-lift:hover {
-  transform: translateY(-4px);
-  box-shadow:
-    0 10px 25px -5px rgba(0, 0, 0, 0.1),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-8px) scale(1.02);
+  @apply shadow-2xl shadow-primary-gold/20;
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  @apply bg-white/85 backdrop-blur-xl border-b border-black/5 saturate-150;
 }
 
-.dark .glass-nav {
-  background: rgba(0, 0, 0, 0.8);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+/* Advanced CSS Effects */
+.text-gradient {
+  background: linear-gradient(135deg, #c9a961, #8b7355);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.particle-bg {
+  mask-image: radial-gradient(circle, white, transparent 70%);
+}
+
+[data-magnetic] {
+  @apply transition-transform duration-200 ease-out;
+}
+
+/* Custom Selection */
+::selection {
+  background: #c9a961;
+  color: white;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,66 +1,118 @@
-import { CheckCircle2, Quote } from "lucide-react";
+"use client";
 
-export default function AboutSection() {
-  const points = [
-    "Institutional compliance management",
-    "Outcome-Based Education (OBE) integration",
-    "Comprehensive quality assurance frameworks",
-    "Strategic IDP planning and execution",
-  ];
+import { motion, useScroll, useTransform } from "framer-motion";
+import { CheckCircle2, Quote } from "lucide-react";
+import { useRef, useState } from "react";
+
+const BenefitCard = ({ children, index }: { children: React.ReactNode; index: number }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [rotate, setRotate] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!cardRef.current) return;
+    const { left, top, width, height } = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - left) / width;
+    const y = (e.clientY - top) / height;
+    setRotate({ x: (y - 0.5) * 15, y: (x - 0.5) * -15 });
+  };
 
   return (
-    <section id="about" className="py-24 bg-white relative overflow-hidden">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-16">
-        <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-2 relative inline-block">
-          About C2E
-          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-24 h-1 bg-[#c5a059] rounded-full" />
-        </h2>
-        <p className="text-lg text-gray-600 mt-10 max-w-4xl mx-auto font-medium leading-relaxed">
-          We are committed to handholding higher Education Institutions (HEIs) in achieving prescribed standards, 
-          setting meaningful benchmarks in academic excellence, and formulating strong Institutional Development Plans (IDP).
-        </p>
+    <motion.div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setRotate({ x: 0, y: 0 })}
+      animate={{ rotateX: rotate.x, rotateY: rotate.y }}
+      transition={{ type: "spring", stiffness: 100, damping: 15 }}
+      initial={{ opacity: 0, y: 50 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="relative flex items-start space-x-4 p-6 bg-white rounded-2xl shadow-sm border border-black/5 hover:shadow-xl hover:border-primary-gold/20 transition-all duration-300"
+    >
+      <div className="flex-shrink-0 mt-1">
+        <motion.div
+          initial={{ scale: 0, rotate: -45 }}
+          whileInView={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.2 + (index * 0.1), type: "spring" }}
+          viewport={{ once: true }}
+        >
+          <CheckCircle2 className="h-6 w-6 text-primary-gold" />
+        </motion.div>
       </div>
+      <p className="text-sm font-bold text-gray-700 leading-relaxed uppercase tracking-tight">
+        {children}
+      </p>
+    </motion.div>
+  );
+};
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10 items-start">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:col-span-2">
-            <ul className="space-y-6">
-              {[
-                "Through robust quality systems, structured processes, and proven best practices we ensure institutions meet all statutory and regulatory requirements effectively.",
-                "Beyond compliance, we promote a culture of excellence centered around Outcomes-Based Education (OBE)."
-              ].map((point, idx) => (
-                <li key={idx} className="flex items-start space-x-4 text-gray-700">
-                  <div className="mt-1 bg-[#c5a059]/10 p-1 rounded-full flex-shrink-0">
-                    <CheckCircle2 className="h-5 w-5 text-[#c5a059]" />
-                  </div>
-                  <span className="text-sm font-semibold leading-snug">{point}</span>
-                </li>
-              ))}
-            </ul>
-            <ul className="space-y-6">
-              {[
-                "Our focus remains on embedding clarity of purpose, continuous improvement, and systemic resets reaching into every academic activity.",
-                "Committing institutions to thinking strong Institutional Development Plans in the long run."
-              ].map((point, idx) => (
-                <li key={idx} className="flex items-start space-x-4 text-gray-700">
-                  <div className="mt-1 bg-[#c5a059]/10 p-1 rounded-full flex-shrink-0">
-                    <CheckCircle2 className="h-5 w-5 text-[#c5a059]" />
-                  </div>
-                  <span className="text-sm font-semibold leading-snug">{point}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+export default function AboutSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"]
+  });
 
-          <div className="lg:col-span-2 mt-12 bg-gradient-to-r from-[#f9f5ed] to-[#ffffff] border border-[#e6d5b8] p-10 rounded-[2.5rem] shadow-sm relative group hover-lift transition-all">
-            <Quote className="h-10 w-10 text-[#c5a059] opacity-20 absolute top-8 left-8" />
-            <div className="relative z-10 text-center max-w-4xl mx-auto">
-              <p className="text-xl md:text-2xl font-bold text-[#1a1a1a] leading-tight italic">
-                "This initiative promotes the core values of OBE to enhance employability, nurture <span className="text-[#c5a059]">OBE Monks</span>, and build champions for a better teaching-and learning ecosystem."
-              </p>
-            </div>
-          </div>
+  const titleUnderline = useTransform(scrollYProgress, [0.1, 0.3], [0, 100]);
+
+  return (
+    <section ref={sectionRef} id="about" className="py-24 relative overflow-hidden bg-[#faf9f6]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="text-center mb-20 space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="inline-block"
+          >
+            <h2 className="text-fluid-h2 text-primary-dark font-black relative pb-6 mb-4">
+              About C2E
+              <motion.div 
+                style={{ width: `${titleUnderline}%` }}
+                className="absolute bottom-0 left-0 h-1.5 bg-primary-gold rounded-full"
+              />
+            </h2>
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 1 }}
+            viewport={{ once: true }}
+            className="text-xl text-text-secondary max-w-3xl mx-auto leading-relaxed italic"
+          >
+            "We are committed to handholding higher Education Institutions (HEIs) in achieving prescribed standards, setting meaningful benchmarks in academic excellence."
+          </motion.p>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
+          {[
+            "Through robust quality systems, structured processes, and proven best practices we ensure institutions meet all statutory and regulatory requirements effectively.",
+            "Our focus remains on embedding clarity of purpose, continuous improvement, and systemic resets reaching into every academic activity.",
+            "Beyond compliance, we promote a culture of excellence centered around Outcomes-Based Education (OBE).",
+            "Committing institutions to thinking strong Institutional Development Plans in the long run."
+          ].map((text, i) => (
+            <BenefitCard key={i} index={i}>{text}</BenefitCard>
+          ))}
+        </div>
+
+        {/* Quote Section with Reveal */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1, type: "spring" }}
+          viewport={{ once: true }}
+          className="relative mt-20 p-12 rounded-[3rem] overflow-hidden group shadow-2xl"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-gold/10 via-primary-gold/5 to-transparent transition-transform duration-1000 group-hover:scale-110" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary-gold/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+          
+          <div className="relative z-10 text-center space-y-8">
+            <Quote className="h-16 w-16 text-primary-gold/20 mx-auto transform -scale-x-100" />
+            <p className="text-2xl md:text-3xl font-serif italic text-primary-dark max-w-4xl mx-auto leading-snug">
+              This initiative promotes the core values of <span className="text-primary-gold font-black not-italic">OBE</span> to enhance employability, nurture <span className="text-primary-gold font-black not-italic">OBE</span> Monks, and build champions for a better teaching- and learning ecosystem.
+            </p>
+          </div>
+        </motion.div>
       </div>
     </section>
   );

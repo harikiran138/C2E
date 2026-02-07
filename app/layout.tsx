@@ -1,15 +1,23 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SmoothScrollProvider from "@/components/SmoothScrollProvider";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: '--font-inter',
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: '--font-playfair',
+});
 
 export const metadata: Metadata = {
   title: "C2E | Compliance To Excellence",
-  description: "Stand confident, stay competent, and distinguish yourself with C2E institutional compliance and excellence services.",
-  keywords: ["Compliance", "Education", "OBE", "Quality Assurance", "Institutional Planning"],
+  description: "A showcase of modern web development excellence. Institutional consultancy specializing in higher education compliance and OBE implementation.",
 };
 
 export default function RootLayout({
@@ -19,12 +27,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className={inter.className}>
-        <Navbar />
-        <main className="min-h-screen">
-          {children}
-        </main>
-        <Footer />
+      <body className={`${inter.variable} ${playfair.variable} font-sans antialiased text-slate-800 bg-[#faf9f6]`}>
+        <SmoothScrollProvider>
+          <Navbar />
+          <main className="min-h-screen overflow-x-hidden">
+            {children}
+          </main>
+          <Footer />
+        </SmoothScrollProvider>
       </body>
     </html>
   );
