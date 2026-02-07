@@ -152,7 +152,7 @@ export default function Hero() {
               transition={{ delay: 1.2, duration: 0.8 }}
               className="text-[13px] md:text-[15px] text-[#a6423d] font-bold tracking-tight text-left leading-tight"
             >
-              Stand confident, stay competent, and distinguish yourself
+              Building academic systems that stand up to scrutiny—and improve with time.
             </motion.p>
           </motion.div>
         </div>
