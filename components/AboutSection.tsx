@@ -60,16 +60,19 @@ export default function AboutSection() {
   return (
     <section ref={sectionRef} id="about" className="pt-0 pb-24 md:pb-32 relative overflow-hidden bg-black">
       {/* Background Media */}
-      <div className="absolute inset-0 z-0">
+      <motion.div 
+        style={{ scale: useTransform(scrollYProgress, [0, 1], [1, 1.1]) }}
+        className="absolute inset-0 z-0"
+      >
         <Image
           src="/images/about_us_2.jpeg"
           alt="About Us Background"
           fill
-          className="object-cover opacity-80 brightness-[0.7]"
+          className="object-cover opacity-90 brightness-[0.8]"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black z-10" />
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-20" />
-      </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black z-10" />
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] z-20" />
+      </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-30">
         {/* Intro Header */}
