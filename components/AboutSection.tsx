@@ -27,7 +27,7 @@ const BenefitCard = ({ children, index }: { children: React.ReactNode; index: nu
       initial={{ opacity: 0, y: 50 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="relative flex items-start space-x-4 p-6 bg-white rounded-2xl shadow-sm border border-black/5 hover:shadow-xl hover:border-primary-gold/20 transition-all duration-300"
+      className="relative flex items-start space-x-4 p-6 bg-white/5 backdrop-blur-md rounded-2xl shadow-sm border border-white/10 hover:shadow-2xl hover:border-primary-gold/40 hover:bg-white/10 transition-all duration-300 group"
     >
       <div className="flex-shrink-0 mt-1">
         <motion.div
@@ -39,7 +39,7 @@ const BenefitCard = ({ children, index }: { children: React.ReactNode; index: nu
           <CheckCircle2 className="h-6 w-6 text-primary-gold" />
         </motion.div>
       </div>
-      <p className="text-sm font-bold text-gray-700 leading-relaxed uppercase tracking-tight">
+      <p className="text-sm font-bold text-gray-300 leading-relaxed uppercase tracking-tight group-hover:text-white transition-colors duration-300">
         {children}
       </p>
     </motion.div>
@@ -56,34 +56,24 @@ export default function AboutSection() {
   const titleUnderline = useTransform(scrollYProgress, [0.1, 0.3], [0, 100]);
 
   return (
-    <section ref={sectionRef} id="about" className="py-24 md:py-32 relative overflow-hidden bg-white">
+    <section ref={sectionRef} id="about" className="pt-12 pb-24 md:pt-16 md:pb-32 relative overflow-hidden bg-black">
       {/* Dual-Image Background Stack */}
-      <div className="absolute inset-0 z-0 bg-white">
+      <div className="absolute inset-0 z-0 bg-black">
         {/* Main Background (Scrolls with section) */}
         <Image
-          src="/images/about_us.png"
+          src="/images/about_us.jpeg"
           alt="About Us Background"
           fill
-          className="object-cover opacity-60 md:opacity-80"
+          className="object-cover opacity-60 md:opacity-75 grayscale brightness-[0.6]"
         />
 
-        {/* Top Filler Image (Fills the Hero Curve area) */}
-        <div className="absolute top-0 left-0 w-full h-[600px] z-10">
-          <Image
-            src="/images/about_us_top.png"
-            alt="About Section Accent"
-            fill
-            className="object-cover opacity-100"
-            priority
-          />
-          {/* Blend from Hero Curve (#faf9f6) into Top Image */}
-          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-[#faf9f6] to-transparent z-20" />
-          {/* Fade transition between the two images */}
-          <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-transparent via-white/10 to-transparent" />
-        </div>
+        {/* Blend from Hero Curve (Black) into Top Image */}
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-black to-transparent z-20" />
+        {/* Fade transition at the bottom */}
+        <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-black via-transparent to-transparent z-20" />
 
         {/* Unified Glass Overlay */}
-        <div className="absolute inset-0 z-20 bg-white/5 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 z-20 bg-black/20 backdrop-blur-[1px]" />
       </div>
 
       <motion.div 
@@ -93,7 +83,7 @@ export default function AboutSection() {
         viewport={{ once: true, margin: "-100px" }}
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10"
       >
-        <div className="text-center mb-16 md:mb-24 space-y-6">
+        <div className="text-center mb-10 md:mb-16 space-y-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -101,11 +91,11 @@ export default function AboutSection() {
             viewport={{ once: true }}
             className="inline-block"
           >
-            <h2 className="text-[32px] md:text-[42px] text-primary-dark font-black relative pb-6 mb-4">
+            <h2 className="text-[32px] md:text-[42px] text-white font-black relative pb-6 mb-4">
               About C2E
               <motion.div 
                 style={{ width: `${titleUnderline}%` }}
-                className="absolute bottom-0 left-0 h-1.5 bg-primary-gold rounded-full"
+                className="absolute bottom-0 left-0 h-1.5 bg-primary-gold rounded-full shadow-[0_0_15px_rgba(201,169,97,0.6)]"
               />
             </h2>
           </motion.div>
@@ -114,13 +104,13 @@ export default function AboutSection() {
             whileInView={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 1 }}
             viewport={{ once: true }}
-            className="text-base md:text-lg text-primary-dark max-w-3xl mx-auto leading-relaxed font-bold italic drop-shadow-sm"
+            className="text-base md:text-lg text-gray-300 max-w-3xl mx-auto leading-relaxed font-bold italic drop-shadow-lg"
           >
             "We are committed to handholding higher Education Institutions (HEIs) in achieving prescribed standards, setting meaningful benchmarks in academic excellence."
           </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-16 md:mb-24">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-10 md:mb-16">
           {[
             "Through robust quality systems, structured processes, and proven best practices we ensure institutions meet all statutory and regulatory requirements effectively.",
             "Our focus remains on embedding clarity of purpose, continuous improvement, and systemic resets reaching into every academic activity.",
@@ -133,11 +123,11 @@ export default function AboutSection() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
-              className="backdrop-blur-md bg-white/40 border border-white/40 p-5 md:p-6 rounded-2xl shadow-xl hover:bg-white/50 transition-all duration-300"
+              className="backdrop-blur-md bg-white/5 border border-white/10 p-5 md:p-6 rounded-2xl shadow-xl hover:bg-white/10 hover:border-primary-gold/30 transition-all duration-300 group"
             >
               <div className="flex items-start space-x-4">
                 <CheckCircle2 className="h-5 w-5 text-primary-gold flex-shrink-0 mt-0.5" />
-                <p className="text-xs md:text-[13px] font-black text-primary-dark leading-relaxed uppercase tracking-tight">
+                <p className="text-xs md:text-[13px] font-black text-white leading-relaxed uppercase tracking-tight group-hover:text-primary-gold transition-colors duration-300">
                   {text}
                 </p>
               </div>
@@ -151,13 +141,13 @@ export default function AboutSection() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
           viewport={{ once: true }}
-          className="relative p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] overflow-hidden group shadow-2xl backdrop-blur-xl bg-white/30 border border-white/50"
+          className="relative p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] overflow-hidden group shadow-2xl backdrop-blur-xl bg-white/5 border border-white/10"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-gold/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-gold/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
           
           <div className="relative z-10 text-center space-y-6">
             <Quote className="h-10 md:h-14 w-10 md:w-14 text-primary-gold/30 mx-auto transform -scale-x-100" />
-            <p className="text-lg md:text-xl font-serif italic text-primary-dark max-w-4xl mx-auto leading-snug drop-shadow-sm">
+            <p className="text-lg md:text-xl font-serif italic text-gray-200 max-w-4xl mx-auto leading-snug drop-shadow-lg">
               This initiative promotes the core values of <span className="text-primary-gold font-black not-italic">OBE</span> to enhance employability, nurture <span className="text-primary-gold font-black not-italic">OBE</span> Monks, and build champions for a better teaching- and learning ecosystem.
             </p>
           </div>

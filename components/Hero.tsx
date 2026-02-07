@@ -13,6 +13,8 @@ gsap.registerPlugin(ScrollTrigger);
 export default function Hero() {
   const bgRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pathRef = useRef<SVGPathElement>(null);
+  const pathOutlineRef = useRef<SVGPathElement>(null);
   const [mounted, setMounted] = useState(false);
   const [sparkles, setSparkles] = useState<{x: string, y: string, delay: number, dur: number}[]>([]);
   const [stars, setStars] = useState<{x: string, y: string, delay: number, dur: number}[]>([]);
@@ -52,6 +54,30 @@ export default function Hero() {
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (pathRef.current && containerRef.current) {
+      // Dynamic Curve Flattening on Scroll
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: true,
+        },
+      });
+
+      tl.to(pathRef.current, {
+        attr: { d: "M0,20 Q600,60 1200,20 V120 H0 Z" },
+        ease: "none",
+      }, 0);
+
+      tl.to(pathOutlineRef.current, {
+        attr: { d: "M0,20 Q600,60 1200,20" },
+        ease: "none",
+      }, 0);
+    }
+  }, [mounted]);
 
   const titleWords = "Compliance To Excellence".split(" ");
 
@@ -199,7 +225,22 @@ export default function Hero() {
             viewBox="0 0 1200 120" 
             preserveAspectRatio="none"
           >
-            <path d="M0,0 Q600,120 1200,0 V120 H0 Z" fill="#faf9f6"></path>
+            {/* Outline path - Golden */}
+            <path 
+              ref={pathOutlineRef}
+              d="M0,0 Q600,120 1200,0" 
+              fill="none"
+              stroke="#c9a961"
+              strokeWidth="4"
+              strokeLinecap="round"
+              className="drop-shadow-[0_0_8px_rgba(201,169,97,0.5)]"
+            ></path>
+            {/* Fill path - Black */}
+            <path 
+              ref={pathRef}
+              d="M0,0 Q600,120 1200,0 V120 H0 Z" 
+              fill="#000000"
+            ></path>
           </svg>
         </div>
       </div>

@@ -31,25 +31,27 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
-          {/* Logo */}
-          <Link href="/" className="relative group flex flex-col items-center">
-            <span className={`text-2xl font-black tracking-tighter transition-colors text-primary-dark`}>
-              C2E
-            </span>
-            <div className="w-full h-1.5 bg-primary-gold rounded-full -mt-1 scale-x-110" style={{ borderRadius: '0 0 100% 100%' }} />
-          </Link>
+          {/* Logo & Navigation */}
+          <div className="flex items-center space-x-12">
+            <Link href="/" className="relative group flex flex-col items-center">
+              <span className={`text-2xl font-black tracking-tighter transition-colors text-white`}>
+                C2E
+              </span>
+              <div className="w-full h-1.5 bg-primary-gold rounded-full -mt-1 scale-x-110" style={{ borderRadius: '0 0 100% 100%' }} />
+            </Link>
 
-          {/* Center Links (Desktop) */}
-          <div className="hidden md:flex flex-1 justify-center items-center space-x-12">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                className={`text-xs font-black uppercase tracking-[0.2em] transition-colors relative group text-primary-dark hover:text-primary-gold`}
-              >
-                {link.name}
-              </Link>
-            ))}
+            {/* Links (Desktop) */}
+            <div className="hidden md:flex items-center space-x-10">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className={`text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative group text-white hover:text-primary-gold`}
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </div>
           </div>
 
           {/* Login Button (Desktop) */}
