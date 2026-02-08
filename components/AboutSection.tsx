@@ -100,7 +100,7 @@ export default function AboutSection() {
             
             <div className="max-w-4xl mx-auto space-y-8">
               <p className="text-2xl md:text-4xl text-gray-800 font-medium leading-tight">
-                "C2E is a focused academic transformation firm that helps <span className="text-[#c9a961]">higher-education institutions</span> build Outcome Based Education (OBE) systems from first principles."
+                "<span className="bg-slate-900 text-white px-2 py-0.5 rounded-lg font-black brightness-125">C2X</span> is a focused academic transformation firm that helps <span className="text-[#c9a961]">higher-education institutions</span> build Outcome Based Education (OBE) systems from first principles."
               </p>
               <p className="text-lg md:text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto">
                 We enable institutions to move beyond regulatory checklists and establish robust, measurable, and sustainable academic outcome frameworks aligned with national and international accreditation standards.
@@ -108,13 +108,13 @@ export default function AboutSection() {
             </div>
           </motion.div>
         </div>
-
         {/* Belief System - Premium Card */}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16 items-center">
           <div className="lg:col-span-5">
             <SectionHeader title="What We Believe" subtitle="OBE is a governance framework for academic quality." />
             <p className="text-gray-600 leading-relaxed mt-4">
-               At C2E, we believe OBE is not a document or a one-time exercise—it is a governance framework. We ensure outcomes are clearly defined, objectively measured, and continuously improved.
+               At C2X, we believe OBE is not a document or a one-time exercise—it is a governance framework. We ensure outcomes are clearly defined, objectively measured, and continuously improved.
             </p>
           </div>
           <motion.div 
@@ -132,7 +132,6 @@ export default function AboutSection() {
                   <span className="text-[#c9a961]">Excellence Demands Systems.</span>"
                 </h3>
               </div>
-              <div className="h-24 w-px bg-[#c9a961]/30 hidden md:block" />
               <div className="flex-1 text-center md:text-left">
                 <p className="text-lg text-gray-700 italic">
                   We bridge the gap between regulatory requirements and true educational excellence through systematic architectural design.
@@ -285,39 +284,8 @@ export default function AboutSection() {
             </div>
           </motion.div>
         </div>
-
-        {/* Final Promise - Extreme Premium */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="relative py-16 px-8 text-center rounded-[3rem] border border-primary-gold/10 overflow-hidden"
-        >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-[#c9a961]/10 blur-[100px] rounded-full -z-10 animate-pulse" />
-          
-          <Star className="h-12 w-12 text-[#c9a961] mx-auto mb-10" />
-          
-          <h2 className="text-4xl md:text-6xl text-black font-bold tracking-tight mb-12">Our Promise</h2>
-          
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 mb-12">
-            <div className="text-xl md:text-2xl text-gray-500 font-medium">Compliance Is Necessary.</div>
-            <div className="h-2 w-2 bg-[#c9a961] rounded-full hidden md:block" />
-            <div className="text-xl md:text-2xl text-[#c9a961] font-black tracking-widest uppercase">Excellence Is Deliberate.</div>
-          </div>
-          
-          <p className="text-3xl md:text-5xl text-black font-black tracking-tighter">
-            C2E Enables The Transition.
-          </p>
-          
-          <motion.button
-            whileHover={{ scale: 1.05, backgroundColor: "#d4b875" }}
-            whileTap={{ scale: 0.95 }}
-            className="mt-16 bg-[#c9a961] text-black px-10 py-4 rounded-2xl font-black text-sm tracking-widest uppercase shadow-[0_10px_30px_rgba(201,169,97,0.3)]"
-          >
-            Get Expert Consultation
-          </motion.button>
-        </motion.div>
       </div>
+
     </section>
   );
 }

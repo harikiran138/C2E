@@ -19,9 +19,9 @@ export default function Footer() {
         >
           {/* Copyright */}
           <div className="flex flex-col md:flex-row items-center space-y-1 md:space-y-0 md:space-x-4">
-              <span className="text-primary-gold font-black text-xl tracking-tighter">C2E</span>
+              <span className="text-white font-black text-xl tracking-tighter brightness-150">C2X</span>
               <p className="text-[10px] md:text-[12px] font-bold tracking-[0.2em] text-gray-400 whitespace-nowrap">
-                © {currentYear} Compliance To Excellence. All Rights Reserved.
+                © {currentYear} Compliance to Excellence. All Rights Reserved.
               </p>
           </div>
 

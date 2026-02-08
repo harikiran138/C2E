@@ -16,7 +16,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "C2E | Compliance To Excellence",
+  title: "C2X | Compliance to Excellence",
   description: "A showcase of modern web development excellence. Institutional consultancy specializing in higher education compliance and OBE implementation.",
 };
 

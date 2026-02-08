@@ -53,7 +53,7 @@ export function NavBar({ items, className }: NavBarProps) {
             <Link href="/" className="shrink-0">
               <Image 
                 src="/logo.svg" 
-                alt="C2E Logo" 
+                alt="C2X Logo" 
                 width={100} 
                 height={100} 
                 className={cn(

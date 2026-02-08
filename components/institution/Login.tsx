@@ -128,8 +128,8 @@ export default function InstitutionLogin() {
                     <School className="text-primary-gold size-7" />
                  </div>
                  <div className="text-left">
-                    <span className="block text-2xl font-bold tracking-tight text-slate-900 font-serif leading-none">C2E Portal</span>
-                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">Compliance To Excellence</span>
+                     <span className="block text-2xl font-bold tracking-tight text-slate-900 font-serif leading-none">C2X Portal</span>
+                     <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">Compliance to Excellence</span>
                  </div>
             </div>
 
