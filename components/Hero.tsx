@@ -19,17 +19,6 @@ export default function Hero() {
         />
       </div>
 
-      {/* Logo Integration - Top Left Corner */}
-      <div className="absolute top-[15px] left-6 sm:left-12 lg:left-20 z-30">
-        <Image 
-          src="/logo.svg" 
-          alt="C2E Logo" 
-          width={100} 
-          height={100} 
-          className="w-16 md:w-20 lg:w-24 h-auto drop-shadow-[0_0_20px_rgba(201,169,97,0.4)] brightness-110"
-        />
-      </div>
-
       {/* Content */}
       <div className="relative z-20 max-w-full mx-0 px-6 sm:px-12 lg:px-20 w-full h-full flex flex-col justify-start pt-32 sm:pt-40 lg:pt-48">
         <div className="flex flex-col items-start text-left w-full">
