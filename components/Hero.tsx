@@ -168,7 +168,7 @@ export default function Hero() {
         </div>
       </div>
       {/* Overlay Image - On top of everything INCLUDING curve */}
-      <div ref={overlayRef} className="absolute inset-0 z-40 pointer-events-none overflow-hidden">
+      <div ref={overlayRef} className="absolute top-[-40px] bottom-[40px] left-0 right-0 z-40 pointer-events-none overflow-hidden">
         <motion.div 
           initial={{ opacity: 0, scale: 1.1 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -176,7 +176,7 @@ export default function Hero() {
           className="relative w-full h-full"
         >
           <Image
-            src="/images/hero_overlay.png"
+            src="/images/hero_overlay.svg"
             alt="Hero Overlay"
             fill
             priority
