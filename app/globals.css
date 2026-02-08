@@ -247,3 +247,9 @@
   content: '✓';
   @apply absolute inset-0 flex items-center justify-center text-primary-foreground text-xs font-bold;
 }
+
+/* Clean Section Transition */
+.section-junction {
+  position: relative;
+  z-index: 10;
+}
