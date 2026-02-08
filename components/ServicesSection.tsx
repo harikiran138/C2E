@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { ShieldCheck, BookOpen, Search, Layers } from "lucide-react";
-import GradientBars from "./ui/gradient-bars";
+import { DottedSurface } from "./ui/dotted-surface";
 
 const services = [
   {
@@ -36,7 +36,7 @@ export default function ServicesSection() {
   return (
     <section id="services" className="py-24 md:py-32 relative overflow-hidden transition-colors duration-500">
       <div className="absolute inset-0 bg-white -z-20"></div>
-      <GradientBars numBars={20} className="opacity-20 lg:opacity-40" />
+      <DottedSurface className="opacity-40 lg:opacity-60" />
 
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-gold/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
