@@ -27,8 +27,15 @@ export default function BasicDetailsForm() {
   const supabase = createClient();
   const router = useRouter();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const checkUser = async () => {
+      const isDemo = localStorage.getItem('isDemo') === 'true';
+      if (isDemo) {
+        setUserId('demo-user');
+        fetchDetails('demo-user');
+        return;
+      }
+
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
         router.push('/institution/login');
@@ -43,6 +50,19 @@ export default function BasicDetailsForm() {
   const fetchDetails = async (uid: string) => {
     try {
       setLoading(true);
+
+      if (uid === 'demo-user') {
+         setStatus('Autonomous');
+         setVision('To be a world-class institution...');
+         setMission('Empowering students with knowledge...');
+         setPrograms([
+           { id: '1', name: 'Computer Science', degree: 'B.Tech', years: 4, level: 'UG' },
+           { id: '2', name: 'Electronics', degree: 'B.Tech', years: 4, level: 'UG' }
+         ]);
+         setLoading(false);
+         return;
+      }
+
       // Fetch Institution Details
       const { data: instData, error: instError } = await supabase
         .from('institutions')
@@ -76,6 +96,15 @@ export default function BasicDetailsForm() {
     if (!userId) return;
     try {
       setLoading(true);
+      
+      if (userId === 'demo-user') {
+        setTimeout(() => {
+          alert('Details saved successfully! (Demo Mode)');
+          setLoading(false);
+        }, 1000);
+        return;
+      }
+
       const { error } = await supabase
         .from('institutions')
         .upsert({
@@ -102,6 +131,15 @@ export default function BasicDetailsForm() {
       alert('Program name is required');
       return;
     }
+
+    if (userId === 'demo-user') {
+        const mockId = Math.random().toString(36).substr(2, 9);
+        setPrograms([...programs, { ...newProgram, id: mockId }]);
+        setNewProgram({ name: '', degree: 'B.Tech', years: 4, level: 'UG' });
+        setIsAddingProgram(false);
+        return;
+    }
+
     try {
       const { error } = await supabase
         .from('programs')
@@ -126,6 +164,11 @@ export default function BasicDetailsForm() {
   };
 
   const handleDeleteProgram = async (id: string) => {
+    if (userId === 'demo-user') {
+        setPrograms(prev => prev.filter(p => p.id !== id));
+        return;
+    }
+
     try {
       const { error } = await supabase
         .from('programs')
@@ -142,101 +185,107 @@ export default function BasicDetailsForm() {
   };
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 font-sans min-h-screen flex flex-col items-center p-4">
-      <div className="relative flex h-full w-full flex-col overflow-hidden max-w-[480px] bg-white dark:bg-slate-900 shadow-xl rounded-2xl min-h-[800px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 md:p-12 font-sans">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
         {/* Header */}
-        <header className="flex items-center bg-white dark:bg-slate-900 px-4 py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
-          <div className="text-[#137fec] flex size-10 shrink-0 items-center justify-center cursor-pointer">
-            <span className="material-symbols-outlined">chevron_left</span>
-          </div>
-          <h1 className="text-[#0d141b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-10">
-            Basic Institution Details
-          </h1>
-        </header>
+        <div className="flex justify-between items-center">
+             <div>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Basic Institution Details</h1>
+                <p className="text-slate-500 dark:text-slate-400">Manage institution profile and academic programs.</p>
+             </div>
+             <button onClick={() => router.push('/institution/dashboard')} className="text-sm font-semibold text-[#137fec] hover:underline">
+                Back to Dashboard
+             </button>
+        </div>
 
-        <main className="flex-1 overflow-y-auto pb-24">
-          {/* Autonomous Status Dropdown */}
-          <div className="p-4">
-            <p className="text-[#0d141b] dark:text-slate-200 text-sm font-semibold leading-normal mb-3">Autonomous Status</p>
-            <div className="relative">
-               <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-[#0d141b] dark:text-white focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] outline-none appearance-none"
-               >
-                 <option value="Autonomous">Autonomous</option>
-                 <option value="Non-autonomous">Non-autonomous</option>
-               </select>
-               <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+        {/* Institution Info Card */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#137fec]">domain</span>
+                General Information
+            </h2>
+
+            <div>
+                <label className="block text-sm font-semibold text-slate-500 mb-2">Autonomous Status</label>
+                <div className="relative">
+                    <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-[#137fec] appearance-none"
+                    >
+                        <option value="Autonomous">Autonomous</option>
+                        <option value="Non-autonomous">Non-autonomous</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+                </div>
             </div>
-          </div>
 
-          {/* Text Areas */}
-          <div className="px-4 space-y-5">
-            <label className="flex flex-col w-full">
-              <p className="text-[#0d141b] dark:text-slate-200 text-sm font-semibold leading-normal pb-2">Vision Statement</p>
-              <textarea 
-                value={vision}
-                onChange={(e) => setVision(e.target.value)}
-                className="form-input flex w-full resize-none overflow-hidden rounded-xl text-[#0d141b] dark:text-white focus:outline-0 focus:ring-2 focus:ring-blue-500/20 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-[#137fec] min-h-[120px] placeholder:text-slate-400 p-4 text-sm font-normal leading-relaxed" 
-                placeholder="Enter the institution's vision statement..."
-              />
-            </label>
-            <label className="flex flex-col w-full">
-              <p className="text-[#0d141b] dark:text-slate-200 text-sm font-semibold leading-normal pb-2">Mission Statement</p>
-              <textarea 
-                value={mission}
-                onChange={(e) => setMission(e.target.value)}
-                className="form-input flex w-full resize-none overflow-hidden rounded-xl text-[#0d141b] dark:text-white focus:outline-0 focus:ring-2 focus:ring-blue-500/20 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-[#137fec] min-h-[120px] placeholder:text-slate-400 p-4 text-sm font-normal leading-relaxed" 
-                placeholder="Enter the institution's mission statement..."
-              />
-            </label>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                    <label className="block text-sm font-semibold text-slate-500 mb-2">Vision Statement</label>
+                    <textarea 
+                        value={vision}
+                        onChange={(e) => setVision(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 min-h-[120px] outline-none focus:ring-2 focus:ring-[#137fec] resize-none"
+                        placeholder="Enter institution vision..."
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-sm font-semibold text-slate-500 mb-2">Mission Statement</label>
+                    <textarea 
+                        value={mission}
+                        onChange={(e) => setMission(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 min-h-[120px] outline-none focus:ring-2 focus:ring-[#137fec] resize-none"
+                        placeholder="Enter institution mission..."
+                    />
+                 </div>
+            </div>
 
-          <div className="h-4"></div>
+            <div className="flex justify-end">
+                <button 
+                    onClick={handleSaveDetails}
+                    disabled={loading}
+                    className="bg-[#137fec] hover:bg-[#137fec]/90 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+            </div>
+        </div>
 
-          {/* Programs Section Header */}
-          <div className="px-4 py-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 mt-2">
-            <h2 className="text-[#0d141b] dark:text-white text-lg font-bold">Programs Offered</h2>
-            <button 
-              onClick={() => setIsAddingProgram(!isAddingProgram)}
-              className="bg-blue-500/10 text-[#137fec] px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-[#137fec] hover:text-white transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm">{isAddingProgram ? 'close' : 'add'}</span>
-              {isAddingProgram ? 'Cancel' : 'Add Program'}
-            </button>
-          </div>
+        {/* Programs Section */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
+             <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#137fec]">school</span>
+                    Programs Offered
+                </h2>
+                <button 
+                  onClick={() => setIsAddingProgram(!isAddingProgram)}
+                  className="bg-[#137fec] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:bg-[#137fec]/90 transition-all"
+                >
+                  <span className="material-symbols-outlined text-sm">{isAddingProgram ? 'close' : 'add'}</span>
+                  {isAddingProgram ? 'Cancel' : 'Add Program'}
+                </button>
+             </div>
 
-          {/* Programs Table/List */}
-          <div className="px-4">
-            <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/50">
-                    <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Name</th>
-                    <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Degree</th>
-                    <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Years</th>
-                    <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Level</th>
-                    <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {/* Add Program Row */}
-                  {isAddingProgram && (
-                    <tr className="bg-blue-50/50 dark:bg-blue-900/10">
-                      <td className="px-3 py-4">
+             {isAddingProgram && (
+                <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                     <div className="md:col-span-2">
+                        <label className="text-xs font-bold text-slate-500 mb-1 block">Program Name</label>
                         <input 
                           value={newProgram.name}
                           onChange={(e) => setNewProgram({...newProgram, name: e.target.value})}
-                          placeholder="Program Name"
-                          className="w-full bg-white dark:bg-slate-800 border-none rounded-md px-2 py-1 text-xs"
+                          placeholder="e.g. Computer Science"
+                          className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
                         />
-                      </td>
-                      <td className="px-3 py-4">
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 mb-1 block">Degree</label>
                         <select 
                           value={newProgram.degree}
                           onChange={(e) => setNewProgram({...newProgram, degree: e.target.value})}
-                          className="w-full bg-white dark:bg-slate-800 border-none rounded-md px-1 py-1 text-xs"
+                          className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
                         >
                           <option>B.Tech</option>
                           <option>B.E</option>
@@ -244,78 +293,67 @@ export default function BasicDetailsForm() {
                           <option>M.E</option>
                           <option>MBA</option>
                         </select>
-                      </td>
-                      <td className="px-3 py-4">
-                         <select 
-                          value={newProgram.years}
-                          onChange={(e) => setNewProgram({...newProgram, years: parseInt(e.target.value)})}
-                          className="w-full bg-white dark:bg-slate-800 border-none rounded-md px-1 py-1 text-xs"
-                        >
-                          <option value={2}>2</option>
-                          <option value={3}>3</option>
-                          <option value={4}>4</option>
-                          <option value={5}>5</option>
-                        </select>
-                      </td>
-                      <td className="px-3 py-4">
+                     </div>
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 mb-1 block">Level</label>
                         <select 
                           value={newProgram.level}
                           onChange={(e) => setNewProgram({...newProgram, level: e.target.value})}
-                          className="bg-white dark:bg-slate-800 border-none rounded-md px-1 py-1 text-xs"
+                          className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
                         >
                           <option>UG</option>
                           <option>PG</option>
                           <option>Integrated</option>
                         </select>
-                      </td>
-                      <td className="px-3 py-4">
-                         <button onClick={handleAddProgram} className="text-[#137fec] hover:bg-blue-100 p-1 rounded-full">
-                          <span className="material-symbols-outlined text-base">check</span>
-                        </button>
-                      </td>
-                    </tr>
-                  )}
+                     </div>
+                     <button onClick={handleAddProgram} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg transition-colors">
+                        Add
+                     </button>
+                </div>
+             )}
 
-                  {programs.map((prog, idx) => (
-                    <tr key={prog.id || idx}>
-                      <td className="px-3 py-4 text-sm font-medium text-[#0d141b] dark:text-slate-200">{prog.name}</td>
-                      <td className="px-3 py-4 text-sm text-slate-600 dark:text-slate-400">{prog.degree}</td>
-                      <td className="px-3 py-4 text-sm text-slate-600 dark:text-slate-400">{prog.years}</td>
-                      <td className="px-3 py-4 text-sm">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${prog.level === 'UG' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'}`}>
-                          {prog.level}
-                        </span>
-                      </td>
-                       <td className="px-3 py-4 text-sm">
-                        <button 
-                          onClick={() => {
-                             if(prog.id && confirm('Are you sure you want to delete this program?')) {
-                               handleDeleteProgram(prog.id);
-                             }
-                          }}
-                          className="text-red-500 hover:bg-red-50 p-1 rounded-full"
-                        >
-                          <span className="material-symbols-outlined text-base">delete</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </main>
-
-        {/* Sticky Bottom Save Action */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-800">
-          <button 
-            onClick={handleSaveDetails}
-            disabled={loading}
-            className="w-full bg-[#137fec] hover:bg-[#137fec]/90 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Saving...' : 'Save Changes'}
-          </button>
+             <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="border-b border-slate-100 dark:border-slate-800">
+                            <th className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                            <th className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Degree</th>
+                            <th className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</th>
+                            <th className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Level</th>
+                            <th className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {programs.map((prog) => (
+                            <tr key={prog.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                <td className="py-4 font-semibold text-slate-700 dark:text-slate-200">{prog.name}</td>
+                                <td className="py-4 text-slate-600 dark:text-slate-400">{prog.degree}</td>
+                                <td className="py-4 text-slate-600 dark:text-slate-400">{prog.years} Years</td>
+                                <td className="py-4">
+                                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${prog.level === 'UG' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'}`}>
+                                        {prog.level}
+                                    </span>
+                                </td>
+                                <td className="py-4 text-right">
+                                    <button 
+                                        onClick={() => prog.id && confirm('Delete this program?') && handleDeleteProgram(prog.id)}
+                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                    >
+                                        <span className="material-symbols-outlined text-lg">delete</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        {programs.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="py-8 text-center text-slate-400 italic">No programs added yet.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+             </div>
         </div>
+
       </div>
     </div>
   );

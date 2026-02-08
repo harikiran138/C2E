@@ -30,6 +30,16 @@ export default function PeoFormulation() {
 
   useEffect(() => {
     const fetchPrograms = async () => {
+      const isDemo = localStorage.getItem('isDemo') === 'true';
+      if (isDemo) {
+        setPrograms([
+          { id: '1', name: 'Computer Science' },
+          { id: '2', name: 'Electronics' }
+        ]);
+        setSelectedProgramId('1');
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/institution/login');
@@ -86,9 +96,7 @@ export default function PeoFormulation() {
   };
 
   const cleanPercentage = (val: string) => {
-    // allow empty string
     if (val === '') return '';
-    // parse int, clamp 0-100
     const num = parseInt(val);
     if (isNaN(num)) return '';
     if (num < 0) return '0';
@@ -130,147 +138,133 @@ export default function PeoFormulation() {
       setLoading(false);
     }
   };
+
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 font-sans min-h-screen text-slate-900 dark:text-slate-100">
-      {/* Top App Bar */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center p-4 justify-between max-w-lg mx-auto">
-          <div className="text-[#137fec] cursor-pointer">
-            <span className="material-symbols-outlined">arrow_back_ios</span>
-          </div>
-          <h1 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-6">PEO Formulation</h1>
-          <div className="w-6"></div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 md:p-12 font-sans">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center">
+             <div>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">PEO Formulation</h1>
+                <p className="text-slate-500 dark:text-slate-400">Define Program Educational Objectives using AI assistance.</p>
+             </div>
+             <button onClick={() => router.push('/institution/dashboard')} className="text-sm font-semibold text-[#137fec] hover:underline">
+                Back to Dashboard
+             </button>
         </div>
-      </header>
 
-      <main className="max-w-lg mx-auto pb-24">
-        {/* Hero Section */}
-        <section className="px-4 pt-6 pb-2">
-          {programs.length > 0 && (
-            <div className="mb-4">
-               <select 
-                value={selectedProgramId}
-                onChange={(e) => setSelectedProgramId(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm"
-               >
-                 {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-               </select>
+        {/* Program Selection Card */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
+            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">Select Program</label>
+            <select
+              value={selectedProgramId || ''}
+              onChange={(e) => setSelectedProgramId(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-[#137fec] outline-none transition-all"
+            >
+              {programs.map((prog) => (
+                <option key={prog.id} value={prog.id}>{prog.name}</option>
+              ))}
+            </select>
+        </div>
+        
+        {/* AI Generator Section */}
+        {generatedSets.length === 0 ? (
+            <div className="bg-[#137fec]/5 rounded-2xl p-8 border border-[#137fec]/20 text-center">
+                <div className="size-16 bg-[#137fec]/10 rounded-full flex items-center justify-center mx-auto mb-4 text-[#137fec]">
+                    <span className="material-symbols-outlined text-3xl">auto_awesome</span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">AI PEO Generator</h3>
+                <p className="text-slate-500 max-w-lg mx-auto mb-6">Select a program to automatically generate suggested PEOs based on standard accreditation criteria.</p>
+                <button 
+                    onClick={handleGenerate}
+                    disabled={loading}
+                    className="bg-[#137fec] hover:bg-[#137fec]/90 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] flex items-center gap-2 mx-auto disabled:opacity-70"
+                >
+                    {loading ? (
+                        <><span className="material-symbols-outlined animate-spin">progress_activity</span> Generating...</>
+                    ) : (
+                        <><span className="material-symbols-outlined">auto_awesome</span> Generate Suggestions</>
+                    )}
+                </button>
             </div>
-          )}
-          <h2 className="text-2xl font-extrabold tracking-tight mb-1">Formulate PEOs</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Define Program Educational Objectives using AI-assisted generation.</p>
-        </section>
-
-        {/* Primary Action Button */}
-        {/* Primary Action Button */}
-        <div className="px-4 py-4">
-          <button 
-            onClick={handleGenerate}
-            disabled={loading}
-            className="flex w-full cursor-pointer items-center justify-center rounded-xl h-14 bg-[#137fec] text-white gap-3 shadow-lg shadow-blue-500/20 hover:bg-[#137fec]/90 transition-all active:scale-[0.98] disabled:opacity-70"
-          >
-            <span className="material-symbols-outlined">{loading ? 'hourglass_top' : 'auto_awesome'}</span>
-            <span className="text-base font-bold">{loading ? 'Generating...' : 'Generate 4 sets of PEOs'}</span>
-          </button>
-        </div>
-
-        {/* PEO Selection List */}
-        {/* PEO Selection List */}
-        {generatedSets.length > 0 && (
-          <div className="flex flex-col gap-4 p-4">
-            {generatedSets.map((set, setIdx) => (
-              <label key={setIdx} className={`relative flex flex-col gap-3 rounded-xl border-2 ${selectedSetIndex === setIdx ? 'border-[#137fec] bg-blue-50/20 dark:bg-blue-900/10' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'} p-4 shadow-sm cursor-pointer transition-all`}>
-                <div className="flex items-center justify-between">
-                  <span className={`px-2 py-1 text-xs font-bold rounded uppercase tracking-wider ${selectedSetIndex === setIdx ? 'bg-blue-500/10 text-[#137fec]' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>Set {setIdx + 1}</span>
-                  <input 
-                    checked={selectedSetIndex === setIdx}
-                    onChange={() => handleSelectSet(setIdx)}
-                    className="h-6 w-6 border-2 text-[#137fec] focus:ring-[#137fec]" 
-                    name="peo-set" 
-                    type="radio"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-                    {set.map((peo, i) => (
-                      <p key={i}>• {peo}</p>
+        ) : (
+            <div className="space-y-6">
+                 {/* Generated Sets Selection */}
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Suggested PEO Sets</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {generatedSets.map((set, idx) => (
+                        <div 
+                            key={idx}
+                            onClick={() => handleSelectSet(idx)} 
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedSetIndex === idx ? 'border-[#137fec] bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-200'}`}
+                        >
+                            <div className="flex justify-between items-center mb-4">
+                                <span className={`font-bold uppercase text-xs tracking-wider px-2 py-1 rounded ${selectedSetIndex === idx ? 'bg-blue-100 text-[#137fec]' : 'bg-slate-100 text-slate-500'}`}>Option {idx + 1}</span>
+                                {selectedSetIndex === idx && <span className="material-symbols-outlined text-[#137fec]">check_circle</span>}
+                            </div>
+                            <ul className="space-y-2">
+                                {set.map((item, i) => (
+                                    <li key={i} className="text-sm text-slate-600 dark:text-slate-300 flex gap-2">
+                                        <span className="text-[#137fec] font-bold">•</span>
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     ))}
-                  </div>
                 </div>
-              </label>
-            ))}
-          </div>
-        )}
 
-        {/* Finalize Section */}
-        {/* Finalize Section */}
-        {selectedSetIndex !== null && (
-        <section className="mt-8 px-4">
-          <h2 className="text-2xl font-extrabold tracking-tight mb-4">Finalize PEOs</h2>
-          <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-800/50">
-                <tr>
-                  <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-20">ID</th>
-                  <th className="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Objective</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {finalPeos.map((peo, idx) => (
-                <tr key={peo.id}>
-                  <td className="p-4 align-top">
-                    <span className="font-bold text-[#137fec]">PEO-{idx + 1}</span>
-                  </td>
-                  <td className="p-4 align-top">
-                    <p className="text-sm text-slate-700 dark:text-slate-300 mb-4">{peo.text}</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Vision Alignment (%)</label>
-                        <input 
-                          value={peo.visionAlign}
-                          onChange={(e) => updatePeoData(peo.id, 'visionAlign', e.target.value)}
-                          className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] outline-none transition-all" 
-                          placeholder="0-100" 
-                          type="text"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Stakeholder (%)</label>
-                        <input 
-                          value={peo.stakeholderAlign}
-                          onChange={(e) => updatePeoData(peo.id, 'stakeholderAlign', e.target.value)}
-                          className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] outline-none transition-all" 
-                          placeholder="0-100" 
-                          type="text"
-                        />
-                      </div>
+                {/* Refinement & Finalization */}
+                {selectedSetIndex !== null && (
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Refine & Finalize</h3>
+                        <div className="space-y-6">
+                            {finalPeos.map((peo, idx) => (
+                                <div key={peo.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <div className="flex gap-4">
+                                        <span className="font-bold text-[#137fec] whitespace-nowrap">PEO {idx + 1}</span>
+                                        <div className="space-y-4 w-full">
+                                            <p className="font-medium text-slate-800 dark:text-slate-200">{peo.text}</p>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Vision Alignment (%)</label>
+                                                    <input 
+                                                        value={peo.visionAlign}
+                                                        onChange={(e) => updatePeoData(peo.id, 'visionAlign', e.target.value)}
+                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
+                                                        placeholder="0-100"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Stakeholder Alignment (%)</label>
+                                                    <input 
+                                                        value={peo.stakeholderAlign}
+                                                        onChange={(e) => updatePeoData(peo.id, 'stakeholderAlign', e.target.value)}
+                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
+                                                        placeholder="0-100"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-4 mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+                            <button onClick={() => handleSave(false)} className="px-6 py-3 font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                                Save Draft
+                            </button>
+                            <button onClick={() => handleSave(true)} className="flex-1 bg-[#137fec] hover:bg-[#137fec]/90 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all">
+                                Finalize PEOs
+                            </button>
+                        </div>
                     </div>
-                  </td>
-                </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                )}
+            </div>
         )}
-      </main>
 
-      {/* Bottom Submission Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-4">
-        <div className="max-w-lg mx-auto flex gap-4">
-          <button 
-            onClick={() => handleSave(false)}
-            className="flex-1 h-12 rounded-lg border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300"
-          >
-            Save Draft
-          </button>
-          <button 
-            onClick={() => handleSave(true)}
-            className="flex-[2] h-12 rounded-lg bg-[#137fec] text-white font-bold text-sm shadow-md"
-          >
-            Complete Formulation
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/harikiran138/C2E#readme",
   "dependencies": {
+    "@paper-design/shaders-react": "^0.0.71",
     "@studio-freight/lenis": "^1.0.42",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",

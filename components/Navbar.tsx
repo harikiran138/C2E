@@ -167,7 +167,7 @@ export default function Navbar() {
             <div className="hidden md:block w-px h-6 bg-gradient-to-b from-transparent via-[#c9a961]/50 to-transparent mx-2" />
 
             {/* Login Button - Desktop */}
-            <Link href="/login">
+            <Link href="/institution/login">
               <MagneticButton className="hidden md:block relative group px-6 py-2 rounded-full overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#c9a961] to-[#a88a4d] opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[0_0_15px_rgba(201,169,97,0.4)]" />
                 <span className="relative text-[11px] font-black tracking-widest uppercase text-[#c9a961] group-hover:text-black transition-colors duration-300 flex items-center gap-2">
@@ -237,7 +237,7 @@ export default function Navbar() {
                   
                   <div className="h-px bg-gradient-to-r from-transparent via-[#c9a961]/30 to-transparent my-4" />
                   
-                  <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Link href="/institution/login" onClick={() => setIsMobileMenuOpen(false)}>
                     <motion.div
                       whileTap={{ scale: 0.98 }}
                       className="flex items-center justify-center gap-3 px-6 py-5 rounded-2xl bg-gradient-to-br from-[#c9a961] to-[#a88a4d] text-black font-black text-sm tracking-widest uppercase shadow-xl"
