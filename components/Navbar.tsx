@@ -1,19 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { Home, Briefcase, Phone, Menu, X, LogIn } from "lucide-react";
+
+// Magnetic Button Component for premium feel
+const MagneticButton: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+}> = ({ children, className = "", onClick }) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const handleMouse = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const { clientX, clientY } = e;
+    const { width, height, left, top } = e.currentTarget.getBoundingClientRect();
+    const x = (clientX - (left + width / 2)) * 0.3;
+    const y = (clientY - (top + height / 2)) * 0.3;
+    setPosition({ x, y });
+  };
+
+  const reset = () => {
+    setPosition({ x: 0, y: 0 });
+  };
+
+  return (
+    <motion.button
+      onMouseMove={handleMouse}
+      onMouseLeave={reset}
+      onClick={onClick}
+      animate={{ x: position.x, y: position.y }}
+      transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
+      className={className}
+    >
+      {children}
+    </motion.button>
+  );
+};
 
 export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [activeSection, setActiveSection] = useState("Exploring");
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("Home");
+  const { scrollY } = useScroll();
+
+  // Premium scroll transformations
+  const navOpacity = useTransform(scrollY, [0, 100], [1, 1]);
+  const navScale = useTransform(scrollY, [0, 100], [1, 0.95]);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+      setIsScrolled(window.scrollY > 50);
     };
 
     const observerOptions = {
@@ -26,7 +64,7 @@ export default function Navbar() {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const id = entry.target.id;
-          const name = id === "hero" ? "Overview" : id.charAt(0).toUpperCase() + id.slice(1);
+          const name = id === "hero" ? "Home" : id.charAt(0).toUpperCase() + id.slice(1);
           setActiveSection(name);
         }
       });
@@ -47,135 +85,173 @@ export default function Navbar() {
   }, []);
 
   const navLinks = [
-    { name: "Home", href: "/" },
-    { name: "About", href: "/#about" },
-    { name: "Services", href: "/#services" },
+    { name: "Home", href: "/", icon: Home },
+    { name: "About", href: "/#about", icon: Briefcase },
+    { name: "Services", href: "/#services", icon: Phone },
   ];
 
-  const isCollapsed = scrolled && !isHovered;
-
   return (
-    <nav 
-      className="fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-500"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <motion.div 
-        layout
-        animate={{
-          width: isCollapsed ? "200px" : "auto",
-          paddingLeft: isCollapsed ? "0px" : "24px",
-          paddingRight: isCollapsed ? "0px" : "24px",
-        }}
-        transition={{ 
-          type: "spring", 
-          stiffness: 150, 
-          damping: 22,
-          mass: 1.2,
-          layout: { duration: 0.5, ease: "circOut" }
-        }}
-        className={`mx-auto flex items-center justify-center h-[56px] rounded-[2rem] border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] backdrop-blur-xl transition-colors duration-500 ${
-          scrolled ? "bg-black/40" : "bg-white/5"
+    <>
+      <motion.nav
+        style={{ opacity: navOpacity, scale: navScale }}
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${
+          isScrolled ? "top-4" : "top-6"
         }`}
       >
-        <div className="flex items-center">
-          <AnimatePresence mode="wait">
-            {isCollapsed ? (
-              <motion.div
-                key="menu-label"
-                initial={{ opacity: 0, scale: 0.9, y: 5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -5 }}
-                className="flex items-center justify-center space-x-2 text-white"
-              >
-                <span className="text-[11px] font-black tracking-[0.3em] whitespace-nowrap">
-                  {activeSection}
-                </span>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="nav-links"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                className="flex items-center"
-              >
-                {/* Links (Desktop) */}
-                <div className="hidden md:flex items-center space-x-10">
-                  {navLinks.map((link) => (
-                    <Link
-                      key={link.name}
-                      href={link.href}
-                      className="text-[12px] font-black tracking-[0.2em] transition-colors relative group text-white hover:text-primary-gold"
-                    >
-                      {link.name}
-                    </Link>
-                  ))}
-                  
-                  <Link href="/login">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-6 py-2 rounded-full font-black tracking-widest text-[10px] shadow-xl transition-all duration-500 bg-white text-primary-dark hover:bg-primary-gold hover:text-white border border-white/20 ml-8"
-                    >
-                      Login
-                    </motion.button>
-                  </Link>
-                </div>
+        <motion.div
+          initial={{ y: -100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 100, damping: 20 }}
+          className={`relative backdrop-blur-xl bg-black/40 border border-[#c9a961]/30 rounded-full shadow-2xl transition-all duration-500 overflow-hidden ${
+            isScrolled ? "px-6 py-2" : "px-8 py-3"
+          }`}
+          style={{
+            boxShadow: "0 8px 32px rgba(201, 169, 97, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+          }}
+        >
+          {/* Glassmorphism overlay */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+          
+          {/* Golden glow effect */}
+          <div className="absolute inset-0 rounded-full opacity-30 blur-xl bg-gradient-to-r from-[#c9a961]/20 via-transparent to-[#c9a961]/20 pointer-events-none" />
 
-                <div className="md:hidden flex items-center px-4">
-                  <button
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="text-white hover:text-primary-gold transition-colors"
-                  >
-                    <Menu size={24} />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+          <div className="relative flex items-center gap-2">
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-1">
+              {navLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = activeSection === link.name;
+                
+                return (
+                  <Link key={link.name} href={link.href}>
+                    <MagneticButton
+                      className="relative group px-6 py-2 rounded-full transition-all duration-300"
+                    >
+                      <AnimatePresence>
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeTab"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="absolute inset-0 bg-gradient-to-br from-[#c9a961] to-[#a88a4d] rounded-full"
+                            style={{
+                              boxShadow: "0 0 20px rgba(201, 169, 97, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+                            }}
+                          />
+                        )}
+                      </AnimatePresence>
+                      
+                      <span className="relative flex items-center gap-2 text-[11px] font-black tracking-widest uppercase">
+                        <Icon
+                          className={`w-3.5 h-3.5 transition-all duration-300 ${
+                            isActive ? "text-black" : "text-white/70 group-hover:text-[#c9a961]"
+                          }`}
+                        />
+                        <span
+                          className={`transition-all duration-300 ${
+                            isActive ? "text-black" : "text-white/70 group-hover:text-white"
+                          }`}
+                        >
+                          {link.name}
+                        </span>
+                      </span>
+                    </MagneticButton>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Separator */}
+            <div className="hidden md:block w-px h-6 bg-gradient-to-b from-transparent via-[#c9a961]/50 to-transparent mx-2" />
+
+            {/* Login Button - Desktop */}
+            <Link href="/login">
+              <MagneticButton className="hidden md:block relative group px-6 py-2 rounded-full overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#c9a961] to-[#a88a4d] opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[0_0_15px_rgba(201,169,97,0.4)]" />
+                <span className="relative text-[11px] font-black tracking-widest uppercase text-[#c9a961] group-hover:text-black transition-colors duration-300 flex items-center gap-2">
+                  <LogIn className="w-3.5 h-3.5" />
+                  Login
+                </span>
+              </MagneticButton>
+            </Link>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 text-white/70 hover:text-[#c9a961] transition-colors"
+            >
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </motion.div>
+      </motion.nav>
 
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 w-[90vw] bg-primary-dark/95 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 flex flex-col items-center space-y-8 shadow-2xl z-[60]"
-          >
-            <button
-              onClick={() => setMobileMenuOpen(false)}
-              className="absolute top-6 right-8 text-white/50 hover:text-white transition-colors"
+        {isMobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45]"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ duration: 0.3, type: "spring", stiffness: 200, damping: 25 }}
+              className="fixed top-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm md:hidden"
             >
-              <X size={24} />
-            </button>
-            {navLinks.map((link, idx) => (
-              <motion.div
-                key={link.name}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
+              <div
+                className="backdrop-blur-2xl bg-black/80 border border-[#c9a961]/30 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden relative"
               >
-                <Link
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-2xl font-black text-white hover:text-primary-gold tracking-tighter"
-                >
-                  {link.name}
-                </Link>
-              </motion.div>
-            ))}
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="w-full">
-              <button className="w-full py-4 bg-primary-gold text-white rounded-full font-black tracking-widest text-sm shadow-2xl">
-                Institution Login
-              </button>
-            </Link>
-          </motion.div>
+                <div className="absolute inset-0 bg-gradient-to-br from-[#c9a961]/5 to-transparent pointer-events-none" />
+                
+                <div className="flex flex-col gap-4 relative z-10">
+                  {navLinks.map((link, idx) => {
+                    const Icon = link.icon;
+                    const isActive = activeSection === link.name;
+                    
+                    return (
+                      <Link key={link.name} href={link.href} onClick={() => setIsMobileMenuOpen(false)}>
+                        <motion.div
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 ${
+                            isActive
+                              ? "bg-gradient-to-br from-[#c9a961] to-[#a88a4d] text-black shadow-[0_0_20px_rgba(201,169,97,0.3)]"
+                              : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                          }`}
+                        >
+                          <Icon className="w-5 h-5" />
+                          <span className="font-black text-sm tracking-widest uppercase">{link.name}</span>
+                        </motion.div>
+                      </Link>
+                    );
+                  })}
+                  
+                  <div className="h-px bg-gradient-to-r from-transparent via-[#c9a961]/30 to-transparent my-4" />
+                  
+                  <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                    <motion.div
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center justify-center gap-3 px-6 py-5 rounded-2xl bg-gradient-to-br from-[#c9a961] to-[#a88a4d] text-black font-black text-sm tracking-widest uppercase shadow-xl"
+                    >
+                      <LogIn className="w-5 h-5" />
+                      Login
+                    </motion.div>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
-    </nav>
+    </>
   );
 }

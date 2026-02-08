@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { ShieldCheck, BookOpen, Search, Layers } from "lucide-react";
+import GridPattern from "./GridPattern";
 
 const services = [
   {
@@ -33,7 +34,8 @@ const services = [
 
 export default function ServicesSection() {
   return (
-    <section id="services" className="py-24 md:py-32 relative overflow-hidden bg-white">
+    <section id="services" className="py-24 md:py-32 relative overflow-hidden transition-colors duration-500">
+      <GridPattern />
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-gold/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary-gold/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />

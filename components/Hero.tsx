@@ -12,6 +12,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 export default function Hero() {
   const bgRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
   const pathOutlineRef = useRef<SVGPathElement>(null);
@@ -24,7 +25,7 @@ export default function Hero() {
   useEffect(() => {
     if (bgRef.current) {
       // Parallax + Zoom Effect
-      gsap.to(bgRef.current, {
+      gsap.to([bgRef.current, overlayRef.current], {
         yPercent: 15,
         scale: 1.1,
         ease: "none",
@@ -165,6 +166,23 @@ export default function Hero() {
             ></path>
           </svg>
         </div>
+      </div>
+      {/* Overlay Image - On top of everything INCLUDING curve */}
+      <div ref={overlayRef} className="absolute inset-0 z-40 pointer-events-none overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 1.1 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.5, ease: "easeOut" }}
+          className="relative w-full h-full"
+        >
+          <Image
+            src="/images/hero_overlay.png"
+            alt="Hero Overlay"
+            fill
+            priority
+            className="object-cover object-[center_top]"
+          />
+        </motion.div>
       </div>
     </section>
   );
