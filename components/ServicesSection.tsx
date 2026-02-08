@@ -34,16 +34,10 @@ const services = [
 
 export default function ServicesSection() {
   return (
-    <section id="services" className="py-24 md:py-32 relative overflow-hidden transition-colors duration-500">
-      <div className="absolute inset-0 bg-white -z-20"></div>
-      <DottedSurface className="opacity-40 lg:opacity-60" />
-
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-gold/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-primary-gold/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2" />
+    <section id="services" className="py-12 md:py-16 relative overflow-hidden transition-colors duration-500 bg-white">
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div className="max-w-2xl">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -76,7 +70,7 @@ export default function ServicesSection() {
           </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
           {services.map((service, index) => (
             <motion.div
               key={index}
@@ -84,7 +78,7 @@ export default function ServicesSection() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1, duration: 0.6 }}
               viewport={{ once: true }}
-              className="group relative flex flex-col sm:flex-row items-start gap-6 p-8 rounded-3xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-primary-gold/30 hover:shadow-2xl hover:shadow-primary-gold/10 transition-all duration-500"
+              className="group relative flex flex-col sm:flex-row items-start gap-4 p-6 rounded-2xl border border-slate-100 hover:bg-white hover:border-primary-gold/30 hover:shadow-2xl hover:shadow-primary-gold/10 transition-all duration-500"
             >
               <div className="relative shrink-0">
                 <div className="h-16 w-16 rounded-2xl bg-white shadow-sm flex items-center justify-center group-hover:bg-primary-gold transition-colors duration-500">

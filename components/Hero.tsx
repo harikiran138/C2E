@@ -54,46 +54,9 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Enhanced Curve Transition with Golden Sparkles */}
-      <div className="absolute bottom-0 left-0 w-full z-30 pointer-events-none">
-        {/* Deep Golden Glow */}
-        <div className="absolute bottom-0 left-0 w-full h-48 bg-gradient-to-t from-[#c9a961]/50 via-[#c9a961]/10 to-transparent" />
-        
-        <div className="relative h-[150px] md:h-[200px] w-full">
-          <svg 
-            className="absolute bottom-[-1px] left-0 w-full h-full z-20 pointer-events-none" 
-            viewBox="0 0 1200 120" 
-            preserveAspectRatio="none"
-          >
-            {/* Fill path - White */}
-            <path 
-              d="M0,0 Q600,100 1200,0 V120 H0 Z" 
-              fill="#FFFFFF"
-            ></path>
-            {/* Outline path - Golden Premium Border */}
-            <path 
-              d="M0,0 Q600,100 1200,0" 
-              fill="none"
-              stroke="#c9a961"
-              strokeWidth="4"
-              strokeLinecap="round"
-              className="drop-shadow-[0_0_15px_rgba(201,169,97,0.6)]"
-            ></path>
-          </svg>
-        </div>
-      </div>
-      {/* Overlay Image - On top of everything INCLUDING curve */}
-      <div className="absolute -top-12 left-0 right-0 bottom-0 z-40 pointer-events-none overflow-hidden">
-        <div className="relative w-full h-full">
-          <Image
-            src="/images/hero_overlay.png"
-            alt="Hero Overlay"
-            fill
-            priority
-            className="object-cover object-[center_top]"
-          />
-        </div>
-      </div>
+      {/* Simplified background glow */}
+      <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-black/20 to-transparent z-10" />
+
     </section>
   );
 }

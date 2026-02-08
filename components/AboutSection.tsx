@@ -68,21 +68,11 @@ export default function AboutSection() {
   const titleUnderline = useTransform(scrollYProgress, [0.1, 0.3], [0, 100]);
 
   return (
-    <section ref={sectionRef} id="about" className="pt-0 pb-32 relative overflow-hidden text-black transition-colors duration-500">
-      <GridPattern />
-      {/* Decorative Golden Glows */}
-      <motion.div 
-        style={{ y: goldGlowY }}
-        className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#c9a961]/10 blur-[120px] rounded-full -z-10"
-      />
-      <motion.div 
-        style={{ y: useTransform(scrollYProgress, [0, 1], [0, 100]) }}
-        className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-[#c9a961]/5 blur-[150px] rounded-full -z-10"
-      />
+    <section ref={sectionRef} id="about" className="pt-0 pb-16 relative overflow-hidden text-black transition-colors duration-500 bg-white">
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Intro Header */}
-        <div className="mb-32 pt-24 md:pt-32">
+        <div className="mb-16 pt-16 md:pt-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -120,7 +110,7 @@ export default function AboutSection() {
         </div>
 
         {/* Belief System - Premium Card */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-32 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16 items-center">
           <div className="lg:col-span-5">
             <SectionHeader title="What We Believe" subtitle="OBE is a governance framework for academic quality." />
             <p className="text-gray-600 leading-relaxed mt-4">
@@ -131,7 +121,7 @@ export default function AboutSection() {
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="lg:col-span-12 bg-gradient-to-br from-[#c9a961]/20 to-transparent border border-[#c9a961]/30 p-10 md:p-16 rounded-[3rem] relative overflow-hidden group"
+            className="lg:col-span-12 border border-[#c9a961]/30 p-8 md:p-12 rounded-[2rem] relative overflow-hidden group"
           >
             <Quote className="absolute -top-10 -left-10 h-64 w-64 text-[#c9a961]/5 transform -rotate-12" />
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
@@ -160,7 +150,7 @@ export default function AboutSection() {
         </div>
 
         {/* What We Do - Grid */}
-        <div className="mb-32">
+        <div className="mb-16">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
             <SectionHeader title="What We Do" subtitle="End-to-end institutionalization of OBE frameworks." />
             <p className="text-[#c9a961]/60 text-xs font-black tracking-widest uppercase pb-12">
@@ -197,8 +187,7 @@ export default function AboutSection() {
         </div>
 
         {/* Our Approach - Process Flow */}
-        <div className="mb-32 bg-primary-gold/[0.03] rounded-[4rem] p-12 md:p-20 border border-primary-gold/10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[#c9a961]/5 blur-[100px] -z-10" />
+        <div className="mb-16 rounded-[3rem] p-10 md:p-16 border border-primary-gold/10 relative overflow-hidden">
           
           <SectionHeader title="Our Approach" subtitle="Clarity. Structure. Sustainability." />
           
@@ -235,10 +224,10 @@ export default function AboutSection() {
         </div>
 
         {/* Digital Enablement & Partners */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-32">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
           <motion.div 
             whileHover={{ y: -5 }}
-            className="bg-primary-gold/[0.03] backdrop-blur-md rounded-[3rem] p-10 md:p-12 border border-primary-gold/10 group hover:border-[#c9a961]/30 transition-all duration-500"
+            className="backdrop-blur-md rounded-[2.5rem] p-8 md:p-10 border border-primary-gold/10 group hover:border-[#c9a961]/30 transition-all duration-500"
           >
             <div className="flex items-center space-x-4 mb-10">
               <div className="p-4 bg-[#c9a961]/10 rounded-3xl group-hover:rotate-12 transition-transform">
@@ -269,7 +258,7 @@ export default function AboutSection() {
 
           <motion.div 
             whileHover={{ y: -5 }}
-            className="bg-primary-gold/[0.03] backdrop-blur-md rounded-[3rem] p-10 md:p-12 border border-primary-gold/10 group hover:border-[#c9a961]/30 transition-all duration-500 flex flex-col justify-between"
+            className="backdrop-blur-md rounded-[2.5rem] p-8 md:p-10 border border-primary-gold/10 group hover:border-[#c9a961]/30 transition-all duration-500 flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center space-x-4 mb-10">
@@ -302,9 +291,9 @@ export default function AboutSection() {
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="relative py-32 px-8 text-center bg-gradient-to-b from-primary-gold/[0.05] to-transparent rounded-[4rem] border border-primary-gold/10 overflow-hidden"
+          className="relative py-16 px-8 text-center rounded-[3rem] border border-primary-gold/10 overflow-hidden"
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#c9a961]/15 blur-[120px] rounded-full -z-10 animate-pulse" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-[#c9a961]/10 blur-[100px] rounded-full -z-10 animate-pulse" />
           
           <Star className="h-12 w-12 text-[#c9a961] mx-auto mb-10" />
           
