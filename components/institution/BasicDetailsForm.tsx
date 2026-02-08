@@ -125,6 +125,22 @@ export default function BasicDetailsForm() {
     }
   };
 
+  const handleDeleteProgram = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('programs')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setPrograms(prev => prev.filter(p => p.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting program:', error);
+      alert('Error deleting program: ' + error.message);
+    }
+  };
+
   return (
     <div className="bg-slate-50 dark:bg-slate-900 font-sans min-h-screen flex flex-col items-center p-4">
       <div className="relative flex h-full w-full flex-col overflow-hidden max-w-[480px] bg-white dark:bg-slate-900 shadow-xl rounded-2xl min-h-[800px]">
@@ -139,18 +155,19 @@ export default function BasicDetailsForm() {
         </header>
 
         <main className="flex-1 overflow-y-auto pb-24">
-          {/* Autonomous Status Segmented Toggle */}
+          {/* Autonomous Status Dropdown */}
           <div className="p-4">
             <p className="text-[#0d141b] dark:text-slate-200 text-sm font-semibold leading-normal mb-3">Autonomous Status</p>
-            <div className="flex h-11 w-full items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
-              <label className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 transition-all duration-200 ${status === 'Autonomous' ? 'bg-white shadow-sm text-[#137fec]' : 'text-slate-500'} dark:text-slate-400 text-sm font-semibold`}>
-                <span className="truncate">Autonomous</span>
-                <input checked={status === 'Autonomous'} className="invisible w-0" name="status" type="radio" value="Autonomous" onChange={() => setStatus('Autonomous')} />
-              </label>
-              <label className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 transition-all duration-200 ${status === 'Non-autonomous' ? 'bg-white shadow-sm text-[#137fec]' : 'text-slate-500'} dark:text-slate-400 text-sm font-semibold`}>
-                <span className="truncate">Non-autonomous</span>
-                <input checked={status === 'Non-autonomous'} className="invisible w-0" name="status" type="radio" value="Non-autonomous" onChange={() => setStatus('Non-autonomous')} />
-              </label>
+            <div className="relative">
+               <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-[#0d141b] dark:text-white focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] outline-none appearance-none"
+               >
+                 <option value="Autonomous">Autonomous</option>
+                 <option value="Non-autonomous">Non-autonomous</option>
+               </select>
+               <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
             </div>
           </div>
 
@@ -200,6 +217,7 @@ export default function BasicDetailsForm() {
                     <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Degree</th>
                     <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Years</th>
                     <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Level</th>
+                    <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -221,19 +239,25 @@ export default function BasicDetailsForm() {
                           className="w-full bg-white dark:bg-slate-800 border-none rounded-md px-1 py-1 text-xs"
                         >
                           <option>B.Tech</option>
+                          <option>B.E</option>
                           <option>M.Tech</option>
+                          <option>M.E</option>
                           <option>MBA</option>
                         </select>
                       </td>
                       <td className="px-3 py-4">
-                         <input 
-                          type="number"
+                         <select 
                           value={newProgram.years}
                           onChange={(e) => setNewProgram({...newProgram, years: parseInt(e.target.value)})}
-                          className="w-12 bg-white dark:bg-slate-800 border-none rounded-md px-2 py-1 text-xs"
-                        />
+                          className="w-full bg-white dark:bg-slate-800 border-none rounded-md px-1 py-1 text-xs"
+                        >
+                          <option value={2}>2</option>
+                          <option value={3}>3</option>
+                          <option value={4}>4</option>
+                          <option value={5}>5</option>
+                        </select>
                       </td>
-                      <td className="px-3 py-4 flex items-center gap-2">
+                      <td className="px-3 py-4">
                         <select 
                           value={newProgram.level}
                           onChange={(e) => setNewProgram({...newProgram, level: e.target.value})}
@@ -241,8 +265,11 @@ export default function BasicDetailsForm() {
                         >
                           <option>UG</option>
                           <option>PG</option>
+                          <option>Integrated</option>
                         </select>
-                        <button onClick={handleAddProgram} className="text-[#137fec] hover:bg-blue-100 p-1 rounded-full">
+                      </td>
+                      <td className="px-3 py-4">
+                         <button onClick={handleAddProgram} className="text-[#137fec] hover:bg-blue-100 p-1 rounded-full">
                           <span className="material-symbols-outlined text-base">check</span>
                         </button>
                       </td>
@@ -258,6 +285,18 @@ export default function BasicDetailsForm() {
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${prog.level === 'UG' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'}`}>
                           {prog.level}
                         </span>
+                      </td>
+                       <td className="px-3 py-4 text-sm">
+                        <button 
+                          onClick={() => {
+                             if(prog.id && confirm('Are you sure you want to delete this program?')) {
+                               handleDeleteProgram(prog.id);
+                             }
+                          }}
+                          className="text-red-500 hover:bg-red-50 p-1 rounded-full"
+                        >
+                          <span className="material-symbols-outlined text-base">delete</span>
+                        </button>
                       </td>
                     </tr>
                   ))}

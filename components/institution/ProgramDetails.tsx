@@ -108,6 +108,24 @@ export default function ProgramDetails() {
 
   const handleAddStakeholder = async () => {
     if (!selectedProgramId) return;
+
+    // Validation
+    const phoneRegex = /^[0-9]{10}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!newStakeholder.name || !newStakeholder.organization) {
+      alert("Name and Organization are required.");
+      return;
+    }
+    if (!phoneRegex.test(newStakeholder.contact)) {
+      alert("Please enter a valid 10-digit contact number.");
+      return;
+    }
+    if (!emailRegex.test(newStakeholder.email)) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('stakeholders')
@@ -124,6 +142,22 @@ export default function ProgramDetails() {
     } catch (error: any) {
       console.error('Error adding stakeholder:', error);
       alert('Error adding stakeholder: ' + error.message);
+    }
+  };
+
+  const handleDeleteStakeholder = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('stakeholders')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setStakeholders(prev => prev.filter(s => s.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting stakeholder:', error);
+      alert('Error deleting stakeholder: ' + error.message);
     }
   };
 
@@ -253,11 +287,15 @@ export default function ProgramDetails() {
                    onChange={e => setNewStakeholder({...newStakeholder, category: e.target.value})}
                    className="w-full p-2 rounded border"
                 >
-                  <option>Employer</option>
+                  <option>Academia</option>
+                  <option>Industry</option>
+                  <option>Potential Employers</option>
+                  <option>Research Organisations</option>
+                  <option>Professional Body</option>
                   <option>Alumni</option>
-                  <option>Parent</option>
-                  <option>Student</option>
-                  <option>Faculty</option>
+                  <option>Students</option>
+                  <option>Parents</option>
+                  <option>Management</option>
                 </select>
                 <input 
                   value={newStakeholder.organization}
@@ -269,13 +307,15 @@ export default function ProgramDetails() {
                    <input 
                     value={newStakeholder.contact}
                     onChange={e => setNewStakeholder({...newStakeholder, contact: e.target.value})}
-                    placeholder="Contact No"
+                    placeholder="Contact No (10 digits)"
+                    maxLength={10}
                     className="w-full p-2 rounded border"
                    />
                    <input 
                     value={newStakeholder.email}
                     onChange={e => setNewStakeholder({...newStakeholder, email: e.target.value})}
                     placeholder="Email"
+                    type="email"
                     className="w-full p-2 rounded border"
                    />
                 </div>
@@ -293,6 +333,7 @@ export default function ProgramDetails() {
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Category</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Organization</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Contact</th>
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -305,7 +346,22 @@ export default function ProgramDetails() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{sh.organization}</td>
-                  <td className="px-4 py-3 text-sm">{sh.contact}</td>
+                  <td className="px-4 py-3 text-sm flex flex-col">
+                    <span>{sh.contact}</span>
+                    <span className="text-xs text-slate-400">{sh.email}</span>
+                  </td>
+                   <td className="px-4 py-3 text-sm">
+                    <button 
+                      onClick={() => {
+                        if (sh.id && confirm('Are you sure you want to delete this stakeholder?')) {
+                          handleDeleteStakeholder(sh.id);
+                        }
+                      }}
+                      className="text-red-500 hover:bg-red-50 p-1 rounded-full"
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </td>
                 </tr>
                 ))}
               </tbody>
@@ -318,7 +374,7 @@ export default function ProgramDetails() {
 
         {/* Feedback Gateway Card */}
         <section className="p-4">
-          <a className="group block relative overflow-hidden bg-[#137fec] rounded-2xl p-6 shadow-xl shadow-blue-500/30 active:scale-[0.98] transition-all" href="/institution/peos">
+          <a className="group block relative overflow-hidden bg-[#137fec] rounded-2xl p-6 shadow-xl shadow-blue-500/30 active:scale-[0.98] transition-all" href="/institution/feedback">
             <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
               <span className="material-symbols-outlined text-8xl">insights</span>
             </div>

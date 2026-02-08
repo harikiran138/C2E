@@ -19,6 +19,11 @@ export default function InstitutionLogin() {
       alert('Please enter a mobile number');
       return;
     }
+    const mobileRegex = /^[0-9]{10}$/;
+    if (!mobileRegex.test(mobile)) {
+        alert('Please enter a valid 10-digit mobile number');
+        return;
+    }
     setLoading(true);
     const fullMobile = `${countryCode}${mobile}`;
     console.log('Sending OTP to', fullMobile);
