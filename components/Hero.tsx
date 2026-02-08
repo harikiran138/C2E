@@ -83,7 +83,7 @@ export default function Hero() {
         </div>
       </div>
       {/* Overlay Image - On top of everything INCLUDING curve */}
-      <div className="absolute inset-0 z-40 pointer-events-none overflow-hidden">
+      <div className="absolute -top-12 left-0 right-0 bottom-0 z-40 pointer-events-none overflow-hidden">
         <div className="relative w-full h-full">
           <Image
             src="/images/hero_overlay.png"
