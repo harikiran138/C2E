@@ -4,20 +4,25 @@ import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { CheckCircle2, Quote, Sparkles, Target, Zap, Shield, Cpu, Users, ArrowRight, Star, Award } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import GridPattern from "./GridPattern";
+import { cn } from "@/lib/utils";
 
-const SectionHeader = ({ title, subtitle }: { title: string; subtitle?: string }) => (
-  <div className="mb-12">
+const SectionHeader = ({ title, subtitle, centered = false }: { title: string; subtitle?: string; centered?: boolean }) => (
+  <div className={cn("mb-12", centered && "text-center")}>
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
+      initial={{ opacity: 0, x: centered ? 0 : -20 }}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true }}
-      className="flex items-center space-x-3 mb-4"
+      className={cn("flex items-center space-x-3 mb-4", centered && "justify-center")}
     >
       <div className="h-px w-12 bg-[#c9a961]" />
       <span className="text-[#c9a961] text-xs font-black tracking-[0.3em] uppercase">{title}</span>
+      {centered && <div className="h-px w-12 bg-[#c9a961]" />}
     </motion.div>
     {subtitle && (
-      <h3 className="text-2xl md:text-4xl text-black font-bold leading-tight tracking-tight">
+      <h3 className={cn(
+        "text-2xl md:text-4xl text-black font-bold leading-tight tracking-tight",
+        centered && "max-w-2xl mx-auto"
+      )}>
         {subtitle}
       </h3>
     )}
@@ -185,14 +190,18 @@ export default function AboutSection() {
           </div>
         </div>
 
-        {/* Our Approach - Process Flow */}
-        <div className="mb-16 rounded-[3rem] p-10 md:p-16 border border-primary-gold/10 relative overflow-hidden">
+        {/* Our Approach - Centered Process Flow */}
+        <div className="mb-16 rounded-[2.5rem] p-8 md:p-12 border border-primary-gold/10 relative overflow-hidden bg-gray-50/50">
           
-          <SectionHeader title="Our Approach" subtitle="Clarity. Structure. Sustainability." />
+          <SectionHeader 
+            title="Our Approach" 
+            subtitle="Clarity. Structure. Sustainability." 
+            centered 
+          />
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 relative">
-            {/* Visual connector line for desktop */}
-            <div className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#c9a961]/30 to-transparent hidden lg:block -translate-y-[60px]" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative max-w-5xl mx-auto">
+            {/* Visual connector line for desktop - refined */}
+            <div className="absolute top-[45px] left-0 w-full h-px bg-gradient-to-r from-transparent via-[#c9a961]/20 to-transparent hidden lg:block" />
             
             {[
               { label: "Design", sub: "Precedes documentation", icon: Award },
@@ -202,22 +211,22 @@ export default function AboutSection() {
             ].map((step, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.15, duration: 0.8 }}
+                transition={{ delay: i * 0.1, duration: 0.6 }}
                 viewport={{ once: true }}
                 className="text-center group relative z-10"
               >
-                <div className="w-16 h-16 bg-white border border-[#c9a961]/30 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-[#c9a961] transition-all duration-500 shadow-[0_0_15px_rgba(201,169,97,0.1)]">
-                   <span className="text-[#c9a961] group-hover:text-white font-black text-xl">{i + 1}</span>
+                <div className="w-12 h-12 bg-white border border-[#c9a961]/30 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-[#c9a961] transition-all duration-500 shadow-sm group-hover:shadow-lg group-hover:shadow-[#c9a961]/20">
+                   <span className="text-[#c9a961] group-hover:text-white font-black text-lg">{i + 1}</span>
                 </div>
-                <h4 className="text-[#c9a961] font-bold text-xl mb-2 tracking-tight">{step.label}</h4>
-                <p className="text-gray-400 group-hover:text-gray-600 text-xs font-bold tracking-widest uppercase transition-colors">{step.sub}</p>
+                <h4 className="text-black font-bold text-lg mb-1 tracking-tight group-hover:text-[#c9a961] transition-colors">{step.label}</h4>
+                <p className="text-gray-500 text-[10px] font-bold tracking-widest uppercase">{step.sub}</p>
               </motion.div>
             ))}
           </div>
           
-          <p className="mt-16 text-center text-gray-500 max-w-2xl mx-auto leading-relaxed italic">
+          <p className="mt-12 text-center text-gray-500/80 text-sm max-w-xl mx-auto leading-relaxed italic">
             "We work closely with institutional leadership and faculty teams to ensure OBE becomes embedded practice, not external dependency."
           </p>
         </div>
