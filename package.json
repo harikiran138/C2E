@@ -22,6 +22,8 @@
   "homepage": "https://github.com/harikiran138/C2E#readme",
   "dependencies": {
     "@studio-freight/lenis": "^1.0.42",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/lodash": "^4.17.23",
     "@types/node": "^25.2.1",

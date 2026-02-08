@@ -10,6 +10,11 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: '--font-playfair',
+});
+
 export const metadata: Metadata = {
   title: "C2E | Compliance To Excellence",
   description: "A showcase of modern web development excellence. Institutional consultancy specializing in higher education compliance and OBE implementation.",
@@ -22,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased text-slate-800 bg-[#faf9f6]`}>
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+      </head>
+      <body className={`${inter.variable} ${playfair.variable} font-sans antialiased text-slate-800 bg-[#faf9f6]`}>
         <SmoothScrollProvider>
           <Navbar />
           <main className="min-h-screen overflow-x-hidden">

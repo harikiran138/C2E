@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login Screen Variant 1 - Global Academic Institute</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "serif": ["Playfair Display", "serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .academic-pattern {
+            background-image: radial-gradient(#137fec 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+            opacity: 0.05;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex items-center justify-center p-4">
+<!-- Mobile Container mimicking Phone screen -->
+<div class="relative w-full max-w-[400px] min-h-[750px] bg-white dark:bg-slate-900 shadow-2xl rounded-[3rem] border-[8px] border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+<!-- Status Bar Space (iOS feel) -->
+<div class="h-10 w-full flex justify-between items-center px-8 pt-4">
+<span class="text-xs font-bold dark:text-white">9:41</span>
+<div class="flex gap-1.5">
+<span class="material-symbols-outlined text-[16px] dark:text-white">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[16px] dark:text-white">wifi</span>
+<span class="material-symbols-outlined text-[16px] dark:text-white">battery_full</span>
+</div>
+</div>
+<!-- Background Decorative Pattern -->
+<div class="absolute inset-0 academic-pattern pointer-events-none"></div>
+<div class="relative z-10 flex flex-col flex-1 px-8 pt-12">
+<!-- Header Section -->
+<div class="flex flex-col items-center mb-10">
+<div class="size-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 border border-primary/20">
+<span class="material-symbols-outlined text-primary text-4xl">school</span>
+</div>
+<h1 class="font-serif text-2xl text-slate-800 dark:text-slate-100 font-bold text-center leading-tight">
+                    Global Academic Institute
+                </h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-2 font-medium">Excellence in Education</p>
+</div>
+<!-- Segmented Toggle -->
+<div class="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex mb-10">
+<button class="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all bg-white dark:bg-slate-700 text-primary shadow-sm">
+                    Sign In
+                </button>
+<button class="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400">
+                    Sign Up
+                </button>
+</div>
+<!-- Form Section -->
+<div class="flex-1 flex flex-col">
+<div class="space-y-6">
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 px-1">Mobile Number</label>
+<div class="flex gap-3">
+<!-- Country Code Picker -->
+<div class="relative flex items-center">
+<select class="appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3.5 pr-10 text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer">
+<option value="US">+1</option>
+<option value="UK">+44</option>
+<option selected="" value="IN">+91</option>
+<option value="AU">+61</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 pointer-events-none text-slate-400 text-xl">expand_more</span>
+</div>
+<!-- Phone Input -->
+<div class="flex-1">
+<input class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3.5 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="Enter mobile number" type="tel"/>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-8">
+<p class="text-[13px] text-slate-500 dark:text-slate-400 text-center leading-relaxed">
+                        We will send you an <span class="font-bold text-slate-700 dark:text-slate-200">One Time Password</span> on this mobile number.
+                    </p>
+</div>
+</div>
+<!-- Action Section -->
+<div class="pb-12 mt-auto">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                    Get OTP
+                    <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+<p class="text-xs text-slate-400 dark:text-slate-500 text-center mt-6">
+                    By continuing, you agree to our <br/>
+<a class="text-primary hover:underline" href="#">Terms of Service</a> and <a class="text-primary hover:underline" href="#">Privacy Policy</a>
+</p>
+</div>
+<!-- Home Indicator (iOS style) -->
+<div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+</div>
+</div>
+</body></html>

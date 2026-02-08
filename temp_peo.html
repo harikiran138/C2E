@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PEO Formulation Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#137fec",
+                "background-light": "#f6f7f8",
+                "background-dark": "#101922",
+              },
+              fontFamily: {
+                "display": ["Inter"]
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+<style>.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24
+    }
+input[type="radio"]:checked {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuCU81jmtX6Bv2kyVG0EkxLoIfLWv9nkHS9O0KmUNo3Ri_fgCKIZl_WDwqfmF4YGOXXWZbsfkxGP-f9tpPOEL-RHiYJ8leCNRl3hulR7LMRS7m-8jZPm8qmza_jWX0Gbb0-Ee0GI6M_ziDk0L_vntUVnXRtm8P7560eqAb0wtFm34m9IV_X9Ljz05FWiEdOlO0wDMyF-QhpmT21Cl4B9XDaCfhkr1CE_8zrYB_uftYz1ltwPgZRumW57q-wjxmm8Rw36_CkOftEAfA)
+    }</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-50 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center p-4 justify-between max-w-lg mx-auto">
+<div class="text-primary cursor-pointer">
+<span class="material-symbols-outlined">arrow_back_ios</span>
+</div>
+<h1 class="text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-6">PEO Formulation</h1>
+<div class="w-6"></div> <!-- Spacer for centering -->
+</div>
+</header>
+<main class="max-w-lg mx-auto pb-24">
+<!-- Hero Section -->
+<section class="px-4 pt-6 pb-2">
+<h2 class="text-2xl font-extrabold tracking-tight mb-1">Formulate PEOs</h2>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Define Program Educational Objectives using AI-assisted generation.</p>
+</section>
+<!-- Primary Action Button -->
+<div class="px-4 py-4">
+<button class="flex w-full cursor-pointer items-center justify-center rounded-xl h-14 bg-primary text-white gap-3 shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined">auto_awesome</span>
+<span class="text-base font-bold">Generate 4 sets of PEOs</span>
+</button>
+</div>
+<!-- PEO Selection List -->
+<div class="flex flex-col gap-4 p-4">
+<!-- Set 1 -->
+<label class="relative flex flex-col gap-3 rounded-xl border-2 border-primary bg-white dark:bg-slate-900 p-4 shadow-sm cursor-pointer transition-all">
+<div class="flex items-center justify-between">
+<span class="px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded uppercase tracking-wider">Set 1 - Recommended</span>
+<input checked="" class="h-6 w-6 border-2 border-slate-300 dark:border-slate-600 text-primary focus:ring-primary focus:ring-offset-0 bg-transparent rounded-full transition-colors" name="peo-set" type="radio"/>
+</div>
+<div class="flex flex-col gap-2">
+<p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                        • Demonstrate technical leadership and innovation in engineering practices.<br/>
+                        • Excel in multidisciplinary research environments.<br/>
+                        • Maintain highest ethical standards in professional delivery.
+                    </p>
+</div>
+</label>
+<!-- Set 2 -->
+<label class="relative flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm cursor-pointer hover:border-primary/50 transition-all">
+<div class="flex items-center justify-between">
+<span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold rounded uppercase tracking-wider">Set 2</span>
+<input class="h-6 w-6 border-2 border-slate-300 dark:border-slate-600 text-primary focus:ring-primary focus:ring-offset-0 bg-transparent rounded-full transition-colors" name="peo-set" type="radio"/>
+</div>
+<div class="flex flex-col gap-2">
+<p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                        • Lead multidisciplinary teams with ethical responsibility and global awareness.<br/>
+                        • Apply advanced computational methods to solve societal challenges.<br/>
+                        • Foster sustainable development through green engineering.
+                    </p>
+</div>
+</label>
+<!-- Set 3 -->
+<label class="relative flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm cursor-pointer hover:border-primary/50 transition-all">
+<div class="flex items-center justify-between">
+<span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold rounded uppercase tracking-wider">Set 3</span>
+<input class="h-6 w-6 border-2 border-slate-300 dark:border-slate-600 text-primary focus:ring-primary focus:ring-offset-0 bg-transparent rounded-full transition-colors" name="peo-set" type="radio"/>
+</div>
+<div class="flex flex-col gap-2">
+<p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                        • Engage in lifelong learning and professional development in research.<br/>
+                        • Bridge the gap between theory and industrial application.<br/>
+                        • Drive technological advancement in emerging markets.
+                    </p>
+</div>
+</label>
+<!-- Set 4 -->
+<label class="relative flex flex-col gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm cursor-pointer hover:border-primary/50 transition-all">
+<div class="flex items-center justify-between">
+<span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold rounded uppercase tracking-wider">Set 4</span>
+<input class="h-6 w-6 border-2 border-slate-300 dark:border-slate-600 text-primary focus:ring-primary focus:ring-offset-0 bg-transparent rounded-full transition-colors" name="peo-set" type="radio"/>
+</div>
+<div class="flex flex-col gap-2">
+<p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                        • Contribute to sustainable development through advanced technical solutions.<br/>
+                        • Cultivate an entrepreneurial mindset in engineering systems.<br/>
+                        • Advocate for inclusive design in urban infrastructure.
+                    </p>
+</div>
+</label>
+</div>
+<!-- Finalize Section -->
+<section class="mt-8 px-4">
+<h2 class="text-2xl font-extrabold tracking-tight mb-4">Finalize PEOs</h2>
+<div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+<table class="w-full text-left border-collapse">
+<thead class="bg-slate-50 dark:bg-slate-800/50">
+<tr>
+<th class="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-20">ID</th>
+<th class="p-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Objective</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Row 1 -->
+<tr>
+<td class="p-4 align-top">
+<span class="font-bold text-primary">PEO-01</span>
+</td>
+<td class="p-4 align-top">
+<p class="text-sm text-slate-700 dark:text-slate-300 mb-4">Demonstrate technical leadership and innovation in engineering practices.</p>
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col gap-1">
+<label class="text-[10px] font-bold text-slate-400 uppercase">Vision Alignment (%)</label>
+<input class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="95" type="number"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-[10px] font-bold text-slate-400 uppercase">Stakeholder (%)</label>
+<input class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="90" type="number"/>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr>
+<td class="p-4 align-top">
+<span class="font-bold text-primary">PEO-02</span>
+</td>
+<td class="p-4 align-top">
+<p class="text-sm text-slate-700 dark:text-slate-300 mb-4">Excel in multidisciplinary research environments.</p>
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col gap-1">
+<label class="text-[10px] font-bold text-slate-400 uppercase">Vision Alignment (%)</label>
+<input class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="85" type="number"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-[10px] font-bold text-slate-400 uppercase">Stakeholder (%)</label>
+<input class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="88" type="number"/>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr>
+<td class="p-4 align-top">
+<span class="font-bold text-primary">PEO-03</span>
+</td>
+<td class="p-4 align-top">
+<p class="text-sm text-slate-700 dark:text-slate-300 mb-4">Maintain highest ethical standards in professional delivery.</p>
+<div class="grid grid-cols-2 gap-3">
+<div class="flex flex-col gap-1">
+<label class="text-[10px] font-bold text-slate-400 uppercase">Vision Alignment (%)</label>
+<input class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="100" type="number"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-[10px] font-bold text-slate-400 uppercase">Stakeholder (%)</label>
+<input class="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="95" type="number"/>
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+<!-- Bottom Submission Bar -->
+<div class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-background-dark/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-4">
+<div class="max-w-lg mx-auto flex gap-4">
+<button class="flex-1 h-12 rounded-lg border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300">Save Draft</button>
+<button class="flex-[2] h-12 rounded-lg bg-primary text-white font-bold text-sm shadow-md">Complete Formulation</button>
+</div>
+</div>
+</body></html>
