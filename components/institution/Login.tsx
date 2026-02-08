@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Eye, EyeOff, Phone, ShieldCheck, Mail, ArrowRight, PlayCircle, School, ArrowLeft } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -124,8 +125,14 @@ export default function InstitutionLogin() {
           {/* Header & Logo */}
           <div className="flex flex-col gap-6 items-center text-center">
             <div className="animate-element animate-delay-200 flex items-center gap-3">
-                 <div className="size-14 bg-primary-gold/10 rounded-2xl flex items-center justify-center border border-primary-gold/20 shadow-sm">
-                    <School className="text-primary-gold size-7" />
+                 <div className="size-14 bg-white rounded-2xl flex items-center justify-center border border-slate-200 shadow-sm overflow-hidden p-2">
+                    <Image 
+                      src="/x.png" 
+                      alt="C2X Logo" 
+                      width={40} 
+                      height={40} 
+                      className="object-contain"
+                    />
                  </div>
                  <div className="text-left">
                      <span className="block text-2xl font-bold tracking-tight text-slate-900 font-serif leading-none">C2X Portal</span>

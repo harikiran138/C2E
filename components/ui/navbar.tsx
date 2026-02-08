@@ -25,7 +25,7 @@ export function NavBar({ items, className }: NavBarProps) {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
+      setIsScrolled(window.scrollY > 10)
     }
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
@@ -38,29 +38,43 @@ export function NavBar({ items, className }: NavBarProps) {
     <>
       <div
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 transition-all duration-500 px-6 sm:px-12 lg:px-20",
+          "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 sm:px-12 lg:px-20",
           isScrolled ? "py-4" : "py-6 pt-8",
           className
         )}
       >
         <div className={cn(
-          "max-w-7xl mx-auto flex items-center justify-between transition-all duration-500",
+          "max-w-7xl mx-auto flex items-center justify-between transition-all duration-300",
           isScrolled ? "bg-white/90 backdrop-blur-xl border border-[#c9a961]/20 rounded-full px-6 py-2 shadow-xl shadow-black/5" : "bg-transparent py-2"
         )}>
           {/* Left Side: Logo & Menu */}
           <div className="flex items-center gap-8 lg:gap-12">
             {/* Logo */}
-            <Link href="/" className="shrink-0">
-              <Image 
-                src="/logo.svg" 
-                alt="C2X Logo" 
-                width={100} 
-                height={100} 
-                className={cn(
-                  "w-12 md:w-16 h-auto transition-all duration-500",
-                  isScrolled ? "brightness-100" : "brightness-110 drop-shadow-[0_0_15px_rgba(201,169,97,0.4)]"
-                )}
-              />
+            <Link href="/" className="shrink-0 relative">
+              <div className="relative w-12 md:w-16 h-12 md:h-16 flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={isScrolled ? "scrolled" : "initial"}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.05 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    <Image 
+                      src={isScrolled ? "/x.png" : "/x1.png"} 
+                      alt="C2X Logo" 
+                      width={100} 
+                      height={100} 
+                      className={cn(
+                        "w-full h-full object-contain transition-all duration-300",
+                        !isScrolled && "brightness-110 drop-shadow-[0_0_15px_rgba(201,169,97,0.4)]"
+                      )}
+                      priority
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </Link>
 
             {/* Desktop Menu Links */}
