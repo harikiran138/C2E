@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Phone, ShieldCheck, Mail, ArrowRight, PlayCircle, School } from 'lucide-react';
+import { Eye, EyeOff, Phone, ShieldCheck, Mail, ArrowRight, PlayCircle, School, ArrowLeft } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import ShadersBackground from '@/components/ui/background-shades';
 
 // --- SUB-COMPONENTS ---
@@ -93,9 +94,19 @@ export default function InstitutionLogin() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row relative bg-white font-sans overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col lg:flex-row relative font-sans overflow-hidden">
       {/* Premium Shader Background */}
+      <div className="absolute inset-0 bg-white -z-20"></div>
       <ShadersBackground />
+      
+      {/* Floating Back Button */}
+      <Link 
+        href="/" 
+        className="fixed top-8 left-8 z-50 flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-white font-bold hover:bg-white/20 transition-all hover:scale-105 group shadow-2xl"
+      >
+        <ArrowLeft className="size-4 text-primary group-hover:-translateX-1 transition-transform" />
+        <span className="text-sm tracking-widest uppercase">Back to Home</span>
+      </Link>
 
       {/* Left side: Visual Area (Mobile hidden) */}
       <section className="hidden lg:flex flex-1 items-center justify-center p-12 text-white">

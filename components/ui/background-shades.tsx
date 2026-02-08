@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 export default function ShadersBackground() {
   return (
     <div className="relative min-h-screen">
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
         <motion.div
           className="w-full h-full"
           initial={{ opacity: 0.5, scale: 1 }}
@@ -16,7 +16,7 @@ export default function ShadersBackground() {
           <LiquidMetal
             style={{ width: "100%", height: "100%", filter: "blur(10px)" }}
             colorBack="hsl(0, 0%, 0%, 0)"
-            colorTint="hsl(29, 77%, 49%)"
+            colorTint="hsl(19, 96%, 59%)" // Matches #fb7232
             repetition={4}
             softness={0.6}
             shiftRed={0.25}

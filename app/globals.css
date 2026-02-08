@@ -1,34 +1,129 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary-gold: #c9a961;
-  --color-primary-dark: #1a2332;
-  --color-text-primary: #1f2937;
-  --color-text-secondary: #6b7280;
-  --color-background-light: #faf9f6;
-  --color-background-cream: #f5f1e8;
-  --color-accent-blue: #3b82f6;
-  --color-success-green: #10b981;
+:root {
+  --card: #ffffff;
+  --ring: #fb7232;
+  --input: #0000001a;
+  --muted: #e5e5e5;
+  --accent: #1f1f1e0f;
+  --border: #0000001a;
+  --radius: 16px;
+  --shadow: 0.4em 0.6em 1.5em 0 rgba(0, 0, 0, 0.06);
+  --popover: #ffffff;
+  --primary: #fb7232;
+  --font-mono: monospace;
+  --font-sans: "Verlag", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  --secondary: #f1f1f1;
+  --shadow-lg: 3.6em 5.1em 3.8em 0 rgba(0, 0, 0, 0.03);
+  --shadow-md: 1.6em 2.3em 2.8em 0 rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  --shadow-xl: 6.4em 9.1em 4.5em 0 rgba(0, 0, 0, 0.01);
+  --background: #f9f8f6;
+  --font-serif: "ChronicleCondensed", "ChronicleTextG1Roman", "IBM Plex Serif", serif;
+  --foreground: #1f1f1f;
+  --shadow-2xl: 0px 9px 20px 0px rgba(0, 0, 0, 0.5);
+  --spacing-lg: 24px;
+  --spacing-md: 16px;
+  --spacing-sm: 8px;
+  --spacing-xl: 32px;
+  --spacing-xs: 4px;
+  --destructive: #ef4444;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+  --card-foreground: #1f1f1f;
+  --muted-foreground: #7a7a7a;
+  --accent-foreground: #1f1f1f;
+  --popover-foreground: #1f1f1f;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #1f1f1f;
+  --destructive-foreground: #ffffff;
+}
 
-  --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.1);
-  --shadow-gold: 0 20px 50px rgba(201, 169, 97, 0.3);
+.dark {
+  --card: #111111;
+  --ring: #fb7232;
+  --input: #ffffff14;
+  --muted: #ffffff1a;
+  --accent: #ffffff1f;
+  --border: #ffffff14;
+  --shadow: 0 2px 4px -2px rgba(0,0,0,.08), 0 8px 16px -8px rgba(0,0,0,.03), inset 0 -2px 3px 0 hsla(0,0%,100%,.1), inset 0 -4px 12px 0 hsla(0,0%,100%,.06);
+  --popover: #111111;
+  --primary: #fb7232;
+  --secondary: #272727;
+  --shadow-lg: 0 1px 2px rgba(255, 255, 255, 0.05);
+  --shadow-md: 0 1px 2px rgba(255, 255, 255, 0.05);
+  --shadow-sm: 0 2px 4px -2px rgba(0,0,0,.08), 0 8px 16px -8px rgba(0,0,0,.03), inset 0 -5px 6px 0 hsla(0,0%,100%,.03), inset 0 -8px 24px 0 hsla(0,0%,100%,.03);
+  --shadow-xl: 0 1px 2px rgba(255, 255, 255, 0.05);
+  --background: #000000;
+  --foreground: #ffffff;
+  --shadow-2xl: 0 1px 2px rgba(255, 255, 255, 0.05);
+  --destructive: #ef4444;
+  --card-foreground: #ffffff;
+  --muted-foreground: #ffffff99;
+  --accent-foreground: #ffffff;
+  --popover-foreground: #ffffff;
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #ffffff;
+  --destructive-foreground: #000000;
+}
+
+@theme inline {
+  --color-card: var(--card);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-radius: var(--radius);
+  --color-shadow: var(--shadow);
+  --color-popover: var(--popover);
+  --color-primary: var(--primary);
+  --color-font-mono: var(--font-mono);
+  --color-font-sans: var(--font-sans);
+  --color-secondary: var(--secondary);
+  --color-shadow-lg: var(--shadow-lg);
+  --color-shadow-md: var(--shadow-md);
+  --color-shadow-sm: var(--shadow-sm);
+  --color-shadow-xl: var(--shadow-xl);
+  --color-background: var(--background);
+  --color-font-serif: var(--font-serif);
+  --color-foreground: var(--foreground);
+  --color-shadow-2xl: var(--shadow-2xl);
+  --color-spacing-lg: var(--spacing-lg);
+  --color-spacing-md: var(--spacing-md);
+  --color-spacing-sm: var(--spacing-sm);
+  --color-spacing-xl: var(--spacing-xl);
+  --color-spacing-xs: var(--spacing-xs);
+  --color-destructive: var(--destructive);
+  --color-spacing-2xl: var(--spacing-2xl);
+  --color-spacing-3xl: var(--spacing-3xl);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  /* Preserved brand colors for backward compatibility if needed */
+  --color-primary-gold: #c9a961;
 }
 
 @layer base {
   body {
-    @apply text-slate-800 bg-[#faf9f6] selection:bg-primary-gold/30;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply text-foreground bg-background;
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-black tracking-tight;
-    font-family: inherit;
+    font-family: var(--font-serif);
   }
 }
 
-/* Fluid Typography - scaled down */
+/* Fluid Typography */
 .text-fluid-h1 {
   font-size: clamp(2rem, 6vw, 4.5rem);
   line-height: 1.1;
@@ -48,16 +143,16 @@
 
 .hover-lift:hover {
   transform: translateY(-8px) scale(1.02);
-  @apply shadow-2xl shadow-primary-gold/20;
+  @apply shadow-2xl shadow-primary/20;
 }
 
 .glass-nav {
-  @apply bg-white/85 backdrop-blur-xl border-b border-black/5 saturate-150;
+  @apply bg-card/85 backdrop-blur-xl border-b border-border saturate-150;
 }
 
 /* Advanced CSS Effects */
 .text-gradient {
-  background: linear-gradient(135deg, #c9a961, #8b7355);
+  background: linear-gradient(135deg, var(--primary), #fb923c);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -72,8 +167,8 @@
 
 /* Custom Selection */
 ::selection {
-  background: #c9a961;
-  color: white;
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -143,15 +238,12 @@
 .animate-delay-700 { animation-delay: 700ms; }
 .animate-delay-800 { animation-delay: 800ms; }
 .animate-delay-900 { animation-delay: 900ms; }
-.animate-delay-1000 { animation-delay: 1000ms; }
-.animate-delay-1200 { animation-delay: 1200ms; }
-.animate-delay-1400 { animation-delay: 1400ms; }
 
 .custom-checkbox {
-  @apply appearance-none size-5 rounded-md border border-slate-300 transition-all checked:bg-[#137fec] checked:border-transparent cursor-pointer relative;
+  @apply appearance-none size-5 rounded-md border border-border transition-all checked:bg-primary checked:border-transparent cursor-pointer relative;
 }
 
 .custom-checkbox:checked::after {
   content: '✓';
-  @apply absolute inset-0 flex items-center justify-center text-white text-xs font-bold;
+  @apply absolute inset-0 flex items-center justify-center text-primary-foreground text-xs font-bold;
 }

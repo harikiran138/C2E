@@ -59,25 +59,25 @@ export default function Hero() {
         {/* Deep Golden Glow */}
         <div className="absolute bottom-0 left-0 w-full h-48 bg-gradient-to-t from-[#c9a961]/50 via-[#c9a961]/10 to-transparent" />
         
-        <div className="relative h-[180px] md:h-[220px] w-full">
+        <div className="relative h-[150px] md:h-[200px] w-full">
           <svg 
             className="absolute bottom-[-1px] left-0 w-full h-full z-20 pointer-events-none" 
             viewBox="0 0 1200 120" 
             preserveAspectRatio="none"
           >
-            {/* Outline path - Golden */}
+            {/* Fill path - White */}
             <path 
-              d="M0,0 Q600,120 1200,0" 
+              d="M0,0 Q600,100 1200,0 V120 H0 Z" 
+              fill="#FFFFFF"
+            ></path>
+            {/* Outline path - Golden Premium Border */}
+            <path 
+              d="M0,0 Q600,100 1200,0" 
               fill="none"
               stroke="#c9a961"
               strokeWidth="4"
               strokeLinecap="round"
-              className="drop-shadow-[0_0_8px_rgba(201,169,97,0.5)]"
-            ></path>
-            {/* Fill path - Black */}
-            <path 
-              d="M0,0 Q600,120 1200,0 V120 H0 Z" 
-              fill="#000000"
+              className="drop-shadow-[0_0_15px_rgba(201,169,97,0.6)]"
             ></path>
           </svg>
         </div>
