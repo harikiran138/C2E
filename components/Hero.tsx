@@ -22,8 +22,7 @@ export default function Hero() {
       {/* Content */}
       <div className="relative z-20 max-w-full mx-0 px-6 sm:px-12 lg:px-20 w-full h-full flex flex-col justify-start pt-32 sm:pt-40 lg:pt-48">
         <div className="flex flex-col items-start text-left w-full">
-          <div className="space-y-6 md:space-y-8 w-full max-w-full sm:max-w-4xl flex flex-col items-start">
-
+          <div className="space-y-3 md:space-y-4 w-full max-w-full sm:max-w-4xl flex flex-col items-start">
             <h1 className="flex flex-col gap-y-0 text-left items-start w-full">
               <span className="overflow-hidden inline-block py-0">
                 <span className="inline-block text-[32px] sm:text-[42px] md:text-[56px] lg:text-[72px] text-white font-sans font-black leading-[0.9] tracking-tight text-left">
@@ -36,8 +35,8 @@ export default function Hero() {
                 </span>
               </span>
             </h1>
-            <p className="text-[10px] sm:text-[11px] md:text-[12px] text-white font-bold tracking-[0.3em] uppercase text-left leading-snug max-w-2xl">
-              Where Compliance Becomes Capability
+            <p className="text-[12px] sm:text-[13px] md:text-[14px] text-white font-bold tracking-[0.3em] uppercase text-left leading-snug max-w-2xl -ml-0.5 md:-ml-1">
+              Where Compliance becomes Capability
             </p>
           </div>
         </div>
