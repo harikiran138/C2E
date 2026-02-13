@@ -228,7 +228,8 @@ export default function InstitutionOnboarding() {
     }
     
     setLoading(true);
-    const p = { ...newProgram, institution_id: userId };
+    const { years, ...rest } = newProgram;
+    const p = { ...rest, duration_years: years, institution_id: userId };
     
     // Explicitly map years for safety
     const { data, error } = await supabase.from('programs').insert(p).select().single();
@@ -307,7 +308,8 @@ export default function InstitutionOnboarding() {
                   program_chair: prog.program_chair || '',
                   nba_coordinator: prog.nba_coordinator || '',
                   vision: prog.vision || '',
-                  mission: prog.mission || ''
+                  mission: prog.mission || '',
+                  stakeholder_feedback_enabled: prog.stakeholder_feedback_enabled || false
               });
           }
       };
@@ -366,9 +368,9 @@ export default function InstitutionOnboarding() {
       await supabase.from('peos').delete().eq('program_id', selectedProgramId);
       
       const { error } = await supabase.from('peos').insert(
-          finalizedPeos.map(p => ({
-              id: p.id,
+          finalizedPeos.map((p, index) => ({
               program_id: selectedProgramId,
+              peo_code: p.id, // PEO-01, PEO-02...
               statement: p.statement
           }))
       );

@@ -111,13 +111,17 @@ export default function PeoFormulation() {
 
     try {
       setLoading(true);
-      const { error } = await supabase.from('peo_sets').insert({
-        program_id: selectedProgramId,
-        set_name: `Set ${selectedSetIndex! + 1}`,
-        peos: finalPeos,
-        is_final: isFinal,
-        updated_at: new Date().toISOString()
-      });
+      
+      // Delete existing PEOs for this program to overwrite
+      await supabase.from('peos').delete().eq('program_id', selectedProgramId);
+
+      const { error } = await supabase.from('peos').insert(
+        finalPeos.map((p, idx) => ({
+          program_id: selectedProgramId,
+          peo_code: `PEO-${(idx + 1).toString().padStart(2, '0')}`,
+          statement: p.text
+        }))
+      );
 
       if (error) throw error;
       alert(`PEOs ${isFinal ? 'finalized' : 'draft saved'} successfully!`);
