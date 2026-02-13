@@ -31,6 +31,9 @@ interface InstitutionDetails {
   status: 'Autonomous' | 'Non-Autonomous';
   vision: string;
   mission: string;
+  address?: string;
+  website?: string;
+  establishment_year?: number;
 }
 
 interface Program {
@@ -46,6 +49,7 @@ interface Program {
   vision?: string;
   mission?: string;
   stakeholder_feedback_enabled?: boolean;
+  intake?: number;
 }
 
 interface Peo {
@@ -90,13 +94,16 @@ export default function InstitutionOnboarding() {
     id: '',
     name: '',
     code: '',
-    status: 'Autonomous',
+    status: 'Non-Autonomous',
     vision: '',
-    mission: ''
+    mission: '',
+    address: '',
+    website: '',
+    establishment_year: new Date().getFullYear()
   });
 
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [newProgram, setNewProgram] = useState<Program>({ name: '', code: '', degree: 'B. Tech./ B. E.', years: 4, level: 'UG' });
+  const [newProgram, setNewProgram] = useState<Program>({ name: '', code: '', degree: 'B. Tech./ B. E.', years: 4, level: 'UG', intake: 60 });
   
   // Step 3 State
   const [selectedProgramId, setSelectedProgramId] = useState<string>('');
@@ -207,6 +214,12 @@ export default function InstitutionOnboarding() {
          return;
      }
 
+     // Simple Website Validation
+     if (instDetails.website && !instDetails.website.startsWith('http')) {
+         alert("Please enter a valid website URL starting with http:// or https://");
+         return;
+     }
+
      setLoading(true);
      // Update basic details
      const { id: _, ...detailsToSave } = instDetails;
@@ -272,8 +285,35 @@ export default function InstitutionOnboarding() {
      setLoading(false);
   };
 
+  const handleUpdateProgramData = async (programId: string, field: keyof Program, value: any) => {
+    if (!programId) return;
+    setPrograms(prevPrograms => 
+        prevPrograms.map(p => p.id === programId ? { ...p, [field]: value } : p)
+    );
+    // Also update programDetails state for the form fields
+    setProgramDetails(prevDetails => ({ ...prevDetails, [field]: value }));
+  };
+
   const handleAddStakeholder = async () => {
-      if (!selectedProgramId || !newStakeholder.name) return;
+      if (!userId || !selectedProgramId || !newStakeholder.name) {
+          alert("Name and selection are required.");
+          return;
+      }
+
+      // Logical Validation: Email Format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (newStakeholder.email && !emailRegex.test(newStakeholder.email)) {
+          alert("Please enter a valid email address.");
+          return;
+      }
+
+      // Logical Validation: Contact No (Basic length check for mobile)
+      if (newStakeholder.contact_no && newStakeholder.contact_no.length < 10) {
+          alert("Please enter a valid 10-digit contact number.");
+          return;
+      }
+
+      setLoading(true);
       const s = { ...newStakeholder, program_id: selectedProgramId };
       
     const { data, error } = await supabase.from('stakeholders').insert(s).select().single();
@@ -290,6 +330,7 @@ export default function InstitutionOnboarding() {
     } else {
         alert("Error adding stakeholder: " + (error?.message || 'Unknown'));
     }
+    setLoading(false);
 };
 
   const handleDeleteStakeholder = async (id: string) => {
@@ -447,83 +488,124 @@ export default function InstitutionOnboarding() {
               {renderStepIndicator()}
 
               {/* Step 1: Basic Details */}
-              {currentStep === 1 && (
+               {currentStep === 1 && (
                   <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-                      <SectionTitle title="Basic Institution Details" subtitle="Tell us about your institution and its core philosophy." />
-                      
-                      <div className="space-y-6">
-                           <div className="grid grid-cols-2 gap-4">
-                               <div className="space-y-2">
-                                   <label className="text-xs font-bold text-slate-500 uppercase">Institution Name</label>
-                                   <GlassInputWrapper>
-                                       <input 
-                                          value={instDetails.name}
-                                          onChange={e => setInstDetails({...instDetails, name: e.target.value})}
-                                          className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
-                                       />
-                                   </GlassInputWrapper>
-                               </div>
-                               <div className="space-y-2">
-                                   <label className="text-xs font-bold text-slate-500 uppercase">Institute Code (Short)</label>
-                                   <GlassInputWrapper>
-                                       <input 
-                                          value={instDetails.code}
-                                          onChange={e => setInstDetails({...instDetails, code: e.target.value})}
-                                          placeholder="e.g. NSRIT"
-                                          className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
-                                       />
-                                   </GlassInputWrapper>
-                               </div>
-                           </div>
-                           
-                           <div className="space-y-2">
-                               <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
-                               <div className="flex gap-4">
-                                   {['Autonomous', 'Non-Autonomous'].map(s => (
-                                       <button 
-                                          key={s}
-                                          onClick={() => setInstDetails({...instDetails, status: s as any})}
-                                          className={`flex-1 py-4 rounded-xl border-2 font-bold transition-all ${instDetails.status === s ? 'border-primary-gold bg-primary-gold/5 text-primary-gold' : 'border-slate-100 bg-slate-50 text-slate-400'}`}
-                                       >
-                                           {s}
-                                       </button>
-                                   ))}
-                               </div>
-                           </div>
+                      <SectionTitle title="Institution Profile" subtitle="Tell us about your institution. This helps us tailor the compliance framework." />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                          <div className="md:col-span-2 space-y-2">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Institution Name</label>
+                             <GlassInputWrapper>
+                                 <input 
+                                    placeholder="e.g. NSR Institute of Engineering & Technology" 
+                                    value={instDetails.name}
+                                    onChange={e => setInstDetails({...instDetails, name: e.target.value})}
+                                    className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
+                                 />
+                             </GlassInputWrapper>
+                          </div>
+
+                          <div className="space-y-2">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Institute Code</label>
+                             <GlassInputWrapper>
+                                 <input 
+                                    placeholder="e.g. NSRIT" 
+                                    value={instDetails.code}
+                                    onChange={e => setInstDetails({...instDetails, code: e.target.value.toUpperCase()})}
+                                    className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 uppercase"
+                                 />
+                             </GlassInputWrapper>
+                             <p className="text-[10px] text-slate-400 ml-1">Used for PEO code generation.</p>
+                          </div>
+
+                          <div className="space-y-2">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
+                             <GlassInputWrapper>
+                                 <div className="relative">
+                                     <select 
+                                        className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer"
+                                        value={instDetails.status}
+                                        onChange={e => setInstDetails({...instDetails, status: e.target.value as any})}
+                                     >
+                                         <option value="Autonomous">Autonomous</option>
+                                         <option value="Non-Autonomous">Non-Autonomous</option>
+                                     </select>
+                                     <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
+                                 </div>
+                             </GlassInputWrapper>
+                          </div>
 
                            <div className="space-y-2">
-                               <label className="text-xs font-bold text-slate-500 uppercase">Vision</label>
-                               <GlassInputWrapper>
-                                   <textarea 
-                                      value={instDetails.vision}
-                                      onChange={e => setInstDetails({...instDetails, vision: e.target.value})}
-                                      className="w-full bg-transparent p-4 outline-none min-h-[100px] text-slate-700"
-                                      placeholder="To be a global leader in..."
-                                   />
-                               </GlassInputWrapper>
-                           </div>
+                             <label className="text-xs font-bold text-slate-500 uppercase">Establishment Year</label>
+                             <GlassInputWrapper>
+                                 <input 
+                                    type="number"
+                                    placeholder="e.g. 2008" 
+                                    value={instDetails.establishment_year}
+                                    onChange={e => setInstDetails({...instDetails, establishment_year: parseInt(e.target.value) || new Date().getFullYear()})}
+                                    className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
+                                 />
+                             </GlassInputWrapper>
+                          </div>
 
-                           <div className="space-y-2">
-                               <label className="text-xs font-bold text-slate-500 uppercase">Mission</label>
-                               <GlassInputWrapper>
-                                   <textarea 
-                                      value={instDetails.mission}
-                                      onChange={e => setInstDetails({...instDetails, mission: e.target.value})}
-                                      className="w-full bg-transparent p-4 outline-none min-h-[100px] text-slate-700"
-                                      placeholder="To empower students..."
-                                   />
-                               </GlassInputWrapper>
-                           </div>
+                          <div className="space-y-2">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Website URL</label>
+                             <GlassInputWrapper>
+                                 <input 
+                                    placeholder="https://www.institution.edu" 
+                                    value={instDetails.website}
+                                    onChange={e => setInstDetails({...instDetails, website: e.target.value})}
+                                    className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
+                                 />
+                             </GlassInputWrapper>
+                          </div>
 
-                           <button 
-                              onClick={handleSaveStep1}
-                              disabled={loading}
-                              className="flex-1 py-3 text-sm font-semibold rounded-xl transition-all bg-slate-900 text-white shadow-xl hover:shadow-slate-500/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
-                           >
-                               {loading ? <Loader2 className="animate-spin" /> : <>Save & Continue <ArrowRight className="size-4" /></>}
-                           </button>
+                          <div className="md:col-span-2 space-y-2">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Address</label>
+                             <GlassInputWrapper>
+                                 <textarea 
+                                    placeholder="Enter full institutional address..." 
+                                    value={instDetails.address}
+                                    onChange={e => setInstDetails({...instDetails, address: e.target.value})}
+                                    className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 min-h-[100px] resize-none"
+                                 />
+                             </GlassInputWrapper>
+                          </div>
+
+                          <div className="md:col-span-2 space-y-2">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Institutional Vision</label>
+                             <GlassInputWrapper>
+                                 <textarea 
+                                    placeholder="e.g. To produce globally competent engineers..." 
+                                    value={instDetails.vision}
+                                    onChange={e => setInstDetails({...instDetails, vision: e.target.value})}
+                                    className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 min-h-[100px] resize-none"
+                                 />
+                             </GlassInputWrapper>
+                          </div>
+
+                          <div className="md:col-span-2 space-y-2">
+                             <label className="text-xs font-bold text-slate-500 uppercase">Institutional Mission</label>
+                             <GlassInputWrapper>
+                                 <textarea 
+                                    placeholder="e.g. Imparting quality technical education through..." 
+                                    value={instDetails.mission}
+                                    onChange={e => setInstDetails({...instDetails, mission: e.target.value})}
+                                    className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 min-h-[100px] resize-none"
+                                 />
+                             </GlassInputWrapper>
+                          </div>
                       </div>
+
+                      <button 
+                        onClick={handleSaveStep1} 
+                        disabled={loading}
+                        className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:shadow-slate-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      >
+                          {loading ? <Loader2 className="animate-spin size-5" /> : <>Continue to Programs <ArrowRight className="size-5" /></>}
+                      </button>
                   </div>
+               )}
+   </div>
               )}
 
               {/* Step 2: Programs */}
@@ -568,7 +650,13 @@ export default function InstitutionOnboarding() {
                                          <div className="relative">
                                              <select 
                                                  value={newProgram.degree}
-                                                 onChange={e => setNewProgram({...newProgram, degree: e.target.value})}
+                                                 onChange={e => {
+                                                     const degree = e.target.value;
+                                                     let level = 'UG';
+                                                     if (degree.startsWith('M.')) level = 'PG';
+                                                     if (degree === 'Integrated') level = 'Integrated';
+                                                     setNewProgram({...newProgram, degree, level});
+                                                 }}
                                                  className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer"
                                              >
                                                  <option value="B. Tech./ B. E.">B. Tech./ B. E.</option>
@@ -599,6 +687,19 @@ export default function InstitutionOnboarding() {
                                     </GlassInputWrapper>
                                 </div>
 
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Annual Intake Capacity</label>
+                                    <GlassInputWrapper>
+                                        <input 
+                                           type="number"
+                                           placeholder="e.g. 60"
+                                           value={newProgram.intake}
+                                           onChange={e => setNewProgram({...newProgram, intake: parseInt(e.target.value) || 0})}
+                                           className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
+                                        />
+                                    </GlassInputWrapper>
+                                </div>
+
                                  <div className="space-y-2">
                                      <label className="text-xs font-bold text-slate-500 uppercase">Level</label>
                                      <GlassInputWrapper>
@@ -606,15 +707,16 @@ export default function InstitutionOnboarding() {
                                              <select 
                                                  value={newProgram.level}
                                                  onChange={e => setNewProgram({...newProgram, level: e.target.value})}
-                                                 className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer"
+                                                 className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer pointer-events-none opacity-60"
+                                                 disabled
                                              >
                                                  <option value="UG">Undergraduate (UG)</option>
                                                  <option value="PG">Postgraduate (PG)</option>
                                                  <option value="Integrated">Integrated</option>
                                              </select>
-                                             <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
                                          </div>
                                      </GlassInputWrapper>
+                                     <p className="text-[9px] text-slate-400 ml-1 italic">Automatically determined by Degree.</p>
                                  </div>
                            </div>
                            
@@ -634,8 +736,8 @@ export default function InstitutionOnboarding() {
                                   <tr>
                                       <th className="py-4 px-4 text-slate-400 font-bold uppercase">Sl.</th>
                                       <th className="py-4 px-4 text-slate-400 font-bold uppercase">Program</th>
-                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase">Degree</th>
-                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase">Duration</th>
+                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase">Degree / Level</th>
+                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase">Intake / Years</th>
                                       <th className="py-4 px-4 text-slate-400 font-bold uppercase text-center">Action</th>
                                   </tr>
                               </thead>
@@ -643,9 +745,18 @@ export default function InstitutionOnboarding() {
                                   {programs.map((p, index) => (
                                       <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                                           <td className="py-4 px-4 text-slate-400 font-medium">{index + 1}</td>
-                                          <td className="py-4 px-4 font-bold text-slate-800">{p.name} ({p.code})</td>
-                                          <td className="py-4 px-4 text-slate-600 font-medium">{p.degree}</td>
-                                          <td className="py-4 px-4 text-slate-600 font-medium">{p.years} Years</td>
+                                          <td className="py-4 px-4 font-bold text-slate-800">
+                                              <div>{p.name}</div>
+                                              <div className="text-[10px] text-primary-gold uppercase">{p.code}</div>
+                                          </td>
+                                          <td className="py-4 px-4 font-medium">
+                                              <div className="text-slate-700">{p.degree}</div>
+                                              <div className="text-[9px] uppercase font-bold text-slate-400">{p.level}</div>
+                                          </td>
+                                          <td className="py-4 px-4 font-medium">
+                                              <div className="text-slate-700">{p.intake} Students</div>
+                                              <div className="text-[9px] uppercase font-bold text-slate-400">{p.years} Years</div>
+                                          </td>
                                           <td className="py-4 px-4 text-center">
                                                <button onClick={() => p.id && handleDeleteProgram(p.id)} className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
                                                    <Trash2 className="size-4" />
@@ -724,24 +835,41 @@ export default function InstitutionOnboarding() {
                                           </GlassInputWrapper>
                                       </div>
                                   </div>
-                                  <div className="space-y-2">
-                                      <label className="text-xs font-bold text-slate-500 uppercase">Program Vision</label>
-                                      <textarea 
-                                          value={programDetails.vision || ''}
-                                          onChange={e => setProgramDetails({...programDetails, vision: e.target.value})}
-                                          className="w-full p-4 rounded-2xl border border-slate-200 text-slate-800 font-medium min-h-[100px] outline-none focus:border-primary-gold transition-all"
-                                          placeholder="Vision for this specific program..."
-                                      />
-                                  </div>
-                                  <div className="space-y-2">
-                                      <label className="text-xs font-bold text-slate-500 uppercase">Program Mission</label>
-                                      <textarea 
-                                          value={programDetails.mission || ''}
-                                          onChange={e => setProgramDetails({...programDetails, mission: e.target.value})}
-                                          className="w-full p-4 rounded-2xl border border-slate-200 text-slate-800 font-medium min-h-[100px] outline-none focus:border-primary-gold transition-all"
-                                          placeholder="Mission for this specific program..."
-                                      />
-                                  </div>
+                                    <div className="space-y-2">
+                                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                                           Vision of the Program
+                                           <div className="group relative">
+                                               <HelpCircle className="size-3 text-slate-300 cursor-help" />
+                                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                                   The program vision should align with the institutional vision but be specific to this department.
+                                               </div>
+                                           </div>
+                                       </label>
+                                       <textarea 
+                                           className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-slate-800 min-h-[100px] outline-none focus:border-primary-gold transition-all"
+                                           placeholder="State the specific future goal for this program..."
+                                           value={programs.find(p => p.id === selectedProgramId)?.vision || ''}
+                                           onChange={(e) => handleUpdateProgramData(selectedProgramId, 'vision', e.target.value)}
+                                       />
+                                   </div>
+
+                                   <div className="space-y-2">
+                                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                                           Mission of the Program
+                                           <div className="group relative">
+                                               <HelpCircle className="size-3 text-slate-300 cursor-help" />
+                                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                                   Step-by-step approach to achieve the program vision through curriculum and co-curricular activities.
+                                               </div>
+                                           </div>
+                                       </label>
+                                       <textarea 
+                                           className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-slate-800 min-h-[100px] outline-none focus:border-primary-gold transition-all"
+                                           placeholder="Mission for this specific program..."
+                                           value={programs.find(p => p.id === selectedProgramId)?.mission || ''}
+                                           onChange={(e) => handleUpdateProgramData(selectedProgramId, 'mission', e.target.value)}
+                                       />
+                                   </div>
                                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100">
                                        <div className="flex flex-col gap-1">
                                            <div className="flex items-center gap-3">
@@ -822,14 +950,18 @@ export default function InstitutionOnboarding() {
 
                                        <div className="space-y-2">
                                            <label className="text-xs font-bold text-slate-500 uppercase">Contact Number</label>
-                                           <GlassInputWrapper>
-                                               <input 
-                                                  placeholder="e.g. +91 9876543210"
-                                                  value={newStakeholder.contact_no}
-                                                  onChange={e => setNewStakeholder({...newStakeholder, contact_no: e.target.value})}
-                                                  className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
-                                               />
-                                           </GlassInputWrapper>
+                                            <GlassInputWrapper>
+                                                <input 
+                                                   placeholder="Digit only (10 digits)"
+                                                   maxLength={10}
+                                                   value={newStakeholder.contact_no}
+                                                   onChange={e => {
+                                                       const val = e.target.value.replace(/\D/g, '');
+                                                       setNewStakeholder({...newStakeholder, contact_no: val});
+                                                   }}
+                                                   className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
+                                                />
+                                            </GlassInputWrapper>
                                        </div>
 
                                        <div className="space-y-2">
