@@ -482,7 +482,7 @@ export default function InstitutionOnboarding() {
        </section>
 
        {/* Right side: Dynamic Form Area */}
-       <section ref={scrollRef} className="flex-[1.5] bg-white/80 backdrop-blur-xl border-l border-white/50 shadow-2xl h-screen overflow-y-auto">
+        <section ref={scrollRef} className="flex-[1.5] bg-white/80 backdrop-blur-xl border-l border-white/50 shadow-2xl h-screen overflow-y-auto custom-scrollbar">
           <div className="max-w-2xl mx-auto p-12 py-16">
               
               {/* Progress */}
@@ -1175,14 +1175,30 @@ export default function InstitutionOnboarding() {
                            )}
                        </div>
 
+                       {/* Self-Declaration Section */}
+                       <div className="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-2xl flex items-start gap-4 hover:border-primary-gold/30 transition-all cursor-pointer group" onClick={() => setDeclarationChecked(!declarationChecked)}>
+                           <div className={`mt-1 size-5 rounded-md border flex items-center justify-center transition-all ${declarationChecked ? 'bg-primary-gold border-transparent' : 'bg-white border-slate-300'}`}>
+                               {declarationChecked && <CheckCircle2 className="size-3 text-white" />}
+                           </div>
+                           <div className="flex-1">
+                               <p className="text-sm font-bold text-slate-700 leading-snug">I solemnly declare that the information provided is accurate and complies with institutional standards.</p>
+                               <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-wider">MANDATORY FOR DATA INTEGRITY</p>
+                           </div>
+                       </div>
+
                        <div className="flex gap-4">
                            <button onClick={() => setCurrentStep(3)} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-xl">Back</button>
                            <button 
                               onClick={handleSaveFinalPEOs}
-                              disabled={loading || finalizedPeos.length === 0}
-                              className="flex-[2] py-3 text-sm font-semibold rounded-xl transition-all bg-slate-900 text-white shadow-xl hover:shadow-slate-500/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={loading || finalizedPeos.length === 0 || !declarationChecked}
+                              className="flex-[2] py-3 text-sm font-semibold rounded-xl transition-all bg-slate-900 text-white shadow-xl hover:shadow-slate-500/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                            >
-                              {loading ? <Loader2 className="size-4 animate-spin" /> : <><Save className="size-4" /> Finalize Setup</>}
+                              {loading ? <Loader2 className="size-4 animate-spin" /> : (
+                                  <>
+                                    <Save className="size-4 group-hover:scale-110 transition-transform" /> 
+                                    Finalize Setup
+                                  </>
+                              )}
                            </button>
                        </div>
                   </div>
