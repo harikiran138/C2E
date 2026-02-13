@@ -12,34 +12,33 @@ export default function Dashboard() {
 
   useEffect(() => {
     const checkUser = async () => {
-
-
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const sessionData = localStorage.getItem('inst_session');
+      if (!sessionData) {
         router.push('/institution/login');
         return;
       }
 
+      const session = JSON.parse(sessionData);
+      const sessionUserId = session.id;
+
       // Fetch Institution Details
+      const supabase = createClient();
       const { data: instData, error: instError } = await supabase
         .from('institutions')
         .select('name')
-        .eq('id', user.id)
+        .eq('id', sessionUserId)
         .single();
       
       if (instData) {
         setUserName(instData.name);
       } else {
-        // Fallback or maybe redirect to onboarding if no profile found?
-        setUserName(user.email?.split('@')[0] || 'Institution');
+        setUserName(session.name || 'Institution');
       }
 
-      // Fetch Program Count
       const { count: programCount, error: progError } = await supabase
         .from('programs')
         .select('*', { count: 'exact', head: true })
-        .eq('institution_id', user.id);
+        .eq('institution_id', sessionUserId);
       
       if (!progError) {
         setProgramCount(programCount || 0);
@@ -118,9 +117,7 @@ export default function Dashboard() {
            </div>
           <button 
             onClick={async () => {
-                const supabase = createClient();
-                await supabase.auth.signOut();
-
+                localStorage.removeItem('inst_session');
                 router.push('/institution/login');
             }}
             className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl transition-all border border-transparent hover:border-red-100"

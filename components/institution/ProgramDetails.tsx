@@ -41,13 +41,16 @@ export default function ProgramDetails() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error || !user) {
+      const sessionData = localStorage.getItem('inst_session');
+      if (!sessionData) {
         router.push('/institution/login');
         return;
       }
-      setUserId(user.id);
-      fetchPrograms(user.id);
+
+      const session = JSON.parse(sessionData);
+      const sessionUserId = session.id;
+      setUserId(sessionUserId);
+      fetchPrograms(sessionUserId);
     };
     checkUser();
   }, []);

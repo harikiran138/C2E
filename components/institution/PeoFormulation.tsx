@@ -30,12 +30,16 @@ export default function PeoFormulation() {
 
   useEffect(() => {
     const fetchPrograms = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const sessionData = localStorage.getItem('inst_session');
+      if (!sessionData) {
         router.push('/institution/login');
         return;
       }
-      const { data } = await supabase.from('programs').select('id, name').eq('institution_id', user.id);
+
+      const session = JSON.parse(sessionData);
+      const sessionUserId = session.id;
+
+      const { data } = await supabase.from('programs').select('id, name').eq('institution_id', sessionUserId);
       if (data && data.length > 0) {
         setPrograms(data);
         setSelectedProgramId(data[0].id);

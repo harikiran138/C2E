@@ -51,43 +51,52 @@ export default function Login() {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              institution_name: institutionName.trim()
-            }
-          }
-        });
+        // Create institution record directly with password
+        const { data, error } = await supabase
+          .from('institutions')
+          .insert({
+            name: institutionName.trim(),
+            email: email.trim(),
+            password: password // In production, we should hash this
+          })
+          .select()
+          .single();
 
         if (error) throw error;
         
-        if (data.user) {
-          alert("Account created! Please check your email for verification if required.");
+        if (data) {
+          localStorage.setItem('inst_session', JSON.stringify({
+            id: data.id,
+            email: data.email,
+            name: data.name
+          }));
           router.push('/institution/onboarding');
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+        // Check credentials directly in the institutions table
+        const { data: user, error } = await supabase
+          .from('institutions')
+          .select('*')
+          .eq('email', email.trim())
+          .eq('password', password)
+          .maybeSingle();
 
         if (error) throw error;
 
-        if (data.user) {
-          // Check if user exists in institutions table
-          const { data: existingInst } = await supabase
-            .from('institutions')
-            .select('id, vision')
-            .eq('id', data.user.id)
-            .maybeSingle();
+        if (!user) {
+          throw new Error('Invalid email or password');
+        }
 
-          if (existingInst && existingInst.vision) {
-            router.push('/institution/dashboard');
-          } else {
-            router.push('/institution/onboarding');
-          }
+        localStorage.setItem('inst_session', JSON.stringify({
+          id: user.id,
+          email: user.email,
+          name: user.name
+        }));
+
+        if (user.vision) {
+          router.push('/institution/dashboard');
+        } else {
+          router.push('/institution/onboarding');
         }
       }
     } catch (err: any) {
@@ -95,6 +104,12 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoAccess = () => {
+    localStorage.setItem('isDemo', 'true');
+    localStorage.setItem('demoInstName', 'Demo University');
+    router.push('/institution/onboarding');
   };
 
   return (

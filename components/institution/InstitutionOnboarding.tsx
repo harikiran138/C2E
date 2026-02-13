@@ -57,7 +57,7 @@ interface Stakeholder {
   id?: string;
   program_id: string; 
   name: string;
-  organization: string;
+  organisation: string;
   category: string;
   email: string;
   contact_no: string;
@@ -96,7 +96,7 @@ export default function InstitutionOnboarding() {
   });
 
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [newProgram, setNewProgram] = useState<Program>({ name: '', code: '', degree: 'B.Tech', years: 4, level: 'UG' });
+  const [newProgram, setNewProgram] = useState<Program>({ name: '', code: '', degree: 'B. Tech./ B. E.', years: 4, level: 'UG' });
   
   // Step 3 State
   const [selectedProgramId, setSelectedProgramId] = useState<string>('');
@@ -105,7 +105,7 @@ export default function InstitutionOnboarding() {
   const [newStakeholder, setNewStakeholder] = useState<Stakeholder>({ 
       program_id: '', 
       name: '', 
-      organization: '', 
+      organisation: '', 
       category: 'Alumni', 
       email: '', 
       contact_no: '' 
@@ -120,35 +120,33 @@ export default function InstitutionOnboarding() {
   // --- INITIALIZATION ---
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        // If not logged in, redirect to login
+      const sessionData = localStorage.getItem('inst_session');
+      if (!sessionData) {
         router.push('/institution/login');
         return;
       }
-      
-      setUserId(user.id);
-      
-      if (!user) return;
 
-      const { data: existing } = await supabase.from('institutions').select('*').eq('id', user.id).single();
+      const session = JSON.parse(sessionData);
+      const sessionUserId = session.id;
+      setUserId(sessionUserId);
+      
+      const { data: existing } = await supabase.from('institutions').select('*').eq('id', sessionUserId).maybeSingle();
+
       let startStep: OnboardingStep = 1;
       
       if (existing) {
          setInstDetails({
-            id: user.id,
-            name: existing.name,
+            id: sessionUserId,
+            name: existing.name || '',
             code: existing.code || '',
             status: existing.status || 'Autonomous',
             vision: existing.vision || '',
             mission: existing.mission || ''
          });
-         
-         if (existing.vision) startStep = 2;
+         startStep = 2;
       }
       
-      const { data: dbPrograms } = await supabase.from('programs').select('*').eq('institution_id', user.id);
+      const { data: dbPrograms } = await supabase.from('programs').select('*').eq('institution_id', sessionUserId);
       if (dbPrograms && dbPrograms.length > 0) {
           setPrograms(dbPrograms);
           if (startStep === 2) startStep = 3;
@@ -203,6 +201,12 @@ export default function InstitutionOnboarding() {
 
   const handleSaveStep1 = async () => {
      if (!userId) return;
+     
+     if (!instDetails.name.trim() || !instDetails.code.trim()) {
+         alert("Institution Name and Code are required.");
+         return;
+     }
+
      setLoading(true);
      // Update basic details
      const { id: _, ...detailsToSave } = instDetails;
@@ -278,7 +282,7 @@ export default function InstitutionOnboarding() {
         setNewStakeholder({ 
             program_id: '', 
             name: '', 
-            organization: '', 
+            organisation: '', 
             category: 'Alumni', 
             email: '', 
             contact_no: '' 
@@ -475,7 +479,7 @@ export default function InstitutionOnboarding() {
                            <div className="space-y-2">
                                <label className="text-xs font-bold text-slate-500 uppercase">Status</label>
                                <div className="flex gap-4">
-                                   {['Autonomous', 'Non-autonomous'].map(s => (
+                                   {['Autonomous', 'Non-Autonomous'].map(s => (
                                        <button 
                                           key={s}
                                           onClick={() => setInstDetails({...instDetails, status: s as any})}
@@ -567,12 +571,10 @@ export default function InstitutionOnboarding() {
                                                  onChange={e => setNewProgram({...newProgram, degree: e.target.value})}
                                                  className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer"
                                              >
-                                                 <option value="B.Tech">B. Tech.</option>
-                                                 <option value="B.E.">B. E.</option>
-                                                 <option value="M.Tech">M. Tech.</option>
-                                                 <option value="M.E.">M. E.</option>
-                                                 <option value="MBA">MBA</option>
-                                                 <option value="MCA">MCA</option>
+                                                 <option value="B. Tech./ B. E.">B. Tech./ B. E.</option>
+                                                 <option value="M. Tech.">M. Tech.</option>
+                                                 <option value="M. E.">M. E.</option>
+                                                 <option value="Integrated">Integrated</option>
                                              </select>
                                              <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
                                          </div>
@@ -582,14 +584,18 @@ export default function InstitutionOnboarding() {
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-500 uppercase">Duration (Years)</label>
                                     <GlassInputWrapper>
-                                        <input 
-                                            type="number"
-                                            min="1"
-                                            max="5"
-                                            value={newProgram.years}
-                                            onChange={e => setNewProgram({...newProgram, years: parseInt(e.target.value) || 4})}
-                                            className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
-                                        />
+                                        <div className="relative">
+                                            <select 
+                                                value={newProgram.years}
+                                                onChange={e => setNewProgram({...newProgram, years: parseInt(e.target.value) || 4})}
+                                                className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer"
+                                            >
+                                                <option value={2}>2</option>
+                                                <option value={4}>4</option>
+                                                <option value={5}>5</option>
+                                            </select>
+                                            <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
+                                        </div>
                                     </GlassInputWrapper>
                                 </div>
 
@@ -622,19 +628,38 @@ export default function InstitutionOnboarding() {
                       </div>
 
                       {/* List */}
-                      <div className="space-y-3 mb-8">
-                          {programs.map(p => (
-                              <div key={p.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
-                                  <div>
-                                      <h4 className="font-bold text-slate-800">{p.name}</h4>
-                                      <p className="text-xs text-slate-400">{p.degree} • {p.code}</p>
-                                  </div>
-                                  <button onClick={() => p.id && handleDeleteProgram(p.id)} className="text-red-400 hover:text-red-600">
-                                      <Trash2 className="size-4" />
-                                  </button>
+                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm mb-8">
+                          <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-50 border-b border-slate-200">
+                                  <tr>
+                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase">Sl.</th>
+                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase">Program</th>
+                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase">Degree</th>
+                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase">Duration</th>
+                                      <th className="py-4 px-4 text-slate-400 font-bold uppercase text-center">Action</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                  {programs.map((p, index) => (
+                                      <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                                          <td className="py-4 px-4 text-slate-400 font-medium">{index + 1}</td>
+                                          <td className="py-4 px-4 font-bold text-slate-800">{p.name} ({p.code})</td>
+                                          <td className="py-4 px-4 text-slate-600 font-medium">{p.degree}</td>
+                                          <td className="py-4 px-4 text-slate-600 font-medium">{p.years} Years</td>
+                                          <td className="py-4 px-4 text-center">
+                                               <button onClick={() => p.id && handleDeleteProgram(p.id)} className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                                                   <Trash2 className="size-4" />
+                                               </button>
+                                          </td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                          {programs.length === 0 && (
+                              <div className="py-12 text-center text-slate-400 text-sm italic bg-slate-50/50">
+                                  No programs added yet.
                               </div>
-                          ))}
-                          {programs.length === 0 && <p className="text-center text-slate-400 text-sm">No programs added yet.</p>}
+                          )}
                       </div>
 
                        <div className="flex gap-4">
@@ -652,16 +677,19 @@ export default function InstitutionOnboarding() {
                       {/* Program Selector */}
                       <div className="mb-8">
                           <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Select Program</label>
-                          <select 
-                              value={selectedProgramId} 
-                              onChange={(e) => setSelectedProgramId(e.target.value)}
-                              className="w-full p-4 rounded-xl border-2 border-slate-200 bg-white font-bold text-slate-800 focus:border-primary-gold outline-none shadow-sm transition-all"
-                          >
-                              <option value="">-- Select a Program --</option>
-                              {programs.map(p => (
-                                  <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                              ))}
-                          </select>
+                          <div className="relative">
+                              <select 
+                                  value={selectedProgramId} 
+                                  onChange={(e) => setSelectedProgramId(e.target.value)}
+                                  className="w-full p-4 rounded-xl border-2 border-slate-200 bg-white font-bold text-slate-800 focus:border-primary-gold outline-none shadow-sm transition-all appearance-none cursor-pointer"
+                              >
+                                  <option value="">-- Select a Program --</option>
+                                  {programs.map(p => (
+                                      <option key={p.id} value={p.id}>{p.name}</option>
+                                  ))}
+                              </select>
+                              <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
+                          </div>
                       </div>
 
                       {selectedProgramId && (
@@ -714,18 +742,21 @@ export default function InstitutionOnboarding() {
                                           placeholder="Mission for this specific program..."
                                       />
                                   </div>
-                                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100">
-                                       <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                                           <label className="relative inline-flex items-center cursor-pointer">
-                                               <input 
-                                                   type="checkbox" 
-                                                   className="sr-only peer" 
-                                                   checked={programs.find(p => p.id === selectedProgramId)?.stakeholder_feedback_enabled || false}
-                                                   onChange={(e) => handleToggleStakeholderFeedback(e.target.checked)}
-                                               />
-                                               <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-gold"></div>
-                                           </label>
-                                           <span className="text-xs font-bold text-slate-600">Enable & Seek Stakeholders’ Expectation</span>
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100">
+                                       <div className="flex flex-col gap-1">
+                                           <div className="flex items-center gap-3">
+                                               <label className="relative inline-flex items-center cursor-pointer">
+                                                   <input 
+                                                       type="checkbox" 
+                                                       className="sr-only peer" 
+                                                       checked={programs.find(p => p.id === selectedProgramId)?.stakeholder_feedback_enabled || false}
+                                                       onChange={(e) => handleToggleStakeholderFeedback(e.target.checked)}
+                                                   />
+                                                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-gold"></div>
+                                               </label>
+                                               <span className="text-sm font-bold text-slate-700">Enable & Seek Stakeholders’ Expectation</span>
+                                           </div>
+                                           <p className="text-[10px] text-slate-400 font-medium ml-14">Grants access to a separate feedback dashboard for stakeholders.</p>
                                        </div>
                                        <button 
                                            onClick={handleUpdateProgramDetails}
@@ -762,12 +793,12 @@ export default function InstitutionOnboarding() {
                                        </div>
 
                                        <div className="space-y-2">
-                                           <label className="text-xs font-bold text-slate-500 uppercase">Organization</label>
+                                           <label className="text-xs font-bold text-slate-500 uppercase">Organisation</label>
                                            <GlassInputWrapper>
                                                <input 
                                                   placeholder="e.g. Acme Industry / Alumni Assoc."
-                                                  value={newStakeholder.organization}
-                                                  onChange={e => setNewStakeholder({...newStakeholder, organization: e.target.value})}
+                                                  value={newStakeholder.organisation}
+                                                  onChange={e => setNewStakeholder({...newStakeholder, organisation: e.target.value})}
                                                   className="w-full bg-transparent p-4 outline-none font-bold text-slate-800"
                                                />
                                            </GlassInputWrapper>
@@ -842,7 +873,7 @@ export default function InstitutionOnboarding() {
                                                             <td className="py-4 px-2 font-bold text-slate-800">{s.name}</td>
                                                             <td className="py-4 px-2">
                                                                 <div className="space-y-1">
-                                                                    <div className="text-slate-600 font-medium">{s.organization}</div>
+                                                                    <div className="text-slate-600 font-medium">{s.organisation}</div>
                                                                     <div className="text-[9px] text-primary-gold font-bold uppercase px-1.5 py-0.5 bg-primary-gold/5 rounded inline-block">{s.category}</div>
                                                                 </div>
                                                             </td>
@@ -914,65 +945,95 @@ export default function InstitutionOnboarding() {
 
                            {peoSets.length > 0 && !isGeneratingPeos && (
                                <div className="space-y-8 animate-in fade-in duration-500">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="font-bold text-slate-800">Generated Proposals (4 Sets)</h3>
-                                        <button onClick={handleGeneratePEOs} className="text-xs font-bold text-primary-gold flex items-center gap-1 hover:underline">
-                                            <RefreshCw className="size-3" /> Regenerate
-                                        </button>
-                                    </div>
+                                     <div className="flex items-center justify-between">
+                                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                            <Save className="size-5 text-primary-gold" /> Generated Proposals (4 Sets)
+                                         </h3>
+                                         <button onClick={handleGeneratePEOs} className="text-xs font-bold text-primary-gold flex items-center gap-1 hover:underline bg-primary-gold/5 px-3 py-1.5 rounded-lg border border-primary-gold/10">
+                                             <RefreshCw className="size-3" /> Regenerate
+                                         </button>
+                                     </div>
 
-                                    {/* 4 Sets Display */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {peoSets.map((set, setIdx) => (
-                                            <div key={setIdx} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                                <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-3 px-1">Set Option {setIdx + 1}</h4>
-                                                <div className="space-y-2">
-                                                    {set.map((peo, pIdx) => (
-                                                        <div 
-                                                            key={pIdx} 
-                                                            onClick={() => handleFinalizePeo(peo)}
-                                                            className="p-3 bg-white border border-slate-100 rounded-lg text-xs text-slate-700 cursor-pointer hover:border-primary-gold hover:shadow-sm transition-all relative group"
-                                                        >
-                                                            {peo.statement}
-                                                            <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100">
-                                                                <Plus className="size-3 text-primary-gold" />
+                                     {/* 4 Sets Display */}
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                         {peoSets.map((set, setIdx) => (
+                                             <div key={setIdx} className="bg-slate-50 p-5 rounded-2xl border border-slate-200 hover:border-primary-gold/30 transition-all">
+                                                 <div className="flex items-center justify-between mb-4">
+                                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Option Set {setIdx + 1}</h4>
+                                                    <div className="size-2 rounded-full bg-primary-gold/40 animate-pulse" />
+                                                 </div>
+                                                 <div className="space-y-3">
+                                                     {set.map((peo, pIdx) => (
+                                                         <div 
+                                                             key={pIdx} 
+                                                             onClick={() => handleFinalizePeo(peo)}
+                                                             className="p-4 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-700 cursor-pointer hover:border-primary-gold hover:shadow-md transition-all relative group font-medium leading-relaxed"
+                                                         >
+                                                             {peo.statement}
+                                                             <div className="absolute -right-1.5 -top-1.5 bg-primary-gold text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 shadow-lg">
+                                                                 <Plus className="size-3" />
+                                                             </div>
+                                                         </div>
+                                                     ))}
+                                                 </div>
+                                             </div>
+                                         ))}
+                                     </div>
+
+                                     {/* Finalized Box */}
+                                     <div className="mt-12 group">
+                                         <div className="relative p-1 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-950 shadow-2xl overflow-hidden">
+                                            {/* Decorative background elements */}
+                                            <div className="absolute top-0 right-0 size-32 bg-primary-gold/10 rounded-full blur-3xl -mr-16 -mt-16" />
+                                            <div className="absolute bottom-0 left-0 size-32 bg-blue-500/10 rounded-full blur-3xl -ml-16 -mb-16" />
+
+                                            <div className="relative bg-slate-900/40 backdrop-blur-sm p-8 rounded-[1.75rem] space-y-6">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h3 className="text-white text-xl font-bold font-serif flex items-center gap-3">
+                                                            <div className="size-10 bg-green-500/10 rounded-xl flex items-center justify-center border border-green-500/20">
+                                                                <CheckCircle2 className="size-6 text-green-400" />
                                                             </div>
+                                                            Finalised PEOs
+                                                        </h3>
+                                                        <p className="text-slate-500 text-xs mt-1 font-medium italic">These objectives will be preserved with unique identifiers.</p>
+                                                    </div>
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-2xl font-black text-white/10 font-mono tracking-tighter leading-none">{finalizedPeos.length}</span>
+                                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">OBJECTIVES</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="space-y-4">
+                                                    {finalizedPeos.map((peo, index) => (
+                                                        <div key={peo.id} className="p-5 bg-slate-800/40 border border-slate-700/50 rounded-2xl relative group hover:border-slate-600/50 transition-all">
+                                                            <div className="flex items-start gap-4">
+                                                                <div className="mt-1 flex flex-col items-center">
+                                                                    <div className="text-[10px] font-black font-mono text-primary-gold opacity-80">{peo.id}</div>
+                                                                    <div className="w-px h-full bg-slate-700/50 mt-2" />
+                                                                </div>
+                                                                <p className="text-slate-200 text-sm leading-relaxed font-medium flex-1">{peo.statement}</p>
+                                                            </div>
+                                                            <button 
+                                                                onClick={() => handleRemoveFinalizedPeo(peo.id)}
+                                                                className="absolute top-4 right-4 p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/5 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                                                            >
+                                                                <Trash2 className="size-4" />
+                                                            </button>
                                                         </div>
                                                     ))}
+                                                    {finalizedPeos.length === 0 && (
+                                                        <div className="py-12 text-center border-2 border-dashed border-slate-800/50 rounded-2xl text-slate-600 text-sm font-medium italic flex flex-col items-center gap-3">
+                                                            <div className="size-12 rounded-full bg-slate-800/50 flex items-center justify-center">
+                                                                <Save className="size-5 opacity-20" />
+                                                            </div>
+                                                            Selective finalized statements will appear here.
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Finalized Box */}
-                                    <div className="mt-8 p-6 bg-slate-900 rounded-2xl border border-slate-800 shadow-xl">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-white font-bold flex items-center gap-2">
-                                                <CheckCircle2 className="size-5 text-green-400" /> Finalised PEOs
-                                            </h3>
-                                            <span className="text-[10px] text-slate-400 font-mono">COUNT: {finalizedPeos.length}</span>
-                                        </div>
-                                        
-                                        <div className="space-y-3">
-                                            {finalizedPeos.map((peo) => (
-                                                <div key={peo.id} className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl relative group">
-                                                    <div className="text-[10px] font-bold text-primary-gold mb-1">{peo.id}</div>
-                                                    <p className="text-slate-300 text-sm leading-relaxed">{peo.statement}</p>
-                                                    <button 
-                                                        onClick={() => handleRemoveFinalizedPeo(peo.id)}
-                                                        className="absolute top-4 right-4 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {finalizedPeos.length === 0 && (
-                                                <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-xl text-slate-600 text-sm italic">
-                                                    Click on any generated statement above to finalize it.
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                         </div>
+                                     </div>
                                </div>
                            )}
                        </div>
