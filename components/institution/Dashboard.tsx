@@ -7,16 +7,12 @@ import { createClient } from '../../utils/supabase/client';
 export default function Dashboard() {
   const router = useRouter();
   const [userName, setUserName] = useState<string>('Guest');
+  const [programCount, setProgramCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkUser = async () => {
-      const isDemo = localStorage.getItem('isDemo') === 'true';
-      if (isDemo) {
-        setUserName('Demo User');
-        setLoading(false);
-        return;
-      }
+
 
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -24,7 +20,31 @@ export default function Dashboard() {
         router.push('/institution/login');
         return;
       }
-      setUserName(user.email?.split('@')[0] || 'User');
+
+      // Fetch Institution Details
+      const { data: instData, error: instError } = await supabase
+        .from('institutions')
+        .select('name')
+        .eq('id', user.id)
+        .single();
+      
+      if (instData) {
+        setUserName(instData.name);
+      } else {
+        // Fallback or maybe redirect to onboarding if no profile found?
+        setUserName(user.email?.split('@')[0] || 'Institution');
+      }
+
+      // Fetch Program Count
+      const { count: programCount, error: progError } = await supabase
+        .from('programs')
+        .select('*', { count: 'exact', head: true })
+        .eq('institution_id', user.id);
+      
+      if (!progError) {
+        setProgramCount(programCount || 0);
+      }
+
       setLoading(false);
     };
     checkUser();
@@ -97,8 +117,10 @@ export default function Dashboard() {
                 <span className="text-sm font-semibold text-slate-700 pr-2">{userName}</span>
            </div>
           <button 
-            onClick={() => {
-                localStorage.removeItem('isDemo');
+            onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+
                 router.push('/institution/login');
             }}
             className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl transition-all border border-transparent hover:border-red-100"
@@ -127,7 +149,7 @@ export default function Dashboard() {
              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Total Programs</p>
-                    <p className="text-3xl font-bold text-slate-900">12</p>
+                    <p className="text-3xl font-bold text-slate-900">{programCount}</p>
                 </div>
                 <div className="size-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                     <span className="material-symbols-outlined">school</span>
@@ -136,7 +158,7 @@ export default function Dashboard() {
              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Pending Surveys</p>
-                    <p className="text-3xl font-bold text-slate-900">145</p>
+                    <p className="text-3xl font-bold text-slate-900">0</p>
                 </div>
                 <div className="size-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
                     <span className="material-symbols-outlined">pending_actions</span>

@@ -29,13 +29,6 @@ export default function BasicDetailsForm() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const isDemo = localStorage.getItem('isDemo') === 'true';
-      if (isDemo) {
-        setUserId('demo-user');
-        fetchDetails('demo-user');
-        return;
-      }
-
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
         router.push('/institution/login');
@@ -51,17 +44,7 @@ export default function BasicDetailsForm() {
     try {
       setLoading(true);
 
-      if (uid === 'demo-user') {
-         setStatus('Autonomous');
-         setVision('To be a world-class institution...');
-         setMission('Empowering students with knowledge...');
-         setPrograms([
-           { id: '1', name: 'Computer Science', degree: 'B.Tech', years: 4, level: 'UG' },
-           { id: '2', name: 'Electronics', degree: 'B.Tech', years: 4, level: 'UG' }
-         ]);
-         setLoading(false);
-         return;
-      }
+
 
       // Fetch Institution Details
       const { data: instData, error: instError } = await supabase
@@ -97,13 +80,7 @@ export default function BasicDetailsForm() {
     try {
       setLoading(true);
       
-      if (userId === 'demo-user') {
-        setTimeout(() => {
-          alert('Details saved successfully! (Demo Mode)');
-          setLoading(false);
-        }, 1000);
-        return;
-      }
+
 
       const { error } = await supabase
         .from('institutions')
@@ -132,13 +109,7 @@ export default function BasicDetailsForm() {
       return;
     }
 
-    if (userId === 'demo-user') {
-        const mockId = Math.random().toString(36).substr(2, 9);
-        setPrograms([...programs, { ...newProgram, id: mockId }]);
-        setNewProgram({ name: '', degree: 'B.Tech', years: 4, level: 'UG' });
-        setIsAddingProgram(false);
-        return;
-    }
+
 
     try {
       const { error } = await supabase
@@ -164,10 +135,7 @@ export default function BasicDetailsForm() {
   };
 
   const handleDeleteProgram = async (id: string) => {
-    if (userId === 'demo-user') {
-        setPrograms(prev => prev.filter(p => p.id !== id));
-        return;
-    }
+
 
     try {
       const { error } = await supabase

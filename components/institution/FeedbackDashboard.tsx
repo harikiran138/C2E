@@ -30,16 +30,7 @@ export default function FeedbackDashboard() {
 
   useEffect(() => {
     const fetchPrograms = async () => {
-      const isDemo = localStorage.getItem('isDemo') === 'true';
-      if (isDemo) {
-        setPrograms([
-          { id: '1', name: 'Computer Science' },
-          { id: '2', name: 'Electronics' }
-        ]);
-        setSelectedProgramId('1');
-        setLoading(false);
-        return;
-      }
+
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Eye, EyeOff, Phone, ShieldCheck, Mail, ArrowRight, PlayCircle, School, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Phone, ShieldCheck, Mail, ArrowRight, PlayCircle, School, ArrowLeft, Building2, Loader2 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -16,82 +16,85 @@ const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-export default function InstitutionLogin() {
-  const [mobile, setMobile] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState('');
+export default function Login() {
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [countryCode, setCountryCode] = useState('+91');
-  const [showOtp, setShowOtp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [institutionName, setInstitutionName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const supabase = createClient();
   const router = useRouter();
 
+  // Cleanup isDemo on mount
   useEffect(() => {
     localStorage.removeItem('isDemo');
+    localStorage.removeItem('demoInstName');
   }, []);
 
-  const handleSendOtp = async () => {
-    if (!mobile) {
-      alert('Please enter a mobile number');
+  const handleAuth = async () => {
+    if (!email || !password) {
+      setErrorMsg('Please enter both email and password');
       return;
     }
-    const mobileRegex = /^[0-9]{10}$/;
-    if (!mobileRegex.test(mobile)) {
-        alert('Please enter a valid 10-digit mobile number');
-        return;
-    }
-    setLoading(true);
-    const fullMobile = `${countryCode}${mobile}`;
-    
-    // In a real app, this would trigger the OTP. 
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: fullMobile,
-    });
 
-    setLoading(false);
-
-    if (error) {
-      console.error('Error sending OTP:', error);
-      alert('Error sending OTP: ' + error.message);
-    } else {
-      setOtpSent(true);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otp) {
-      alert('Please enter OTP');
+    if (isSignUp && !institutionName.trim()) {
+      setErrorMsg('Please enter the name of the institution');
       return;
     }
+
     setLoading(true);
-    const fullMobile = `${countryCode}${mobile}`;
-    
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.verifyOtp({
-      phone: fullMobile,
-      token: otp,
-      type: 'sms',
-    });
+    setErrorMsg(null);
 
-    setLoading(false);
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              institution_name: institutionName.trim()
+            }
+          }
+        });
 
-    if (error) {
-      console.error('Error verifying OTP:', error);
-      alert('Error verifying OTP: ' + error.message);
-    } else {
-      router.push('/institution/dashboard');
+        if (error) throw error;
+        
+        if (data.user) {
+          alert("Account created! Please check your email for verification if required.");
+          router.push('/institution/onboarding');
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          // Check if user exists in institutions table
+          const { data: existingInst } = await supabase
+            .from('institutions')
+            .select('id, vision')
+            .eq('id', data.user.id)
+            .maybeSingle();
+
+          if (existingInst && existingInst.vision) {
+            router.push('/institution/dashboard');
+          } else {
+            router.push('/institution/onboarding');
+          }
+        }
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleDemoLogin = () => {
-    setLoading(true);
-    localStorage.setItem('isDemo', 'true');
-    setTimeout(() => {
-        router.push('/institution/dashboard');
-    }, 800);
   };
 
   return (
@@ -142,81 +145,109 @@ export default function InstitutionLogin() {
 
             <div className="space-y-2">
                 <h1 className="animate-element animate-delay-300 text-3xl font-bold leading-tight text-slate-900 font-serif">
-                    {!otpSent ? "Welcome Back" : "Verify Identity"}
+                    {isSignUp ? "Create Account" : "Welcome Back"}
                 </h1>
                 <p className="animate-element animate-delay-400 text-slate-500 text-base">
-                    {!otpSent 
-                      ? "Secure access to your institutional dashboard" 
-                      : `Enter the code sent to ${countryCode} ${mobile}`}
+                    {isSignUp ? "Join the network of excellence" : "Secure access to your institutional dashboard"}
                 </p>
+                {/* Error Message Display */}
+                {errorMsg && (
+                    <div className="animate-element animate-delay-500 bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100 flex items-center gap-2">
+                        <ShieldCheck className="size-4 shrink-0" />
+                        {errorMsg}
+                    </div>
+                )}
             </div>
+            
+            {/* Toggle Sign In / Sign Up */}
+            {!isSignUp ? (
+                <div className="flex items-center gap-4 bg-slate-100 p-1.5 rounded-xl w-full">
+                    <button 
+                        className="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all bg-white dark:bg-slate-700 text-primary shadow-sm"
+                    >
+                        Sign In
+                    </button>
+                    <button 
+                        onClick={() => setIsSignUp(true)}
+                        className="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                    >
+                        Sign Up
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center gap-4 bg-slate-100 p-1.5 rounded-xl w-full">
+                    <button 
+                        onClick={() => setIsSignUp(false)}
+                        className="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                    >
+                        Sign In
+                    </button>
+                    <button 
+                        className="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all bg-white dark:bg-slate-700 text-primary shadow-sm"
+                    >
+                        Sign Up
+                    </button>
+                </div>
+            )}
           </div>
 
           <div className="space-y-6">
-            {!otpSent ? (
-              <div className="animate-element animate-delay-400 space-y-4">
+            <div className="animate-element animate-delay-400 space-y-4">
+                {isSignUp && (
+                    <div className="space-y-3">
+                        <label className="text-sm font-bold text-slate-700 flex items-center gap-2 px-1">
+                            <Building2 className="size-4 text-slate-400" />
+                            Institution Name
+                        </label>
+                        <GlassInputWrapper>
+                            <input 
+                                className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-slate-900 font-medium" 
+                                placeholder="e.g. Acme Institute of Technology" 
+                                type="text"
+                                value={institutionName}
+                                onChange={(e) => setInstitutionName(e.target.value)}
+                            />
+                        </GlassInputWrapper>
+                    </div>
+                )}
+                
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2 px-1">
-                      <Phone className="size-4 text-slate-400" />
-                      Mobile Number
+                      <Mail className="size-4 text-slate-400" />
+                      Email Address
                   </label>
-                  <div className="flex gap-3">
-                      <div className="w-28">
-                          <GlassInputWrapper>
-                              <select 
-                                  className="w-full bg-transparent text-sm p-4 pr-10 rounded-2xl focus:outline-none font-bold text-slate-900 appearance-none cursor-pointer"
-                                  value={countryCode}
-                                  onChange={(e) => setCountryCode(e.target.value)}
-                              >
-                                  <option value="+91">IN +91</option>
-                                  <option value="+1">US +1</option>
-                                  <option value="+44">UK +44</option>
-                              </select>
-                          </GlassInputWrapper>
-                      </div>
-                      <div className="flex-1">
-                          <GlassInputWrapper>
-                              <input 
-                                  className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-slate-900 font-medium" 
-                                  placeholder="10-digit number" 
-                                  type="tel"
-                                  value={mobile}
-                                  onChange={(e) => setMobile(e.target.value)}
-                              />
-                          </GlassInputWrapper>
-                      </div>
-                  </div>
+                  <GlassInputWrapper>
+                      <input 
+                          className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-slate-900 font-medium" 
+                          placeholder="institution@example.com" 
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                      />
+                  </GlassInputWrapper>
                 </div>
-              </div>
-            ) : (
-              <div className="animate-element animate-delay-400 space-y-4">
-                 <div className="space-y-3">
-                  <div className="flex justify-between items-center px-1">
-                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                          <ShieldCheck className="size-4 text-slate-400" />
-                          Verification Code
-                      </label>
-                      <button onClick={() => setOtpSent(false)} className="text-xs text-primary-gold font-bold hover:underline">Change Number</button>
-                  </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2 px-1">
+                      <ShieldCheck className="size-4 text-slate-400" />
+                      Password
+                  </label>
                   <GlassInputWrapper>
                     <div className="relative">
                       <input 
-                          className="w-full bg-transparent text-2xl font-bold p-5 text-center tracking-[0.6em] rounded-2xl focus:outline-none text-slate-900 placeholder:text-slate-200" 
-                          placeholder="000000" 
-                          type={showOtp ? 'text' : 'password'}
-                          maxLength={6}
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
-                          autoFocus
+                          className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-slate-900 font-medium" 
+                          placeholder="••••••••" 
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
                       />
-                      <button type="button" onClick={() => setShowOtp(!showOtp)} className="absolute inset-y-0 right-5 flex items-center">
-                        {showOtp ? <EyeOff className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" /> : <Eye className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" />}
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-5 flex items-center">
+                        {showPassword ? <EyeOff className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" /> : <Eye className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" />}
                       </button>
                     </div>
                   </GlassInputWrapper>
                 </div>
-              </div>
-            )}
+            </div>
 
             <div className="animate-element animate-delay-500 flex items-center justify-between text-sm px-1">
               <label className="flex items-center gap-3 cursor-pointer group">
@@ -227,15 +258,15 @@ export default function InstitutionLogin() {
             </div>
 
             <button 
-              onClick={!otpSent ? handleSendOtp : handleVerifyOtp}
+              onClick={handleAuth}
               disabled={loading}
-              className="animate-element animate-delay-600 w-full rounded-2xl bg-primary-gold py-5 font-bold text-white hover:brightness-110 hover:shadow-[0_8px_20px_-6px_rgba(201,169,97,0.4)] transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+              className="animate-element animate-delay-600 w-full py-4 text-sm font-semibold rounded-xl transition-all bg-slate-900 text-white shadow-xl hover:shadow-slate-500/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                  <Loader2 className="animate-spin size-5" />
               ) : (
                   <>
-                      {!otpSent ? "Continue" : "Verify & Sign In"}
+                      {isSignUp ? "Create Account" : "Sign In"}
                       <ArrowRight className="size-5" />
                   </>
               )}
@@ -246,16 +277,6 @@ export default function InstitutionLogin() {
             <span className="w-full border-t border-slate-100"></span>
             <span className="px-6 text-xs font-bold uppercase tracking-[0.2em] text-slate-400 bg-white absolute">Restricted Access</span>
           </div>
-
-          <button 
-              onClick={handleDemoLogin}
-              className="animate-element animate-delay-800 w-full flex items-center justify-center gap-4 bg-slate-50 border border-slate-200/60 rounded-2xl py-5 hover:bg-white hover:border-primary-gold/30 hover:shadow-lg transition-all group group"
-          >
-              <div className="size-8 bg-primary-gold/10 rounded-full flex items-center justify-center group-hover:bg-primary-gold transition-colors">
-                  <PlayCircle className="size-5 text-primary-gold group-hover:text-white transition-colors" />
-              </div>
-              <span className="text-base font-bold text-slate-600 group-hover:text-slate-900 transition-colors">Try Demo Version</span>
-          </button>
 
           <div className="animate-element animate-delay-900 text-center space-y-4">
                <p className="text-[11px] text-slate-400 font-medium leading-relaxed uppercase tracking-wider">

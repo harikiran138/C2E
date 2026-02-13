@@ -41,12 +41,6 @@ export default function ProgramDetails() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const isDemo = localStorage.getItem('isDemo') === 'true';
-      if (isDemo) {
-        setUserId('demo-user');
-        fetchPrograms('demo-user');
-        return;
-      }
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
         router.push('/institution/login');
@@ -60,16 +54,7 @@ export default function ProgramDetails() {
 
   const fetchPrograms = async (uid: string) => {
     setLoading(true);
-    if (uid === 'demo-user') {
-      const demoPrograms = [
-        { id: '1', name: 'Computer Science', program_chair: 'Dr. Smith', nba_coordinator: 'Prof. Doe', vision: 'To lead in CS...', mission: 'To teach CS...' },
-        { id: '2', name: 'Electronics', program_chair: 'Dr. Ray', nba_coordinator: 'Prof. Me', vision: 'To lead in EC...', mission: 'To teach EC...' }
-      ];
-      setPrograms(demoPrograms);
-      setSelectedProgramId(demoPrograms[0].id);
-      setLoading(false);
-      return;
-    }
+
 
     const { data, error } = await supabase
       .from('programs')
@@ -92,13 +77,7 @@ export default function ProgramDetails() {
   }, [selectedProgramId, programs]);
 
   const fetchStakeholders = async (progId: string) => {
-    if (userId === 'demo-user') {
-      setStakeholders([
-        { id: '1', name: 'Acme Corp', category: 'Industry', organization: 'Acme', contact: '9876543210', email: 'hr@acme.com' },
-        { id: '2', name: 'Global Tech', category: 'Employer', organization: 'Global Tech', contact: '9876543211', email: 'hr@global.com' }
-      ]);
-      return;
-    }
+
 
     const { data } = await supabase
       .from('stakeholders')
