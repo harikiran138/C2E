@@ -556,24 +556,26 @@ export default function InstitutionOnboarding() {
                                     </GlassInputWrapper>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Degree Type</label>
-                                    <div className="relative">
-                                        <select 
-                                            value={newProgram.degree}
-                                            onChange={e => setNewProgram({...newProgram, degree: e.target.value})}
-                                            className="w-full bg-white border border-slate-200 rounded-2xl p-4 outline-none font-bold text-slate-800 appearance-none shadow-sm focus:border-primary-gold transition-all"
-                                        >
-                                            <option value="B.Tech">B. Tech.</option>
-                                            <option value="B.E.">B. E.</option>
-                                            <option value="M.Tech">M. Tech.</option>
-                                            <option value="M.E.">M. E.</option>
-                                            <option value="MBA">MBA</option>
-                                            <option value="MCA">MCA</option>
-                                        </select>
-                                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
-                                    </div>
-                                </div>
+                                 <div className="space-y-2">
+                                     <label className="text-xs font-bold text-slate-500 uppercase">Degree Type</label>
+                                     <GlassInputWrapper>
+                                         <div className="relative">
+                                             <select 
+                                                 value={newProgram.degree}
+                                                 onChange={e => setNewProgram({...newProgram, degree: e.target.value})}
+                                                 className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer"
+                                             >
+                                                 <option value="B.Tech">B. Tech.</option>
+                                                 <option value="B.E.">B. E.</option>
+                                                 <option value="M.Tech">M. Tech.</option>
+                                                 <option value="M.E.">M. E.</option>
+                                                 <option value="MBA">MBA</option>
+                                                 <option value="MCA">MCA</option>
+                                             </select>
+                                             <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
+                                         </div>
+                                     </GlassInputWrapper>
+                                 </div>
 
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-500 uppercase">Duration (Years)</label>
@@ -589,27 +591,29 @@ export default function InstitutionOnboarding() {
                                     </GlassInputWrapper>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Level</label>
-                                    <div className="relative">
-                                        <select 
-                                            value={newProgram.level}
-                                            onChange={e => setNewProgram({...newProgram, level: e.target.value})}
-                                            className="w-full bg-white border border-slate-200 rounded-2xl p-4 outline-none font-bold text-slate-800 appearance-none shadow-sm focus:border-primary-gold transition-all"
-                                        >
-                                            <option value="UG">Undergraduate (UG)</option>
-                                            <option value="PG">Postgraduate (PG)</option>
-                                            <option value="Integrated">Integrated</option>
-                                        </select>
-                                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
-                                    </div>
-                                </div>
+                                 <div className="space-y-2">
+                                     <label className="text-xs font-bold text-slate-500 uppercase">Level</label>
+                                     <GlassInputWrapper>
+                                         <div className="relative">
+                                             <select 
+                                                 value={newProgram.level}
+                                                 onChange={e => setNewProgram({...newProgram, level: e.target.value})}
+                                                 className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer"
+                                             >
+                                                 <option value="UG">Undergraduate (UG)</option>
+                                                 <option value="PG">Postgraduate (PG)</option>
+                                                 <option value="Integrated">Integrated</option>
+                                             </select>
+                                             <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
+                                         </div>
+                                     </GlassInputWrapper>
+                                 </div>
                            </div>
                            
                            <button 
                              onClick={handleAddProgram} 
                              disabled={loading}
-                             className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2 mt-4"
+                             className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:shadow-slate-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
                            >
                                {loading ? <Loader2 className="animate-spin size-5" /> : <><Plus className="size-5" /> Add Program to List</>}
                            </button>
@@ -631,10 +635,10 @@ export default function InstitutionOnboarding() {
                           {programs.length === 0 && <p className="text-center text-slate-400 text-sm">No programs added yet.</p>}
                       </div>
 
-                      <div className="flex gap-4">
-                          <button onClick={() => setCurrentStep(1)} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-xl">Back</button>
-                          <button onClick={() => setCurrentStep(3)} className="flex-[2] py-4 bg-primary-gold text-white font-bold rounded-xl hover:bg-primary-gold/90">Continue</button>
-                      </div>
+                       <div className="flex gap-4">
+                           <button onClick={() => setCurrentStep(1)} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all">Back</button>
+                           <button onClick={() => setCurrentStep(3)} className="flex-1 py-4 bg-primary-gold text-white font-bold rounded-xl hover:bg-primary-gold/90 shadow-lg shadow-primary-gold/20 transition-all flex items-center justify-center gap-2">Continue <ArrowRight className="size-4" /></button>
+                       </div>
                   </div>
               )}
 

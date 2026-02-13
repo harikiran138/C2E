@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import "./globals.css";
 import SmoothScrollProvider from "@/components/SmoothScrollProvider";
 import ClientLayout from "@/components/ClientLayout";
 
@@ -30,7 +29,10 @@ export default function RootLayout({
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${inter.variable} ${playfair.variable} font-sans antialiased text-slate-800 bg-[#faf9f6]`}>
+      <body 
+        className={`${inter.variable} ${playfair.variable} font-sans antialiased text-slate-800 bg-[#faf9f6]`}
+        suppressHydrationWarning
+      >
         <SmoothScrollProvider>
           <ClientLayout>
             {children}
