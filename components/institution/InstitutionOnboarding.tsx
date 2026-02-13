@@ -122,6 +122,7 @@ export default function InstitutionOnboarding() {
   const [peoSets, setPeoSets] = useState<Peo[][]>([]);
   const [finalizedPeos, setFinalizedPeos] = useState<Peo[]>([]);
   const [isGeneratingPeos, setIsGeneratingPeos] = useState(false);
+  const [declarationChecked, setDeclarationChecked] = useState(false);
 
 
   // --- INITIALIZATION ---
@@ -605,8 +606,6 @@ export default function InstitutionOnboarding() {
                       </button>
                   </div>
                )}
-   </div>
-              )}
 
               {/* Step 2: Programs */}
               {currentStep === 2 && (
@@ -845,13 +844,15 @@ export default function InstitutionOnboarding() {
                                                </div>
                                            </div>
                                        </label>
-                                       <textarea 
-                                           className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-slate-800 min-h-[100px] outline-none focus:border-primary-gold transition-all"
-                                           placeholder="State the specific future goal for this program..."
-                                           value={programs.find(p => p.id === selectedProgramId)?.vision || ''}
-                                           onChange={(e) => handleUpdateProgramData(selectedProgramId, 'vision', e.target.value)}
-                                       />
-                                   </div>
+                                        <GlassInputWrapper>
+                                            <textarea 
+                                                className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 min-h-[100px] resize-none"
+                                                placeholder="State the specific future goal for this program..."
+                                                value={programs.find(p => p.id === selectedProgramId)?.vision || ''}
+                                                onChange={(e) => handleUpdateProgramData(selectedProgramId, 'vision', e.target.value)}
+                                            />
+                                        </GlassInputWrapper>
+                                    </div>
 
                                    <div className="space-y-2">
                                        <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
@@ -863,13 +864,15 @@ export default function InstitutionOnboarding() {
                                                </div>
                                            </div>
                                        </label>
-                                       <textarea 
-                                           className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold text-slate-800 min-h-[100px] outline-none focus:border-primary-gold transition-all"
-                                           placeholder="Mission for this specific program..."
-                                           value={programs.find(p => p.id === selectedProgramId)?.mission || ''}
-                                           onChange={(e) => handleUpdateProgramData(selectedProgramId, 'mission', e.target.value)}
-                                       />
-                                   </div>
+                                        <GlassInputWrapper>
+                                            <textarea 
+                                                className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 min-h-[100px] resize-none"
+                                                placeholder="Mission for this specific program..."
+                                                value={programs.find(p => p.id === selectedProgramId)?.mission || ''}
+                                                onChange={(e) => handleUpdateProgramData(selectedProgramId, 'mission', e.target.value)}
+                                            />
+                                        </GlassInputWrapper>
+                                    </div>
                                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100">
                                        <div className="flex flex-col gap-1">
                                            <div className="flex items-center gap-3">
@@ -934,19 +937,21 @@ export default function InstitutionOnboarding() {
 
                                        <div className="space-y-2">
                                            <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
-                                           <div className="relative">
-                                               <select 
-                                                   value={newStakeholder.category}
-                                                   onChange={e => setNewStakeholder({...newStakeholder, category: e.target.value})}
-                                                   className="w-full bg-white border border-slate-200 rounded-2xl p-4 outline-none font-bold text-slate-800 appearance-none shadow-sm focus:border-primary-gold transition-all"
-                                               >
-                                                   {['Academia', 'Industry', 'Potential Employers', 'Research Organisations', 'Professional Body', 'Alumni', 'Students', 'Parents', 'Management'].map(c => (
-                                                       <option key={c} value={c}>{c}</option>
-                                                   ))}
-                                               </select>
-                                               <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
-                                           </div>
-                                       </div>
+                                            <GlassInputWrapper>
+                                                <div className="relative">
+                                                    <select 
+                                                        value={newStakeholder.category}
+                                                        onChange={e => setNewStakeholder({...newStakeholder, category: e.target.value})}
+                                                        className="w-full bg-transparent p-4 outline-none font-bold text-slate-800 appearance-none cursor-pointer"
+                                                    >
+                                                        {['Academia', 'Industry', 'Potential Employers', 'Research Organisations', 'Professional Body', 'Alumni', 'Students', 'Parents', 'Management'].map(c => (
+                                                            <option key={c} value={c}>{c}</option>
+                                                        ))}
+                                                    </select>
+                                                    <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
+                                                </div>
+                                            </GlassInputWrapper>
+                                        </div>
 
                                        <div className="space-y-2">
                                            <label className="text-xs font-bold text-slate-500 uppercase">Contact Number</label>
