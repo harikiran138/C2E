@@ -21,30 +21,40 @@ export default function Dashboard() {
       const session = JSON.parse(sessionData);
       const sessionUserId = session.id;
 
-      // Fetch Institution Details
-      const supabase = createClient();
-      const { data: instData, error: instError } = await supabase
-        .from('institutions')
-        .select('name')
-        .eq('id', sessionUserId)
-        .single();
-      
-      if (instData) {
-        setUserName(instData.name);
-      } else {
-        setUserName(session.name || 'Institution');
-      }
+      try {
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          console.error('Supabase configuration missing in Dashboard');
+          setLoading(false);
+          return;
+        }
 
-      const { count: programCount, error: progError } = await supabase
-        .from('programs')
-        .select('*', { count: 'exact', head: true })
-        .eq('institution_id', sessionUserId);
-      
-      if (!progError) {
-        setProgramCount(programCount || 0);
-      }
+        // Fetch Institution Details
+        const supabase = createClient();
+        const { data: instData, error: instError } = await supabase
+          .from('institutions')
+          .select('name')
+          .eq('id', sessionUserId)
+          .single();
+        
+        if (instData) {
+          setUserName(instData.name);
+        } else {
+          setUserName(session.name || 'Institution');
+        }
 
-      setLoading(false);
+        const { count: programCount, error: progError } = await supabase
+          .from('programs')
+          .select('*', { count: 'exact', head: true })
+          .eq('institution_id', sessionUserId);
+        
+        if (!progError) {
+          setProgramCount(programCount || 0);
+        }
+      } catch (err) {
+        console.error('Error in Dashboard data fetching:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     checkUser();
   }, [router]);
@@ -104,7 +114,7 @@ export default function Dashboard() {
             <span className="material-symbols-outlined text-2xl">grid_view</span>
           </div>
           <div>
-            <span className="block font-bold text-lg text-slate-900 leading-none">Institution Portal</span>
+            <span className="block font-semibold text-lg text-slate-900 leading-none">Institution Portal</span>
             <span className="text-xs text-slate-500 font-medium">Accreditation Management System</span>
           </div>
         </div>
@@ -120,7 +130,7 @@ export default function Dashboard() {
                 localStorage.removeItem('inst_session');
                 router.push('/institution/login');
             }}
-            className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl transition-all border border-transparent hover:border-red-100"
+            className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl transition-all border border-transparent hover:border-red-100"
           >
             <span className="material-symbols-outlined text-[18px]">logout</span>
             Logout
@@ -132,39 +142,39 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto p-6 lg:p-10">
         <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2 font-serif">Dashboard Overview</h1>
+            <h1 className="text-3xl font-semibold text-slate-900 mb-2 font-serif">Dashboard Overview</h1>
             <p className="text-slate-500 text-lg">Managing compliance and excellence for your institution.</p>
           </div>
           <div className="text-right hidden md:block">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Current Session</p>
-            <p className="text-lg font-bold text-slate-800">2024 - 2025</p>
+            <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Current Session</p>
+            <p className="text-lg font-semibold text-slate-800">2024 - 2025</p>
           </div>
         </header>
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Total Programs</p>
-                    <p className="text-3xl font-bold text-slate-900">{programCount}</p>
+                    <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Programs</p>
+                    <p className="text-3xl font-semibold text-slate-900">{programCount}</p>
                 </div>
                 <div className="size-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                     <span className="material-symbols-outlined">school</span>
                 </div>
              </div>
-             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Pending Surveys</p>
-                    <p className="text-3xl font-bold text-slate-900">0</p>
+                    <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Pending Surveys</p>
+                    <p className="text-3xl font-semibold text-slate-900">0</p>
                 </div>
                 <div className="size-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
                     <span className="material-symbols-outlined">pending_actions</span>
                 </div>
              </div>
-             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Compliance Score</p>
-                    <p className="text-3xl font-bold text-slate-900">88%</p>
+                    <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Compliance Score</p>
+                    <p className="text-3xl font-semibold text-slate-900">88%</p>
                 </div>
                 <div className="size-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                     <span className="material-symbols-outlined">check_circle</span>
@@ -172,7 +182,7 @@ export default function Dashboard() {
              </div>
         </div>
 
-        <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+        <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center gap-2">
             <span className="material-symbols-outlined text-slate-400">apps</span>
             Quick Actions
         </h2>
@@ -183,17 +193,17 @@ export default function Dashboard() {
             <div 
               key={item.title}
               onClick={() => router.push(item.link)}
-              className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full"
+              className="bg-white rounded-lg p-6 shadow-sm border border-slate-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full"
             >
-              <div className={`size-14 ${item.bg} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+              <div className={`size-14 ${item.bg} rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
                 <span className={`material-symbols-outlined text-3xl ${item.color}`}>
                   {item.icon}
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-[#137fec] transition-colors">{item.title}</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2 group-hover:text-[#137fec] transition-colors">{item.title}</h3>
               <p className="text-sm text-slate-500 leading-relaxed mb-4 flex-grow">{item.description}</p>
               
-              <div className="flex items-center text-sm font-bold text-slate-400 group-hover:text-[#137fec] transition-colors mt-auto">
+              <div className="flex items-center text-sm font-semibold text-slate-400 group-hover:text-[#137fec] transition-colors mt-auto">
                 <span>Access Module</span>
                 <span className="material-symbols-outlined text-lg ml-1 group-hover:translate-x-1 transition-transform">arrow_forward</span>
               </div>
@@ -203,10 +213,10 @@ export default function Dashboard() {
 
         {/* Recent Activity Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 bg-white rounded-2xl p-8 border border-slate-200 shadow-sm">
+            <div className="lg:col-span-2 bg-white rounded-lg p-8 border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-lg text-slate-900">Recent Activity</h3>
-                    <button className="text-sm font-bold text-[#137fec] hover:underline">View All</button>
+                    <h3 className="font-semibold text-lg text-slate-900">Recent Activity</h3>
+                    <button className="text-sm font-semibold text-[#137fec] hover:underline">View All</button>
                 </div>
                 <div className="space-y-6">
                     {[1, 2, 3].map((_, i) => (
@@ -215,7 +225,7 @@ export default function Dashboard() {
                                 <span className="material-symbols-outlined text-sm">history</span>
                             </div>
                             <div>
-                                <p className="text-sm font-bold text-slate-800">Program details updated for CSE</p>
+                                <p className="text-sm font-semibold text-slate-800">Program details updated for CSE</p>
                                 <p className="text-xs text-slate-500 mt-1">Computer Science & Engineering • 2 hours ago</p>
                             </div>
                         </div>
@@ -223,14 +233,14 @@ export default function Dashboard() {
                 </div>
             </div>
             
-             <div className="bg-gradient-to-br from-[#137fec] to-[#116ecc] rounded-2xl p-8 text-white relative overflow-hidden shadow-lg shadow-blue-500/20 flex flex-col justify-between">
+             <div className="bg-gradient-to-br from-[#137fec] to-[#116ecc] rounded-lg p-8 text-white relative overflow-hidden shadow-lg shadow-blue-500/20 flex flex-col justify-between">
                 <div className="relative z-10">
                     <div className="size-12 bg-white/10 rounded-xl flex items-center justify-center mb-6 text-white backdrop-blur-sm">
                         <span className="material-symbols-outlined text-2xl">support_agent</span>
                     </div>
-                    <h3 className="font-bold text-xl mb-2">Need Expert Help?</h3>
+                    <h3 className="font-semibold text-xl mb-2">Need Expert Help?</h3>
                     <p className="text-white/80 text-sm mb-8 leading-relaxed">Our accreditation experts are available to assist you with the documentation process.</p>
-                    <button className="w-full bg-white text-[#137fec] px-6 py-3.5 rounded-xl text-sm font-bold shadow-lg hover:bg-blue-50 transition-colors">Contact Support</button>
+                    <button className="w-full bg-white text-[#137fec] px-6 py-3.5 rounded-xl text-sm font-semibold shadow-lg hover:bg-blue-50 transition-colors">Contact Support</button>
                 </div>
                 {/* Decorative elements */}
                 <div className="absolute top-0 right-0 size-40 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>

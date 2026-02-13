@@ -6,12 +6,11 @@ import { Eye, EyeOff, Phone, ShieldCheck, Mail, ArrowRight, PlayCircle, School, 
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import ShadersBackground from '@/components/ui/background-shades';
 
 // --- SUB-COMPONENTS ---
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-slate-200 bg-slate-50 shadow-sm backdrop-blur-sm transition-all focus-within:border-primary-gold focus-within:bg-white focus-within:shadow-md">
+  <div className="rounded-lg border border-slate-200 bg-slate-50 shadow-sm backdrop-blur-sm transition-all focus-within:border-primary-gold focus-within:bg-white focus-within:shadow-md">
     {children}
   </div>
 );
@@ -52,6 +51,10 @@ export default function Login() {
     try {
       if (isSignUp) {
         // Create institution record directly with password
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          throw new Error('Supabase configuration is missing. Please check Vercel environment variables.');
+        }
+
         const { data, error } = await supabase
           .from('institutions')
           .insert({
@@ -74,6 +77,10 @@ export default function Login() {
         }
       } else {
         // Check credentials directly in the institutions table
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          throw new Error('Supabase configuration is missing. Please check Vercel environment variables.');
+        }
+
         const { data: user, error } = await supabase
           .from('institutions')
           .select('*')
@@ -113,37 +120,36 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row relative font-sans overflow-hidden">
-      {/* Premium Shader Background */}
-      <div className="absolute inset-0 bg-white -z-20"></div>
-      <ShadersBackground />
+    <div className="min-h-screen w-full flex flex-col lg:flex-row relative font-sans overflow-y-auto">
+      {/* New Background Pattern */}
+      <div className="login-pattern-bg fixed inset-0 -z-20"></div>
       
       {/* Floating Back Button */}
       <Link 
         href="/" 
-        className="fixed top-8 left-8 z-50 flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-white font-bold hover:bg-white/20 transition-all hover:scale-105 group shadow-2xl"
+        className="fixed top-8 left-8 z-50 flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full text-white font-semibold hover:bg-white/20 transition-all hover:scale-105 group shadow-2xl"
       >
         <ArrowLeft className="size-4 text-primary group-hover:-translateX-1 transition-transform" />
         <span className="text-sm tracking-widest uppercase">Back to Home</span>
       </Link>
 
       {/* Left side: Visual Area (Mobile hidden) */}
-      <section className="hidden lg:flex flex-1 items-center justify-center p-12 text-white">
-        <div className="max-w-md space-y-4 animate-element animate-delay-200">
-           <h2 className="text-4xl font-bold font-serif text-slate-900">Elevating Institutional Excellence</h2>
-           <p className="text-slate-600 font-medium">Streamlined compliance, powerful analytics, and seamless data management for modern education.</p>
+      <section className="hidden lg:flex flex-1 items-center justify-center p-12 text-white relative z-10">
+        <div className="max-w-2xl space-y-8 animate-element animate-delay-200">
+           <h2 className="text-7xl font-semibold font-serif text-white leading-tight">Elevating Institutional Excellence</h2>
+           <p className="text-2xl text-white/90 font-medium">Streamlined compliance, powerful analytics, and seamless data management for modern education.</p>
         </div>
       </section>
 
       {/* Right side: Login Card Section */}
       <section className="flex-1 flex items-center justify-center p-6 lg:p-12 relative z-10">
-        <main className="w-full max-w-[480px] bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] p-8 lg:p-12 animate-element animate-delay-100">
+        <main className="w-full max-w-[480px] bg-white/80 backdrop-blur-xl rounded-xl border border-slate-200/60 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] p-8 lg:p-12 animate-element animate-delay-100">
 
         <div className="flex flex-col gap-10">
           {/* Header & Logo */}
           <div className="flex flex-col gap-6 items-center text-center">
             <div className="animate-element animate-delay-200 flex items-center gap-3">
-                 <div className="size-14 bg-white rounded-2xl flex items-center justify-center border border-slate-200 shadow-sm overflow-hidden p-2">
+                 <div className="size-14 bg-white rounded-lg flex items-center justify-center border border-slate-200 shadow-sm overflow-hidden p-2">
                     <Image 
                       src="/x.png" 
                       alt="C2X Logo" 
@@ -153,13 +159,13 @@ export default function Login() {
                     />
                  </div>
                  <div className="text-left">
-                     <span className="block text-2xl font-bold tracking-tight text-slate-900 font-serif leading-none">C2X Portal</span>
-                     <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">Compliance to Excellence</span>
+                     <span className="block text-2xl font-semibold tracking-tight text-slate-900 font-serif leading-none">C2X Portal</span>
+                     <span className="text-[10px] uppercase font-semibold tracking-widest text-slate-400">Compliance to Excellence</span>
                  </div>
             </div>
 
             <div className="space-y-2">
-                <h1 className="animate-element animate-delay-300 text-3xl font-bold leading-tight text-slate-900 font-serif">
+                <h1 className="animate-element animate-delay-300 text-3xl font-semibold leading-tight text-slate-900 font-serif">
                     {isSignUp ? "Create Account" : "Welcome Back"}
                 </h1>
                 <p className="animate-element animate-delay-400 text-slate-500 text-base">
@@ -210,13 +216,13 @@ export default function Login() {
             <div className="animate-element animate-delay-400 space-y-4">
                 {isSignUp && (
                     <div className="space-y-3">
-                        <label className="text-sm font-bold text-slate-700 flex items-center gap-2 px-1">
+                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
                             <Building2 className="size-4 text-slate-400" />
                             Institution Name
                         </label>
                         <GlassInputWrapper>
                             <input 
-                                className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-slate-900 font-medium" 
+                                className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
                                 placeholder="e.g. Acme Institute of Technology" 
                                 type="text"
                                 value={institutionName}
@@ -227,13 +233,13 @@ export default function Login() {
                 )}
                 
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2 px-1">
+                  <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
                       <Mail className="size-4 text-slate-400" />
                       Email Address
                   </label>
                   <GlassInputWrapper>
                       <input 
-                          className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-slate-900 font-medium" 
+                          className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
                           placeholder="institution@example.com" 
                           type="email"
                           value={email}
@@ -243,14 +249,14 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2 px-1">
+                  <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
                       <ShieldCheck className="size-4 text-slate-400" />
                       Password
                   </label>
                   <GlassInputWrapper>
                     <div className="relative">
                       <input 
-                          className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-slate-900 font-medium" 
+                          className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
                           placeholder="••••••••" 
                           type={showPassword ? 'text' : 'password'}
                           value={password}
@@ -264,18 +270,10 @@ export default function Login() {
                 </div>
             </div>
 
-            <div className="animate-element animate-delay-500 flex items-center justify-between text-sm px-1">
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input type="checkbox" className="custom-checkbox" defaultChecked />
-                <span className="text-slate-500 font-medium group-hover:text-slate-900 transition-colors">Trust this device</span>
-              </label>
-              <a href="#" className="text-primary-gold hover:underline font-bold text-xs uppercase tracking-wider">Trouble Logging In?</a>
-            </div>
-
             <button 
               onClick={handleAuth}
               disabled={loading}
-              className="animate-element animate-delay-600 w-full py-4 text-sm font-semibold rounded-xl transition-all bg-slate-900 text-white shadow-xl hover:shadow-slate-500/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="animate-element animate-delay-600 w-full py-4 text-sm font-semibold rounded-xl transition-all bg-slate-900 text-white shadow-xl hover:shadow-slate-500/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
             >
               {loading ? (
                   <Loader2 className="animate-spin size-5" />
@@ -286,22 +284,6 @@ export default function Login() {
                   </>
               )}
             </button>
-          </div>
-
-          <div className="animate-element animate-delay-700 relative flex items-center justify-center">
-            <span className="w-full border-t border-slate-100"></span>
-            <span className="px-6 text-xs font-bold uppercase tracking-[0.2em] text-slate-400 bg-white absolute">Restricted Access</span>
-          </div>
-
-          <div className="animate-element animate-delay-900 text-center space-y-4">
-               <p className="text-[11px] text-slate-400 font-medium leading-relaxed uppercase tracking-wider">
-                  Enterprise-grade security • End-to-end encrypted
-              </p>
-              <div className="flex items-center justify-center gap-6">
-                <a href="#" className="text-slate-400 hover:text-primary-gold text-[10px] font-bold uppercase tracking-widest transition-colors">Privacy</a>
-                <a href="#" className="text-slate-400 hover:text-primary-gold text-[10px] font-bold uppercase tracking-widest transition-colors">Terms</a>
-                <a href="#" className="text-slate-400 hover:text-primary-gold text-[10px] font-bold uppercase tracking-widest transition-colors">Help</a>
-              </div>
           </div>
         </div>
       </main>

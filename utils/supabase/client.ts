@@ -5,8 +5,9 @@ export function createClient() {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    // Return a dummy client or handle it gracefully for build-time SSR
-    // Most 'use client' components will only use this after hydration anyway
+    if (typeof window !== 'undefined') {
+      console.warn('Supabase credentials missing. Check your Vercel environment variables.');
+    }
     return createBrowserClient(
       supabaseUrl || 'https://placeholder.supabase.co',
       supabaseKey || 'placeholder-key'
