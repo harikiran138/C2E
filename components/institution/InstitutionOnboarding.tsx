@@ -15,7 +15,10 @@ import {
   Trash2,
   Loader2,
   Save,
-  RefreshCw
+  RefreshCw,
+  Copy,
+  HelpCircle,
+  AlertCircle
 } from 'lucide-react';
 import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -123,6 +126,7 @@ export default function InstitutionOnboarding() {
   const [finalizedPeos, setFinalizedPeos] = useState<Peo[]>([]);
   const [isGeneratingPeos, setIsGeneratingPeos] = useState(false);
   const [declarationChecked, setDeclarationChecked] = useState(false);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
 
 
   // --- INITIALIZATION ---
@@ -196,30 +200,36 @@ export default function InstitutionOnboarding() {
 
   // --- HANDLERS (Simulated & Real Mix) ---
 
-  // Scroll to top and persist step
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
-    localStorage.setItem('onboardingStep', currentStep.toString());
-    if (selectedProgramId) {
-        localStorage.setItem('selectedProgramId', selectedProgramId);
-    }
-  }, [currentStep, selectedProgramId]);
+   // Scroll to top and persist step
+   useEffect(() => {
+     if (scrollRef.current) {
+       scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+     }
+     setErrorStatus(null); // Clear errors on step change
+     localStorage.setItem('onboardingStep', currentStep.toString());
+     if (selectedProgramId) {
+         localStorage.setItem('selectedProgramId', selectedProgramId);
+     }
+   }, [currentStep, selectedProgramId]);
 
   const handleSaveStep1 = async () => {
      if (!userId) return;
-     
-     if (!instDetails.name.trim() || !instDetails.code.trim()) {
-         alert("Institution Name and Code are required.");
-         return;
-     }
+          if (!instDetails.name.trim() || !instDetails.code.trim()) {
+          setErrorStatus("Institution Name and Code are required.");
+          return;
+      }
 
-     // Simple Website Validation
-     if (instDetails.website && !instDetails.website.startsWith('http')) {
-         alert("Please enter a valid website URL starting with http:// or https://");
-         return;
-     }
+      // Simple Website Validation
+      if (instDetails.website && !instDetails.website.startsWith('http')) {
+          setErrorStatus("Please enter a valid website URL starting with http:// or https://");
+          return;
+      }
+
+      const currentYear = new Date().getFullYear();
+      if (instDetails.establishment_year && (instDetails.establishment_year < 1800 || instDetails.establishment_year > currentYear)) {
+          setErrorStatus(`Establishment Year must be between 1800 and ${currentYear}.`);
+          return;
+      }
 
      setLoading(true);
      // Update basic details
@@ -232,18 +242,28 @@ export default function InstitutionOnboarding() {
      });
      setLoading(false);
      if (!error) setCurrentStep(2);
-     else alert("Error saving: " + error.message);
+     else setErrorStatus("Error saving: " + error.message);
   };
 
   const handleAddProgram = async () => {
     if (!userId) {
-      alert("User not authenticated.");
+      setErrorStatus("User not authenticated.");
       return;
     }
-    if (!newProgram.name || !newProgram.code) {
-      alert("Program Name and Code are required.");
-      return;
-    }
+     if (!newProgram.name || !newProgram.code) {
+       setErrorStatus("Program Name and Code are required.");
+       return;
+     }
+
+     if (programs.find(p => p.code === newProgram.code.toUpperCase())) {
+         setErrorStatus("A program with this code already exists.");
+         return;
+     }
+
+     if (newProgram.intake && newProgram.intake <= 0) {
+         setErrorStatus("Annual Intake Capacity must be a positive number.");
+         return;
+     }
     
     setLoading(true);
     const { years, ...rest } = newProgram;
@@ -253,7 +273,7 @@ export default function InstitutionOnboarding() {
     const { data, error } = await supabase.from('programs').insert(p).select().single();
     
     if (error) {
-        alert("Error adding program: " + error.message);
+        setErrorStatus("Error adding program: " + error.message);
     } else if (data) {
         setPrograms([...programs, data]);
         setNewProgram({ name: '', code: '', degree: 'B.Tech', years: 4, level: 'UG' });
@@ -277,7 +297,7 @@ export default function InstitutionOnboarding() {
          mission: programDetails.mission
      }).eq('id', selectedProgramId);
      
-     if (error) alert("Error updating: " + error.message);
+     if (error) setErrorStatus("Error updating: " + error.message);
      else {
          // Update local state
          setPrograms(programs.map(p => p.id === selectedProgramId ? { ...p, ...programDetails } : p));
@@ -296,23 +316,23 @@ export default function InstitutionOnboarding() {
   };
 
   const handleAddStakeholder = async () => {
-      if (!userId || !selectedProgramId || !newStakeholder.name) {
-          alert("Name and selection are required.");
-          return;
-      }
+       if (!userId || !selectedProgramId || !newStakeholder.name) {
+           setErrorStatus("Stakeholder Name and selection are required.");
+           return;
+       }
 
-      // Logical Validation: Email Format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (newStakeholder.email && !emailRegex.test(newStakeholder.email)) {
-          alert("Please enter a valid email address.");
-          return;
-      }
+       // Logical Validation: Email Format
+       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+       if (newStakeholder.email && !emailRegex.test(newStakeholder.email)) {
+           setErrorStatus("Please enter a valid email address.");
+           return;
+       }
 
-      // Logical Validation: Contact No (Basic length check for mobile)
-      if (newStakeholder.contact_no && newStakeholder.contact_no.length < 10) {
-          alert("Please enter a valid 10-digit contact number.");
-          return;
-      }
+       // Logical Validation: Contact No (Basic length check for mobile)
+       if (newStakeholder.contact_no && newStakeholder.contact_no.length < 10) {
+           setErrorStatus("Please enter a valid 10-digit contact number.");
+           return;
+       }
 
       setLoading(true);
       const s = { ...newStakeholder, program_id: selectedProgramId };
@@ -329,7 +349,7 @@ export default function InstitutionOnboarding() {
             contact_no: '' 
         });
     } else {
-        alert("Error adding stakeholder: " + (error?.message || 'Unknown'));
+        setErrorStatus("Error adding stakeholder: " + (error?.message || 'Unknown'));
     }
     setLoading(false);
 };
@@ -423,7 +443,7 @@ export default function InstitutionOnboarding() {
       
       setLoading(false);
       if (!error) router.push('/institution/dashboard');
-      else alert("Error saving PEOs: " + error.message);
+      else setErrorStatus("Error saving PEOs: " + error.message);
   };
 
   // --- RENDER HELPERS ---
@@ -487,6 +507,14 @@ export default function InstitutionOnboarding() {
               
               {/* Progress */}
               {renderStepIndicator()}
+
+              {/* Inline Error Message */}
+              {errorStatus && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+                      <AlertCircle className="size-5 text-red-500 shrink-0" />
+                      <p className="text-sm font-bold text-red-600">{errorStatus}</p>
+                  </div>
+              )}
 
               {/* Step 1: Basic Details */}
                {currentStep === 1 && (
@@ -888,7 +916,31 @@ export default function InstitutionOnboarding() {
                                                <span className="text-sm font-bold text-slate-700">Enable & Seek Stakeholders’ Expectation</span>
                                            </div>
                                            <p className="text-[10px] text-slate-400 font-medium ml-14">Grants access to a separate feedback dashboard for stakeholders.</p>
-                                       </div>
+                                            
+                                            {programs.find(p => p.id === selectedProgramId)?.stakeholder_feedback_enabled && (
+                                                <div className="ml-14 mt-4 p-4 bg-primary-gold/5 rounded-2xl border border-primary-gold/10 flex flex-col gap-2">
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="text-[10px] font-bold text-primary-gold uppercase tracking-wider">Shareable Survey Link</span>
+                                                            <span className="text-xs font-medium text-slate-600 truncate max-w-[200px] sm:max-w-xs">
+                                                                {typeof window !== 'undefined' ? `${window.location.origin}/survey/${selectedProgramId}` : ''}
+                                                            </span>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => {
+                                                                const url = `${window.location.origin}/survey/${selectedProgramId}`;
+                                                                navigator.clipboard.writeText(url);
+                                                                alert("Survey link copied to clipboard!");
+                                                            }}
+                                                            className="p-2 bg-white text-primary-gold rounded-xl border border-primary-gold/20 hover:bg-primary-gold hover:text-white transition-all shadow-sm group"
+                                                            title="Copy Link"
+                                                        >
+                                                            <Copy className="size-4 group-active:scale-95 transition-transform" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                        <button 
                                            onClick={handleUpdateProgramDetails}
                                            disabled={loading}
