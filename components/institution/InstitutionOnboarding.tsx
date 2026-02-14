@@ -64,7 +64,7 @@ interface Stakeholder {
   id?: string;
   program_id: string; 
   name: string;
-  organisation: string;
+  organization: string;
   category: string;
   email: string;
   contact_no: string;
@@ -83,6 +83,73 @@ const SectionTitle = ({ title, subtitle }: { title: string, subtitle: string }) 
     <p className="text-slate-500 text-sm mt-1">{subtitle}</p>
   </div>
 );
+
+const ProgressTracker = ({ 
+    instDetails, 
+    programs, 
+    selectedProgramId, 
+    stakeholders 
+}: { 
+    instDetails: InstitutionDetails, 
+    programs: Program[], 
+    selectedProgramId: string,
+    stakeholders: Stakeholder[]
+}) => {
+    const isInstComplete = !!(instDetails.name && instDetails.code && instDetails.vision && instDetails.mission && instDetails.address);
+    const selectedProg = programs.find(p => p.id === selectedProgramId);
+    const isProgDetailComplete = !!(selectedProg?.vision && selectedProg?.mission && selectedProg?.program_chair && selectedProg?.nba_coordinator);
+    const progStakeholders = stakeholders.filter(s => s.program_id === selectedProgramId);
+
+    return (
+        <div className="mt-12 space-y-4 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 shadow-xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-white/50 mb-4 flex items-center gap-2">
+                <RefreshCw className="size-3" /> Live Progress
+            </h3>
+            
+            <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                    <span className="text-white/70">Institution Profile</span>
+                    {isInstComplete ? (
+                        <span className="flex items-center gap-1.5 text-green-400 font-bold text-[10px] uppercase">
+                            <CheckCircle2 className="size-3" /> Complete
+                        </span>
+                    ) : (
+                        <span className="text-white/30 text-[10px] uppercase font-bold">Incomplete</span>
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                    <span className="text-white/70">Programs Added</span>
+                    <span className={`font-bold ${programs.length > 0 ? 'text-primary-gold' : 'text-white/30'}`}>
+                        {programs.length}
+                    </span>
+                </div>
+
+                {selectedProgramId && (
+                    <div className="pt-3 border-t border-white/5 space-y-3">
+                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-tighter">Selected: {selectedProg?.name}</div>
+                        
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-white/70 text-xs">Program Details</span>
+                            {isProgDetailComplete ? (
+                                <span className="text-green-400 text-[10px] font-bold uppercase">Ready</span>
+                            ) : (
+                                <span className="text-white/30 text-[10px] uppercase">Pending</span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-white/70 text-xs">Stakeholders</span>
+                            <span className={`font-bold ${progStakeholders.length > 0 ? 'text-primary-gold' : 'text-white/30'}`}>
+                                {progStakeholders.length}
+                            </span>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 export default function InstitutionOnboarding() {
   const router = useRouter();
@@ -113,7 +180,7 @@ export default function InstitutionOnboarding() {
   });
 
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [newProgram, setNewProgram] = useState<Program>({ name: '', code: '', degree: 'B. Tech./ B. E.', duration_years: 4, level: 'UG', intake: 60 });
+  const [newProgram, setNewProgram] = useState<Program>({ name: '', code: '', degree: 'B.Tech', duration_years: 4, level: 'UG', intake: 60 });
   
   // Step 3 State
   const [selectedProgramId, setSelectedProgramId] = useState<string>('');
@@ -122,7 +189,7 @@ export default function InstitutionOnboarding() {
   const [newStakeholder, setNewStakeholder] = useState<Stakeholder>({ 
       program_id: '', 
       name: '', 
-      organisation: '', 
+      organization: '', 
       category: 'Alumni', 
       email: '', 
       contact_no: '' 
@@ -165,7 +232,11 @@ export default function InstitutionOnboarding() {
             website: existing.website || '',
             establishment_year: existing.establishment_year || new Date().getFullYear()
          });
-         startStep = 2;
+         
+         // Only advance to step 2 if mandatory institution details are present
+         if (existing.vision && existing.mission && existing.address && existing.website) {
+            startStep = 2;
+         }
       }
       
       const { data: dbPrograms } = await supabase.from('programs').select('*').eq('institution_id', sessionUserId);
@@ -281,10 +352,15 @@ export default function InstitutionOnboarding() {
        return;
      }
 
-     if (programs.find(p => p.code === newProgram.code.toUpperCase())) {
-         setErrorStatus("A program with this code already exists.");
-         return;
-     }
+     if (programs.find(p => p.code.toUpperCase() === newProgram.code.toUpperCase())) {
+       setErrorStatus("A program with this code already exists.");
+       return;
+   }
+
+   if (programs.find(p => p.name.toLowerCase() === newProgram.name.toLowerCase())) {
+       setErrorStatus("A program with this name already exists.");
+       return;
+   }
 
      if (newProgram.intake && newProgram.intake <= 0) {
          setErrorStatus("Annual Intake Capacity must be a positive number.");
@@ -388,7 +464,7 @@ export default function InstitutionOnboarding() {
         setNewStakeholder({ 
             program_id: '', 
             name: '', 
-            organisation: '', 
+            organization: '', 
             category: 'Alumni', 
             email: '', 
             contact_no: '' 
@@ -543,6 +619,13 @@ export default function InstitutionOnboarding() {
                     A guided path to setting up your institution's digital backbone for outcome-based education.
                  </p>
               </div>
+
+              <ProgressTracker 
+                instDetails={instDetails}
+                programs={programs}
+                selectedProgramId={selectedProgramId}
+                stakeholders={stakeholders}
+              />
           </div>
 
           <div className="text-xs font-semibold uppercase tracking-widest text-white/40">
@@ -735,10 +818,13 @@ export default function InstitutionOnboarding() {
                                                  }}
                                                  className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
                                              >
-                                                 <option value="B. Tech./ B. E.">B. Tech./ B. E.</option>
-                                                 <option value="M. Tech.">M. Tech.</option>
-                                                 <option value="M. E.">M. E.</option>
-                                                 <option value="Integrated">Integrated</option>
+                                                  <option value="B.Tech">B. Tech.</option>
+                                                  <option value="B.E.">B. E.</option>
+                                                  <option value="M.Tech">M. Tech.</option>
+                                                  <option value="M.E.">M. E.</option>
+                                                  <option value="MBA">MBA</option>
+                                                  <option value="MCA">MCA</option>
+                                                  <option value="Integrated">Integrated</option>
                                              </select>
                                              <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 rotate-90 pointer-events-none" />
                                          </div>
@@ -1037,15 +1123,15 @@ export default function InstitutionOnboarding() {
 
                                        <div className="space-y-2">
                                            <label className="text-xs font-semibold text-slate-500 uppercase">Organisation</label>
-                                           <GlassInputWrapper>
-                                               <input 
-                                                  placeholder="e.g. Acme Industry / Alumni Assoc."
-                                                  value={newStakeholder.organisation}
-                                                  onChange={e => setNewStakeholder({...newStakeholder, organisation: e.target.value})}
-                                                  className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
-                                               />
-                                           </GlassInputWrapper>
-                                       </div>
+                                            <GlassInputWrapper>
+                                                <input 
+                                                   placeholder="e.g. Acme Industry / Alumni Assoc."
+                                                   value={newStakeholder.organization}
+                                                   onChange={e => setNewStakeholder({...newStakeholder, organization: e.target.value})}
+                                                   className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
+                                                />
+                                            </GlassInputWrapper>
+                                        </div>
 
                                        <div className="space-y-2">
                                            <label className="text-xs font-semibold text-slate-500 uppercase">Category</label>
@@ -1122,7 +1208,7 @@ export default function InstitutionOnboarding() {
                                                             <td className="py-4 px-2 font-semibold text-slate-800">{s.name}</td>
                                                             <td className="py-4 px-2">
                                                                 <div className="space-y-1">
-                                                                    <div className="text-slate-600 font-medium">{s.organisation}</div>
+                                                                <div className="text-slate-600 font-medium">{s.organization}</div>
                                                                     <div className="text-[9px] text-primary-gold font-semibold uppercase px-1.5 py-0.5 bg-primary-gold/5 rounded inline-block">{s.category}</div>
                                                                 </div>
                                                             </td>
