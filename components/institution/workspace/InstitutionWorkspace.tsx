@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { PROCESS_MENU_STEPS, SIDE_MENU_STEPS } from '@/lib/institution/process';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
-import { FileText, LayoutDashboard, Settings, ChevronRight, LogOut, Search, Bell } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FileText, LayoutDashboard, Settings, ChevronRight, LogOut, Search, Bell, Menu, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -34,6 +34,7 @@ export default function InstitutionWorkspace({
 
   const [institutionName, setInstitutionName] = useState('Institution');
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const selectedProgramId = searchParams.get('programId') || '';
 
@@ -90,8 +91,69 @@ export default function InstitutionWorkspace({
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
-      <div className="mx-auto flex max-w-[1600px] gap-8 p-6">
-        <aside className="sticky top-6 h-[calc(100vh-3rem)] w-[320px] shrink-0">
+      {/* Mobile Header */}
+      <header className="fixed top-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-b border-border/40 bg-background/60 px-6 backdrop-blur-xl lg:hidden">
+        <div className="flex items-center gap-3">
+          <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 font-black italic text-sm">C</div>
+          <h1 className="text-sm font-bold tracking-tight">{institutionName}</h1>
+        </div>
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Menu className="size-6" />
+        </button>
+      </header>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden"
+            />
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 z-50 w-[80%] max-w-[320px] bg-sidebar/80 backdrop-blur-2xl border-r border-border/40 lg:hidden"
+            >
+              <div className="flex flex-col h-full">
+                <div className="p-6 border-b border-border/40 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-black italic text-sm">C</div>
+                    <span className="font-bold">C2X Portal</span>
+                  </div>
+                  <button onClick={() => setIsSidebarOpen(false)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground">
+                    <X className="size-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  {/* Reuse Sidebar Nav Logic - Abstracted for simplicity in this edit */}
+                  <SidebarContent 
+                    activeStepKey={activeStepKey} 
+                    buildHref={buildHref} 
+                    institutionName={institutionName}
+                    onClose={() => setIsSidebarOpen(false)}
+                  />
+                </div>
+                <div className="p-6 border-t border-border/40 mt-auto">
+                   <UserSection />
+                </div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      <div className="mx-auto flex max-w-[1600px] gap-8 p-6 lg:pt-6 pt-24">
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:block sticky top-6 h-[calc(100vh-3rem)] w-[320px] shrink-0">
           <div className="flex h-full flex-col rounded-[2rem] border border-border/40 bg-sidebar/60 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
              <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
              <div className="p-8 pb-6 border-b border-border/40">
@@ -103,118 +165,9 @@ export default function InstitutionWorkspace({
                     </div>
                 </div>
              </div>
-
-             <nav className="flex-1 overflow-y-auto px-4 py-6 scrollbar-none custom-scrollbar">
-                <div className="space-y-8">
-                    <div>
-                        <div className="px-4 mb-4 flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">General</span>
-                        </div>
-                        <div className="space-y-1">
-                            <Link
-                                href={buildHref('dashboard')}
-                                className={cn(
-                                    "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative",
-                                    !activeStepKey || activeStepKey === 'dashboard'
-                                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                )}
-                                >
-                                {(!activeStepKey || activeStepKey === 'dashboard') && (
-                                    <motion.div 
-                                        layoutId="active-sidebar-pill"
-                                        className="absolute inset-0 bg-primary rounded-xl -z-10"
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                    />
-                                )}
-                                <LayoutDashboard className="size-4" />
-                                <span className="text-sm font-semibold">Dashboard</span>
-                            </Link>
-                            {SIDE_MENU_STEPS.map((step) => {
-                            const active = activeStepKey === step.key;
-                            return (
-                                <Link
-                                key={step.key}
-                                href={buildHref(step.key)}
-                                className={cn(
-                                    "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative",
-                                    active 
-                                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                )}
-                                >
-                                {active && (
-                                    <motion.div 
-                                        layoutId="active-sidebar-pill"
-                                        className="absolute inset-0 bg-primary rounded-xl -z-10"
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                    />
-                                )}
-                                <span className="text-sm font-semibold">{step.title}</span>
-                                </Link>
-                            );
-                            })}
-                        </div>
-                    </div>
-
-                    <div>
-                        <div className="px-4 mb-4 flex items-center justify-between">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">OBE Workflow</span>
-                            <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/20 text-primary bg-primary/5">Guided</Badge>
-                        </div>
-                        <div className="space-y-1">
-                            {PROCESS_MENU_STEPS.map((step) => {
-                            const active = activeStepKey === step.key;
-                            return (
-                                <Link
-                                key={step.key}
-                                href={buildHref(step.key)}
-                                className={cn(
-                                    "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative",
-                                    active 
-                                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                )}
-                                >
-                                {active && (
-                                    <motion.div 
-                                        layoutId="active-sidebar-pill"
-                                        className="absolute inset-0 bg-primary rounded-xl -z-10"
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                    />
-                                )}
-                                <div className={cn(
-                                    "size-6 flex items-center justify-center rounded-lg text-[10px] font-bold border transition-colors",
-                                    active ? "bg-white/20 border-white/20 text-white" : "bg-muted border-border/40 text-muted-foreground group-hover:bg-background group-hover:border-primary/40 group-hover:text-primary"
-                                )}>
-                                    {step.processNumber}
-                                </div>
-                                <span className="text-sm font-semibold flex-1 truncate">{step.title}</span>
-                                {step.aiDriven && (
-                                    <span className={cn(
-                                        "size-1.5 rounded-full",
-                                        active ? "bg-white" : "bg-emerald-500"
-                                    )} />
-                                )}
-                                </Link>
-                            );
-                            })}
-                        </div>
-                    </div>
-                </div>
-             </nav>
-
-             <div className="p-6 mt-auto border-t border-border/40 bg-muted/20">
-                <div className="flex items-center gap-3">
-                    <Avatar className="size-10 border border-border/40">
-                        <AvatarImage src="" />
-                        <AvatarFallback>AD</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate">Admin User</p>
-                        <p className="text-xs text-muted-foreground truncate">Logout</p>
-                    </div>
-                </div>
+             <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} institutionName={institutionName} />
+             <div className="mt-auto">
+                <UserSection />
              </div>
           </div>
         </aside>
@@ -245,14 +198,131 @@ export default function InstitutionWorkspace({
             </div>
           </div>
 
-          <div className="rounded-[2.5rem] border border-border/40 bg-card/40 backdrop-blur-2xl shadow-xl min-h-[600px] relative overflow-hidden">
+          <motion.div 
+            key={activeStepKey || 'dashboard'}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="rounded-[2.5rem] border border-border/40 bg-card/40 backdrop-blur-2xl shadow-xl min-h-[600px] relative overflow-hidden"
+          >
              <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
              <div className="relative p-8 lg:p-12">
                 {children}
              </div>
-          </div>
+          </motion.div>
         </main>
       </div>
     </div>
   );
+}
+
+// --- SHARED SIDEBAR COMPONENTS ---
+
+function SidebarContent({ activeStepKey, buildHref, institutionName, onClose }: any) {
+    return (
+        <nav className="flex-1 overflow-y-auto px-4 py-6 scrollbar-none custom-scrollbar">
+            <div className="space-y-8">
+                <div>
+                    <div className="px-4 mb-4 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">General</span>
+                    </div>
+                    <div className="space-y-1">
+                        <SidebarLink 
+                            href={buildHref('dashboard')} 
+                            active={!activeStepKey || activeStepKey === 'dashboard'}
+                            onClick={onClose}
+                        >
+                            <LayoutDashboard className="size-4" />
+                            <span className="text-sm font-semibold">Dashboard</span>
+                        </SidebarLink>
+                        {SIDE_MENU_STEPS.map((step) => (
+                            <SidebarLink 
+                                key={step.key} 
+                                href={buildHref(step.key)} 
+                                active={activeStepKey === step.key}
+                                onClick={onClose}
+                            >
+                                <span className="text-sm font-semibold">{step.title}</span>
+                            </SidebarLink>
+                        ))}
+                    </div>
+                </div>
+
+                <div>
+                    <div className="px-4 mb-4 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">OBE Workflow</span>
+                        <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/20 text-primary bg-primary/5">Guided</Badge>
+                    </div>
+                    <div className="space-y-1">
+                        {PROCESS_MENU_STEPS.map((step) => {
+                        const active = activeStepKey === step.key;
+                        return (
+                            <SidebarLink 
+                                key={step.key} 
+                                href={buildHref(step.key)} 
+                                active={active}
+                                onClick={onClose}
+                            >
+                                <div className={cn(
+                                    "size-6 flex items-center justify-center rounded-lg text-[10px] font-bold border transition-colors",
+                                    active ? "bg-white/20 border-white/20 text-white" : "bg-muted border-border/40 text-muted-foreground group-hover:bg-background group-hover:border-primary/40 group-hover:text-primary"
+                                )}>
+                                    {step.processNumber}
+                                </div>
+                                <span className="text-sm font-semibold flex-1 truncate">{step.title}</span>
+                                {step.aiDriven && (
+                                    <span className={cn(
+                                        "size-1.5 rounded-full",
+                                        active ? "bg-white" : "bg-emerald-500"
+                                    )} />
+                                )}
+                            </SidebarLink>
+                        );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </nav>
+    );
+}
+
+function SidebarLink({ href, active, children, onClick }: any) {
+    return (
+        <Link
+            href={href}
+            onClick={onClick}
+            className={cn(
+                "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative",
+                active 
+                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            )}
+            >
+            {active && (
+                <motion.div 
+                    layoutId="mobile-sidebar-pill"
+                    className="absolute inset-0 bg-primary rounded-xl -z-10"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+            )}
+            {children}
+        </Link>
+    );
+}
+
+function UserSection() {
+    return (
+        <div className="p-6 border-t border-border/40 bg-muted/20">
+            <div className="flex items-center gap-3">
+                <Avatar className="size-10 border border-border/40">
+                    <AvatarImage src="" />
+                    <AvatarFallback>AD</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate">Admin User</p>
+                    <p className="text-xs text-muted-foreground truncate">Logout</p>
+                </div>
+            </div>
+        </div>
+    );
 }
