@@ -1,61 +1,53 @@
 'use client';
 
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import InstitutionWorkspace from '@/components/institution/workspace/InstitutionWorkspace';
-import { PROCESS_MENU_STEPS, SIDE_MENU_STEPS } from '@/lib/institution/process';
+import Stats from '@/components/institution/dashboard/Stats';
+import RecentActivity from '@/components/institution/dashboard/RecentActivity';
+import PerformanceChart from '@/components/institution/dashboard/PerformanceChart';
+import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [statsData, setStatsData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch('/api/institution/dashboard');
+        if (res.ok) {
+          const data = await res.json();
+          setStatsData(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   return (
     <InstitutionWorkspace
-      title="Institution Curriculum Design Dashboard"
-      subtitle="Follow the side menu and process sequence exactly as defined in the approved workflow."
+      title="Dashboard"
+      subtitle="Overview of your institution's performance and curriculum status."
     >
       <div className="space-y-8">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-          <h3 className="text-lg font-semibold text-slate-900">Workflow Frame Ready</h3>
-          <p className="mt-2 text-sm text-slate-600">
-            After institutional entries, this frame opens with college name on the top-left. Use the left menu to open each section.
-          </p>
-        </div>
+        {loading ? (
+             <div className="flex h-64 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+             </div>
+        ) : (
+            <>
+                <Stats data={statsData} />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div>
-            <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Side Menu</h4>
-            <div className="space-y-2">
-              {SIDE_MENU_STEPS.map((step) => (
-                <Link
-                  key={step.key}
-                  href={`/institution/process/${step.key}`}
-                  className="block rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-400 hover:shadow-sm"
-                >
-                  <p className="text-sm font-semibold text-slate-900">{step.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{step.description}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Process</h4>
-            <div className="space-y-2">
-              {PROCESS_MENU_STEPS.map((step) => (
-                <Link
-                  key={step.key}
-                  href={`/institution/process/${step.key}`}
-                  className="block rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-400 hover:shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-500">{step.processNumber}.</span>
-                    {step.aiDriven ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">AI</span>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">{step.title}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                  <PerformanceChart />
+                  <RecentActivity />
+                </div>
+            </>
+        )}
       </div>
     </InstitutionWorkspace>
   );

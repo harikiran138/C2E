@@ -80,26 +80,37 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row relative font-sans overflow-y-auto bg-slate-50">
-      <div className="login-pattern-bg fixed inset-0 -z-20 opacity-40"></div>
+    <div className="min-h-screen w-full flex flex-col lg:flex-row relative font-sans overflow-y-auto bg-background selection:bg-primary/20">
+      <div className="login-pattern-bg fixed inset-0 -z-20 opacity-20"></div>
+      <div className="absolute inset-0 bg-gradient-to-tr from-background via-background/80 to-transparent -z-10" />
       
       <Link 
         href="/" 
-        className="fixed top-8 left-8 z-50 flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-full text-slate-600 font-semibold hover:bg-slate-50 transition-all hover:scale-105 group shadow-sm"
+        className="fixed top-8 left-8 z-50 flex items-center gap-2 px-6 py-3 bg-card/40 border border-border/40 backdrop-blur-xl rounded-full text-foreground font-semibold hover:bg-card/60 transition-all hover:scale-105 group shadow-xl"
       >
         <ArrowLeft className="size-4 group-hover:-translateX-1 transition-transform" />
         <span className="text-xs tracking-widest uppercase">Back</span>
       </Link>
 
-      <section className="hidden lg:flex flex-1 items-center justify-center p-12 relative z-10 bg-slate-900">
+      <section className="hidden lg:flex flex-1 items-center justify-center p-12 relative z-10 bg-sidebar/40 backdrop-blur-2xl border-r border-border/40">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="max-w-2xl space-y-8"
+          className="max-w-xl space-y-8"
         >
-           <h2 className="text-6xl font-semibold font-serif text-white leading-tight">Elevating Institutional Excellence.</h2>
-           <p className="text-xl text-slate-400 font-medium">Streamlined compliance, powerful analytics, and seamless data management for modern education.</p>
+           <div className="size-20 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-2xl shadow-primary/20 font-black italic text-4xl mb-12">C</div>
+           <h2 className="text-6xl font-extrabold tracking-tight text-foreground leading-[1.1]">Elevating Institutional <span className="text-primary italic">Excellence.</span></h2>
+           <p className="text-xl text-muted-foreground font-medium max-w-md">Streamlined compliance, powerful analytics, and seamless data management for modern education.</p>
+           
+           <div className="flex items-center gap-4 pt-8">
+                <div className="flex -space-x-3">
+                    {[1,2,3,4].map(i => (
+                        <div key={i} className="size-10 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-bold">U{i}</div>
+                    ))}
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">Trusted by 500+ Institutions</p>
+           </div>
         </motion.div>
       </section>
 
@@ -108,45 +119,47 @@ export default function Login() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-[480px] bg-white rounded-2xl border border-slate-200 shadow-xl p-8 lg:p-12"
+          className="w-full max-w-[480px] bg-card/40 backdrop-blur-3xl rounded-[2.5rem] border border-border/40 shadow-2xl p-8 lg:p-12 relative overflow-hidden"
         >
-          <div className="flex flex-col gap-8">
+          <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+          
+          <div className="flex flex-col gap-8 relative">
             <div className="flex flex-col gap-6 items-center text-center">
-              <div className="flex items-center gap-3">
-                   <div className="size-12 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg p-2">
+              <div className="flex items-center gap-3 lg:hidden">
+                   <div className="size-12 bg-primary rounded-xl flex items-center justify-center shadow-lg p-2">
                       <Image src="/x.png" alt="C2X Logo" width={32} height={32} className="brightness-0 invert" />
                    </div>
                    <div className="text-left">
-                       <span className="block text-xl font-bold tracking-tight text-slate-900 font-serif leading-none">C2X Portal</span>
-                       <span className="text-[9px] uppercase font-bold tracking-widest text-slate-400">Compliance to Excellence</span>
+                       <span className="block text-xl font-bold tracking-tight text-foreground leading-none">C2X Portal</span>
+                       <span className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground">Compliance to Excellence</span>
                    </div>
               </div>
 
               <div>
-                  <h1 className="text-2xl font-bold text-slate-900 font-serif">
+                  <h1 className="text-3xl font-bold text-foreground tracking-tight">
                       {isSignUp ? "Create Account" : "Welcome Back"}
                   </h1>
-                  <p className="text-slate-500 text-sm mt-1">
+                  <p className="text-muted-foreground text-sm mt-2">
                       {isSignUp ? "Join the network of excellence" : "Secure access to your institutional dashboard"}
                   </p>
               </div>
               
-              <div className="relative flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-full">
+              <div className="relative flex items-center gap-2 bg-muted/50 p-1 rounded-2xl w-full border border-border/20">
                   <button 
                       onClick={() => setIsSignUp(false)}
-                      className={`relative z-10 flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${!isSignUp ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`relative z-10 flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${!isSignUp ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                       Sign In
                   </button>
                   <button 
                       onClick={() => setIsSignUp(true)}
-                      className={`relative z-10 flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${isSignUp ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`relative z-10 flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${isSignUp ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                       Sign Up
                   </button>
                   <motion.div 
                     layoutId="activeTab"
-                    className="absolute inset-y-1 bg-white rounded-lg shadow-sm w-[calc(50%-4px)]"
+                    className="absolute inset-y-1 bg-primary rounded-xl shadow-lg w-[calc(50%-4px)]"
                     initial={false}
                     animate={{
                       x: isSignUp ? 'calc(100% + 4px)' : '0%'
@@ -178,45 +191,45 @@ export default function Login() {
                 >
                   <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
-                            <Mail className="size-4 text-slate-400" />
+                        <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">
+                            <Mail className="size-3.5" />
                             Email Address
                         </label>
-                        <GlassInputWrapper>
+                        <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
                             <input 
-                                className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
+                                className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                                 placeholder="institution@example.com" 
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />
-                        </GlassInputWrapper>
+                        </div>
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
-                            <ShieldCheck className="size-4 text-slate-400" />
+                        <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">
+                            <ShieldCheck className="size-3.5" />
                             Password
                         </label>
-                        <GlassInputWrapper>
+                        <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
                           <div className="relative">
                             <input 
-                                className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
+                                className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                                 placeholder="••••••••" 
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-4 flex items-center">
-                              {showPassword ? <EyeOff className="size-4 text-slate-400" /> : <Eye className="size-4 text-slate-400" />}
+                              {showPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
                             </button>
                           </div>
-                        </GlassInputWrapper>
+                        </div>
                       </div>
                   </div>
 
                   {errorMsg && (
-                      <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl border border-red-100 flex items-center gap-2">
+                      <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-xl border border-destructive/20 flex items-center gap-2">
                           <AlertTriangle className="size-4 shrink-0" />
                           {errorMsg}
                       </div>
@@ -225,9 +238,9 @@ export default function Login() {
                   <button 
                     onClick={handleSignIn}
                     disabled={loading}
-                    className="w-full py-4 text-sm font-semibold rounded-xl transition-all bg-slate-900 text-white shadow-xl hover:bg-slate-800 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-4 text-sm font-bold rounded-xl transition-all bg-primary text-primary-foreground shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
-                    {loading ? <Loader2 className="animate-spin size-5" /> : <>Sign In <ArrowRight className="size-5" /></>}
+                    {loading ? <Loader2 className="animate-spin size-5" /> : <>Sign In <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" /></>}
                   </button>
                 </motion.div>
               )}

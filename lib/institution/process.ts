@@ -10,6 +10,7 @@ export interface ProcessStep {
   kind: StepKind;
   aiDriven?: boolean;
   description: string;
+  icon?: string;
 }
 
 export const PROCESS_STEPS: ProcessStep[] = [

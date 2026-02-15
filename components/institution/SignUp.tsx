@@ -119,79 +119,79 @@ export default function SignUp() {
     <div className="space-y-6">
       <div className="space-y-4">
         <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
-                <Building2 className="size-4 text-slate-400" />
+            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">
+                <Building2 className="size-3.5" />
                 Institution Name
             </label>
-            <GlassInputWrapper>
+            <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
                 <input 
-                    className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
+                    className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                     placeholder="e.g. Acme Institute of Technology" 
                     type="text"
                     value={institutionName}
                     onChange={(e) => setInstitutionName(e.target.value)}
                 />
-            </GlassInputWrapper>
+            </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
-              <Mail className="size-4 text-slate-400" />
+          <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">
+              <Mail className="size-3.5" />
               Official Email Address
           </label>
-          <GlassInputWrapper>
+          <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
               <input 
-                  className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
+                  className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                   placeholder="admin@institution.edu" 
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
               />
-          </GlassInputWrapper>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
-                    <Lock className="size-4 text-slate-400" />
+                <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">
+                    <Lock className="size-3.5" />
                     Password
                 </label>
-                <GlassInputWrapper>
+                <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
                     <div className="relative">
                         <input 
-                            className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
+                            className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                             placeholder="••••••••" 
                             type={showPassword ? 'text' : 'password'}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-4 flex items-center">
-                            {showPassword ? <EyeOff className="size-4 text-slate-400" /> : <Eye className="size-4 text-slate-400" />}
+                            {showPassword ? <EyeOff className="size-4 text-muted-foreground" /> : <Eye className="size-4 text-muted-foreground" />}
                         </button>
                     </div>
-                </GlassInputWrapper>
+                </div>
             </div>
 
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 px-1">
-                    <ShieldCheck className="size-4 text-slate-400" />
+                <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">
+                    <ShieldCheck className="size-3.5" />
                     Confirm Password
                 </label>
-                <GlassInputWrapper>
+                <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
                     <input 
-                        className="w-full bg-transparent text-sm p-4 rounded-lg focus:outline-none text-slate-900 font-medium" 
+                        className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                         placeholder="••••••••" 
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                     />
-                </GlassInputWrapper>
+                </div>
             </div>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl border border-red-100 flex items-center gap-2">
+        <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-xl border border-destructive/20 flex items-center gap-2">
             <AlertTriangle className="size-4 shrink-0" />
             {errorMsg}
         </div>
@@ -200,13 +200,13 @@ export default function SignUp() {
       <button 
         onClick={handleSignUp}
         disabled={loading}
-        className="w-full py-4 text-sm font-semibold rounded-xl transition-all bg-slate-900 text-white shadow-xl hover:bg-slate-800 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-4 text-sm font-bold rounded-xl transition-all bg-primary text-primary-foreground shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
       >
-        {loading ? <Loader2 className="animate-spin size-5" /> : <>Create Account <ArrowRight className="size-5" /></>}
+        {loading ? <Loader2 className="animate-spin size-5" /> : <>Create Account <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" /></>}
       </button>
       
-      <p className="text-xs text-center text-slate-400">
-        By creating an account, you agree to our Terms of Service and Privacy Policy.
+      <p className="text-[10px] text-center text-muted-foreground uppercase tracking-wider font-medium">
+        By creating an account, you agree to our <span className="text-primary hover:underline cursor-pointer">Terms</span> and <span className="text-primary hover:underline cursor-pointer">Privacy</span>.
       </p>
     </div>
   );

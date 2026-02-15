@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 // --- TYPES ---
 type OnboardingStep = 1 | 2 | 3;
@@ -52,15 +53,15 @@ interface Program {
 
 // --- SUB-COMPONENTS ---
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-lg border border-slate-200 bg-slate-50 shadow-sm transition-all focus-within:border-slate-900 focus-within:bg-white focus-within:shadow-md">
+  <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
     {children}
   </div>
 );
 
 const SectionTitle = ({ title, subtitle }: { title: string, subtitle: string }) => (
-  <div className="mb-8">
-    <h2 className="text-2xl font-bold font-serif text-slate-900">{title}</h2>
-    <p className="text-slate-500 text-sm mt-1">{subtitle}</p>
+  <div className="mb-12">
+    <h2 className="text-4xl font-extrabold tracking-tight text-foreground">{title}</h2>
+    <p className="text-muted-foreground text-lg mt-2 font-medium">{subtitle}</p>
   </div>
 );
 
@@ -300,29 +301,28 @@ export default function InstitutionOnboarding() {
 
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row relative bg-slate-50 font-sans">
-      <div className="login-pattern-bg fixed inset-0 -z-20 opacity-30"></div>
+    <div className="min-h-screen w-full flex flex-col lg:flex-row relative bg-background font-sans selection:bg-primary/20">
+      <div className="login-pattern-bg fixed inset-0 -z-20 opacity-20"></div>
+      <div className="absolute inset-0 bg-gradient-to-tr from-background via-background/80 to-transparent -z-10" />
 
       {/* Sidebar Info */}
-      <section className="hidden lg:flex flex-1 flex-col justify-between p-12 bg-slate-900 text-white relative z-10 lg:h-screen lg:sticky lg:top-0">
+      <section className="hidden lg:flex flex-1 flex-col justify-between p-12 bg-sidebar/40 backdrop-blur-2xl border-r border-border/40 text-foreground relative z-10 lg:h-screen lg:sticky lg:top-0">
         <div className="space-y-12">
           <div className="flex items-center gap-3">
-            <div className="size-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 shadow-2xl">
-              <Image src="/x.png" alt="Logo" width={32} height={32} />
-            </div>
-            <div className="text-left text-white">
-              <span className="block text-xl font-bold tracking-tight font-serif leading-none">C2X Portal</span>
-              <span className="text-[9px] uppercase font-bold tracking-widest opacity-60">Onboarding Flow</span>
+            <div className="size-12 bg-primary rounded-xl flex items-center justify-center shadow-2xl shadow-primary/20 font-black italic text-2xl text-primary-foreground">C</div>
+            <div className="text-left">
+              <span className="block text-xl font-bold tracking-tight leading-none text-foreground">C2X Portal</span>
+              <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-muted-foreground mt-1 block">Onboarding</span>
             </div>
           </div>
           
           <div className="space-y-6">
-            <h1 className="text-5xl font-bold font-serif leading-tight">
+            <h1 className="text-5xl font-extrabold tracking-tight leading-[1.1] text-foreground">
               {currentStep === 1 && "Setup your institution profile."}
               {currentStep === 2 && "Add your academic programs."}
               {currentStep === 3 && "Review and finalize your data."}
             </h1>
-            <p className="text-lg text-slate-400 font-medium">
+            <p className="text-lg text-muted-foreground font-medium max-w-md">
               Complete these steps to unlock your institutional dashboard and start managing compliance.
             </p>
           </div>
@@ -333,18 +333,21 @@ export default function InstitutionOnboarding() {
               { step: 2, label: "Program Details", active: currentStep >= 2 },
               { step: 3, label: "Review & Submit", active: currentStep >= 3 }
             ].map((s) => (
-              <div key={s.step} className={`flex items-center gap-4 transition-all ${s.active ? 'opacity-100' : 'opacity-30'}`}>
-                <div className={`size-8 rounded-full flex items-center justify-center font-bold text-xs ${currentStep > s.step ? 'bg-green-500' : s.active ? 'bg-white text-slate-900' : 'border border-white/20'}`}>
-                  {currentStep > s.step ? <CheckCircle2 className="size-4" /> : s.step}
+              <div key={s.step} className={`flex items-center gap-4 transition-all duration-500 ${s.active ? 'opacity-100 translate-x-1' : 'opacity-20 translate-x-0'}`}>
+                <div className={cn(
+                    "size-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all shadow-lg",
+                    currentStep > s.step ? "bg-emerald-500 text-white shadow-emerald-500/20" : s.active ? "bg-primary text-primary-foreground shadow-primary/20" : "border border-border bg-muted/50 text-muted-foreground"
+                )}>
+                  {currentStep > s.step ? <CheckCircle2 className="size-5" /> : s.step}
                 </div>
-                <span className="font-semibold text-sm">{s.label}</span>
+                <span className={cn("font-bold text-sm", s.active ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-          © 2026 C2E System
+        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+          © 2026 Compliance to Excellence
         </div>
       </section>
 
@@ -475,7 +478,7 @@ export default function InstitutionOnboarding() {
 
                 <button 
                   onClick={handleSaveDetails} 
-                  className={`w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 ${loading ? 'opacity-80' : ''}`}
+                  className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                   disabled={loading}
                 >
                   {loading ? <Loader2 className="animate-spin size-5" /> : <>Save & Continue <ArrowRight className="size-5" /></>}
@@ -597,7 +600,7 @@ export default function InstitutionOnboarding() {
 
                   <button 
                     onClick={handleAddProgram} 
-                    className="w-full py-4 border-2 border-dashed border-slate-300 rounded-2xl font-bold text-slate-500 hover:border-slate-900 hover:text-slate-900 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-4 border-2 border-dashed border-border/60 bg-background/40 hover:bg-background/80 hover:border-primary/40 rounded-2xl font-bold text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-2"
                     disabled={loading}
                   >
                     <Plus className="size-5" /> Add Program to List
@@ -723,13 +726,13 @@ export default function InstitutionOnboarding() {
                 <div className="flex gap-4 pt-8">
                   <button 
                     onClick={() => setCurrentStep(2)} 
-                    className="px-8 py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all flex items-center gap-2"
+                    className="px-8 py-4 bg-card/40 border border-border/40 text-muted-foreground font-bold rounded-2xl hover:bg-card/60 hover:text-foreground transition-all flex items-center gap-2"
                   >
                     <ArrowLeft className="size-5" /> Back
                   </button>
                   <button 
                     onClick={handleCompleteOnboarding} 
-                    className="flex-1 py-4 bg-green-600 text-white font-bold rounded-2xl shadow-xl hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     disabled={loading}
                   >
                     {loading ? <Loader2 className="animate-spin size-5" /> : <>Submit & Launch Portal <CheckCircle2 className="size-5" /></>}
