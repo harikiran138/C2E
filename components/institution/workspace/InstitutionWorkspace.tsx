@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PROCESS_MENU_STEPS, SIDE_MENU_STEPS, ProcessPhase } from '@/lib/institution/process';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
-import { LayoutDashboard, FileText, ChevronRight, Menu, X, Users, BookOpen, CheckSquare, Shield, Gavel, UserPlus, Target, Grid, ListChecks, Sparkles, Share2, Layers, Book, Table, MessageSquare, Send, FileCheck } from 'lucide-react';
+import { LayoutDashboard, FileText, ChevronRight, Menu, X, Users, BookOpen, CheckSquare, Shield, Gavel, UserPlus, Target, Grid, ListChecks, Sparkles, Share2, Layers, Book, Table, MessageSquare, Send, FileCheck, LogOut } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { createClient } from '@/utils/supabase/client';
 
 interface ProgramOption {
   id: string;
@@ -32,6 +33,8 @@ export default function InstitutionWorkspace({
 }: InstitutionWorkspaceProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const supabase = createClient();
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
   const [institutionName, setInstitutionName] = useState('Institution');
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
@@ -75,6 +78,23 @@ export default function InstitutionWorkspace({
 
     loadWorkspaceData();
   }, [router]);
+
+  // Handle automatic scrolling to active item
+  useEffect(() => {
+    if (activeStepKey && sidebarScrollRef.current) {
+      const activeItem = sidebarScrollRef.current.querySelector('[data-active="true"]');
+      if (activeItem) {
+        activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [activeStepKey]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // Clear cookies manually if needed, but Supabase signOut should handle the session
+    document.cookie = 'institution_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    router.push('/institution/login');
+  };
 
   const selectedProgramLabel = useMemo(() => {
     if (!selectedProgramId) return 'Not selected';
@@ -135,8 +155,7 @@ export default function InstitutionWorkspace({
                     <X className="size-5" />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                  {/* Reuse Sidebar Nav Logic - Abstracted for simplicity in this edit */}
+                <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar scroll-smooth">
                   <SidebarContent 
                     activeStepKey={activeStepKey} 
                     buildHref={buildHref} 
@@ -145,7 +164,7 @@ export default function InstitutionWorkspace({
                   />
                 </div>
                 <div className="p-6 border-t border-border/40 mt-auto">
-                   <UserSection />
+                   <UserSection onLogout={handleLogout} />
                 </div>
               </div>
             </motion.aside>
@@ -169,12 +188,12 @@ export default function InstitutionWorkspace({
              </div>
              
              {/* Robust Scrollable Area */}
-             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+             <div ref={sidebarScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-smooth">
                 <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} institutionName={institutionName} />
              </div>
 
              <div className="mt-auto border-t border-border/40 shrink-0">
-                <UserSection />
+                <UserSection onLogout={handleLogout} />
              </div>
           </div>
         </aside>
@@ -262,7 +281,6 @@ export default function InstitutionWorkspace({
                 {children}
              </div>
           </motion.div>
-          </div>
         </main>
       </div>
     </div>
@@ -360,6 +378,7 @@ function SidebarLink({ href, active, children, onClick }: any) {
         <Link
             href={href}
             onClick={onClick}
+            data-active={active}
             className={cn(
                 "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative",
                 active 
@@ -379,7 +398,7 @@ function SidebarLink({ href, active, children, onClick }: any) {
     );
 }
 
-function UserSection() {
+function UserSection({ onLogout }: { onLogout: () => void }) {
     return (
         <div className="p-6 border-t border-border/40 bg-muted/20">
             <div className="flex items-center gap-3">
@@ -389,7 +408,13 @@ function UserSection() {
                 </Avatar>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold truncate">Admin User</p>
-                    <p className="text-xs text-muted-foreground truncate">Logout</p>
+                    <button 
+                        onClick={onLogout}
+                        className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors group"
+                    >
+                        <LogOut className="size-3 group-hover:translate-x-0.5 transition-transform" />
+                        <span>Logout</span>
+                    </button>
                 </div>
             </div>
         </div>
