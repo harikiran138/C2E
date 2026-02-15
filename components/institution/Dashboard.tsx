@@ -12,43 +12,37 @@ export default function Dashboard() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const sessionData = localStorage.getItem('inst_session');
-      if (!sessionData) {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
         router.push('/institution/login');
         return;
       }
 
-      const session = JSON.parse(sessionData);
-      const sessionUserId = session.id;
+      const userId = session.user.id;
 
       try {
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-          console.error('Supabase configuration missing in Dashboard');
-          setLoading(false);
-          return;
-        }
-
         // Fetch Institution Details
-        const supabase = createClient();
         const { data: instData, error: instError } = await supabase
           .from('institutions')
-          .select('name')
-          .eq('id', sessionUserId)
+          .select('institution_name')
+          .eq('id', userId)
           .single();
         
         if (instData) {
-          setUserName(instData.name);
+          setUserName(instData.institution_name);
         } else {
-          setUserName(session.name || 'Institution');
+          setUserName(session.user.email || 'Institution');
         }
 
-        const { count: programCount, error: progError } = await supabase
+        const { count, error: progError } = await supabase
           .from('programs')
           .select('*', { count: 'exact', head: true })
-          .eq('institution_id', sessionUserId);
+          .eq('institution_id', userId);
         
         if (!progError) {
-          setProgramCount(programCount || 0);
+          setProgramCount(count || 0);
         }
       } catch (err) {
         console.error('Error in Dashboard data fetching:', err);
@@ -127,7 +121,8 @@ export default function Dashboard() {
            </div>
           <button 
             onClick={async () => {
-                localStorage.removeItem('inst_session');
+                const supabase = createClient();
+                await supabase.auth.signOut();
                 router.push('/institution/login');
             }}
             className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl transition-all border border-transparent hover:border-red-100"

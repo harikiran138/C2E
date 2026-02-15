@@ -1,63 +1,12 @@
 "use client";
 
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
-import { CheckCircle2, Quote, Sparkles, Target, Zap, Shield, Cpu, Users, ArrowRight, Star, Award } from "lucide-react";
+import { CheckCircle2, Quote, Sparkles, Target, Zap, Shield, Cpu, Users, ArrowRight, Star, Award, TrendingUp } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import GridPattern from "./GridPattern";
 import { cn } from "@/lib/utils";
-
-const SectionHeader = ({ title, subtitle, centered = false }: { title: string; subtitle?: string; centered?: boolean }) => (
-  <div className={cn("mb-12", centered && "text-center")}>
-    <motion.div
-      initial={{ opacity: 0, x: centered ? 0 : -20 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
-      className={cn("flex items-center space-x-3 mb-4", centered && "justify-center")}
-    >
-      <div className="h-px w-12 bg-[#c9a961]" />
-      <span className="text-[#c9a961] text-xs font-black tracking-[0.3em] uppercase">{title}</span>
-      {centered && <div className="h-px w-12 bg-[#c9a961]" />}
-    </motion.div>
-    {subtitle && (
-      <h3 className={cn(
-        "text-2xl md:text-4xl text-black font-bold leading-tight tracking-tight",
-        centered && "max-w-2xl mx-auto"
-      )}>
-        {subtitle}
-      </h3>
-    )}
-  </div>
-);
-
-const FeatureCard = ({ icon: Icon, title, items, index }: { icon: any; title: string; items: string[]; index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 30 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ delay: index * 0.1, duration: 0.6 }}
-    className="bg-primary-gold/[0.03] backdrop-blur-sm border border-primary-gold/10 p-8 rounded-[2rem] hover:border-[#c9a961]/50 transition-all duration-500 group relative overflow-hidden"
-  >
-    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-      <Icon className="h-24 w-24 text-[#c9a961] transform translate-x-8 -translate-y-8" />
-    </div>
-    
-    <div className="flex items-center space-x-4 mb-6 relative z-10">
-      <div className="p-3 bg-[#c9a961]/10 rounded-2xl group-hover:bg-[#c9a961]/20 transition-colors">
-        <Icon className="h-6 w-6 text-[#c9a961]" />
-      </div>
-      <h4 className="text-black font-bold tracking-tight text-xl">{title}</h4>
-    </div>
-    
-    <ul className="space-y-3 relative z-10">
-      {items.map((item, idx) => (
-        <li key={idx} className="flex items-start space-x-3 text-sm text-gray-600 group-hover:text-black transition-colors">
-          <div className="h-1.5 w-1.5 bg-[#c9a961] rounded-full mt-1.5 shrink-0" />
-          <span className="leading-relaxed">{item}</span>
-        </li>
-      ))}
-    </ul>
-  </motion.div>
-);
+import { SectionHeader } from "./ui/section-header";
+import { FeatureCard } from "./ui/feature-card";
 
 export default function AboutSection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -298,21 +247,3 @@ export default function AboutSection() {
     </section>
   );
 }
-
-const TrendingUp = ({ className }: { className?: string }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width="24" 
-    height="24" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-    <polyline points="16 7 22 7 22 13" />
-  </svg>
-);
