@@ -1,0 +1,58 @@
+import { createClient } from '../../../../utils/supabase/server';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+
+export async function POST(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('institution_token')?.value;
+
+    if (!token) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
+    let institutionId: string;
+
+    try {
+        const { payload } = await jwtVerify(token, secret);
+        institutionId = payload.id as string;
+    } catch (err) {
+        return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from('academic_council')
+        .insert({
+            institution_id: institutionId,
+            member_name: body.member_name,
+            member_id: body.member_id,
+            organization: body.organization,
+            email: body.email,
+            mobile_number: body.mobile_number,
+            specialisation: body.specialisation,
+            category: body.category,
+            communicate: body.communicate,
+            tenure_start_date: body.tenure_start_date || null,
+            tenure_end_date: body.tenure_end_date || null,
+            linkedin_id: body.linkedin_id
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error saving council member:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ data });
+
+  } catch (error) {
+    console.error('Academic Council API Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

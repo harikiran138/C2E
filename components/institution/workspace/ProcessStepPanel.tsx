@@ -58,45 +58,145 @@ function SharedForm({ step }: { step: ProcessStep }) {
 }
 
 function AcademicCouncilForm() {
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    member_name: '',
+    member_id: '',
+    organization: '',
+    email: '',
+    mobile_number: '',
+    specialisation: '',
+    category: '',
+    communicate: '',
+    tenure_start_date: '',
+    tenure_end_date: '',
+    linkedin_id: ''
+  });
+
+  useEffect(() => {
+    const fetchCouncilMembers = async () => {
+      try {
+        const response = await fetch('/api/institution/details');
+        if (!response.ok) return;
+        const data = await response.json();
+        // Since we are showing a list in a real app, but this form is for one entry,
+        // we'll just prep the form for a new entry or load the first one if it exists.
+        // For now, let's just enable the form.
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCouncilMembers();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/institution/academic-council', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (response.ok) {
+        alert('Council member saved successfully!');
+        setFormData({
+            member_name: '',
+            member_id: '',
+            organization: '',
+            email: '',
+            mobile_number: '',
+            specialisation: '',
+            category: '',
+            communicate: '',
+            tenure_start_date: '',
+            tenure_end_date: '',
+            linkedin_id: ''
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save member:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <h3 className="text-xl font-semibold">Constitute Academic Council</h3>
       <p className="text-sm text-slate-600">Form requirements from document are implemented exactly in this panel.</p>
 
-      <form className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Name of the Member</label>
-          <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="Member full name" />
+          <input 
+            required
+            value={formData.member_name}
+            onChange={(e) => setFormData({ ...formData, member_name: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+            placeholder="Member full name" 
+          />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Member ID</label>
-          <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="Member ID" />
+          <input 
+            value={formData.member_id}
+            onChange={(e) => setFormData({ ...formData, member_id: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+            placeholder="Member ID" 
+          />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Organisation</label>
-          <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="Organisation" />
+          <input 
+            value={formData.organization}
+            onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+            placeholder="Organisation" 
+          />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Email ID</label>
-          <input type="email" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="Email ID" />
+          <input 
+            type="email" 
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+            placeholder="Email ID" 
+          />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Mobile Number</label>
-          <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="Mobile number" />
+          <input 
+            value={formData.mobile_number}
+            onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+            placeholder="Mobile number" 
+          />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Specialisation</label>
-          <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="Specialisation" />
+          <input 
+            value={formData.specialisation}
+            onChange={(e) => setFormData({ ...formData, specialisation: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+            placeholder="Specialisation" 
+          />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Category</label>
-          <select className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+          <select 
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm"
+          >
             <option value="">Select category</option>
             {ACADEMIC_COUNCIL_CATEGORIES.map((category) => (
               <option key={category} value={category}>
@@ -108,32 +208,224 @@ function AcademicCouncilForm() {
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Communicate</label>
-          <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="Communication mode / remarks" />
+          <input 
+            value={formData.communicate}
+            onChange={(e) => setFormData({ ...formData, communicate: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+            placeholder="Communication mode / remarks" 
+          />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Tenure Starting Date</label>
-          <input type="date" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
+          <input 
+            type="date" 
+            value={formData.tenure_start_date}
+            onChange={(e) => setFormData({ ...formData, tenure_start_date: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+          />
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Tenure Ending Date</label>
-          <input type="date" className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" />
+          <input 
+            type="date" 
+            value={formData.tenure_end_date}
+            onChange={(e) => setFormData({ ...formData, tenure_end_date: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+          />
         </div>
 
         <div className="md:col-span-2">
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">LinkedIn ID</label>
-          <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" placeholder="LinkedIn profile URL" />
+          <input 
+            value={formData.linkedin_id}
+            onChange={(e) => setFormData({ ...formData, linkedin_id: e.target.value })}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" 
+            placeholder="LinkedIn profile URL" 
+          />
         </div>
 
         <div className="md:col-span-2 flex flex-wrap gap-3 pt-1">
-          <button type="button" className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700">Save</button>
+          <button 
+            type="submit" 
+            disabled={submitting}
+            className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+          >
+            {submitting ? 'Saving...' : 'Save'}
+          </button>
           <button type="button" className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Edit</button>
           <button type="button" className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Print PDF</button>
         </div>
       </form>
     </div>
   );
+}
+
+const PAC_CATEGORIES = [
+  'Program Head (Chairman)',
+  'Senior Faculty',
+  'Industry Expert',
+  'Alumni',
+  'Student Representative'
+];
+
+const BOS_CATEGORIES = [
+    'HOD (Chairman)',
+    'Internal Member',
+    'External Subject Expert',
+    'Industry Representative',
+    'University Nominee'
+];
+
+function PACForm() {
+    const searchParams = useSearchParams();
+    const programId = searchParams.get('programId');
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        member_name: '',
+        member_id: '',
+        organization: '',
+        email: '',
+        mobile_number: '',
+        category: '',
+        specialisation: ''
+    });
+
+    if (!programId) {
+        return (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                Please select a program first to constitution PAC.
+            </div>
+        );
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const response = await fetch('/api/institution/pac', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...formData, program_id: programId }),
+            });
+            if (response.ok) {
+                alert('PAC member saved successfully!');
+                setFormData({
+                    member_name: '',
+                    member_id: '',
+                    organization: '',
+                    email: '',
+                    mobile_number: '',
+                    category: '',
+                    specialisation: ''
+                });
+            }
+        } catch (error) {
+            console.error('Failed to save PAC member:', error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="space-y-5">
+            <h3 className="text-xl font-semibold">Constitute PAC (Program Advisory Committee)</h3>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Name</label>
+                    <input required className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" value={formData.member_name} onChange={e => setFormData({...formData, member_name: e.target.value})} placeholder="Member name" />
+                </div>
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Category</label>
+                    <select className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                        <option value="">Select Category</option>
+                        {PAC_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
+                <div className="md:col-span-2">
+                    <button type="submit" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
+                        {submitting ? 'Saving...' : 'Save Member'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
+function BoSForm() {
+    const searchParams = useSearchParams();
+    const programId = searchParams.get('programId');
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        member_name: '',
+        member_id: '',
+        organization: '',
+        email: '',
+        mobile_number: '',
+        category: '',
+        role: ''
+    });
+
+    if (!programId) {
+        return (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                Please select a program first to constitution BoS.
+            </div>
+        );
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const response = await fetch('/api/institution/bos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...formData, program_id: programId }),
+            });
+            if (response.ok) {
+                alert('BoS member saved successfully!');
+                setFormData({
+                    member_name: '',
+                    member_id: '',
+                    organization: '',
+                    email: '',
+                    mobile_number: '',
+                    category: '',
+                    role: ''
+                });
+            }
+        } catch (error) {
+            console.error('Failed to save BoS member:', error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="space-y-5">
+            <h3 className="text-xl font-semibold">Constitute BoS (Board of Studies)</h3>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Name</label>
+                    <input required className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" value={formData.member_name} onChange={e => setFormData({...formData, member_name: e.target.value})} placeholder="Member name" />
+                </div>
+                <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Category</label>
+                    <select className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                        <option value="">Select Category</option>
+                        {BOS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
+                <div className="md:col-span-2">
+                    <button type="submit" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
+                        {submitting ? 'Saving...' : 'Save Member'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
 }
 
 function SelectProgramPanel() {
@@ -288,6 +580,7 @@ function ActionPanel({ step }: { step: ProcessStep }) {
   return (
     <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
       <h3 className="text-xl font-semibold">{step.title}</h3>
+      <h3 className="text-xl font-semibold">{step.title}</h3>
       <p className="text-sm text-slate-600">{step.description}</p>
       <div className="rounded-xl border border-slate-300 bg-white p-4">
         <p className="text-sm text-slate-700">Record status and communication reference numbers for this process step.</p>
@@ -307,6 +600,14 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
 
   if (step.key === 'process-2') {
     return <SelectProgramPanel />;
+  }
+
+  if (step.key === 'process-3') {
+    return <PACForm />;
+  }
+
+  if (step.key === 'process-4') {
+    return <BoSForm />;
   }
 
   if (step.key === 'process-7') {

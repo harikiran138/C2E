@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { TrendingUp } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const data = [
@@ -16,29 +17,68 @@ const data = [
 
 export default function PerformanceChart() {
   return (
-    <Card className="col-span-1 lg:col-span-2 bg-white/60 border-slate-200 shadow-sm">
-      <CardHeader>
-        <CardTitle>Survey Responses</CardTitle>
-        <CardDescription>Monthly student participation trends</CardDescription>
+    <Card className="col-span-1 lg:col-span-2 border-border/40 bg-background/40 backdrop-blur-xl relative overflow-hidden group transition-all hover:border-primary/40">
+      <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+      <CardHeader className="relative">
+        <div className="flex items-center justify-between">
+            <div>
+                <CardTitle className="text-xl font-bold">Survey Responses</CardTitle>
+                <CardDescription className="text-muted-foreground/80">Monthly student participation trends</CardDescription>
+            </div>
+            <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <TrendingUp className="size-5" />
+            </div>
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-[350px] w-full">
+      <CardContent className="relative">
+        <div className="h-[350px] w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorResponses" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                itemStyle={{ color: '#1e293b' }}
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" strokeOpacity={0.4} />
+              <XAxis 
+                dataKey="name" 
+                stroke="var(--muted-foreground)" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false} 
+                dy={10}
+                className="font-bold uppercase tracking-wider"
               />
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <Area type="monotone" dataKey="responses" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorResponses)" />
+              <YAxis 
+                stroke="var(--muted-foreground)" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false} 
+                tickFormatter={(value) => `${value}`}
+                className="font-bold"
+              />
+              <Tooltip 
+                contentStyle={{ 
+                    backgroundColor: 'rgba(var(--background), 0.8)', 
+                    backdropFilter: 'blur(12px)',
+                    borderRadius: '1rem', 
+                    border: '1px solid var(--border)',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                }}
+                itemStyle={{ color: 'var(--foreground)', fontSize: '12px', fontWeight: 'bold' }}
+                cursor={{ stroke: 'var(--primary)', strokeWidth: 2, strokeDasharray: '4 4' }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="responses" 
+                stroke="var(--primary)" 
+                strokeWidth={3}
+                fillOpacity={1} 
+                fill="url(#colorResponses)" 
+                animationDuration={2000}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>

@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
 
 interface ActivityItem {
   id: string;
@@ -54,9 +55,16 @@ export default function RecentActivity() {
         <CardContent className="pt-4">
             <ScrollArea className="h-[350px] pr-4">
             <div className="space-y-4">
-                {activities.map((activity) => (
-                <div key={activity.id} className="group relative flex items-start gap-4 rounded-lg border border-border/40 bg-background/60 p-4 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-background/80">
-                    <Avatar className="h-10 w-10 border-2 border-border/40">
+                {activities.map((activity, idx) => (
+                <motion.div 
+                    key={activity.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    whileHover={{ x: 5 }}
+                    className="group relative flex items-start gap-4 rounded-lg border border-border/40 bg-background/60 p-4 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-background/80 hover:shadow-lg hover:shadow-primary/5"
+                >
+                    <Avatar className="h-10 w-10 border-2 border-border/40 group-hover:border-primary/40 transition-colors">
                     <AvatarImage src={activity.user.avatar} alt={activity.user.name} />
                     <AvatarFallback className="bg-primary/10 text-primary">
                         {activity.user.initials}
@@ -67,15 +75,15 @@ export default function RecentActivity() {
                         <p className="text-sm text-foreground">
                         <span className="font-semibold">{activity.user.name}</span>{' '}
                         <span className="text-muted-foreground">{activity.action}</span>{' '}
-                        <span className="font-medium">{activity.target}</span>
+                        <span className="font-medium text-primary/80">{activity.target}</span>
                         </p>
-                        <Badge variant="outline" className={`shrink-0 ${getActivityColor(activity.type)}`}>
+                        <Badge variant="outline" className={`shrink-0 text-[10px] ${getActivityColor(activity.type)}`}>
                         {activity.type}
                         </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
                     </div>
-                </div>
+                </motion.div>
                 ))}
             </div>
             </ScrollArea>

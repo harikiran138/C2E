@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { PROCESS_MENU_STEPS, SIDE_MENU_STEPS } from '@/lib/institution/process';
+import { PROCESS_MENU_STEPS, SIDE_MENU_STEPS, ProcessPhase } from '@/lib/institution/process';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, LayoutDashboard, Settings, ChevronRight, LogOut, Search, Bell, Menu, X } from 'lucide-react';
+import * as Icons from 'lucide-react';
+import { LayoutDashboard, FileText, ChevronRight, Menu, X, Users, BookOpen, CheckSquare, Shield, Gavel, UserPlus, Target, Grid, ListChecks, Sparkles, Share2, Layers, Book, Table, MessageSquare, Send, FileCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -35,6 +36,7 @@ export default function InstitutionWorkspace({
   const [institutionName, setInstitutionName] = useState('Institution');
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isProgramDropdownOpen, setIsProgramDropdownOpen] = useState(false);
 
   const selectedProgramId = searchParams.get('programId') || '';
 
@@ -184,17 +186,62 @@ export default function InstitutionWorkspace({
               <p className="mt-2 text-lg text-muted-foreground">{subtitle}</p>
             </div>
             
-            <div className="group relative rounded-[1.5rem] border border-border/40 bg-card/40 backdrop-blur-xl p-4 transition-all hover:border-primary/40 min-w-[300px]">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
-                <div className="flex items-center gap-4 relative">
-                    <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                        <FileText className="size-5" />
+            <div className="relative">
+                <button 
+                    onClick={() => setIsProgramDropdownOpen(!isProgramDropdownOpen)}
+                    className="group relative rounded-[1.5rem] border border-border/40 bg-card/40 backdrop-blur-xl p-4 transition-all hover:border-primary/40 min-w-[300px] text-left"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+                    <div className="flex items-center gap-4 relative">
+                        <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                            <FileText className="size-5" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Select Program</p>
+                            <p className="text-sm font-bold mt-1 text-foreground truncate max-w-[180px]">{selectedProgramId ? programs.find(p => p.id === selectedProgramId)?.program_name || 'Select' : 'Not selected'}</p>
+                        </div>
+                        <ChevronRight className={cn("size-4 text-muted-foreground transition-transform duration-300", isProgramDropdownOpen ? "rotate-90" : "")} />
                     </div>
-                    <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Select Program</p>
-                        <p className="text-sm font-bold mt-1 text-foreground truncate max-w-[180px]">{selectedProgramLabel}</p>
-                    </div>
-                </div>
+                </button>
+
+                <AnimatePresence>
+                    {isProgramDropdownOpen && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute top-full right-0 mt-2 w-full z-50 rounded-2xl border border-border/40 bg-background/80 backdrop-blur-2xl shadow-2xl overflow-hidden"
+                        >
+                            <div className="p-2 space-y-1">
+                                {programs.map((program) => (
+                                    <button
+                                        key={program.id}
+                                        onClick={() => {
+                                            router.push(`/institution/dashboard?programId=${program.id}`);
+                                            setIsProgramDropdownOpen(false);
+                                        }}
+                                        className={cn(
+                                            "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left",
+                                            selectedProgramId === program.id 
+                                            ? "bg-primary text-primary-foreground" 
+                                            : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold truncate">{program.program_name}</p>
+                                            <p className={cn("text-[10px] uppercase font-bold tracking-wider", selectedProgramId === program.id ? "text-primary-foreground/70" : "text-muted-foreground/60")}>
+                                                {program.program_code}
+                                            </p>
+                                        </div>
+                                    </button>
+                                ))}
+                                {programs.length === 0 && (
+                                    <div className="p-4 text-center text-sm text-muted-foreground">No programs found</div>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
           </div>
 
@@ -219,6 +266,8 @@ export default function InstitutionWorkspace({
 // --- SHARED SIDEBAR COMPONENTS ---
 
 function SidebarContent({ activeStepKey, buildHref, institutionName, onClose }: any) {
+    const phases: ProcessPhase[] = ['Set-up', 'Stakeholder & PEOs', 'Program Outcomes', 'Curriculum Development', 'Approval & Closure'];
+
     return (
         <nav className="flex-1 overflow-y-auto px-4 py-6 scrollbar-none custom-scrollbar">
             <div className="space-y-8">
@@ -235,52 +284,66 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose }: 
                             <LayoutDashboard className="size-4" />
                             <span className="text-sm font-semibold">Dashboard</span>
                         </SidebarLink>
-                        {SIDE_MENU_STEPS.map((step) => (
-                            <SidebarLink 
-                                key={step.key} 
-                                href={buildHref(step.key)} 
-                                active={activeStepKey === step.key}
-                                onClick={onClose}
-                            >
-                                <span className="text-sm font-semibold">{step.title}</span>
-                            </SidebarLink>
-                        ))}
-                    </div>
-                </div>
-
-                <div>
-                    <div className="px-4 mb-4 flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">OBE Workflow</span>
-                        <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/20 text-primary bg-primary/5">Guided</Badge>
-                    </div>
-                    <div className="space-y-1">
-                        {PROCESS_MENU_STEPS.map((step) => {
-                        const active = activeStepKey === step.key;
-                        return (
-                            <SidebarLink 
-                                key={step.key} 
-                                href={buildHref(step.key)} 
-                                active={active}
-                                onClick={onClose}
-                            >
-                                <div className={cn(
-                                    "size-6 flex items-center justify-center rounded-lg text-[10px] font-bold border transition-colors",
-                                    active ? "bg-white/20 border-white/20 text-white" : "bg-muted border-border/40 text-muted-foreground group-hover:bg-background group-hover:border-primary/40 group-hover:text-primary"
-                                )}>
-                                    {step.processNumber}
-                                </div>
-                                <span className="text-sm font-semibold flex-1 truncate">{step.title}</span>
-                                {step.aiDriven && (
-                                    <span className={cn(
-                                        "size-1.5 rounded-full",
-                                        active ? "bg-white" : "bg-emerald-500"
-                                    )} />
-                                )}
-                            </SidebarLink>
-                        );
+                        {SIDE_MENU_STEPS.map((step) => {
+                            const Icon = (Icons as any)[step.icon || 'FileText'] || FileText;
+                            return (
+                                <SidebarLink 
+                                    key={step.key} 
+                                    href={buildHref(step.key)} 
+                                    active={activeStepKey === step.key}
+                                    onClick={onClose}
+                                >
+                                    <Icon className="size-4" />
+                                    <span className="text-sm font-semibold">{step.title}</span>
+                                </SidebarLink>
+                            );
                         })}
                     </div>
                 </div>
+
+                {phases.map((phase) => {
+                    const stepsInPhase = PROCESS_MENU_STEPS.filter(s => s.phase === phase);
+                    if (stepsInPhase.length === 0) return null;
+
+                    return (
+                        <div key={phase}>
+                            <div className="px-4 mb-4 flex items-center justify-between">
+                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{phase}</span>
+                                {phase === 'Set-up' && (
+                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/20 text-primary bg-primary/5">Guided</Badge>
+                                )}
+                            </div>
+                            <div className="space-y-1">
+                                {stepsInPhase.map((step) => {
+                                    const active = activeStepKey === step.key;
+                                    const Icon = (Icons as any)[step.icon || 'Circle'] || ChevronRight;
+                                    return (
+                                        <SidebarLink 
+                                            key={step.key} 
+                                            href={buildHref(step.key)} 
+                                            active={active}
+                                            onClick={onClose}
+                                        >
+                                            <div className={cn(
+                                                "size-6 flex items-center justify-center rounded-lg text-[10px] font-bold border transition-colors shrink-0",
+                                                active ? "bg-white/20 border-white/20 text-white" : "bg-muted border-border/40 text-muted-foreground group-hover:bg-background group-hover:border-primary/40 group-hover:text-primary"
+                                            )}>
+                                                {step.processNumber}
+                                            </div>
+                                            <span className="text-sm font-semibold flex-1 truncate">{step.title}</span>
+                                            {step.aiDriven && (
+                                                <Icons.Sparkles className={cn(
+                                                    "size-3",
+                                                    active ? "text-white" : "text-primary/60"
+                                                )} />
+                                            )}
+                                        </SidebarLink>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </nav>
     );
