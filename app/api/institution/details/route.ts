@@ -1,17 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/postgres';
-import { createClient } from '@/utils/supabase/server';
+import * as jose from 'jose';
 import { validateInstitutionDetailsPayload } from '@/lib/validation/onboarding';
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+async function getInstitutionId(request: NextRequest): Promise<string | null> {
+  const token = request.cookies.get('institution_token')?.value;
+  if (!token) return null;
   try {
+    const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
+    const { payload } = await jose.jwtVerify(token, secret);
+    return payload.id as string;
+  } catch (error) {
+    return null;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const institutionId = await getInstitutionId(request);
+    if (!institutionId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const client = await pool.connect();
+    try {
+      const instResult = await client.query(
+        `SELECT
+          id,
+          institution_name,
+          email,
+          onboarding_status,
+          institution_type,
+          institution_status,
+          established_year,
+          university_affiliation,
+          address,
+          city,
+          state
+         FROM institutions
+         WHERE id = $1`,
+        [institutionId]
+      );
+
+      const progResult = await client.query(
+        `SELECT
+          id,
+          program_name,
+          degree,
+          level,
+          duration,
+          intake,
+          academic_year,
+          program_code
+         FROM programs
+         WHERE institution_id = $1
+         ORDER BY created_at ASC`,
+        [institutionId]
+      );
+
+      const institution = instResult.rows[0] || {};
+      const programs = progResult.rows || [];
+
+      return NextResponse.json({ institution, programs });
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error('Error fetching details:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const institutionId = await getInstitutionId(request);
+    if (!institutionId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const payload = {
       institution_type: String(body.institution_type || ''),
@@ -28,56 +94,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    await pool.query(
-      `INSERT INTO public.institution_details (institution_id, type, status, established_year, affiliation, address, city, state, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-       ON CONFLICT (institution_id)
-       DO UPDATE SET
-        type = EXCLUDED.type,
-        status = EXCLUDED.status,
-        established_year = EXCLUDED.established_year,
-        affiliation = EXCLUDED.affiliation,
-        address = EXCLUDED.address,
-        city = EXCLUDED.city,
-        state = EXCLUDED.state,
-        updated_at = NOW()`,
-      [
-        user.id,
-        payload.institution_type,
-        payload.institution_status,
-        payload.established_year,
-        payload.institution_status === 'Non-Autonomous' ? payload.university_affiliation : null,
-        payload.address.trim(),
-        payload.city.trim(),
-        payload.state.trim(),
-      ]
-    );
+    const client = await pool.connect();
+    try {
+      await client.query(
+        `UPDATE institutions 
+         SET institution_type = $1, 
+             institution_status = $2, 
+             established_year = $3, 
+             university_affiliation = $4, 
+             address = $5, 
+             city = $6, 
+             state = $7, 
+             updated_at = NOW()
+         WHERE id = $8`,
+        [
+          payload.institution_type,
+          payload.institution_status,
+          payload.established_year,
+          payload.institution_status === 'Non-Autonomous'
+            ? payload.university_affiliation?.trim() || null
+            : null,
+          payload.address.trim(),
+          payload.city.trim(),
+          payload.state.trim(),
+          institutionId
+        ]
+      );
 
-    return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true });
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Failed to save institution details.' }, { status: 500 });
-  }
-}
-
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  try {
-    const result = await pool.query(
-      `SELECT type, status, established_year, affiliation, address, city, state
-       FROM public.institution_details
-       WHERE institution_id = $1
-       LIMIT 1`,
-      [user.id]
-    );
-
-    return NextResponse.json({ details: result.rows[0] || null });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Failed to fetch institution details.' }, { status: 500 });
+    console.error('Error updating details:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

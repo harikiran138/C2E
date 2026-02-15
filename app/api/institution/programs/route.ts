@@ -1,17 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/postgres';
-import { createClient } from '@/utils/supabase/server';
+import * as jose from 'jose';
+import { v4 as uuidv4 } from 'uuid';
 import { validateProgramPayload } from '@/lib/validation/onboarding';
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+async function getInstitutionId(request: NextRequest): Promise<string | null> {
+  const token = request.cookies.get('institution_token')?.value;
+  if (!token) return null;
   try {
+    const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
+    const { payload } = await jose.jwtVerify(token, secret);
+    return payload.id as string;
+  } catch (error) {
+    return null;
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const institutionId = await getInstitutionId(request);
+    if (!institutionId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const payload = {
       program_name: String(body.program_name || ''),
@@ -20,7 +31,7 @@ export async function POST(request: NextRequest) {
       duration: Number(body.duration),
       intake: Number(body.intake),
       academic_year: String(body.academic_year || ''),
-      program_code: String(body.program_code || '').trim().toUpperCase(),
+      program_code: String(body.program_code || ''),
     };
 
     const validationError = validateProgramPayload(payload);
@@ -28,33 +39,100 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const dup = await pool.query(
-      'SELECT id FROM public.programs WHERE institution_id = $1 AND LOWER(program_code) = LOWER($2) LIMIT 1',
-      [user.id, payload.program_code]
-    );
+    const normalizedProgramCode = payload.program_code.trim().toUpperCase();
+    const newId = uuidv4();
 
-    if (dup.rowCount) {
-      return NextResponse.json({ error: `Program code "${payload.program_code}" already exists.` }, { status: 409 });
+    const client = await pool.connect();
+    try {
+      const duplicateCode = await client.query(
+        `SELECT id
+         FROM programs
+         WHERE institution_id = $1
+           AND LOWER(program_code) = LOWER($2)
+         LIMIT 1`,
+        [institutionId, normalizedProgramCode]
+      );
+
+      if ((duplicateCode.rowCount ?? 0) > 0) {
+        return NextResponse.json({ error: 'Program code already exists for this institution.' }, { status: 409 });
+      }
+
+      await client.query(
+        `INSERT INTO programs (
+          id, institution_id, program_name, degree, level, duration, intake, academic_year, program_code, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
+        [
+          newId,
+          institutionId,
+          payload.program_name.trim(),
+          payload.degree,
+          payload.level,
+          payload.duration,
+          payload.intake,
+          payload.academic_year.trim(),
+          normalizedProgramCode,
+        ]
+      );
+
+      return NextResponse.json({ 
+        ok: true, 
+        program: { 
+          id: newId, 
+          program_name: payload.program_name.trim(),
+          degree: payload.degree,
+          level: payload.level,
+          duration: payload.duration,
+          intake: payload.intake,
+          academic_year: payload.academic_year.trim(),
+          program_code: normalizedProgramCode,
+        } 
+      });
+    } catch (dbError: any) {
+      if (dbError?.code === '23505') {
+        return NextResponse.json({ error: 'Program code already exists for this institution.' }, { status: 409 });
+      }
+      throw dbError;
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error('Error adding program:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const institutionId = await getInstitutionId(request);
+    if (!institutionId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const inserted = await pool.query(
-      `INSERT INTO public.programs (institution_id, program_name, degree, level, duration, intake, academic_year, program_code, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-       RETURNING id, institution_id, program_name, degree, level, duration, intake, academic_year, program_code`,
-      [
-        user.id,
-        payload.program_name.trim(),
-        payload.degree,
-        payload.level,
-        payload.duration,
-        payload.intake,
-        payload.academic_year.trim(),
-        payload.program_code,
-      ]
-    );
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-    return NextResponse.json({ ok: true, program: inserted.rows[0] });
+    if (!id) {
+      return NextResponse.json({ error: 'Program ID required' }, { status: 400 });
+    }
+
+    const client = await pool.connect();
+    try {
+      // Ensure the program belongs to the institution
+      const result = await client.query(
+        'DELETE FROM programs WHERE id = $1 AND institution_id = $2 RETURNING id',
+        [id, institutionId]
+      );
+
+      if (result.rowCount === 0) {
+        return NextResponse.json({ error: 'Program not found or unauthorized' }, { status: 404 });
+      }
+
+      return NextResponse.json({ ok: true });
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Failed to add program.' }, { status: 500 });
+    console.error('Error deleting program:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import * as jose from 'jose';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -54,46 +55,71 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+
   const { data: { user } } = await supabase.auth.getUser()
+  
+  // [NEW] Custom Session Check
+  let customUser: { id: string; email: string; role?: string; onboarding_status?: string } | null = null;
+  const institutionToken = request.cookies.get('institution_token')?.value;
+  
+  if (institutionToken) {
+    try {
+        const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
+        const { payload } = await jose.jwtVerify(institutionToken, secret);
+        // If valid, we treat it as a logged-in user
+        customUser = {
+          id: payload.id as string,
+          email: payload.email as string,
+          role: payload.role as string | undefined,
+          onboarding_status: payload.onboarding_status as string | undefined,
+        };
+        console.log('Middleware: Custom session valid for', customUser.email);
+    } catch (e) {
+        console.error('Middleware: Invalid custom token', e);
+    }
+  }
+
+  // Prefer custom JWT session if present; fallback to Supabase user.
+  const effectiveUser = customUser || (user ? { id: user.id, email: user.email || '' } : null);
 
   // 1. Protected routes check
   const isProtectedPath = request.nextUrl.pathname.startsWith('/institution/dashboard') ||
                           request.nextUrl.pathname.startsWith('/institution/onboarding') ||
+                          request.nextUrl.pathname.startsWith('/institution/process') ||
                           request.nextUrl.pathname.startsWith('/institution/details') ||
                           request.nextUrl.pathname.startsWith('/institution/programs') ||
                           request.nextUrl.pathname.startsWith('/institution/peos') ||
                           request.nextUrl.pathname.startsWith('/institution/feedback')
 
-  if (!user && isProtectedPath) {
+  if (!effectiveUser && isProtectedPath) {
     return NextResponse.redirect(new URL('/institution/login', request.url))
   }
 
   // 2. Onboarding status check
-  if (user) {
+  if (effectiveUser) {
     try {
-      const { data: institution, error: dbError } = await supabase
-        .from('institutions')
-        .select('onboarding_status')
-        .eq('id', user.id)
-        .maybeSingle() // Use maybeSingle to avoid errors if record doesn't exist yet
+      let effectiveStatus = customUser?.onboarding_status || 'PENDING';
+      if (!customUser && user) {
+        const { data: institution, error: dbError } = await supabase
+          .from('institutions')
+          .select('onboarding_status')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      if (dbError) {
-        console.error('Middleware DB Error:', dbError)
-        // If there's a DB error, we might still want to allow access if they are on a safe path, 
-        // but for now let's just proceed to avoid blocking the user entirely
-        return response
+        if (!dbError && institution?.onboarding_status) {
+          effectiveStatus = institution.onboarding_status;
+        }
       }
-
-      const status = institution?.onboarding_status
-      const effectiveStatus = status || 'PENDING'
+      
       const isDashboardArea =
         request.nextUrl.pathname.startsWith('/institution/dashboard') ||
+        request.nextUrl.pathname.startsWith('/institution/process') ||
         request.nextUrl.pathname.startsWith('/institution/details') ||
         request.nextUrl.pathname.startsWith('/institution/programs') ||
         request.nextUrl.pathname.startsWith('/institution/peos') ||
         request.nextUrl.pathname.startsWith('/institution/feedback');
 
-      console.log(`Middleware Trace: User=${user.email}, Status=${effectiveStatus}, Path=${request.nextUrl.pathname}`)
+      console.log(`Middleware Trace: User=${effectiveUser.email}, Status=${effectiveStatus}, Path=${request.nextUrl.pathname}`)
 
       if (isDashboardArea && effectiveStatus !== 'COMPLETED') {
         return NextResponse.redirect(new URL('/institution/onboarding', request.url))
@@ -118,6 +144,7 @@ export async function middleware(request: NextRequest) {
   }
 
   return response
+
 }
 
 export const config = {

@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Eye, EyeOff, Mail, ArrowRight, ArrowLeft, Building2, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
-import { createClient } from '../../utils/supabase/client';
+import { Eye, EyeOff, Mail, ArrowRight, ArrowLeft, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SignUp from './SignUp';
@@ -23,49 +22,14 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const supabase = createClient();
+  /* Removed Supabase Client */
   const router = useRouter();
 
+  // Removed client-side session check as middleware handles it.
   useEffect(() => {
-    localStorage.removeItem('isDemo');
-    localStorage.removeItem('demoInstName');
-
-    // Auto-redirect if session already exists
-    const checkActiveSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        console.log('Active session found, checking onboarding status...');
-        let { data: inst } = await supabase
-          .from('institutions')
-          .select('id, onboarding_status')
-          .eq('id', session.user.id)
-          .maybeSingle();
-
-        if (!inst) {
-          await supabase
-            .from('institutions')
-            .upsert(
-              {
-                id: session.user.id,
-                institution_name: (session.user.user_metadata?.institution_name as string | undefined)?.trim() || 'Institution',
-                email: session.user.email || '',
-                onboarding_status: 'PENDING',
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'id' }
-            );
-          inst = { id: session.user.id, onboarding_status: 'PENDING' };
-        }
-
-        if (inst?.onboarding_status === 'COMPLETED') {
-          router.push('/institution/dashboard');
-        } else {
-          router.push('/institution/onboarding');
-        }
-      }
-    };
-    checkActiveSession();
-  }, [router, supabase]);
+     localStorage.removeItem('isDemo');
+     localStorage.removeItem('demoInstName');
+  }, []);
 
   const handleSignIn = async () => {
     const trimmedEmail = email.trim();
@@ -78,65 +42,35 @@ export default function Login() {
     setErrorMsg(null);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
-        password: password,
+      const res = await fetch('/api/institution/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: trimmedEmail, password })
       });
 
-      if (authError) {
-        console.error('Sign In Auth Error:', authError);
-        const msg = authError.message.toLowerCase();
-        
-        if (msg.includes('invalid login credentials') || msg.includes('user not found')) {
-          throw new Error('Incorrect email or password. Please check your credentials and try again.');
-        }
-        if (msg.includes('email not confirmed')) {
-          throw new Error('Email address not verified. Please check your inbox for the confirmation link.');
-        }
-        if (msg.includes('rate limit')) {
-          throw new Error('Too many attempts. Please try again in a few minutes.');
-        }
-        throw authError;
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed');
       }
 
-      if (authData.user) {
-        // Redirection logic is also handled by middleware, but doing it here provides 
-        // a snappier experience for the user.
-        let { data: inst, error: dbError } = await supabase
-          .from('institutions')
-          .select('id, onboarding_status')
-          .eq('id', authData.user.id)
-          .maybeSingle();
+      // Login successful
+      // Store session in localStorage for client-side checks if needed
+      localStorage.setItem('inst_session', JSON.stringify({
+        id: data.id,
+        email: trimmedEmail,
+        role: 'institution_admin' 
+      }));
 
-        if (dbError) throw dbError;
-        if (!inst) {
-          const institutionName = (authData.user.user_metadata?.institution_name as string | undefined)?.trim() || 'Institution';
-          const { error: createError } = await supabase
-            .from('institutions')
-            .upsert(
-              {
-                id: authData.user.id,
-                institution_name: institutionName,
-                email: authData.user.email || trimmedEmail,
-                onboarding_status: 'PENDING',
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'id' }
-            );
-          if (createError) throw createError;
-          inst = { id: authData.user.id, onboarding_status: 'PENDING' };
-        }
+      // Force refresh to update middleware state
+      router.refresh();
+      
+      // We can optimistically redirect based on the response if it returned status, 
+      // but middleware is the source of truth.
+      router.push('/institution/dashboard'); 
 
-        if (inst.onboarding_status !== 'COMPLETED') {
-          console.log('Redirecting to onboarding...');
-          router.push('/institution/onboarding');
-        } else {
-          console.log('Redirecting to dashboard...');
-          router.push('/institution/dashboard');
-        }
-        // Small delay before refresh to allow navigation to commit
-        setTimeout(() => router.refresh(), 500);
-      }
     } catch (err: any) {
       console.error('Login Error:', err);
       setErrorMsg(err.message || 'Authentication failed. Please check your connection.');

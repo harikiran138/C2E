@@ -3,7 +3,7 @@ export const INSTITUTION_STATUSES = ['Autonomous', 'Non-Autonomous'] as const;
 export const DEGREES = ['B.Tech', 'B.Sc', 'B.Com', 'MBA', 'M.Tech', 'PhD'] as const;
 export const LEVELS = ['UG', 'PG', 'Diploma', 'Doctorate'] as const;
 
-export const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+export const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,7 +29,7 @@ export function validateSignupPayload(payload: {
   }
 
   if (!PASSWORD_REGEX.test(payload.password)) {
-    return 'Password must be at least 8 characters, with at least 1 letter and 1 number.';
+    return 'Password must be at least 8 characters, include at least 1 letter and 1 number, and use only letters and numbers.';
   }
 
   if (payload.password !== payload.confirmPassword) {

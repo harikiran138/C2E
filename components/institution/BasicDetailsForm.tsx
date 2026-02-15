@@ -27,49 +27,35 @@ export default function BasicDetailsForm() {
   const supabase = createClient();
   const router = useRouter();
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const sessionData = localStorage.getItem('inst_session');
-      if (!sessionData) {
-        router.push('/institution/login');
-        return;
-      }
 
-      const session = JSON.parse(sessionData);
-      const sessionUserId = session.id;
-      setUserId(sessionUserId);
-      fetchDetails(sessionUserId);
-    };
-    checkUser();
+  useEffect(() => {
+    // We can rely on the API to check auth via cookie. 
+    // If API returns 401, we redirect.
+    fetchDetails();
   }, []);
 
-  const fetchDetails = async (uid: string) => {
+  const fetchDetails = async () => {
     try {
       setLoading(true);
 
-
-
-      // Fetch Institution Details
-      const { data: instData, error: instError } = await supabase
-        .from('institutions')
-        .select('*')
-        .eq('id', uid)
-        .single();
-      
-      if (instData) {
-        setStatus(instData.status || 'Autonomous');
-        setVision(instData.vision || '');
-        setMission(instData.mission || '');
+      const res = await fetch('/api/institution/details');
+      if (res.status === 401) {
+        router.push('/institution/login');
+        return;
       }
-
-      // Fetch Programs
-      const { data: progData, error: progError } = await supabase
-        .from('programs')
-        .select('*')
-        .eq('institution_id', uid);
       
-      if (progData) {
-        setPrograms(progData);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch details');
+
+      if (data.institution) {
+        setUserId(data.institution.id);
+        setStatus(data.institution.status || 'Autonomous');
+        setVision(data.institution.vision || '');
+        setMission(data.institution.mission || '');
+      }
+      
+      if (data.programs) {
+        setPrograms(data.programs);
       }
     } catch (error) {
       console.error('Error fetching details:', error);
@@ -79,23 +65,18 @@ export default function BasicDetailsForm() {
   };
 
   const handleSaveDetails = async () => {
-    if (!userId) return;
     try {
       setLoading(true);
       
+      const res = await fetch('/api/institution/details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, vision, mission })
+      });
 
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
 
-      const { error } = await supabase
-        .from('institutions')
-        .upsert({
-          id: userId,
-          status,
-          vision,
-          mission,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (error) throw error;
       alert('Details saved successfully!');
     } catch (error: any) {
       console.error('Error saving details:', error);
@@ -106,31 +87,25 @@ export default function BasicDetailsForm() {
   };
 
   const handleAddProgram = async () => {
-    if (!userId) return;
     if (!newProgram.name) {
       alert('Program name is required');
       return;
     }
 
-
-
     try {
-      const { error } = await supabase
-        .from('programs')
-        .insert({
-          institution_id: userId,
-          name: newProgram.name,
-          degree: newProgram.degree,
-          years: newProgram.years,
-          level: newProgram.level
-        });
+      const res = await fetch('/api/institution/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProgram)
+      });
       
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
       
       // Reset and refetch
       setNewProgram({ name: '', degree: 'B.Tech', years: 4, level: 'UG' });
       setIsAddingProgram(false);
-      fetchDetails(userId);
+      fetchDetails();
     } catch (error: any) {
       console.error('Error adding program:', error);
       alert('Error adding program: ' + error.message);
@@ -138,15 +113,13 @@ export default function BasicDetailsForm() {
   };
 
   const handleDeleteProgram = async (id: string) => {
-
-
     try {
-      const { error } = await supabase
-        .from('programs')
-        .delete()
-        .eq('id', id);
+      const res = await fetch(`/api/institution/programs?id=${id}`, {
+        method: 'DELETE'
+      });
 
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
       
       setPrograms(prev => prev.filter(p => p.id !== id));
     } catch (error: any) {
@@ -154,6 +127,7 @@ export default function BasicDetailsForm() {
       alert('Error deleting program: ' + error.message);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 md:p-12 font-sans">

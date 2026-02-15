@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { ShieldCheck, Mail, ArrowRight, Building2, Loader2, Eye, EyeOff, Lock } from 'lucide-react';
-import { createClient } from '../../utils/supabase/client';
 import { useRouter } from 'next/navigation';
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -20,11 +19,10 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const supabase = createClient();
   const router = useRouter();
 
   const validatePassword = (pass: string) => {
-    const regex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    const regex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
     return regex.test(pass);
   };
 
@@ -47,13 +45,15 @@ export default function SignUp() {
       }
 
       if (!validatePassword(password)) {
-        throw new Error('Password must be at least 8 characters long and contain at least one letter and one number.');
+        throw new Error('Password must be at least 8 characters, include at least one letter and one number, and use only letters and numbers.');
       }
 
       if (institutionName.trim().length > 100) {
         throw new Error('Institution name must be at most 100 characters');
       }
 
+
+      // 1. Validate on Backend (Optional, but good practice. The register route also validates)
       const validateRes = await fetch('/api/institution/signup/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,76 +70,50 @@ export default function SignUp() {
         throw new Error(payload.error || 'Sign up validation failed.');
       }
 
-      // 1. Sign up user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password,
-        options: {
-          data: {
-            institution_name: institutionName.trim()
-          }
-        }
+      // 2. Register user directly to DB (Bypassing Supabase Auth)
+      const registerRes = await fetch('/api/institution/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            institutionName: institutionName.trim(),
+            email: email.trim(),
+            password,
+            confirmPassword
+        })
       });
 
-      if (authError) {
-        // Specific error for already registered email
-        if (authError.message.toLowerCase().includes('already registered') || authError.status === 422) {
-          throw new Error('This email address is already registered');
-        }
-        throw authError;
+      const registerData = await registerRes.json();
+
+      if (!registerRes.ok) {
+        throw new Error(registerData.error || 'Registration failed.');
       }
-      
-      if (authData.user) {
-        // 2. A session is required because onboarding is no-OTP.
-        if (!authData.session) {
-          throw new Error('Sign up did not start a session. Disable email confirmation in Supabase Auth settings.');
-        }
 
-        // 3. Ensure institution account row exists
-        const { error: upsertError } = await supabase
-          .from('institutions')
-          .upsert(
-            {
-              id: authData.user.id,
-              institution_name: institutionName.trim(),
-              email: email.trim(),
-              onboarding_status: 'PENDING',
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'id' }
-          );
 
-        if (upsertError) {
-          throw new Error(upsertError.message);
-        }
+      console.log('Registration successful for:', email);
 
-        console.log('Auth signup succeeded:', authData.user.id);
+      // Set session in localStorage for client-side checks
+      localStorage.setItem('inst_session', JSON.stringify({
+        id: registerData.id,
+        email: email.trim(),
+        role: 'institution_admin'
+      }));
 
-        console.log('Sign Up successful with active session. Redirecting to onboarding...');
-        // Small delay to ensure DB trigger has executed
-        setTimeout(() => {
-          router.push('/institution/onboarding');
-          router.refresh(); 
-        }, 800);
-      }
+      // Redirect to onboarding
+      setTimeout(() => {
+        router.push('/institution/onboarding');
+        router.refresh(); 
+      }, 800);
+
+
     } catch (err: any) {
-      // Improved error logging to capture hidden properties (e.g. from Supabase)
-      const diagnosticInfo = {
-        message: err.message,
-        status: err.status,
-        code: err.code,
-        details: err.details,
-        hint: err.hint,
-        name: err.name,
-      };
-      console.error('Sign Up Error Details:', JSON.stringify(diagnosticInfo, null, 2));
-      console.error('Full Error Object:', err);
-
+      // Improved error logging
+      console.error('Sign Up Error:', err);
       setErrorMsg(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="space-y-6">

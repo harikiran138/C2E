@@ -65,8 +65,9 @@ const SectionTitle = ({ title, subtitle }: { title: string, subtitle: string }) 
 );
 
 export default function InstitutionOnboarding() {
+
   const router = useRouter();
-  const supabase = createClient();
+  // Removed supabase client usage
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
   const [loading, setLoading] = useState(false);
@@ -120,56 +121,49 @@ export default function InstitutionOnboarding() {
 
   // --- INITIALIZATION ---
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 2;
-
     const init = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Check session via API instead of Supabase client
+      const detailsRes = await fetch('/api/institution/details');
       
-      if (!session) {
-        if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(`Session not found, retrying... (${retryCount})`);
-          setTimeout(init, 1000); // Wait 1s and retry
-          return;
-        }
-        console.warn('No active session found after retries, redirecting to login.');
+      if (detailsRes.status === 401) {
+        console.warn('No active session found, redirecting to login.');
         router.push('/institution/login');
         return;
       }
 
-      setUserId(session.user.id);
-      
-      const detailsRes = await fetch('/api/institution/details');
-      const detailsPayload = detailsRes.ok ? await detailsRes.json() : { details: null };
-      const details = detailsPayload.details;
+      if (!detailsRes.ok) {
+        // Handle other errors gracefully
+        console.error('Failed to fetch details');
+        return;
+      }
 
-      if (details) {
-         // Populate if data exists, defaults if not
+      const detailsPayload = await detailsRes.json();
+      const institution = detailsPayload.institution;
+      const dbPrograms = detailsPayload.programs;
+
+      if (institution) {
+         setUserId(institution.id);
          setInstDetails({
-            institution_type: (details.type as any) || 'Private',
-            institution_status: (details.status as any) || 'Non-Autonomous',
-            established_year: details.established_year || new Date().getFullYear(),
-            university_affiliation: details.affiliation || '',
-            address: details.address || '',
-            city: details.city || '',
-            state: details.state || ''
+            institution_type: (institution.institution_type as any) || 'Private',
+            institution_status: (institution.institution_status as any) || 'Non-Autonomous',
+            established_year: institution.established_year || new Date().getFullYear(),
+            university_affiliation: institution.university_affiliation || '',
+            address: institution.address || '',
+            city: institution.city || '',
+            state: institution.state || ''
          });
       }
       
-      const { data: dbPrograms } = await supabase
-        .from('programs')
-        .select('*')
-        .eq('institution_id', session.user.id);
-        
       if (dbPrograms) setPrograms(dbPrograms);
     };
     init();
-  }, [router, supabase]);
+  }, [router]);
 
   // --- HANDLERS ---
   const handleSaveDetails = async () => {
-    if (!userId) return;
+    // Basic validation implies userId is set if we loaded details successfully
+    // But we might need to handle the case where userId is not set yet?
+    // Actually, init sets userId. 
     
     // Strict Validation Step 1
     if (!instDetails.address.trim() || !instDetails.city.trim() || !instDetails.state.trim()) {
@@ -220,8 +214,6 @@ export default function InstitutionOnboarding() {
   };
 
   const handleAddProgram = async () => {
-    if (!userId) return;
-    
     // Strict Validation Step 2 (Program)
     if (!newProgram.program_name.trim() || !newProgram.program_code.trim() || !newProgram.degree || !newProgram.level || !newProgram.academic_year) {
       setErrorMsg("All program fields are required.");
@@ -274,7 +266,6 @@ export default function InstitutionOnboarding() {
   };
 
   const handleCompleteOnboarding = async () => {
-    if (!userId) return;
     if (programs.length === 0) {
       setErrorMsg("Please add at least one program to continue.");
       return;
@@ -288,15 +279,20 @@ export default function InstitutionOnboarding() {
 
     setLoading(false);
     if (response.ok) {
-        // Force refresh to ensure middleware picks up the new status
-        router.refresh(); 
-        router.push('/institution/dashboard');
+        // Use deterministic navigation after completion; refresh-before-push can race and keep user on onboarding.
+        router.replace('/institution/dashboard');
+        setTimeout(() => {
+          if (window.location.pathname.startsWith('/institution/onboarding')) {
+            window.location.assign('/institution/dashboard');
+          }
+        }, 700);
       return;
     }
 
     const payload = await response.json();
     setErrorMsg(payload.error || 'Failed to complete onboarding.');
   };
+
 
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row relative bg-slate-50 font-sans">
@@ -596,10 +592,22 @@ export default function InstitutionOnboarding() {
                         </div>
                         <button 
                           onClick={async () => {
+
                             if (p.id) {
-                              await supabase.from('programs').delete().eq('id', p.id);
-                              setPrograms(programs.filter(prog => prog.id !== p.id));
+                              try {
+                                const res = await fetch(`/api/institution/programs?id=${p.id}`, {
+                                  method: 'DELETE'
+                                });
+                                if (res.ok) {
+                                  setPrograms(programs.filter(prog => prog.id !== p.id));
+                                } else {
+                                  console.error('Failed to delete program');
+                                }
+                              } catch (err) {
+                                console.error('Error deleting program:', err);
+                              }
                             }
+
                           }}
                           className="p-2 hover:bg-red-50 text-red-400 hover:text-red-500 rounded-lg transition-all"
                         >
