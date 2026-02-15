@@ -259,7 +259,7 @@
 
 /* Custom Premium Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -267,15 +267,15 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #0f172a; /* slate-900 */
+  background: color-mix(in oklch, var(--primary) 20%, transparent);
   border-radius: 10px;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background-clip: padding-box;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #1e293b; /* slate-800 */
-  background-clip: padding-box;
+  background: var(--primary);
+  opacity: 0.5;
 }
 
 .login-pattern-bg {

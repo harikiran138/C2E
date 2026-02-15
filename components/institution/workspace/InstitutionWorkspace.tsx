@@ -153,12 +153,12 @@ export default function InstitutionWorkspace({
         )}
       </AnimatePresence>
 
-      <div className="mx-auto flex max-w-[1600px] gap-8 p-6 lg:pt-6 pt-24">
+      <div className="flex min-h-screen">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:block sticky top-6 h-[calc(100vh-3rem)] w-[320px] shrink-0">
-          <div className="flex h-full flex-col rounded-[2rem] border border-border/40 bg-sidebar/60 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
+        <aside className="hidden lg:block fixed inset-y-0 left-0 w-[320px] z-30">
+          <div className="flex h-full flex-col border-r border-border/40 bg-sidebar/60 backdrop-blur-2xl shadow-xl relative overflow-hidden">
              <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-             <div className="p-8 pb-6 border-b border-border/40">
+             <div className="p-8 pb-6 border-b border-border/40 shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 font-black italic">C</div>
                     <div>
@@ -167,15 +167,20 @@ export default function InstitutionWorkspace({
                     </div>
                 </div>
              </div>
-             <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} institutionName={institutionName} />
-             <div className="mt-auto">
+             
+             {/* Robust Scrollable Area */}
+             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} institutionName={institutionName} />
+             </div>
+
+             <div className="mt-auto border-t border-border/40 shrink-0">
                 <UserSection />
              </div>
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 space-y-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <main className="flex-1 min-w-0 lg:pl-[320px] transition-all duration-300">
+          <div className="p-6 lg:p-12 space-y-8 pt-24 lg:pt-12">
             <div>
               <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
                 <Link href="/institution/dashboard" className="hover:text-primary transition-colors">Workspace</Link>
@@ -257,6 +262,7 @@ export default function InstitutionWorkspace({
                 {children}
              </div>
           </motion.div>
+          </div>
         </main>
       </div>
     </div>
@@ -269,7 +275,7 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose }: 
     const phases: ProcessPhase[] = ['Set-up', 'Stakeholder & PEOs', 'Program Outcomes', 'Curriculum Development', 'Approval & Closure'];
 
     return (
-        <nav className="flex-1 overflow-y-auto px-4 py-6 scrollbar-none custom-scrollbar">
+        <nav className="flex-1 px-4 py-6">
             <div className="space-y-8">
                 <div>
                     <div className="px-4 mb-4 flex items-center justify-between">
