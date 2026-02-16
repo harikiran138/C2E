@@ -48,7 +48,18 @@ export function NavBar({ items, className }: NavBarProps) {
           isScrolled ? "bg-white/90 backdrop-blur-xl border border-[#c9a961]/20 rounded-full px-6 py-2 shadow-xl shadow-black/5" : "bg-transparent py-2"
         )}>
           {/* Left Side: Logo & Menu */}
-          <div className="flex items-center gap-8 lg:gap-12">
+          <div className="flex items-center gap-4 lg:gap-12">
+            {/* Mobile Menu Button */}
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={cn(
+                "md:hidden p-2 rounded-full transition-colors",
+                isScrolled ? "bg-[#c9a961]/10 text-[#c9a961]" : "bg-white/10 text-white"
+              )}
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+
             {/* Logo */}
             <Link href="/" className="shrink-0 relative">
               <div className="relative w-12 md:w-16 h-12 md:h-16 flex items-center justify-center">
@@ -62,13 +73,13 @@ export function NavBar({ items, className }: NavBarProps) {
                     className="absolute inset-0 flex items-center justify-center"
                   >
                     <Image 
-                      src="/C2XPlus.jpeg" 
+                      src={isScrolled ? "/C2XPlusb_text.jpeg" : "/Logo2w_text.jpeg"} 
                       alt="C2X Logo" 
-                      width={100} 
-                      height={100} 
+                      width={180} 
+                      height={60} 
                       className={cn(
-                        "w-full h-full object-contain transition-all duration-300 rounded-xl",
-                        !isScrolled && "brightness-110 drop-shadow-[0_0_15px_rgba(201,169,97,0.4)]"
+                        "w-full h-full object-contain transition-all duration-300",
+                        !isScrolled && "brightness-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]"
                       )}
                       priority
                     />
@@ -105,7 +116,7 @@ export function NavBar({ items, className }: NavBarProps) {
             </nav>
           </div>
 
-          {/* Right Side: Login & Mobile Menu Toggle */}
+          {/* Right Side: Login */}
           <div className="flex items-center gap-4">
             {loginLink && (
               <Link
@@ -121,17 +132,6 @@ export function NavBar({ items, className }: NavBarProps) {
                 <span className="hidden sm:inline">Login</span>
               </Link>
             )}
-
-            {/* Mobile Menu Button */}
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={cn(
-                "md:hidden p-2 rounded-full transition-colors",
-                isScrolled ? "bg-[#c9a961]/10 text-[#c9a961]" : "bg-white/10 text-white"
-              )}
-            >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
           </div>
         </div>
       </div>

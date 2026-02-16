@@ -178,7 +178,7 @@ export default function ProgramDetails() {
         <div className="flex justify-between items-center">
              <div>
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Program Management</h1>
-                <p className="text-slate-500 dark:text-slate-400">Add and manage academic programs and stakeholders.</p>
+                <p className="text-slate-500 dark:text-slate-400">Add and Manage academic programs and stakeholders.</p>
              </div>
              <button onClick={() => router.push('/institution/dashboard')} className="text-sm font-semibold text-[#137fec] hover:underline">
                 Back to Dashboard

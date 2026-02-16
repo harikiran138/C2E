@@ -22,7 +22,6 @@ export const PROCESS_STEPS: ProcessStep[] = [
     title: 'Constitute Academic Council',
     section: 'side_menu',
     kind: 'form',
-    description: 'Create Academic Council member entries and maintain tenure, category, and communication details.',
     icon: 'Users'
   },
   {

@@ -42,6 +42,7 @@ export default function InstitutionWorkspace({
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProgramDropdownOpen, setIsProgramDropdownOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const selectedProgramId = searchParams.get('programId') || '';
 
@@ -80,6 +81,15 @@ export default function InstitutionWorkspace({
 
     loadWorkspaceData();
   }, [router]);
+
+  // Handle scroll listener for header transitions
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Handle automatic scrolling to active item
   useEffect(() => {
@@ -131,23 +141,59 @@ export default function InstitutionWorkspace({
     return query ? `${base}?${query}` : base;
   };
 
+  const handleProgramSelect = (programId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (programId) {
+      params.set('programId', programId);
+    } else {
+      params.delete('programId');
+    }
+    router.push(`${window.location.pathname}?${params.toString()}`);
+    setIsProgramDropdownOpen(false); 
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
       {/* Mobile Header */}
-      <header className="fixed top-0 left-0 right-0 z-[60] flex h-16 items-center justify-between border-b border-border/40 bg-background/60 px-4 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="size-8 relative flex-none">
-            <Image src="/C2XPlus.jpeg" alt="C2X Plus" fill className="object-contain rounded-lg shadow-lg shadow-primary/20" />
+      <header className={cn(
+        "fixed top-0 left-0 right-0 z-[60] flex h-16 items-center justify-between border-b border-border/40 px-4 transition-all duration-300",
+        isScrolled ? "bg-background/80 backdrop-blur-xl shadow-lg border-primary/10" : "bg-transparent"
+      )}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="flex-none p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors active:scale-95 lg:hidden"
+            aria-label="Open menu"
+          >
+            <Menu className={cn("size-6", !isScrolled && "text-white")} />
+          </button>
+          
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="size-8 relative flex-none">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={isScrolled ? "scrolled" : "initial"}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0"
+                >
+                  <Image 
+                    src={isScrolled ? "/C2XPlusb_text.jpeg" : "/Logo2w_text.jpeg"} 
+                    alt="C2X Plus" 
+                    fill 
+                    className="object-contain rounded-lg" 
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            <h1 className={cn(
+              "text-sm font-bold tracking-tight truncate transition-colors",
+              isScrolled ? "text-foreground" : "text-white drop-shadow-sm"
+            )}>{institutionName}</h1>
           </div>
-          <h1 className="text-sm font-bold tracking-tight truncate">{institutionName}</h1>
         </div>
-        <button 
-          onClick={() => setIsSidebarOpen(true)}
-          className="flex-none p-2 -mr-1 text-muted-foreground hover:text-foreground transition-colors active:scale-95"
-          aria-label="Open menu"
-        >
-          <Menu className="size-6" />
-        </button>
       </header>
 
       {/* Mobile Sidebar Overlay */}
@@ -184,6 +230,9 @@ export default function InstitutionWorkspace({
                     buildHref={buildHref} 
                     institutionName={institutionName}
                     onClose={() => setIsSidebarOpen(false)}
+                    programs={programs}
+                    selectedProgramId={selectedProgramId}
+                    onSelectProgram={handleProgramSelect}
                   />
                 </div>
                 <div className="p-6 border-t border-border/40 mt-auto">
@@ -214,7 +263,14 @@ export default function InstitutionWorkspace({
              
              {/* Robust Scrollable Area */}
              <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide pb-20" data-lenis-prevent>
-                <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} institutionName={institutionName} />
+                <SidebarContent 
+                    activeStepKey={activeStepKey} 
+                    buildHref={buildHref} 
+                    institutionName={institutionName} 
+                    programs={programs}
+                    selectedProgramId={selectedProgramId}
+                    onSelectProgram={handleProgramSelect}
+                />
              </div>
 
              <div className="mt-auto border-t border-border/40 shrink-0">
@@ -224,88 +280,28 @@ export default function InstitutionWorkspace({
         </aside>
 
         <main className="flex-1 min-w-0 lg:pl-[320px] transition-all duration-300">
-          <div className="p-6 lg:p-12 space-y-8 pt-24 lg:pt-12">
+          <div 
+            className="h-screen overflow-y-auto overscroll-y-contain scroll-smooth custom-scrollbar p-6 lg:p-12 space-y-12 pt-24 lg:pt-12 pb-24" 
+            data-lenis-prevent
+          >
             <div>
-              <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
-                <Link href="/institution/dashboard" className="hover:text-primary transition-colors">Workspace</Link>
-                <span>/</span>
-                <span className="text-foreground">{title}</span>
-              </nav>
               <h1 className="text-4xl font-extrabold tracking-tight">{title}</h1>
               <p className="mt-2 text-lg text-muted-foreground">{subtitle}</p>
             </div>
-            
-            <div className="relative">
-                <button 
-                    onClick={() => setIsProgramDropdownOpen(!isProgramDropdownOpen)}
-                    className="group relative rounded-[1.5rem] border border-border/40 bg-card/40 backdrop-blur-xl p-4 transition-all hover:border-primary/40 min-w-[300px] text-left"
-                >
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
-                    <div className="flex items-center gap-4 relative">
-                        <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                            <FileText className="size-5" />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Select Program</p>
-                            <p className="text-sm font-bold mt-1 text-foreground truncate max-w-[180px]">{selectedProgramId ? programs.find(p => p.id === selectedProgramId)?.program_name || 'Select' : 'Not selected'}</p>
-                        </div>
-                        <ChevronRight className={cn("size-4 text-muted-foreground transition-transform duration-300", isProgramDropdownOpen ? "rotate-90" : "")} />
-                    </div>
-                </button>
 
-                <AnimatePresence>
-                    {isProgramDropdownOpen && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute top-full right-0 mt-2 w-full z-50 rounded-2xl border border-border/40 bg-background/80 backdrop-blur-2xl shadow-2xl overflow-hidden"
-                        >
-                            <div className="p-2 space-y-1">
-                                {programs.map((program) => (
-                                    <button
-                                        key={program.id}
-                                        onClick={() => {
-                                            router.push(`/institution/dashboard?programId=${program.id}`);
-                                            setIsProgramDropdownOpen(false);
-                                        }}
-                                        className={cn(
-                                            "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left",
-                                            selectedProgramId === program.id 
-                                            ? "bg-primary text-primary-foreground" 
-                                            : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold truncate">{program.program_name}</p>
-                                            <p className={cn("text-[10px] uppercase font-bold tracking-wider", selectedProgramId === program.id ? "text-primary-foreground/70" : "text-muted-foreground/60")}>
-                                                {program.program_code}
-                                            </p>
-                                        </div>
-                                    </button>
-                                ))}
-                                {programs.length === 0 && (
-                                    <div className="p-4 text-center text-sm text-muted-foreground">No programs found</div>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-          </div>
-
-          <motion.div 
-            key={activeStepKey || 'dashboard'}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="rounded-[2.5rem] border border-border/40 bg-card/40 backdrop-blur-2xl shadow-xl min-h-[600px] relative overflow-hidden"
-          >
-             <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-             <div className="relative p-8 lg:p-12">
+            <motion.div 
+              key={activeStepKey || 'dashboard'}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="rounded-[2.5rem] border border-border/40 bg-card/40 backdrop-blur-2xl shadow-xl min-h-[600px] relative overflow-hidden mb-12"
+            >
+              <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+              <div className="relative p-8 lg:p-12">
                 {children}
-             </div>
-          </motion.div>
+              </div>
+            </motion.div>
+          </div>
         </main>
       </div>
     </div>
@@ -314,83 +310,111 @@ export default function InstitutionWorkspace({
 
 // --- SHARED SIDEBAR COMPONENTS ---
 
-function SidebarContent({ activeStepKey, buildHref, institutionName, onClose }: any) {
-    const phases: ProcessPhase[] = ['Set-up', 'Stakeholder & PEOs', 'Program Outcomes', 'Curriculum Development', 'Approval & Closure'];
+function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, programs, selectedProgramId, onSelectProgram }: any) {
+    const [isProgramExpanded, setIsProgramExpanded] = useState(true);
 
     return (
         <nav className="flex-1 px-4 py-6">
-            <div className="space-y-8">
-                <div>
-                    <div className="px-4 mb-4 flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">General</span>
-                    </div>
-                    <div className="space-y-1">
+            <div className="space-y-1">
+                <SidebarLink 
+                    href={buildHref('dashboard')} 
+                    active={!activeStepKey || activeStepKey === 'dashboard'}
+                    onClick={onClose}
+                >
+                    <LayoutDashboard className="size-4" />
+                    <span className="text-sm font-semibold">Dashboard</span>
+                </SidebarLink>
+                {SIDE_MENU_STEPS.map((step) => {
+                    const Icon = (Icons as any)[step.icon || 'FileText'] || FileText;
+                    const isActive = activeStepKey === step.key;
+                    
+                    return (
+                        <div key={step.key}>
+                            <SidebarLink 
+                                href={buildHref(step.key)} 
+                                active={isActive}
+                                onClick={onClose}
+                            >
+                                <Icon className="size-4" />
+                                <span className="text-sm font-semibold">{step.title}</span>
+                            </SidebarLink>
+
+                            {/* Program Selector - Only show under Constitute Academic Council */}
+                            {step.key === 'council' && (
+                                <div className="ml-4 mt-1 border-l-2 border-border/40 pl-4 my-2">
+                                     <div className="relative">
+                                        <button 
+                                            onClick={() => setIsProgramExpanded(!isProgramExpanded)}
+                                            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors w-full text-left py-1"
+                                        >
+                                            <span>Select Program</span>
+                                            <ChevronRight className={cn("size-3 transition-transform", isProgramExpanded ? "rotate-90" : "")} />
+                                        </button>
+                                        
+                                        <AnimatePresence>
+                                            {isProgramExpanded && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    className="overflow-hidden"
+                                                >
+                                                    <div className="pt-2 space-y-1">
+                                                        {programs?.map((program: any) => (
+                                                            <button
+                                                                key={program.id}
+                                                                onClick={() => {
+                                                                    onSelectProgram(program.id);
+                                                                    if (window.innerWidth < 1024) onClose();
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full flex flex-col text-left px-3 py-2 rounded-lg transition-all text-sm",
+                                                                    selectedProgramId === program.id 
+                                                                    ? "bg-primary/10 text-primary font-medium" 
+                                                                    : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                                                                )}
+                                                            >
+                                                                <span className="truncate">{program.program_name}</span>
+                                                                <span className="text-[10px] opacity-70">{program.program_code}</span>
+                                                            </button>
+                                                        ))}
+                                                        {(!programs || programs.length === 0) && (
+                                                            <div className="text-[10px] text-muted-foreground italic px-2 py-1">No programs found</div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                     </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+                {PROCESS_MENU_STEPS.map((step) => {
+                    const active = activeStepKey === step.key;
+                    const Icon = (Icons as any)[step.icon || 'Circle'] || ChevronRight;
+                    return (
                         <SidebarLink 
-                            href={buildHref('dashboard')} 
-                            active={!activeStepKey || activeStepKey === 'dashboard'}
+                            key={step.key} 
+                            href={buildHref(step.key)} 
+                            active={active}
                             onClick={onClose}
                         >
-                            <LayoutDashboard className="size-4" />
-                            <span className="text-sm font-semibold">Dashboard</span>
+                            <div className={cn(
+                                "size-6 flex items-center justify-center rounded-lg text-[10px] font-bold border transition-colors shrink-0",
+                                active ? "bg-white/20 border-white/20 text-white" : "bg-muted border-border/40 text-muted-foreground group-hover:bg-background group-hover:border-primary/40 group-hover:text-primary"
+                            )}>
+                                {step.processNumber}
+                            </div>
+                            <span className="text-sm font-semibold flex-1 truncate">{step.title}</span>
+                            {step.aiDriven && (
+                                <Icons.Sparkles className={cn(
+                                    "size-3",
+                                    active ? "text-white" : "text-primary/60"
+                                )} />
+                            )}
                         </SidebarLink>
-                        {SIDE_MENU_STEPS.map((step) => {
-                            const Icon = (Icons as any)[step.icon || 'FileText'] || FileText;
-                            return (
-                                <SidebarLink 
-                                    key={step.key} 
-                                    href={buildHref(step.key)} 
-                                    active={activeStepKey === step.key}
-                                    onClick={onClose}
-                                >
-                                    <Icon className="size-4" />
-                                    <span className="text-sm font-semibold">{step.title}</span>
-                                </SidebarLink>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {phases.map((phase) => {
-                    const stepsInPhase = PROCESS_MENU_STEPS.filter(s => s.phase === phase);
-                    if (stepsInPhase.length === 0) return null;
-
-                    return (
-                        <div key={phase}>
-                            <div className="px-4 mb-4 flex items-center justify-between">
-                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{phase}</span>
-                                {phase === 'Set-up' && (
-                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/20 text-primary bg-primary/5">Guided</Badge>
-                                )}
-                            </div>
-                            <div className="space-y-1">
-                                {stepsInPhase.map((step) => {
-                                    const active = activeStepKey === step.key;
-                                    const Icon = (Icons as any)[step.icon || 'Circle'] || ChevronRight;
-                                    return (
-                                        <SidebarLink 
-                                            key={step.key} 
-                                            href={buildHref(step.key)} 
-                                            active={active}
-                                            onClick={onClose}
-                                        >
-                                            <div className={cn(
-                                                "size-6 flex items-center justify-center rounded-lg text-[10px] font-bold border transition-colors shrink-0",
-                                                active ? "bg-white/20 border-white/20 text-white" : "bg-muted border-border/40 text-muted-foreground group-hover:bg-background group-hover:border-primary/40 group-hover:text-primary"
-                                            )}>
-                                                {step.processNumber}
-                                            </div>
-                                            <span className="text-sm font-semibold flex-1 truncate">{step.title}</span>
-                                            {step.aiDriven && (
-                                                <Icons.Sparkles className={cn(
-                                                    "size-3",
-                                                    active ? "text-white" : "text-primary/60"
-                                                )} />
-                                            )}
-                                        </SidebarLink>
-                                    );
-                                })}
-                            </div>
-                        </div>
                     );
                 })}
             </div>
