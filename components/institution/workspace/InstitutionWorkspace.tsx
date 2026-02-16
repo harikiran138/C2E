@@ -178,7 +178,7 @@ export default function InstitutionWorkspace({
                     <X className="size-5" />
                   </button>
                 </div>
-                <div ref={mobileSidebarRef} className="flex-1 overflow-y-auto p-4 overscroll-y-contain scroll-smooth scrollbar-hide pb-20">
+                <div ref={mobileSidebarRef} className="flex-1 overflow-y-auto p-4 overscroll-y-contain scroll-smooth scrollbar-hide pb-20" data-lenis-prevent>
                   <SidebarContent 
                     activeStepKey={activeStepKey} 
                     buildHref={buildHref} 
@@ -213,7 +213,7 @@ export default function InstitutionWorkspace({
              </div>
              
              {/* Robust Scrollable Area */}
-             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide pb-20">
+             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide pb-20" data-lenis-prevent>
                 <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} institutionName={institutionName} />
              </div>
 

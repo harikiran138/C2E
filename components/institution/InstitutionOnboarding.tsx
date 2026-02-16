@@ -412,10 +412,12 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="w-full"
               >
-                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[85vh]">
+                <div 
+                  className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20 h-[80vh]"
+                  data-lenis-prevent
+                >
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
-                  
-                  <div className="flex-1 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20">
+
                     <div className="mb-8 text-center px-2">
                         <SectionTitle title="Basic Institution Details" subtitle="Provide your institution's core administrative information." />
                     </div>
@@ -566,9 +568,7 @@ export default function InstitutionOnboarding() {
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="p-6 bg-card/90 backdrop-blur-2xl border-t border-border/50 z-20">
+                  <div className="mt-8 pt-6 border-t border-border/50">
                     <button 
                       onClick={handleSaveDetails} 
                       className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group transition-all"
@@ -591,10 +591,12 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="w-full"
               >
-                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[85vh]">
+                <div 
+                  className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20 h-[80vh]"
+                  data-lenis-prevent
+                >
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
-                  
-                  <div className="flex-1 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20">
+
                     <div className="mb-8 text-center px-2">
                         <SectionTitle title="Add Programs" subtitle="List the academic programs offered by your institution." />
                     </div>
@@ -780,9 +782,7 @@ export default function InstitutionOnboarding() {
                         )}
                       </div>
                     </div>
-                  </div>
-
-                  <div className="p-6 bg-card/90 backdrop-blur-2xl border-t border-border/50 flex gap-4 z-20">
+                  <div className="mt-8 pt-6 border-t border-border/50 flex gap-4">
                     <button 
                       onClick={() => setCurrentStep(1)} 
                       className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-bold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
@@ -812,10 +812,12 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="w-full"
               >
-                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[85vh]">
+                <div 
+                  className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20 h-[80vh]"
+                  data-lenis-prevent
+                >
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
-                  
-                  <div className="flex-1 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20">
+
                     <div className="mb-8 text-center px-2">
                         <SectionTitle title="Final Review" subtitle="Verify your institutional and program data before submission." />
                     </div>
@@ -867,9 +869,7 @@ export default function InstitutionOnboarding() {
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="p-6 bg-card/90 backdrop-blur-2xl border-t border-border/50 flex gap-4 z-20">
+                  <div className="mt-8 pt-6 border-t border-border/50 flex gap-4">
                     <button 
                       onClick={() => setCurrentStep(2)} 
                       className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-bold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
