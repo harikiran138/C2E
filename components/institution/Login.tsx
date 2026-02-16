@@ -64,6 +64,10 @@ export default function Login() {
         role: 'institution_admin' 
       }));
 
+      // Clear stale onboarding progress
+      localStorage.removeItem('onboarding_data');
+      localStorage.removeItem('onboarding_step');
+
       // Force a hard reload to the dashboard to ensure middleware and state are fresh
       window.location.href = '/institution/dashboard'; 
 

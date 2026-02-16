@@ -98,6 +98,10 @@ export default function SignUp() {
         role: 'institution_admin'
       }));
 
+      // Clear stale onboarding progress
+      localStorage.removeItem('onboarding_data');
+      localStorage.removeItem('onboarding_step');
+
       // Redirect to onboarding
       setTimeout(() => {
         router.push('/institution/onboarding');
