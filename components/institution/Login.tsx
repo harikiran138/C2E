@@ -96,7 +96,7 @@ export default function Login() {
         <section className="hidden lg:block flex-1 relative z-10" />
 
         {/* Right Side Content */}
-        <section className="flex-1 flex items-center justify-center p-6 lg:p-12 relative z-10 h-full overflow-y-auto">
+        <section className="flex-1 flex items-center justify-center p-6 lg:p-12 relative z-10 h-full overflow-y-auto" data-lenis-prevent>
           <motion.main 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
