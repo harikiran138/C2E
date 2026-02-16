@@ -7,6 +7,10 @@ import ProgramAdvisoryCommitteeForm from '@/components/institution/process/Progr
 import BoardOfStudiesForm from '@/components/institution/process/BoardOfStudiesForm';
 import RepresentativeStakeholdersForm from '@/components/institution/process/RepresentativeStakeholdersForm';
 import VisionMissionGenerator from '@/components/institution/process/VisionMissionGenerator';
+import PeoGenerator from '@/components/institution/process/PeoGenerator';
+import ConsistencyMatrix from '@/components/institution/process/ConsistencyMatrix';
+import ProgramOutcomesForm from '@/components/institution/process/ProgramOutcomesForm';
+import PsoGenerator from '@/components/institution/process/PsoGenerator';
 
 interface ProcessStepPanelProps {
   step: ProcessStep;
@@ -646,7 +650,19 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
   }
 
   if (step.key === 'process-7') {
-    return <ConsistencyMatrixPanel />;
+    return <PeoGenerator />;
+  }
+
+  if (step.key === 'process-8') {
+    return <ConsistencyMatrix />;
+  }
+
+  if (step.key === 'process-9') {
+    return <ProgramOutcomesForm />;
+  }
+
+  if (step.key === 'process-10') {
+    return <PsoGenerator />;
   }
 
   if (step.key === 'process-14') {
