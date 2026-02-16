@@ -330,19 +330,19 @@ export default function InstitutionOnboarding() {
           <div className="flex items-center gap-3">
             <div className="size-12 bg-primary rounded-lg flex items-center justify-center shadow-2xl shadow-primary/20 font-black italic text-2xl text-primary-foreground">C</div>
             <div className="text-left">
-              <span className="block text-xl font-bold tracking-tight leading-none text-foreground">C2X Plus+</span>
+              <span className="block text-xl font-bold tracking-tight leading-none text-foreground">C2XPlus</span>
               <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-muted-foreground mt-1 block">Onboarding</span>
             </div>
           </div>
           
           <div className="space-y-6">
             <h1 className="text-5xl font-extrabold tracking-tight leading-[1.1] text-foreground">
-              {currentStep === 1 && "Setup your institution profile."}
+              {currentStep === 1 && "Setup your institution profile"}
               {currentStep === 2 && "Add your academic programs"}
               {currentStep === 3 && "Review and finalize your data."}
             </h1>
             <p className="text-base text-muted-foreground font-medium max-w-md">
-              Complete these steps to unlock your institutional dashboard and start managing compliance.
+              Complete these steps to unlock your institutional dashboard.
             </p>
           </div>
 
@@ -366,7 +366,7 @@ export default function InstitutionOnboarding() {
         </div>
 
         <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mt-12">
-          © 2026 Compliance to Excellence
+          © Rights reserved with C2XPlus
         </div>
       </section>
 
@@ -412,7 +412,7 @@ export default function InstitutionOnboarding() {
                     <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
                     
                     <div className="mb-8 text-center">
-                        <SectionTitle title="Basic Institution Details" subtitle="Provide the legal and physical information about your campus." />
+                        <SectionTitle title="Basic Institution Details" subtitle="Furnish the basic details of the Institution" />
                     </div>
                 
                 <div className="space-y-6">
@@ -426,8 +426,9 @@ export default function InstitutionOnboarding() {
                             value={instDetails.institution_type}
                             onChange={e => setInstDetails({...instDetails, institution_type: e.target.value as any})}
                           >
-                            <option>Private</option>
+                            <option>Self-financing</option>
                             <option>Government</option>
+                            <option>Government-Aided</option>
               
                           </select>
                         </GlassInputWrapper>
@@ -445,9 +446,9 @@ export default function InstitutionOnboarding() {
                             onChange={e => setInstDetails({...instDetails, institution_status: e.target.value})}
                           >
                             <option value="">Select Status</option>
+                            <option value="University">University</option>
                             <option value="Autonomous">Autonomous</option>
-                            <option value="Non Autonomous">Non Autonomous</option>
-                            <option value="State University">University</option>
+                            <option value="Non-Autonomous">Non-autonomous</option>
                           </select>
                         </GlassInputWrapper>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
@@ -473,7 +474,7 @@ export default function InstitutionOnboarding() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">University Affiliation</label>
+                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Affiliated University</label>
                       <GlassInputWrapper>
                         <input 
                           placeholder="University Name"
@@ -585,11 +586,10 @@ export default function InstitutionOnboarding() {
                 className="space-y-8"
               >
                 <div className="md:col-span-2">
-                  <div className="w-full max-w-[600px] mx-auto bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
+                  <div className="w-full max-w-[600px] mx-auto bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl relative overflow-hidden">
                     <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
                     
-                    {/* Scrollable Content Area */}
-                    <div className="overflow-y-auto p-8 lg:p-12 custom-scrollbar flex-1">
+                    <div className="p-8 lg:p-12">
                       <div className="mb-8 text-center">
                           <SectionTitle title="Add Programs" subtitle="List at least one academic program to complete onboarding." />
                       </div>
@@ -710,7 +710,6 @@ export default function InstitutionOnboarding() {
                               />
                             </GlassInputWrapper>
                           </div>
-                        </div>
 
                           <button 
                             onClick={handleAddProgram} 
@@ -793,9 +792,10 @@ export default function InstitutionOnboarding() {
                       </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            )}
+              </div>
+            </motion.div>
+          )}
+
 
             {/* STEP 3: Final Review */}
             {currentStep === 3 && (
@@ -874,6 +874,7 @@ export default function InstitutionOnboarding() {
                     </div>
                   </div>
                 </div>
+
               </motion.div>
             )}
           </AnimatePresence>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import SmoothScrollProvider from "@/components/SmoothScrollProvider";
 import ClientLayout from "@/components/ClientLayout";
@@ -7,11 +7,6 @@ import ClientLayout from "@/components/ClientLayout";
 const inter = Inter({ 
   subsets: ["latin"],
   variable: '--font-inter',
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: '--font-playfair',
 });
 
 export const metadata: Metadata = {
@@ -30,7 +25,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body 
-        className={`${inter.variable} ${playfair.variable} font-sans antialiased text-slate-800 bg-[#faf9f6]`}
+        className={`${inter.variable} font-sans antialiased text-slate-800 bg-[#faf9f6]`}
         suppressHydrationWarning
       >
         <SmoothScrollProvider>
