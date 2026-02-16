@@ -1,19 +1,22 @@
 import { createBrowserClient } from '@supabase/ssr'
 
 export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-  if (!supabaseUrl || !supabaseKey) {
+  // Validation to prevent "Invalid supabaseUrl" error during build time
+  const isValidUrl = supabaseUrl.startsWith('http');
+
+  if (!isValidUrl || !supabaseKey) {
+    // Only log error on the client (browser), avoid cluttering build logs 
+    // unless absolutely necessary.
     if (typeof window !== 'undefined') {
-      console.error('Supabase credentials missing:', {
-        url: supabaseUrl ? 'Set' : 'MISSING',
-        key: supabaseKey ? 'Set' : 'MISSING'
-      });
-      console.warn('Check your NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
+      console.warn('Supabase credentials missing or invalid. Using placeholders.');
     }
+    
+    // Return a client initialized with placeholders to prevent crashes during SSR/Prerendering
     return createBrowserClient(
-      supabaseUrl || 'https://placeholder.supabase.co',
+      isValidUrl ? supabaseUrl : 'https://placeholder.supabase.co',
       supabaseKey || 'placeholder-key'
     )
   }

@@ -9,9 +9,13 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const isValidUrl = supabaseUrl.startsWith('http');
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    isValidUrl ? supabaseUrl : 'https://placeholder.supabase.co',
+    supabaseKey || 'placeholder-key',
     {
       cookies: {
         get(name: string) {
