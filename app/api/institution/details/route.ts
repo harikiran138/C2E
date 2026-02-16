@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/postgres';
-import * as jose from 'jose';
+import { verifyToken } from '@/lib/auth';
 import { validateInstitutionDetailsPayload } from '@/lib/validation/onboarding';
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('institution_token')?.value;
   if (!token) return null;
-  try {
-    const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
-    const { payload } = await jose.jwtVerify(token, secret);
-    return payload.id as string;
-  } catch (error) {
-    return null;
-  }
+  const payload = await verifyToken(token);
+  return payload?.id as string || null;
 }
 
 export async function GET(request: NextRequest) {

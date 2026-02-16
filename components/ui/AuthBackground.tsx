@@ -5,9 +5,10 @@ import React from 'react';
 interface AuthBackgroundProps {
   children: React.ReactNode;
   className?: string;
+  fullScreen?: boolean;
 }
 
-const AuthBackground: React.FC<AuthBackgroundProps> = ({ children, className = "" }) => {
+const AuthBackground: React.FC<AuthBackgroundProps> = ({ children, className = "", fullScreen = false }) => {
   return (
     <div className={`relative min-h-screen w-full overflow-hidden ${className}`}>
       {/* Pattern Background */}
@@ -45,11 +46,16 @@ const AuthBackground: React.FC<AuthBackgroundProps> = ({ children, className = "
       <div className="absolute inset-0 z-0 bg-black/20" />
 
       {/* Content */}
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center p-4">
+      <div className={cn(
+        "relative z-10 flex min-h-screen w-full",
+        fullScreen ? "" : "flex-col items-center justify-center p-4"
+      )}>
         {children}
       </div>
     </div>
   );
 };
+
+const cn = (...classes: string[]) => classes.filter(Boolean).join(' ');
 
 export default AuthBackground;

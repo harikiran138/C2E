@@ -321,14 +321,14 @@ export default function InstitutionOnboarding() {
 
 
   return (
-    <AuthBackground className="flex-row items-stretch justify-start !p-0">
-      <div className="h-screen w-full flex flex-col lg:flex-row relative font-sans selection:bg-primary/20 overflow-hidden">
+    <AuthBackground fullScreen className="!p-0">
+      <div className="flex flex-col lg:flex-row w-full h-screen relative font-sans selection:bg-primary/20 overflow-hidden">
 
       {/* Sidebar Info */}
-      <section className="hidden lg:flex flex-1 flex-col justify-between p-12 bg-sidebar/40 backdrop-blur-2xl border-r border-border/40 text-foreground relative z-10 h-full overflow-y-auto">
+      <section className="hidden lg:flex flex-[0.85] flex-col justify-between p-12 lg:p-16 bg-sidebar/40 backdrop-blur-3xl border-r border-border/40 text-foreground relative z-10 h-full overflow-y-auto">
         <div className="space-y-12">
           <div className="flex items-center gap-3">
-            <div className="size-12 bg-primary rounded-lg flex items-center justify-center shadow-2xl shadow-primary/20 font-black italic text-2xl text-primary-foreground">C</div>
+            <div className="size-12 bg-primary rounded-xl flex items-center justify-center shadow-2xl shadow-primary/20 font-black italic text-2xl text-primary-foreground">C</div>
             <div className="text-left">
               <span className="block text-xl font-bold tracking-tight leading-none text-foreground">C2XPlus</span>
               <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-muted-foreground mt-1 block">Onboarding</span>
@@ -342,7 +342,7 @@ export default function InstitutionOnboarding() {
               {currentStep === 3 && "Review and finalize your data."}
             </h1>
             <p className="text-base text-muted-foreground font-medium max-w-md">
-              Complete these steps to unlock your institutional dashboard.
+              Complete these steps to unlock your institutional dashboard and start your journey towards excellence.
             </p>
           </div>
 
@@ -354,33 +354,32 @@ export default function InstitutionOnboarding() {
             ].map((s) => (
               <div key={s.step} className={`flex items-center gap-4 transition-all duration-500 ${s.active ? 'opacity-100 translate-x-1' : 'opacity-20 translate-x-0'}`}>
                 <div className={cn(
-                    "size-10 rounded-lg flex items-center justify-center font-bold text-sm transition-all shadow-lg",
+                    "size-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all shadow-lg",
                     currentStep > s.step ? "bg-emerald-500 text-white shadow-emerald-500/20" : s.active ? "bg-primary text-primary-foreground shadow-primary/20" : "border border-border bg-muted/50 text-muted-foreground"
                 )}>
                   {currentStep > s.step ? <CheckCircle2 className="size-5" /> : s.step}
                 </div>
-                <span className={cn("font-semibold text-sm", s.active ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
+                <span className={cn("font-bold text-sm uppercase tracking-wider", s.active ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 mt-12">
-          © Rights reserved with C2XPlus
+        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+          © {new Date().getFullYear()} C2XPlus Systems
         </div>
       </section>
 
-      {/* Main Content */}
-      <main ref={scrollRef} className="flex-[1.5] h-full overflow-y-auto overflow-x-hidden p-6 lg:p-12 pb-24 lg:pb-32 relative z-10">
-        <div className="max-w-xl mx-auto space-y-8">
-          
-          {/* Back Button */}
-          <button 
-            onClick={handleBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors font-semibold text-sm px-2 py-1 rounded-lg hover:bg-background/50"
-          >
-            <ArrowLeft className="size-4" /> Back
-          </button>
+      <main ref={scrollRef} className="flex-[1.15] relative z-10 overflow-y-auto bg-background/5">
+        <div className="min-h-full flex flex-col items-center justify-center p-6 lg:p-12">
+          <div className="w-full max-w-[620px] space-y-8 py-12">
+            {/* Back Button */}
+            <button 
+              onClick={handleBack}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-xl bg-card/40 border border-border/40 backdrop-blur-xl hover:scale-105"
+            >
+              <ArrowLeft className="size-4" /> Back
+            </button>
 
           <AnimatePresence mode="wait">
             {errorMsg && (
@@ -405,173 +404,174 @@ export default function InstitutionOnboarding() {
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="space-y-8"
+                className="w-full"
               >
-                <div className="md:col-span-2">
-                  <div className="w-full max-w-[600px] mx-auto bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl p-8 lg:p-12 relative overflow-hidden">
-                    <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                    
-                    <div className="mb-8 text-center">
-                        <SectionTitle title="Basic Institution Details" subtitle="Furnish the basic details of the Institution" />
+                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[80vh]">
+                  <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
+                  
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-10">
+                    <div className="mb-8 text-center px-2">
+                        <SectionTitle title="Basic Institution Details" subtitle="Provide your institution's core administrative information." />
                     </div>
-                
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">Institution Type</label>
-                      <div className="relative">
-                        <GlassInputWrapper>
-                          <select 
-                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
-                            value={instDetails.institution_type}
-                            onChange={e => setInstDetails({...instDetails, institution_type: e.target.value as any})}
-                          >
-                            <option>Self-financing</option>
-                            <option>Government</option>
-                            <option>Government-Aided</option>
               
-                          </select>
-                        </GlassInputWrapper>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
-                      </div>
-                    </div>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">Institution Type</label>
+                          <div className="relative">
+                            <GlassInputWrapper>
+                              <select 
+                                className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                                value={instDetails.institution_type}
+                                onChange={e => setInstDetails({...instDetails, institution_type: e.target.value as any})}
+                              >
+                                {INSTITUTION_TYPES.map((type) => (
+                                  <option key={type} value={type}>{type}</option>
+                                ))}
+                              </select>
+                            </GlassInputWrapper>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                          </div>
+                        </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">Status</label>
-                      <div className="relative">
-                        <GlassInputWrapper>
-                          <select 
-                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
-                            value={instDetails.institution_status}
-                            onChange={e => setInstDetails({...instDetails, institution_status: e.target.value})}
-                          >
-                            <option value="">Select Status</option>
-                            <option value="University">University</option>
-                            <option value="Autonomous">Autonomous</option>
-                            <option value="Non-Autonomous">Non-autonomous</option>
-                          </select>
-                        </GlassInputWrapper>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
-                      </div>
-                    </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">Status</label>
+                          <div className="relative">
+                            <GlassInputWrapper>
+                              <select 
+                                className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                                value={instDetails.institution_status}
+                                onChange={e => setInstDetails({...instDetails, institution_status: e.target.value})}
+                              >
+                                <option value="">Select Status</option>
+                                <option value="University">University</option>
+                                <option value="Autonomous">Autonomous</option>
+                                <option value="Non-Autonomous">Non-autonomous</option>
+                              </select>
+                            </GlassInputWrapper>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                          </div>
+                        </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">Year Of Establishment </label>
-                      <GlassInputWrapper>
-                        <input 
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*" 
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
-                          value={instDetails.established_year || ''}
-                          onChange={e => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            setInstDetails({...instDetails, established_year: val ? parseInt(val) : 0})
-                          }}
-                          placeholder="e.g. 1985"
-                        />
-                      </GlassInputWrapper>
-                    </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">Established Year</label>
+                          <GlassInputWrapper>
+                            <input 
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*" 
+                              className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
+                              value={instDetails.established_year || ''}
+                              onChange={e => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                setInstDetails({...instDetails, established_year: val ? parseInt(val) : 0})
+                              }}
+                              placeholder="e.g. 1985"
+                            />
+                          </GlassInputWrapper>
+                        </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Affiliated University</label>
-                      <GlassInputWrapper>
-                        <input 
-                          placeholder="University Name"
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
-                          value={instDetails.university_affiliation}
-                          onChange={e => setInstDetails({...instDetails, university_affiliation: e.target.value})}
-                        />
-                      </GlassInputWrapper>
-                    </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">Affiliated University</label>
+                          <GlassInputWrapper>
+                            <input 
+                              placeholder="University Name"
+                              className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
+                              value={instDetails.university_affiliation}
+                              onChange={e => setInstDetails({...instDetails, university_affiliation: e.target.value})}
+                            />
+                          </GlassInputWrapper>
+                        </div>
 
 
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">Country</label>
-                      <div className="relative">
-                        <GlassInputWrapper>
-                          <select 
-                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
-                            value={selectedCountry}
-                            onChange={e => {
-                                setSelectedCountry(e.target.value);
-                                setSelectedState('');
-                                setInstDetails({...instDetails, state: '', city: ''});
-                            }}
-                          >
-                            <option value="">Select Country</option>
-                            {countries.map((country) => (
-                                <option key={country.isoCode} value={country.isoCode}>
-                                    {country.name}
-                                </option>
-                            ))}
-                          </select>
-                        </GlassInputWrapper>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
-                      </div>
-                    </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">Country</label>
+                          <div className="relative">
+                            <GlassInputWrapper>
+                              <select 
+                                className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                                value={selectedCountry}
+                                onChange={e => {
+                                    setSelectedCountry(e.target.value);
+                                    setSelectedState('');
+                                    setInstDetails({...instDetails, state: '', city: ''});
+                                }}
+                              >
+                                <option value="">Select Country</option>
+                                {countries.map((country) => (
+                                    <option key={country.isoCode} value={country.isoCode}>
+                                        {country.name}
+                                    </option>
+                                ))}
+                              </select>
+                            </GlassInputWrapper>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                          </div>
+                        </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">State</label>
-                      <div className="relative">
-                        <GlassInputWrapper>
-                          <select 
-                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
-                            value={selectedState}
-                            onChange={e => {
-                                const stateCode = e.target.value;
-                                const state = states.find(s => s.isoCode === stateCode);
-                                setSelectedState(stateCode);
-                                setInstDetails({...instDetails, state: state ? state.name : '', city: ''});
-                            }}
-                            disabled={!selectedCountry}
-                          >
-                            <option value="">Select State</option>
-                            {states.map((state) => (
-                                <option key={state.isoCode} value={state.isoCode}>
-                                    {state.name}
-                                </option>
-                            ))}
-                          </select>
-                        </GlassInputWrapper>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
-                      </div>
-                    </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">State</label>
+                          <div className="relative">
+                            <GlassInputWrapper>
+                              <select 
+                                className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                                value={selectedState}
+                                onChange={e => {
+                                    const stateCode = e.target.value;
+                                    const state = states.find(s => s.isoCode === stateCode);
+                                    setSelectedState(stateCode);
+                                    setInstDetails({...instDetails, state: state ? state.name : '', city: ''});
+                                }}
+                                disabled={!selectedCountry}
+                              >
+                                <option value="">Select State</option>
+                                {states.map((state) => (
+                                    <option key={state.isoCode} value={state.isoCode}>
+                                        {state.name}
+                                    </option>
+                                ))}
+                              </select>
+                            </GlassInputWrapper>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                          </div>
+                        </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">City</label>
-                      <div className="relative">
-                        <GlassInputWrapper>
-                          <select 
-                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
-                            value={instDetails.city}
-                            onChange={e => setInstDetails({...instDetails, city: e.target.value})}
-                            disabled={!selectedState}
-                          >
-                            <option value="">Select City</option>
-                            {cities.map((city) => (
-                                <option key={city.name} value={city.name}>
-                                    {city.name}
-                                </option>
-                            ))}
-                          </select>
-                        </GlassInputWrapper>
-                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                        <div className="space-y-2 md:col-span-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">City</label>
+                          <div className="relative">
+                            <GlassInputWrapper>
+                              <select 
+                                className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                                value={instDetails.city}
+                                onChange={e => setInstDetails({...instDetails, city: e.target.value})}
+                                disabled={!selectedState}
+                              >
+                                <option value="">Select City</option>
+                                {cities.map((city) => (
+                                    <option key={city.name} value={city.name}>
+                                        {city.name}
+                                    </option>
+                                ))}
+                              </select>
+                            </GlassInputWrapper>
+                             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <button 
-                    onClick={handleSaveDetails} 
-                    className="w-full py-4 bg-primary text-primary-foreground font-semibold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
-                    disabled={loading}
-                  >
-                    {loading ? <Loader2 className="animate-spin size-5" /> : <>Save & Continue <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" /></>}
-                  </button>
+                  <div className="p-6 bg-card/90 backdrop-blur-2xl border-t border-border/50 z-20">
+                    <button 
+                      onClick={handleSaveDetails} 
+                      className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group transition-all"
+                      disabled={loading}
+                    >
+                      {loading ? <Loader2 className="animate-spin size-5" /> : <>Save & Continue <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" /></>}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
               </motion.div>
             )}
 
@@ -583,21 +583,20 @@ export default function InstitutionOnboarding() {
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="space-y-8"
+                className="w-full"
               >
-                <div className="md:col-span-2">
-                  <div className="w-full max-w-[600px] mx-auto bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl relative overflow-hidden">
-                    <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
-                    
-                    <div className="p-8 lg:p-12">
-                      <div className="mb-8 text-center">
-                          <SectionTitle title="Add Programs" subtitle="List at least one academic program to complete onboarding." />
-                      </div>
+                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[80vh]">
+                  <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
+                  
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-10">
+                    <div className="mb-8 text-center px-2">
+                        <SectionTitle title="Add Programs" subtitle="List the academic programs offered by your institution." />
+                    </div>
 
                     <div className="space-y-6">
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Program Name</label>
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Program Name</label>
                           <GlassInputWrapper>
                             <input 
                               placeholder="e.g. Computer Science and Engineering"
@@ -610,7 +609,8 @@ export default function InstitutionOnboarding() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Degree</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Degree</label>
+                            <div className="relative">
                               <GlassInputWrapper>
                                 <select 
                                   className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
@@ -628,7 +628,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Level</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Level</label>
                             <div className="relative">
                               <GlassInputWrapper>
                                 <select 
@@ -647,7 +647,8 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Program Duration</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Program Duration</label>
+                            <div className="relative">
                               <GlassInputWrapper>
                                 <select
                                   className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
@@ -658,12 +659,12 @@ export default function InstitutionOnboarding() {
                                   }}
                                 >
                                   <option value="">Select Duration</option>
-                                  <option value="1">1 Year</option>
+
                                   <option value="2">2 Years</option>
                                   <option value="3">3 Years</option>
                                   <option value="4">4 Years</option>
                                   <option value="5">5 Years</option>
-                                  <option value="6">6 Years</option>
+                  
                                 </select>
                               </GlassInputWrapper>
                               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
@@ -671,7 +672,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Intake Capacity</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Intake Capacity</label>
                             <GlassInputWrapper>
                               <input 
                                 type="text" 
@@ -685,7 +686,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Academic Year</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Year Of Enstablishment</label>
                             <GlassInputWrapper>
                               <input 
                                 type="text"
@@ -700,7 +701,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Program Code (Unique ID)</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Program Code</label>
                             <GlassInputWrapper>
                               <input 
                                 placeholder="e.g. CSE-101"
@@ -710,40 +711,41 @@ export default function InstitutionOnboarding() {
                               />
                             </GlassInputWrapper>
                           </div>
+                        </div>
 
-                          <button 
-                            onClick={handleAddProgram} 
-                            className="w-full py-4 mt-2 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl font-semibold text-primary transition-all flex items-center justify-center gap-2 group"
-                            disabled={loading}
-                          >
-                            <Plus className="size-5 group-hover:scale-110 transition-transform" /> Add Program
-                          </button>
+                        <button 
+                          onClick={handleAddProgram} 
+                          className="w-full py-4 mt-2 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl font-bold text-primary transition-all flex items-center justify-center gap-2 group"
+                          disabled={loading}
+                        >
+                          <Plus className="size-5 group-hover:rotate-90 transition-transform" /> Add Program
+                        </button>
                       </div>
 
-                      {/* List of Added Programs inside the card */}
-                      <div className="space-y-4 pt-4 border-t border-border/50">
-                        <h3 className="font-semibold text-slate-900 uppercase text-xs tracking-wide flex items-center gap-2">
-                          <Layers className="size-4" /> Added Programs ({programs.length})
+                      {/* List of Added Programs */}
+                      <div className="space-y-4 pt-6 border-t border-border/50">
+                        <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2">
+                          <Layers className="size-4 text-primary" /> Added Programs ({programs.length})
                         </h3>
                         {programs.length === 0 ? (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center p-6 border border-dashed border-border rounded-xl bg-background/30">
-                            <p className="text-muted-foreground text-sm">No programs added yet.</p>
+                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center p-8 border border-dashed border-border/60 rounded-xl bg-background/20">
+                            <p className="text-muted-foreground text-sm font-medium">No programs added yet. Add at least one to continue.</p>
                           </motion.div>
                         ) : (
-                          <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                            <AnimatePresence>
+                          <div className="space-y-3">
+                            <AnimatePresence initial={false}>
                             {programs.map((p, idx) => (
                               <motion.div 
                                 key={p.id || idx} 
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="p-4 bg-background/50 border border-border rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all group"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 10 }}
+                                className="p-4 bg-background/60 border border-border/50 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md hover:border-primary/20 transition-all group"
                               >
                                 <div>
-                                  <p className="font-semibold text-foreground">{p.program_name}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {p.degree} • {p.level} • {p.duration} Years • Intake: {p.intake} • {p.academic_year} • Code: {p.program_code}
+                                  <p className="font-bold text-slate-800">{p.program_name}</p>
+                                  <p className="text-[11px] text-muted-foreground mt-1 font-medium">
+                                    {p.degree} • {p.level} • {p.duration}Y • Intake: {p.intake} • {p.program_code}
                                   </p>
                                 </div>
                                 <button 
@@ -755,15 +757,13 @@ export default function InstitutionOnboarding() {
                                         });
                                         if (res.ok) {
                                           setPrograms(programs.filter(prog => prog.id !== p.id));
-                                        } else {
-                                          console.error('Failed to delete program');
                                         }
                                       } catch (err) {
                                         console.error('Error deleting program:', err);
                                       }
                                     }
                                   }}
-                                  className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                                  className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors lg:opacity-0 lg:group-hover:opacity-100"
                                 >
                                   <Trash2 className="size-4" />
                                 </button>
@@ -773,28 +773,27 @@ export default function InstitutionOnboarding() {
                           </div>
                         )}
                       </div>
-
-                      {/* Sticky Footer for Actions */}
-                      <div className="sticky bottom-0 bg-card/80 backdrop-blur-xl p-4 -mx-4 -mb-4 mt-4 border-t border-border/50 flex gap-4 z-10 rounded-b-3xl">
-                        <button 
-                          onClick={() => setCurrentStep(1)} 
-                          className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-semibold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
-                        >
-                          <ArrowLeft className="size-5" /> Back
-                        </button>
-                        <button 
-                          onClick={() => setCurrentStep(3)} 
-                          className="flex-1 py-4 bg-primary text-primary-foreground font-semibold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={programs.length === 0}
-                        >
-                          Review Data <ArrowRight className="size-5" />
-                        </button>
-                      </div>
                     </div>
                   </div>
-              </div>
-            </motion.div>
-          )}
+
+                  <div className="p-6 bg-card/90 backdrop-blur-2xl border-t border-border/50 flex gap-4 z-20">
+                    <button 
+                      onClick={() => setCurrentStep(1)} 
+                      className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-bold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
+                    >
+                      <ArrowLeft className="size-5" /> Back
+                    </button>
+                    <button 
+                      onClick={() => setCurrentStep(3)} 
+                      className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={programs.length === 0}
+                    >
+                      Review Data <ArrowRight className="size-5" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
 
             {/* STEP 3: Final Review */}
@@ -805,34 +804,34 @@ export default function InstitutionOnboarding() {
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="space-y-8"
+                className="w-full"
               >
-                <div className="md:col-span-2">
-                  <div className="w-full max-w-[600px] mx-auto bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl p-8 lg:p-12 relative overflow-hidden">
-                    <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                    
-                    <div className="mb-8 text-center">
-                        <SectionTitle title="Final Review" subtitle="Verify your institutional and program data before submitting." />
+                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[80vh]">
+                  <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
+                  
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-10">
+                    <div className="mb-8 text-center px-2">
+                        <SectionTitle title="Final Review" subtitle="Verify your institutional and program data before submission." />
                     </div>
 
                     <div className="space-y-8">
                       {/* Institution Summary */}
                       <div className="space-y-4">
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2 px-1">
-                          <Building2 className="size-4" /> Institution Summary
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                          <Building2 className="size-4 text-primary" /> Institution Summary
                         </h4>
-                        <div className="bg-background/40 border border-border/50 rounded-xl p-6 grid grid-cols-2 gap-4 shadow-sm group hover:border-primary/20 transition-colors">
+                        <div className="bg-background/40 border border-border/50 rounded-2xl p-6 grid grid-cols-2 gap-6 shadow-sm group hover:border-primary/20 transition-all">
                           <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Type</p>
-                            <p className="font-semibold text-foreground">{instDetails.institution_type}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Type</p>
+                            <p className="font-bold text-slate-800">{instDetails.institution_type}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Status</p>
-                            <p className="font-semibold text-foreground">{instDetails.institution_status}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Status</p>
+                            <p className="font-bold text-slate-800">{instDetails.institution_status}</p>
                           </div>
-                          <div className="col-span-2 pt-2 border-t border-border/30 mt-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Location</p>
-                            <div className="flex items-center gap-2 text-foreground font-medium">
+                          <div className="col-span-2 pt-4 border-t border-border/30">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Location</p>
+                            <div className="flex items-center gap-2 text-slate-800 font-bold">
                                 <MapPin className="size-4 text-primary" />
                                 {instDetails.city}, {instDetails.state}
                             </div>
@@ -843,41 +842,47 @@ export default function InstitutionOnboarding() {
                       {/* Programs Summary */}
                       <div className="space-y-4">
                         <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
-                          <Layers className="size-4" /> Programs ({programs.length})
+                          <Layers className="size-4 text-primary" /> Programs ({programs.length})
                         </h4>
-                        <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        <div className="space-y-3">
                           {programs.map((p, idx) => (
-                            <div key={idx} className="p-4 bg-background/40 border border-border/50 rounded-xl shadow-sm hover:border-primary/20 transition-all">
-                              <p className="font-semibold text-foreground flex justify-between items-center">
-                                {p.program_name}
-                                <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full uppercase tracking-wider">{p.program_code}</span>
-                              </p>
-                              <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">
-                                <div><span className="font-semibold text-foreground">Degree:</span> {p.degree}</div>
-                                <div><span className="font-semibold text-foreground">Intake:</span> {p.intake}</div>
-                                <div><span className="font-semibold text-foreground">Duration:</span> {p.duration} Years</div>
+                            <div key={idx} className="p-5 bg-background/40 border border-border/50 rounded-2xl shadow-sm hover:border-primary/20 transition-all">
+                              <div className="flex justify-between items-start mb-3">
+                                <p className="font-bold text-slate-800 text-base">{p.program_name}</p>
+                                <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-full font-bold uppercase tracking-widest border border-primary/20">{p.program_code}</span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-4 text-[11px] text-muted-foreground font-semibold">
+                                <div><span className="text-slate-400 block mb-0.5 uppercase tracking-tighter">Degree</span> {p.degree}</div>
+                                <div><span className="text-slate-400 block mb-0.5 uppercase tracking-tighter">Intake</span> {p.intake}</div>
+                                <div><span className="text-slate-400 block mb-0.5 uppercase tracking-tighter">Duration</span> {p.duration} Years</div>
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="pt-8 border-t border-border/30 mt-8">
-                      <button 
-                        onClick={handleCompleteOnboarding} 
-                        className="w-full py-4 bg-emerald-500 text-white font-semibold rounded-xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 group"
-                        disabled={loading}
-                      >
-                        {loading ? <Loader2 className="animate-spin size-5" /> : <>Submit & Launch Portal <CheckCircle2 className="size-5 group-hover:scale-110 transition-transform" /></>}
-                      </button>
-                    </div>
+                  <div className="p-6 bg-card/90 backdrop-blur-2xl border-t border-border/50 flex gap-4 z-20">
+                    <button 
+                      onClick={() => setCurrentStep(2)} 
+                      className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-bold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
+                    >
+                      <ArrowLeft className="size-5" />
+                    </button>
+                    <button 
+                      onClick={handleCompleteOnboarding} 
+                      className="flex-1 py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 group"
+                      disabled={loading}
+                    >
+                      {loading ? <Loader2 className="animate-spin size-5" /> : <>Complete & Launch Portal <CheckCircle2 className="size-5 group-hover:scale-110 transition-transform" /></>}
+                    </button>
                   </div>
                 </div>
-
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
         </div>
       </main>
       </div>

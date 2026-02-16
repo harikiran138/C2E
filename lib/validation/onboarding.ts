@@ -1,7 +1,14 @@
-export const INSTITUTION_TYPES = ['Private', 'Government', 'Deemed', 'Trust'] as const;
+export const INSTITUTION_TYPES = ['Private', 'Government'] as const;
 // export const INSTITUTION_STATUSES = ['Autonomous', 'Non-Autonomous'] as const;
-export const DEGREES = ['B.Tech', 'B.Sc', 'B.Com', 'MBA', 'M.Tech', 'PhD'] as const;
-export const LEVELS = ['UG', 'PG', 'Diploma', 'Doctorate'] as const;
+export const DEGREES = [
+  'Diploma',
+  'B. E.',
+  'B.Tech', 
+  'M.Tech'
+  
+] as const;
+export const LEVELS = ['Diploma', 
+  'UG', 'PG',  'Integrated PG'] as const;
 
 export const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[\W_]).{8,}$/;
 

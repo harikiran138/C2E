@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/postgres';
-import * as jose from 'jose';
+import { signToken, verifyToken } from '@/lib/auth';
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('institution_token')?.value;
   if (!token) return null;
-  try {
-    const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
-    const { payload } = await jose.jwtVerify(token, secret);
-    return payload.id as string;
-  } catch (error) {
-    return null;
-  }
+  const payload = await verifyToken(token);
+  return payload?.id as string || null;
 }
 
 export async function POST(request: NextRequest) {
@@ -25,7 +20,7 @@ export async function POST(request: NextRequest) {
     try {
       // Check institution details in `institutions` table
       const instResult = await client.query(
-        'SELECT id, institution_type, institution_status, established_year, university_affiliation, address, city, state, email FROM institutions WHERE id = $1',
+        'SELECT id, institution_type, institution_status, established_year, university_affiliation, city, state, email FROM institutions WHERE id = $1',
         [institutionId]
       );
       
@@ -38,7 +33,6 @@ export async function POST(request: NextRequest) {
       const isValid = 
         details.institution_type &&
         details.established_year >= 1900 &&
-        details.address && details.address.trim().length >= 10 &&
         details.city && details.state &&
         (details.institution_status !== 'Non-Autonomous' || details.university_affiliation);
 
@@ -66,18 +60,12 @@ export async function POST(request: NextRequest) {
       // Re-issue token with COMPLETED status
       const email = details.email;
 
-      const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
-      const alg = 'HS256';
-      const jwt = await new jose.SignJWT({ 
+      const jwt = await signToken({ 
           id: institutionId, 
           email: email || '', 
           role: 'institution_admin',
           onboarding_status: 'COMPLETED'
-      })
-        .setProtectedHeader({ alg })
-        .setIssuedAt()
-        .setExpirationTime('24h')
-        .sign(secret);
+      });
       
       const response = NextResponse.json({ ok: true });
       response.cookies.set('institution_token', jwt, {

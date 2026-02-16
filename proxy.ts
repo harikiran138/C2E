@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import * as jose from 'jose';
+import { verifyToken } from './lib/auth';
 
 export async function proxy(request: NextRequest) {
   // 1. Handle API routes early - NEVER redirect or call Supabase for /api
@@ -24,15 +24,16 @@ export async function proxy(request: NextRequest) {
   
   if (institutionToken) {
     try {
-        const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
-        const { payload } = await jose.jwtVerify(institutionToken, secret);
-        customUser = {
-          id: payload.id as string,
-          email: payload.email as string,
-          role: payload.role as string | undefined,
-          onboarding_status: payload.onboarding_status as string | undefined,
-        };
-        console.log('Middleware: Custom session valid for', customUser.email);
+        const payload = await verifyToken(institutionToken);
+        if (payload) {
+          customUser = {
+            id: payload.id as string,
+            email: payload.email as string,
+            role: payload.role as string | undefined,
+            onboarding_status: payload.onboarding_status as string | undefined,
+          };
+          console.log('Middleware: Custom session valid for', customUser.email);
+        }
     } catch (e) {
         // Fallback to Supabase check if custom token is invalid or missing
     }

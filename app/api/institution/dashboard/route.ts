@@ -1,7 +1,7 @@
 import pool from '@/lib/postgres';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
@@ -12,15 +12,11 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
-    let institutionId: string;
-
-    try {
-        const { payload } = await jwtVerify(token, secret);
-        institutionId = payload.id as string;
-    } catch (err) {
+    const payload = await verifyToken(token);
+    if (!payload || !payload.id) {
         return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
+    const institutionId = payload.id as string;
 
     const client = await pool.connect();
     try {

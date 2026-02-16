@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/postgres';
 import bcrypt from 'bcrypt';
-import * as jose from 'jose';
+import { signToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,18 +31,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Generate JWT
-      const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key'); 
-      const alg = 'HS256';
-      const jwt = await new jose.SignJWT({ 
+      const jwt = await signToken({ 
           id: institution.id, 
           email: email.trim(), 
           role: 'institution_admin',
           onboarding_status: institution.onboarding_status || 'PENDING'
-      })
-        .setProtectedHeader({ alg })
-        .setIssuedAt()
-        .setExpirationTime('24h')
-        .sign(secret);
+      });
       
       const response = NextResponse.json({ ok: true, id: institution.id });
       response.cookies.set('institution_token', jwt, {

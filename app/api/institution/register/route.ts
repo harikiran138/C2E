@@ -3,7 +3,7 @@ import pool from '@/lib/postgres';
 import { validateSignupPayload } from '@/lib/validation/onboarding';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import * as jose from 'jose';
+import { signToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,18 +62,12 @@ export async function POST(request: NextRequest) {
     console.log('Registered institution:', newId);
 
     // 6. Generate Session Token (JWT)
-    const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key'); 
-    const alg = 'HS256';
-    const jwt = await new jose.SignJWT({ 
+    const jwt = await signToken({ 
         id: newId, 
         email: email.trim(), 
         role: 'institution_admin',
         onboarding_status: 'PENDING'
-    })
-      .setProtectedHeader({ alg })
-      .setIssuedAt()
-      .setExpirationTime('24h')
-      .sign(secret);
+    });
       
     const response = NextResponse.json({ ok: true, id: newId });
     response.cookies.set('institution_token', jwt, {
