@@ -26,23 +26,23 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: 'process-1',
-    title: 'Tutor (OBE Protocols)',
+    title: 'OBE Framework & Protocols',
     section: 'process',
     processNumber: 1,
     kind: 'info',
     phase: 'Set-up',
-    description: 'Maintain formal OBE definitions, tutoring protocol references, and implementation guidelines.',
+    description: 'Establish the formal OBE framework, tutoring protocols, and implementation guidelines for the institution.',
     icon: 'BookOpen'
   },
   {
     key: 'process-2',
-    title: 'Select Program',
+    title: 'Add Program Coordinator',
     section: 'process',
     processNumber: 2,
-    kind: 'program_select',
+    kind: 'form',
     phase: 'Set-up',
-    description: 'Select program from institutional entries. Dropdown values must float from institution programs.',
-    icon: 'CheckSquare'
+    description: 'Assign a Program Coordinator and define their responsibilities and authority.',
+    icon: 'UserCog'
   },
   {
     key: 'process-3',
@@ -66,7 +66,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: 'process-5',
-    title: 'Add Stakeholders',
+    title: 'Add Representative Stakeholders',
     section: 'process',
     processNumber: 5,
     kind: 'form',
@@ -76,17 +76,28 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: 'process-6',
-    title: 'Formulate Vision/Mission',
+    title: 'Formulate Vision & Mission',
     section: 'process',
     processNumber: 6,
     kind: 'form',
     aiDriven: true,
     phase: 'Stakeholder & PEOs',
-    description: 'Formulate vision, mission, and PEOs with AI-assisted drafting.',
+    description: 'Formulate Vision & Mission',
     icon: 'Target'
   },
   {
     key: 'process-7',
+    title: 'Formulate PEOs',
+    section: 'process',
+    processNumber: 6,
+    kind: 'form',
+    aiDriven: true,
+    phase: 'Stakeholder & PEOs',
+    description: 'Formulate Program Educational Objectives',
+    icon: 'Target'
+  },
+  {
+    key: 'process-8',
     title: 'Consistency Matrix',
     section: 'process',
     processNumber: 7,
@@ -96,7 +107,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
     icon: 'Grid'
   },
   {
-    key: 'process-8',
+    key: 'process-9',
     title: 'Generate Program Outcomes',
     section: 'process',
     processNumber: 8,
@@ -106,7 +117,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
     icon: 'ListChecks'
   },
   {
-    key: 'process-9',
+    key: 'process-10',
     title: 'Formulate PSOs',
     section: 'process',
     processNumber: 9,

@@ -29,11 +29,7 @@ function SharedForm({ step }: { step: ProcessStep }) {
     <div className="space-y-5">
       <h3 className="text-xl font-semibold">{step.title}</h3>
       <p className="text-sm text-slate-600">{step.description}</p>
-      {step.aiDriven ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          This section is AI driven as per specification.
-        </div>
-      ) : null}
+    
       <form className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Title</label>
@@ -781,7 +777,7 @@ function ActionPanel({ step }: { step: ProcessStep }) {
   );
 }
 
-export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
+export default function ProcessStepPanel({ step, selectedProgramId, programs }: ProcessStepPanelProps & { selectedProgramId: string | null, programs: ProgramOption[] }) {
   if (step.key === 'council') {
     return <AcademicCouncilForm />;
   }

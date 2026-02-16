@@ -313,6 +313,12 @@ export default function InstitutionWorkspace({
 function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, programs, selectedProgramId, onSelectProgram }: any) {
     const [isProgramExpanded, setIsProgramExpanded] = useState(true);
 
+    const selectedProgramName = useMemo(() => {
+        if (!selectedProgramId) return 'Select Program';
+        const prog = programs?.find((p: any) => p.id === selectedProgramId);
+        return prog ? prog.program_name : 'Select Program';
+    }, [selectedProgramId, programs]);
+
     return (
         <nav className="flex-1 px-4 py-6">
             <div className="space-y-1">
@@ -329,7 +335,7 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, pr
                     const isActive = activeStepKey === step.key;
                     
                     return (
-                        <div key={step.key}>
+                        <div key={step.key} className="relative">
                             <SidebarLink 
                                 href={buildHref(step.key)} 
                                 active={isActive}
@@ -339,53 +345,85 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, pr
                                 <span className="text-sm font-semibold">{step.title}</span>
                             </SidebarLink>
 
-                            {/* Program Selector - Only show under Constitute Academic Council */}
+                            {/* Program Selector - Nested under Constitute Academic Council */}
                             {step.key === 'council' && (
-                                <div className="ml-4 mt-1 border-l-2 border-border/40 pl-4 my-2">
-                                     <div className="relative">
+                                <div className="ml-5 pl-4 border-l border-border/40 my-1">
+                                    <div className="relative">
                                         <button 
-                                            onClick={() => setIsProgramExpanded(!isProgramExpanded)}
-                                            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors w-full text-left py-1"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setIsProgramExpanded(!isProgramExpanded);
+                                            }}
+                                            className={cn(
+                                                "flex items-center gap-2 w-full text-left py-2 px-2 rounded-lg transition-all group",
+                                                "hover:bg-muted/50"
+                                            )}
                                         >
-                                            <span>Select Program</span>
-                                            <ChevronRight className={cn("size-3 transition-transform", isProgramExpanded ? "rotate-90" : "")} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-0.5">Select Program of Study</p>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className={cn(
+                                                        "text-sm font-medium truncate",
+                                                        selectedProgramId ? "text-primary" : "text-foreground/80"
+                                                    )}>
+                                                        {selectedProgramName}
+                                                    </span>
+                                                    <ChevronRight className={cn(
+                                                        "size-3.5 text-muted-foreground transition-transform duration-300", 
+                                                        isProgramExpanded ? "rotate-90" : ""
+                                                    )} />
+                                                </div>
+                                            </div>
                                         </button>
                                         
-                                        <AnimatePresence>
+                                        <AnimatePresence initial={false}>
                                             {isProgramExpanded && (
                                                 <motion.div 
                                                     initial={{ opacity: 0, height: 0 }}
                                                     animate={{ opacity: 1, height: 'auto' }}
                                                     exit={{ opacity: 0, height: 0 }}
+                                                    transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }} // Smooth cubic-bezier
                                                     className="overflow-hidden"
                                                 >
-                                                    <div className="pt-2 space-y-1">
-                                                        {programs?.map((program: any) => (
-                                                            <button
-                                                                key={program.id}
-                                                                onClick={() => {
-                                                                    onSelectProgram(program.id);
-                                                                    if (window.innerWidth < 1024) onClose();
-                                                                }}
-                                                                className={cn(
-                                                                    "w-full flex flex-col text-left px-3 py-2 rounded-lg transition-all text-sm",
-                                                                    selectedProgramId === program.id 
-                                                                    ? "bg-primary/10 text-primary font-medium" 
-                                                                    : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-                                                                )}
-                                                            >
-                                                                <span className="truncate">{program.program_name}</span>
-                                                                <span className="text-[10px] opacity-70">{program.program_code}</span>
-                                                            </button>
-                                                        ))}
+                                                    <div className="pt-1 pb-2 space-y-0.5">
+                                                        {programs?.map((program: any) => {
+                                                            const isSelected = selectedProgramId === program.id;
+                                                            return (
+                                                                <button
+                                                                    key={program.id}
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        onSelectProgram(program.id);
+                                                                        if (window.innerWidth < 1024) onClose();
+                                                                    }}
+                                                                    className={cn(
+                                                                        "w-full flex items-center justify-between text-left px-3 py-2 rounded-md transition-all text-xs group/item ml-1",
+                                                                        isSelected 
+                                                                        ? "bg-primary/10 text-primary font-semibold" 
+                                                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                    )}
+                                                                >
+                                                                    <div className="flex flex-col truncate">
+                                                                        <span className="truncate">{program.program_name}</span>
+                                                                        <span className="text-[10px] opacity-70 font-normal">{program.program_code}</span>
+                                                                    </div>
+                                                                    {isSelected && (
+                                                                        <motion.div
+                                                                            layoutId="active-program-indicator"
+                                                                            className="size-1.5 rounded-full bg-primary shrink-0 ml-2"
+                                                                        />
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
                                                         {(!programs || programs.length === 0) && (
-                                                            <div className="text-[10px] text-muted-foreground italic px-2 py-1">No programs found</div>
+                                                            <div className="text-[11px] text-muted-foreground/60 italic px-3 py-2">No programs available</div>
                                                         )}
                                                     </div>
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
-                                     </div>
+                                    </div>
                                 </div>
                             )}
                         </div>

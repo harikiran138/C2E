@@ -4,9 +4,17 @@ import { validateSignupPayload } from '@/lib/validation/onboarding';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { signToken } from '@/lib/auth';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    // 1. Rate Limiting (5 attempts / 15 mins)
+    const isAllowed = checkRateLimit({ ip, limit: 5, windowMs: 15 * 60 * 1000 });
+    if (!isAllowed) {
+      return NextResponse.json({ error: 'Too many registration attempts. Please try again later.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const institutionName = String(body.institutionName || '');
     const email = String(body.email || '');
