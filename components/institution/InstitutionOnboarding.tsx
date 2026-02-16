@@ -62,7 +62,7 @@ const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
 
 const SectionTitle = ({ title, subtitle }: { title: string, subtitle: string }) => (
   <div className="mb-12">
-    <h2 className="text-3xl font-extrabold tracking-tight text-foreground">{title}</h2>
+    <h2 className="text-3xl font-bold tracking-tight text-foreground">{title}</h2>
     <p className="text-muted-foreground text-sm mt-1 font-medium">{subtitle}</p>
   </div>
 );
@@ -359,13 +359,13 @@ export default function InstitutionOnboarding() {
                 )}>
                   {currentStep > s.step ? <CheckCircle2 className="size-5" /> : s.step}
                 </div>
-                <span className={cn("font-bold text-sm", s.active ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
+                <span className={cn("font-semibold text-sm", s.active ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mt-12">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 mt-12">
           © Rights reserved with C2XPlus
         </div>
       </section>
@@ -377,7 +377,7 @@ export default function InstitutionOnboarding() {
           {/* Back Button */}
           <button 
             onClick={handleBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors font-bold text-sm px-2 py-1 rounded-lg hover:bg-background/50"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors font-semibold text-sm px-2 py-1 rounded-lg hover:bg-background/50"
           >
             <ArrowLeft className="size-4" /> Back
           </button>
@@ -418,7 +418,7 @@ export default function InstitutionOnboarding() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Institution Type</label>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">Institution Type</label>
                       <div className="relative">
                         <GlassInputWrapper>
                           <select 
@@ -437,7 +437,7 @@ export default function InstitutionOnboarding() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Status</label>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">Status</label>
                       <div className="relative">
                         <GlassInputWrapper>
                           <select 
@@ -456,7 +456,7 @@ export default function InstitutionOnboarding() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Year Of Establishment </label>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">Year Of Establishment </label>
                       <GlassInputWrapper>
                         <input 
                           type="text"
@@ -488,7 +488,7 @@ export default function InstitutionOnboarding() {
 
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Country</label>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">Country</label>
                       <div className="relative">
                         <GlassInputWrapper>
                           <select 
@@ -513,7 +513,7 @@ export default function InstitutionOnboarding() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">State</label>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">State</label>
                       <div className="relative">
                         <GlassInputWrapper>
                           <select 
@@ -540,7 +540,7 @@ export default function InstitutionOnboarding() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">City</label>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2 px-1">City</label>
                       <div className="relative">
                         <GlassInputWrapper>
                           <select 
@@ -564,7 +564,7 @@ export default function InstitutionOnboarding() {
 
                   <button 
                     onClick={handleSaveDetails} 
-                    className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+                    className="w-full py-4 bg-primary text-primary-foreground font-semibold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                     disabled={loading}
                   >
                     {loading ? <Loader2 className="animate-spin size-5" /> : <>Save & Continue <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" /></>}
@@ -597,7 +597,7 @@ export default function InstitutionOnboarding() {
                     <div className="space-y-6">
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Program Name</label>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Program Name</label>
                           <GlassInputWrapper>
                             <input 
                               placeholder="e.g. Computer Science and Engineering"
@@ -610,7 +610,7 @@ export default function InstitutionOnboarding() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Degree</label>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Degree</label>
                               <GlassInputWrapper>
                                 <select 
                                   className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
@@ -628,7 +628,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Level</label>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Level</label>
                             <div className="relative">
                               <GlassInputWrapper>
                                 <select 
@@ -647,7 +647,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Program Duration</label>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Program Duration</label>
                               <GlassInputWrapper>
                                 <select
                                   className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
@@ -671,7 +671,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Intake Capacity</label>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Intake Capacity</label>
                             <GlassInputWrapper>
                               <input 
                                 type="text" 
@@ -685,7 +685,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Academic Year</label>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Academic Year</label>
                             <GlassInputWrapper>
                               <input 
                                 type="text"
@@ -700,7 +700,7 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Program Code (Unique ID)</label>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">Program Code (Unique ID)</label>
                             <GlassInputWrapper>
                               <input 
                                 placeholder="e.g. CSE-101"
@@ -713,7 +713,7 @@ export default function InstitutionOnboarding() {
 
                           <button 
                             onClick={handleAddProgram} 
-                            className="w-full py-4 mt-2 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl font-bold text-primary transition-all flex items-center justify-center gap-2 group"
+                            className="w-full py-4 mt-2 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl font-semibold text-primary transition-all flex items-center justify-center gap-2 group"
                             disabled={loading}
                           >
                             <Plus className="size-5 group-hover:scale-110 transition-transform" /> Add Program
@@ -722,7 +722,7 @@ export default function InstitutionOnboarding() {
 
                       {/* List of Added Programs inside the card */}
                       <div className="space-y-4 pt-4 border-t border-border/50">
-                        <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2">
+                        <h3 className="font-semibold text-slate-900 uppercase text-xs tracking-wide flex items-center gap-2">
                           <Layers className="size-4" /> Added Programs ({programs.length})
                         </h3>
                         {programs.length === 0 ? (
@@ -741,7 +741,7 @@ export default function InstitutionOnboarding() {
                                 className="p-4 bg-background/50 border border-border rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all group"
                               >
                                 <div>
-                                  <p className="font-bold text-foreground">{p.program_name}</p>
+                                  <p className="font-semibold text-foreground">{p.program_name}</p>
                                   <p className="text-xs text-muted-foreground mt-1">
                                     {p.degree} • {p.level} • {p.duration} Years • Intake: {p.intake} • {p.academic_year} • Code: {p.program_code}
                                   </p>
@@ -778,13 +778,13 @@ export default function InstitutionOnboarding() {
                       <div className="sticky bottom-0 bg-card/80 backdrop-blur-xl p-4 -mx-4 -mb-4 mt-4 border-t border-border/50 flex gap-4 z-10 rounded-b-3xl">
                         <button 
                           onClick={() => setCurrentStep(1)} 
-                          className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-bold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
+                          className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-semibold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
                         >
                           <ArrowLeft className="size-5" /> Back
                         </button>
                         <button 
                           onClick={() => setCurrentStep(3)} 
-                          className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 py-4 bg-primary text-primary-foreground font-semibold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={programs.length === 0}
                         >
                           Review Data <ArrowRight className="size-5" />
@@ -818,20 +818,20 @@ export default function InstitutionOnboarding() {
                     <div className="space-y-8">
                       {/* Institution Summary */}
                       <div className="space-y-4">
-                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2 px-1">
                           <Building2 className="size-4" /> Institution Summary
                         </h4>
                         <div className="bg-background/40 border border-border/50 rounded-xl p-6 grid grid-cols-2 gap-4 shadow-sm group hover:border-primary/20 transition-colors">
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Type</p>
-                            <p className="font-bold text-foreground">{instDetails.institution_type}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Type</p>
+                            <p className="font-semibold text-foreground">{instDetails.institution_type}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Status</p>
-                            <p className="font-bold text-foreground">{instDetails.institution_status}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Status</p>
+                            <p className="font-semibold text-foreground">{instDetails.institution_status}</p>
                           </div>
                           <div className="col-span-2 pt-2 border-t border-border/30 mt-2">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Location</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Location</p>
                             <div className="flex items-center gap-2 text-foreground font-medium">
                                 <MapPin className="size-4 text-primary" />
                                 {instDetails.city}, {instDetails.state}
@@ -848,7 +848,7 @@ export default function InstitutionOnboarding() {
                         <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                           {programs.map((p, idx) => (
                             <div key={idx} className="p-4 bg-background/40 border border-border/50 rounded-xl shadow-sm hover:border-primary/20 transition-all">
-                              <p className="font-bold text-foreground flex justify-between items-center">
+                              <p className="font-semibold text-foreground flex justify-between items-center">
                                 {p.program_name}
                                 <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full uppercase tracking-wider">{p.program_code}</span>
                               </p>
@@ -866,7 +866,7 @@ export default function InstitutionOnboarding() {
                     <div className="pt-8 border-t border-border/30 mt-8">
                       <button 
                         onClick={handleCompleteOnboarding} 
-                        className="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 group"
+                        className="w-full py-4 bg-emerald-500 text-white font-semibold rounded-xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 group"
                         disabled={loading}
                       >
                         {loading ? <Loader2 className="animate-spin size-5" /> : <>Submit & Launch Portal <CheckCircle2 className="size-5 group-hover:scale-110 transition-transform" /></>}
