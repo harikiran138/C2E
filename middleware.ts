@@ -9,70 +9,7 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  const isValidUrl = supabaseUrl.startsWith('http');
-
-  const supabase = createServerClient(
-    isValidUrl ? supabaseUrl : 'https://placeholder.supabase.co',
-    supabaseKey || 'placeholder-key',
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
-      },
-    }
-  )
-
-
-  // [FIX] Safer getUser call to prevent "Tenant or user not found" or destructuring crashes.
-  let user = null;
-  try {
-    const { data, error: authError } = await supabase.auth.getUser();
-    if (authError) {
-      console.warn('Middleware: Supabase Auth check returned error (ignored):', authError.message);
-    }
-    user = data?.user || null;
-  } catch (err) {
-    console.error('Middleware: Fatal error during Supabase Auth check:', err);
-  }
-  
-  // [NEW] Custom Session Check
+  // 1. [NEW] Custom Session Check - Move to top and use it to skip Supabase if possible.
   let customUser: { id: string; email: string; role?: string; onboarding_status?: string } | null = null;
   const institutionToken = request.cookies.get('institution_token')?.value;
   
@@ -80,7 +17,6 @@ export async function middleware(request: NextRequest) {
     try {
         const secret = new TextEncoder().encode(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'default-secret-key');
         const { payload } = await jose.jwtVerify(institutionToken, secret);
-        // If valid, we treat it as a logged-in user
         customUser = {
           id: payload.id as string,
           email: payload.email as string,
@@ -89,14 +25,57 @@ export async function middleware(request: NextRequest) {
         };
         console.log('Middleware: Custom session valid for', customUser.email);
     } catch (e) {
-        console.error('Middleware: Invalid custom token', e);
+        // Fallback to Supabase check if custom token is invalid or missing
     }
   }
 
-  // Prefer custom JWT session if present; fallback to Supabase user.
+  // 2. [FIX] Safer Supabase init and getUser
+  let user = null;
+  let supabase = null;
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const isValidUrl = supabaseUrl.startsWith('http');
+
+  if (isValidUrl && supabaseKey) {
+    try {
+      supabase = createServerClient(
+        supabaseUrl,
+        supabaseKey,
+        {
+          cookies: {
+            get(name: string) { return request.cookies.get(name)?.value },
+            set(name: string, value: string, options: CookieOptions) {
+              request.cookies.set({ name, value, ...options })
+              response = NextResponse.next({ request: { headers: request.headers } })
+              response.cookies.set({ name, value, ...options })
+            },
+            remove(name: string, options: CookieOptions) {
+              request.cookies.set({ name, value: '', ...options })
+              response = NextResponse.next({ request: { headers: request.headers } })
+              response.cookies.set({ name, value: '', ...options })
+            },
+          },
+        }
+      )
+
+      const { data, error: authError } = await supabase.auth.getUser();
+      if (!authError) {
+        user = data?.user || null;
+      }
+    } catch (err) {
+      console.warn('Middleware: Supabase check bypassed due to error:', err);
+    }
+  }
+
+  // Handle API routes early - NEVER redirect /api
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    return response;
+  }
+
   const effectiveUser = customUser || (user ? { id: user.id, email: user.email || '' } : null);
 
-  // 1. Protected routes check
+  // 3. Protected routes check
   const isProtectedPath = request.nextUrl.pathname.startsWith('/institution/dashboard') ||
                           request.nextUrl.pathname.startsWith('/institution/onboarding') ||
                           request.nextUrl.pathname.startsWith('/institution/process') ||
@@ -106,22 +85,29 @@ export async function middleware(request: NextRequest) {
                           request.nextUrl.pathname.startsWith('/institution/feedback')
 
   if (!effectiveUser && isProtectedPath) {
+    console.log('Middleware Redirect: Unauthenticated Access to', request.nextUrl.pathname);
     return NextResponse.redirect(new URL('/institution/login', request.url))
   }
 
-  // 2. Onboarding status check
+  // 4. Onboarding status check
   if (effectiveUser) {
     try {
       let effectiveStatus = customUser?.onboarding_status || 'PENDING';
-      if (!customUser && user) {
-        const { data: institution, error: dbError } = await supabase
-          .from('institutions')
-          .select('onboarding_status')
-          .eq('id', user.id)
-          .maybeSingle();
+      
+      // If we ONLY have a Supabase user, we try to fetch status from DB (Safely)
+      if (!customUser && user && supabase) {
+        try {
+          const { data: institution } = await supabase
+            .from('institutions')
+            .select('onboarding_status')
+            .eq('id', user.id)
+            .maybeSingle();
 
-        if (!dbError && institution?.onboarding_status) {
-          effectiveStatus = institution.onboarding_status;
+          if (institution?.onboarding_status) {
+            effectiveStatus = institution.onboarding_status;
+          }
+        } catch (dbE) {
+          console.warn('Middleware: DB Status check failed, defaulting to PENDING');
         }
       }
       
