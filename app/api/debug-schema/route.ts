@@ -5,30 +5,46 @@ export async function GET() {
   try {
     const client = await pool.connect();
     
-    // List tables
-    const tablesRes = await client.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-    `);
+    try {
+      // List tables
+      const tablesRes = await client.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `);
 
-    // Check for program_coordinators table
-    let columns = [];
-    if (tablesRes.rows.some(r => r.table_name === 'program_coordinators')) {
-        const columnsRes = await client.query(`
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE table_name = 'program_coordinators'
-        `);
-        columns = columnsRes.rows;
+      const tables = tablesRes.rows.map(r => r.table_name);
+      
+      // Check for pac_members and bos_members tables
+      let pacColumns = [];
+      let bosColumns = [];
+      
+      if (tables.includes('pac_members')) {
+          const res = await client.query(`
+              SELECT column_name, data_type, is_nullable
+              FROM information_schema.columns
+              WHERE table_name = 'pac_members'
+          `);
+          pacColumns = res.rows;
+      }
+
+      if (tables.includes('bos_members')) {
+          const res = await client.query(`
+              SELECT column_name, data_type, is_nullable
+              FROM information_schema.columns
+              WHERE table_name = 'bos_members'
+          `);
+          bosColumns = res.rows;
+      }
+
+      return NextResponse.json({ 
+        tables,
+        pacMembersColumns: pacColumns,
+        bosMembersColumns: bosColumns
+      }, { status: 200 });
+    } finally {
+      client.release();
     }
-
-    client.release();
-    
-    return NextResponse.json({ 
-      tables: tablesRes.rows.map(r => r.table_name),
-      institutionsColumns: columns
-    }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message },

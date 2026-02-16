@@ -1,8 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Edit2, Lock, Printer, Trash2, Plus, UserPlus, Save as SaveIcon, Loader2 } from 'lucide-react';
+import { 
+  Edit2, 
+  Lock, 
+  Printer, 
+  Trash2, 
+  Plus, 
+  UserPlus, 
+  Save as SaveIcon, 
+  Loader2,
+  ChevronDown,
+  Mail,
+  Phone,
+  Building,
+  Calendar,
+  Linkedin,
+  Award,
+  BookOpen
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const PAC_CATEGORIES = [
   'Senior Industry Expert (Chairman)',
@@ -15,14 +34,34 @@ const PAC_CATEGORIES = [
   'Student Representative'
 ];
 
+interface PACMember {
+  id: string;
+  program_id: string;
+  member_name: string;
+  member_id: string;
+  organization: string;
+  email: string;
+  mobile_number: string;
+  specialisation: string;
+  category: string;
+  tenure_start_date: string;
+  tenure_end_date: string;
+  linkedin_id: string;
+}
+
 export default function ProgramAdvisoryCommitteeForm() {
   const searchParams = useSearchParams();
   const programId = searchParams.get('programId');
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<PACMember[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  
+  // We'll treat "Lock" as a local UI state for now, 
+  // though typically it might be persisted if the backend supported it.
+  const [isLocked, setIsLocked] = useState(false);
 
   const [formData, setFormData] = useState({
     member_name: '',
@@ -97,7 +136,8 @@ export default function ProgramAdvisoryCommitteeForm() {
     }
   };
 
-  const handleEdit = (member: any) => {
+  const handleEdit = (member: PACMember, e: React.MouseEvent) => {
+    e.stopPropagation();
     setFormData({
       member_name: member.member_name || '',
       member_id: member.member_id || '',
@@ -111,6 +151,7 @@ export default function ProgramAdvisoryCommitteeForm() {
       linkedin_id: member.linkedin_id || ''
     });
     setEditingId(member.id);
+    setExpandedId(member.id);
     
     // Find the inner scroll container and scroll it to the top
     const innerContainer = document.querySelector('.custom-scrollbar');
@@ -119,11 +160,12 @@ export default function ProgramAdvisoryCommitteeForm() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (member: PACMember, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm('Are you sure you want to delete this member?')) return;
     
     try {
-        const response = await fetch(`/api/institution/pac?id=${id}`, {
+        const response = await fetch(`/api/institution/pac?id=${member.id}`, {
             method: 'DELETE',
         });
         if (response.ok) {
@@ -214,6 +256,10 @@ export default function ProgramAdvisoryCommitteeForm() {
     }, 500);
   };
 
+  const toggleExpand = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   if (!programId) {
     return (
         <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-slate-300 bg-slate-50">
@@ -234,6 +280,15 @@ export default function ProgramAdvisoryCommitteeForm() {
           <p className="text-sm font-medium text-slate-500 mt-1">Program Advisory Committee</p>
         </div>
         <div className="flex gap-2">
+            {isLocked && (
+                <button 
+                type="button" 
+                onClick={() => setIsLocked(false)}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                >
+                <Edit2 className="size-4" /> Edit Committee
+                </button>
+            )}
             <button 
               type="button" 
               onClick={handlePrintPDF}
@@ -327,7 +382,7 @@ export default function ProgramAdvisoryCommitteeForm() {
             </div>
 
             <div className="space-y-2">
-               <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">LinkedIn ID</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">LinkedIn ID</label>
                <input 
                  value={formData.linkedin_id}
                  onChange={(e) => setFormData({ ...formData, linkedin_id: e.target.value })}
@@ -359,6 +414,7 @@ export default function ProgramAdvisoryCommitteeForm() {
           </div>
 
           <div className="flex gap-4 pt-4">
+            {(!isLocked || editingId) && (
               <button 
                 type="submit" 
                 disabled={submitting}
@@ -368,36 +424,53 @@ export default function ProgramAdvisoryCommitteeForm() {
                   {submitting ? (
                     <Loader2 className="size-5 animate-spin" />
                   ) : editingId ? (
-                    <> <SaveIcon className="size-5" /> Update Member </>
+                    <> <SaveIcon className="size-5" /> Save Changes </>
                   ) : (
                     <> <Plus className="size-5" /> Save & Add Member </>
                   )}
                 </div>
               </button>
-              
-              {editingId && (
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                        setEditingId(null);
-                        setFormData({
-                            member_name: '',
-                            member_id: '',
-                            organization: '',
-                            email: '',
-                            mobile_number: '',
-                            specialisation: '',
-                            category: '',
-                            tenure_start_date: '',
-                            tenure_end_date: '',
-                            linkedin_id: ''
-                        });
-                    }}
-                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
-                  >
-                    Cancel
-                  </button>
-              )}
+            )}
+            
+            {!isLocked && members.length > 0 && (
+              <button 
+                type="button"
+                onClick={() => setIsLocked(true)}
+                className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95 shrink-0"
+              >
+                <Lock className="size-5" /> Lock Committee
+              </button>
+            )}
+
+            {isLocked && !editingId && (
+              <div className="flex-1 flex items-center justify-center py-3.5 px-6 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 font-bold text-sm gap-2">
+                <Lock className="size-4" /> Committee Locked
+              </div>
+            )}
+            
+            {editingId && (
+                <button 
+                type="button" 
+                onClick={() => {
+                    setEditingId(null);
+                    setFormData({
+                        member_name: '',
+                        member_id: '',
+                        organization: '',
+                        email: '',
+                        mobile_number: '',
+                        specialisation: '',
+                        category: '',
+                        tenure_start_date: '',
+                        tenure_end_date: '',
+                        linkedin_id: ''
+                    });
+                }}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                >
+                Cancel
+                </button>
+            )}
           </div>
         </form>
       </div>
@@ -407,72 +480,132 @@ export default function ProgramAdvisoryCommitteeForm() {
            <UserPlus className="size-4 text-primary" /> PAC Members ({members.length})
         </h4>
         
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead>
-              <tr className="bg-slate-50/50">
-                <th className="border-b border-slate-200 px-6 py-4 font-bold text-slate-900">No</th>
-                <th className="border-b border-slate-200 px-6 py-4 font-bold text-slate-900">Name</th>
-                <th className="border-b border-slate-200 px-6 py-4 font-bold text-slate-900">Category</th>
-                <th className="border-b border-slate-200 px-6 py-4 font-bold text-slate-900">Contact</th>
-                <th className="border-b border-slate-200 px-6 py-4 font-bold text-slate-900 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center">
-                    <Loader2 className="mx-auto size-6 animate-spin text-slate-300" />
-                  </td>
-                </tr>
-              ) : members.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500 font-medium">
-                    No members added yet.
-                  </td>
-                </tr>
-              ) : (
-                members.map((member, index) => (
-                  <tr key={member.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-4 text-slate-500 font-medium">{index + 1}</td>
-                    <td className="px-6 py-4 text-slate-900 font-bold">
-                        {member.member_name}
-                        <div className="text-xs font-normal text-slate-500 mt-0.5">{member.organization}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 uppercase tracking-tight">
-                        {member.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">
-                        <div className="flex flex-col text-xs">
-                            <span>{member.email}</span>
-                            <span>{member.mobile_number}</span>
-                        </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <button 
-                          onClick={() => handleEdit(member)}
-                          className="p-2 text-slate-400 hover:text-primary transition-colors hover:bg-primary/5 rounded-lg"
-                          title="Edit"
+        <div className="space-y-3">
+            {loading ? (
+                <div className="flex justify-center items-center py-12 bg-white rounded-2xl border border-slate-200">
+                    <Loader2 className="size-6 animate-spin text-slate-300" />
+                </div>
+            ) : members.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 text-slate-500 font-medium">
+                    No members registered yet.
+                </div>
+            ) : (
+                members.map((member, index) => {
+                    const isExpanded = expandedId === member.id;
+                    return (
+                        <motion.div 
+                            layout
+                            key={member.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={cn(
+                                "rounded-xl border transition-all duration-200 overflow-hidden bg-white hover:border-primary/30",
+                                isExpanded ? "border-primary/40 ring-4 ring-primary/5 shadow-md" : "border-slate-200 shadow-sm"
+                            )}
                         >
-                          <Edit2 className="size-4" />
-                        </button>
-                        <button 
-                            onClick={() => handleDelete(member.id)}
-                            className="p-2 text-slate-400 hover:text-red-500 transition-colors hover:bg-red-50 rounded-lg"
-                            title="Delete"
-                        >
-                            <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                            <div 
+                                onClick={() => toggleExpand(member.id)}
+                                className="p-4 flex items-center gap-4 cursor-pointer select-none"
+                            >
+                                <div className={cn(
+                                    "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-colors",
+                                    isExpanded ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
+                                )}>
+                                    {index + 1}
+                                </div>
+
+                                <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                                    <div className="font-bold text-slate-900 truncate">{member.member_name}</div>
+                                    <div className="text-sm text-slate-500 flex items-center gap-2 truncate">
+                                        <Phone className="size-3.5" />
+                                        {member.mobile_number || 'N/A'}
+                                    </div>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 uppercase tracking-tight truncate max-w-[150px]">
+                                            {member.category}
+                                        </span>
+                                        <ChevronDown className={cn(
+                                            "size-5 text-slate-400 transition-transform duration-300 shrink-0",
+                                            isExpanded ? "rotate-180 text-primary" : ""
+                                        )} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <AnimatePresence>
+                                {isExpanded && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <div className="px-4 pb-4 pt-0 border-t border-slate-100/80 bg-slate-50/50">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+                                                        <Building className="size-3" /> Organization
+                                                    </div>
+                                                    <div className="text-sm font-medium text-slate-700">{member.organization || 'N/A'}</div>
+                                                </div>
+                                                
+                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+                                                        <Mail className="size-3" /> Email Address
+                                                    </div>
+                                                    <div className="text-sm font-medium text-slate-700">{member.email || 'N/A'}</div>
+                                                </div>
+
+                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+                                                        <Award className="size-3" /> Specialisation
+                                                    </div>
+                                                    <div className="text-sm font-medium text-slate-700">{member.specialisation || 'N/A'}</div>
+                                                </div>
+
+                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+                                                        <Calendar className="size-3" /> Tenure
+                                                    </div>
+                                                    <div className="text-sm font-medium text-slate-700">
+                                                        {member.tenure_start_date ? new Date(member.tenure_start_date).toLocaleDateString() : 'N/A'} 
+                                                        {' - '} 
+                                                        {member.tenure_end_date ? new Date(member.tenure_end_date).toLocaleDateString() : 'N/A'}
+                                                    </div>
+                                                </div>
+
+                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
+                                                        <Linkedin className="size-3" /> LinkedIn
+                                                    </div>
+                                                    <div className="text-sm font-medium text-slate-700 break-all">{member.linkedin_id || 'N/A'}</div>
+                                                </div>
+
+                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm flex items-center justify-end gap-2">
+                                                    <button 
+                                                        onClick={(e) => handleEdit(member, e)}
+                                                        className="px-3 py-1.5 rounded-lg bg-primary/5 text-primary text-xs font-bold hover:bg-primary/10 transition-colors"
+                                                    >
+                                                        Edit Member
+                                                    </button>
+                                                    {!isLocked && (
+                                                        <button 
+                                                            onClick={(e) => handleDelete(member, e)}
+                                                            className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 transition-colors"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    );
+                })
+            )}
         </div>
       </div>
     </div>
