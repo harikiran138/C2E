@@ -60,7 +60,17 @@ export async function middleware(request: NextRequest) {
   )
 
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // [FIX] Safer getUser call to prevent "Tenant or user not found" or destructuring crashes.
+  let user = null;
+  try {
+    const { data, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.warn('Middleware: Supabase Auth check returned error (ignored):', authError.message);
+    }
+    user = data?.user || null;
+  } catch (err) {
+    console.error('Middleware: Fatal error during Supabase Auth check:', err);
+  }
   
   // [NEW] Custom Session Check
   let customUser: { id: string; email: string; role?: string; onboarding_status?: string } | null = null;
