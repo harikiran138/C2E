@@ -35,7 +35,6 @@ export async function GET(request: NextRequest) {
           institution_status,
           established_year,
           university_affiliation,
-          address,
           city,
           state
          FROM institutions
@@ -90,7 +89,6 @@ export async function POST(request: NextRequest) {
       institution_status: String(body.institution_status || ''),
       established_year: Number(body.established_year),
       university_affiliation: body.university_affiliation ? String(body.university_affiliation) : null,
-      address: String(body.address || ''),
       city: String(body.city || ''),
       state: String(body.state || ''),
     };
@@ -108,19 +106,15 @@ export async function POST(request: NextRequest) {
              institution_status = $2, 
              established_year = $3, 
              university_affiliation = $4, 
-             address = $5, 
-             city = $6, 
-             state = $7, 
+             city = $5, 
+             state = $6, 
              updated_at = NOW()
-         WHERE id = $8`,
+         WHERE id = $7`,
         [
           payload.institution_type,
           payload.institution_status,
           payload.established_year,
-          payload.institution_status === 'Non-Autonomous'
-            ? payload.university_affiliation?.trim() || null
-            : null,
-          payload.address.trim(),
+          payload.university_affiliation?.trim() || null,
           payload.city.trim(),
           payload.state.trim(),
           institutionId

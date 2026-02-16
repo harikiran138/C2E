@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { 
   Building2, 
   ChevronRight, 
+  ChevronDown,
   ArrowLeft, 
   CheckCircle2, 
   School, 
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { Country, State, City } from 'country-state-city';
 import { cn } from '@/lib/utils';
 
 // --- TYPES ---
@@ -32,10 +34,9 @@ type OnboardingStep = 1 | 2 | 3;
 
 interface InstitutionDetails {
   institution_type: 'Private' | 'Government' | 'Deemed' | 'Trust';
-  institution_status: 'Autonomous' | 'Non-Autonomous';
+  institution_status: string;
   established_year: number;
   university_affiliation?: string;
-  address: string;
   city: string;
   state: string;
 }
@@ -53,15 +54,15 @@ interface Program {
 
 // --- SUB-COMPONENTS ---
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
+  <div className="rounded-lg border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
     {children}
   </div>
 );
 
 const SectionTitle = ({ title, subtitle }: { title: string, subtitle: string }) => (
   <div className="mb-12">
-    <h2 className="text-4xl font-extrabold tracking-tight text-foreground">{title}</h2>
-    <p className="text-muted-foreground text-lg mt-2 font-medium">{subtitle}</p>
+    <h2 className="text-3xl font-extrabold tracking-tight text-foreground">{title}</h2>
+    <p className="text-muted-foreground text-sm mt-1 font-medium">{subtitle}</p>
   </div>
 );
 
@@ -71,6 +72,8 @@ const fadeIn: Variants = {
   visible: { opacity: 1, x: 0, transition: { duration: 0.4, ease: "easeOut" } },
   exit: { opacity: 0, x: -20, transition: { duration: 0.3, ease: "easeIn" } }
 };
+
+import AuthBackground from '../ui/AuthBackground';
 
 export default function InstitutionOnboarding() {
 
@@ -87,19 +90,34 @@ export default function InstitutionOnboarding() {
     institution_status: 'Non-Autonomous',
     established_year: new Date().getFullYear(),
     university_affiliation: '',
-    address: '',
     city: '',
     state: ''
   });
 
+  // Location State Management
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+
+  const countries = Country.getAllCountries();
+  const states = selectedCountry ? State.getStatesOfCountry(selectedCountry) : [];
+  const cities = selectedCountry && selectedState ? City.getCitiesOfState(selectedCountry, selectedState) : [];
+
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [newProgram, setNewProgram] = useState<Program>({
+  const [newProgram, setNewProgram] = useState<{
+    program_name: string;
+    degree: string;
+    level: string;
+    duration: number | string; // Allow string for initial empty state
+    intake: number;
+    academic_year: string;
+    program_code: string;
+  }>({
     program_name: '',
-    degree: 'B.Tech',
-    level: 'UG',
-    duration: 4,
+    degree: '',
+    level: '',
+    duration: '', // Empty initially
     intake: 60,
-    academic_year: '2025-2026',
+    academic_year: '',
     program_code: ''
   });
 
@@ -107,14 +125,12 @@ export default function InstitutionOnboarding() {
   
   // Validation logic (kept for reference or internal checks, but not blocking UI feedback)
   const isStep1Valid =
-    !!instDetails.address.trim() &&
-    instDetails.address.trim().length >= 10 &&
     !!instDetails.city.trim() &&
     !!instDetails.state.trim() &&
     Number.isInteger(instDetails.established_year) &&
     instDetails.established_year >= 1900 &&
     instDetails.established_year <= currentYear &&
-    (instDetails.institution_status !== 'Non-Autonomous' || !!instDetails.university_affiliation?.trim());
+    instDetails.established_year <= currentYear;
 
   const isProgramValid =
     !!newProgram.program_name.trim() &&
@@ -122,11 +138,21 @@ export default function InstitutionOnboarding() {
     !!newProgram.degree &&
     !!newProgram.level &&
     !!newProgram.academic_year &&
-    Number.isInteger(newProgram.duration) &&
+    typeof newProgram.duration === 'number' &&
     newProgram.duration >= 1 &&
     newProgram.duration <= 6 &&
     Number.isInteger(newProgram.intake) &&
     newProgram.intake > 0;
+
+  // --- SCROLL TO TOP ON STEP CHANGE ---
+  useEffect(() => {
+    // Scroll main container to top
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    // Also scroll window just in case
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -157,7 +183,6 @@ export default function InstitutionOnboarding() {
             institution_status: (institution.institution_status as any) || 'Non-Autonomous',
             established_year: institution.established_year || new Date().getFullYear(),
             university_affiliation: institution.university_affiliation || '',
-            address: institution.address || '',
             city: institution.city || '',
             state: institution.state || ''
          });
@@ -172,20 +197,12 @@ export default function InstitutionOnboarding() {
   const handleSaveDetails = async () => {
     
     // Strict Validation Step 1
-    if (!instDetails.address.trim() || !instDetails.city.trim() || !instDetails.state.trim()) {
-      setErrorMsg("Address, City, and State are required.");
+    if (!instDetails.city.trim() || !instDetails.state.trim()) {
+      setErrorMsg("City and State are required.");
       return;
-    }
-    
-    if (instDetails.address.length < 10) {
-        setErrorMsg("Address must be at least 10 characters long.");
-        return;
     }
 
-    if (instDetails.institution_status === 'Non-Autonomous' && !instDetails.university_affiliation?.trim()) {
-      setErrorMsg("University affiliation is required for non-autonomous institutions.");
-      return;
-    }
+    // Removed status validation
     const currentYear = new Date().getFullYear();
     if (!Number.isInteger(instDetails.established_year) || instDetails.established_year < 1900 || instDetails.established_year > currentYear) {
       setErrorMsg(`Established year must be between 1900 and ${currentYear}.`);
@@ -202,8 +219,7 @@ export default function InstitutionOnboarding() {
         institution_type: instDetails.institution_type,
         institution_status: instDetails.institution_status,
         established_year: instDetails.established_year,
-        university_affiliation: instDetails.institution_status === 'Non-Autonomous' ? instDetails.university_affiliation : null,
-        address: instDetails.address,
+        university_affiliation: instDetails.university_affiliation,
         city: instDetails.city,
         state: instDetails.state
       }),
@@ -220,54 +236,57 @@ export default function InstitutionOnboarding() {
   };
 
   const handleAddProgram = async () => {
-    // Strict Validation Step 2 (Program)
-    if (!newProgram.program_name.trim() || !newProgram.program_code.trim() || !newProgram.degree || !newProgram.level || !newProgram.academic_year) {
-      setErrorMsg("All program fields are required.");
+    // Validate required fields
+    if (!newProgram.program_name || !newProgram.degree || !newProgram.level || !newProgram.duration || !newProgram.program_code) {
+      setErrorMsg("Please fill all required fields");
       return;
     }
 
-    if (newProgram.intake <= 0) {
-      setErrorMsg("Intake must be greater than 0.");
-      return;
-    }
-    if (!Number.isInteger(newProgram.duration) || newProgram.duration < 1 || newProgram.duration > 6) {
-      setErrorMsg("Duration must be between 1 and 6 years.");
-      return;
-    }
-    
+    // Additional validations
     if (programs.some(p => p.program_code === newProgram.program_code.toUpperCase())) {
        setErrorMsg(`Program code "${newProgram.program_code}" already exists.`);
        return;
     }
 
-    setLoading(true);
-    setErrorMsg(null);
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+      
+      const res = await fetch('/api/institution/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProgram)
+      });
 
-    const response = await fetch('/api/institution/programs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newProgram),
-    });
-    
-    setLoading(false);
-    if (!response.ok) {
-      const payload = await response.json();
-      setErrorMsg(payload.error || 'Failed to add program.');
-      return;
-    }
+      const payload = await res.json();
+      setLoading(false);
 
-    const payload = await response.json();
-    if (payload.program) {
-      setPrograms([...programs, payload.program]);
+      if (!res.ok) {
+        throw new Error(payload.error || 'Failed to add program');
+      }
+
+      setPrograms([...programs, payload.program || payload]);
       setNewProgram({
         program_name: '',
-        degree: 'B.Tech',
-        level: 'UG',
-        duration: 4,
+        degree: '',
+        level: '',
+        duration: '',
         intake: 60,
-        academic_year: '2025-2026',
+        academic_year: '',
         program_code: ''
       });
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Error adding program');
+      setLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep === 1) {
+      router.back();
+    } else {
+      setCurrentStep((prev) => (prev - 1) as OnboardingStep);
     }
   };
 
@@ -301,17 +320,16 @@ export default function InstitutionOnboarding() {
 
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row relative bg-background font-sans selection:bg-primary/20">
-      <div className="login-pattern-bg fixed inset-0 -z-20 opacity-20"></div>
-      <div className="absolute inset-0 bg-gradient-to-tr from-background via-background/80 to-transparent -z-10" />
+    <AuthBackground className="flex-row items-stretch justify-start !p-0">
+      <div className="h-screen w-full flex flex-col lg:flex-row relative font-sans selection:bg-primary/20 overflow-hidden">
 
       {/* Sidebar Info */}
-      <section className="hidden lg:flex flex-1 flex-col justify-between p-12 bg-sidebar/40 backdrop-blur-2xl border-r border-border/40 text-foreground relative z-10 lg:h-screen lg:sticky lg:top-0">
+      <section className="hidden lg:flex flex-1 flex-col justify-between p-12 bg-sidebar/40 backdrop-blur-2xl border-r border-border/40 text-foreground relative z-10 h-full overflow-y-auto">
         <div className="space-y-12">
           <div className="flex items-center gap-3">
-            <div className="size-12 bg-primary rounded-xl flex items-center justify-center shadow-2xl shadow-primary/20 font-black italic text-2xl text-primary-foreground">C</div>
+            <div className="size-12 bg-primary rounded-lg flex items-center justify-center shadow-2xl shadow-primary/20 font-black italic text-2xl text-primary-foreground">C</div>
             <div className="text-left">
-              <span className="block text-xl font-bold tracking-tight leading-none text-foreground">C2X Portal</span>
+              <span className="block text-xl font-bold tracking-tight leading-none text-foreground">C2X Plus+</span>
               <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-muted-foreground mt-1 block">Onboarding</span>
             </div>
           </div>
@@ -322,7 +340,7 @@ export default function InstitutionOnboarding() {
               {currentStep === 2 && "Add your academic programs."}
               {currentStep === 3 && "Review and finalize your data."}
             </h1>
-            <p className="text-lg text-muted-foreground font-medium max-w-md">
+            <p className="text-base text-muted-foreground font-medium max-w-md">
               Complete these steps to unlock your institutional dashboard and start managing compliance.
             </p>
           </div>
@@ -335,7 +353,7 @@ export default function InstitutionOnboarding() {
             ].map((s) => (
               <div key={s.step} className={`flex items-center gap-4 transition-all duration-500 ${s.active ? 'opacity-100 translate-x-1' : 'opacity-20 translate-x-0'}`}>
                 <div className={cn(
-                    "size-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all shadow-lg",
+                    "size-10 rounded-lg flex items-center justify-center font-bold text-sm transition-all shadow-lg",
                     currentStep > s.step ? "bg-emerald-500 text-white shadow-emerald-500/20" : s.active ? "bg-primary text-primary-foreground shadow-primary/20" : "border border-border bg-muted/50 text-muted-foreground"
                 )}>
                   {currentStep > s.step ? <CheckCircle2 className="size-5" /> : s.step}
@@ -346,22 +364,30 @@ export default function InstitutionOnboarding() {
           </div>
         </div>
 
-        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mt-12">
           © 2026 Compliance to Excellence
         </div>
       </section>
 
       {/* Main Content */}
-      <main ref={scrollRef} className="flex-[1.5] p-6 lg:p-24 overflow-y-auto overflow-x-hidden">
-        <div className="max-w-xl mx-auto space-y-12">
+      <main ref={scrollRef} className="flex-[1.5] h-full overflow-y-auto overflow-x-hidden p-6 lg:p-12 pb-24 lg:pb-32 relative z-10">
+        <div className="max-w-xl mx-auto space-y-8">
           
+          {/* Back Button */}
+          <button 
+            onClick={handleBack}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors font-bold text-sm px-2 py-1 rounded-lg hover:bg-background/50"
+          >
+            <ArrowLeft className="size-4" /> Back
+          </button>
+
           <AnimatePresence mode="wait">
             {errorMsg && (
               <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3"
+                className="p-4 bg-red-50 border border-red-100 rounded-lg flex items-center gap-3"
               >
                 <AlertCircle className="size-5 text-red-500 shrink-0" />
                 <p className="text-sm font-semibold text-red-600">{errorMsg}</p>
@@ -380,109 +406,170 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="space-y-8"
               >
-                <SectionTitle title="Basic Institution Details" subtitle="Provide the legal and physical information about your campus." />
+                <div className="md:col-span-2">
+                  <div className="w-full max-w-[600px] mx-auto bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl p-8 lg:p-12 relative overflow-hidden">
+                    <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+                    
+                    <div className="mb-8 text-center">
+                        <SectionTitle title="Basic Institution Details" subtitle="Provide the legal and physical information about your campus." />
+                    </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">Institution Type</label>
-                    <GlassInputWrapper>
-                      <select 
-                        className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
-                        value={instDetails.institution_type}
-                        onChange={e => setInstDetails({...instDetails, institution_type: e.target.value as any})}
-                      >
-                        <option>Private</option>
-                        <option>Government</option>
-                        <option>Deemed</option>
-                        <option>Trust</option>
-                      </select>
-                    </GlassInputWrapper>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Institution Type</label>
+                      <div className="relative">
+                        <GlassInputWrapper>
+                          <select 
+                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                            value={instDetails.institution_type}
+                            onChange={e => setInstDetails({...instDetails, institution_type: e.target.value as any})}
+                          >
+                            <option>Private</option>
+                            <option>Government</option>
+              
+                          </select>
+                        </GlassInputWrapper>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Status</label>
+                      <div className="relative">
+                        <GlassInputWrapper>
+                          <select 
+                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                            value={instDetails.institution_status}
+                            onChange={e => setInstDetails({...instDetails, institution_status: e.target.value})}
+                          >
+                            <option value="">Select Status</option>
+                            <option value="Autonomous">Autonomous</option>
+                            <option value="Non Autonomous">Non Autonomous</option>
+                            <option value="State University">University</option>
+                          </select>
+                        </GlassInputWrapper>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Year Of Establishment </label>
+                      <GlassInputWrapper>
+                        <input 
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*" 
+                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
+                          value={instDetails.established_year || ''}
+                          onChange={e => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setInstDetails({...instDetails, established_year: val ? parseInt(val) : 0})
+                          }}
+                          placeholder="e.g. 1985"
+                        />
+                      </GlassInputWrapper>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">University Affiliation</label>
+                      <GlassInputWrapper>
+                        <input 
+                          placeholder="University Name"
+                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
+                          value={instDetails.university_affiliation}
+                          onChange={e => setInstDetails({...instDetails, university_affiliation: e.target.value})}
+                        />
+                      </GlassInputWrapper>
+                    </div>
+
+
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">Country</label>
+                      <div className="relative">
+                        <GlassInputWrapper>
+                          <select 
+                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                            value={selectedCountry}
+                            onChange={e => {
+                                setSelectedCountry(e.target.value);
+                                setSelectedState('');
+                                setInstDetails({...instDetails, state: '', city: ''});
+                            }}
+                          >
+                            <option value="">Select Country</option>
+                            {countries.map((country) => (
+                                <option key={country.isoCode} value={country.isoCode}>
+                                    {country.name}
+                                </option>
+                            ))}
+                          </select>
+                        </GlassInputWrapper>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">State</label>
+                      <div className="relative">
+                        <GlassInputWrapper>
+                          <select 
+                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                            value={selectedState}
+                            onChange={e => {
+                                const stateCode = e.target.value;
+                                const state = states.find(s => s.isoCode === stateCode);
+                                setSelectedState(stateCode);
+                                setInstDetails({...instDetails, state: state ? state.name : '', city: ''});
+                            }}
+                            disabled={!selectedCountry}
+                          >
+                            <option value="">Select State</option>
+                            {states.map((state) => (
+                                <option key={state.isoCode} value={state.isoCode}>
+                                    {state.name}
+                                </option>
+                            ))}
+                          </select>
+                        </GlassInputWrapper>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">City</label>
+                      <div className="relative">
+                        <GlassInputWrapper>
+                          <select 
+                            className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                            value={instDetails.city}
+                            onChange={e => setInstDetails({...instDetails, city: e.target.value})}
+                            disabled={!selectedState}
+                          >
+                            <option value="">Select City</option>
+                            {cities.map((city) => (
+                                <option key={city.name} value={city.name}>
+                                    {city.name}
+                                </option>
+                            ))}
+                          </select>
+                        </GlassInputWrapper>
+                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">Status</label>
-                    <GlassInputWrapper>
-                      <select 
-                        className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
-                        value={instDetails.institution_status}
-                        onChange={e => setInstDetails({...instDetails, institution_status: e.target.value as any})}
-                      >
-                        <option value="Autonomous">Autonomous</option>
-                        <option value="Non-Autonomous">Non-Autonomous</option>
-                      </select>
-                    </GlassInputWrapper>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">Established Year</label>
-                    <GlassInputWrapper>
-                      <input 
-                        type="number" 
-                        className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
-                        value={instDetails.established_year}
-                        onChange={e => setInstDetails({...instDetails, established_year: parseInt(e.target.value) || currentYear})}
-                        min="1900" max={new Date().getFullYear()}
-                      />
-                    </GlassInputWrapper>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">University Affiliation</label>
-                    <GlassInputWrapper>
-                      <input 
-                        placeholder={instDetails.institution_status === 'Autonomous' ? "Not Required" : "University Name"}
-                        className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 disabled:opacity-50" 
-                        value={instDetails.university_affiliation}
-                        onChange={e => setInstDetails({...instDetails, university_affiliation: e.target.value})}
-                        disabled={instDetails.institution_status === 'Autonomous'}
-                      />
-                    </GlassInputWrapper>
-                  </div>
-
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">Address</label>
-                    <GlassInputWrapper>
-                      <textarea 
-                        placeholder="Full street address (min 10 chars)"
-                        className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 h-24 resize-none" 
-                        value={instDetails.address}
-                        onChange={e => setInstDetails({...instDetails, address: e.target.value})}
-                      />
-                    </GlassInputWrapper>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">City</label>
-                    <GlassInputWrapper>
-                      <input 
-                        placeholder="City Name"
-                        className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
-                        value={instDetails.city}
-                        onChange={e => setInstDetails({...instDetails, city: e.target.value})}
-                      />
-                    </GlassInputWrapper>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">State</label>
-                    <GlassInputWrapper>
-                      <input 
-                        placeholder="State Name"
-                        className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
-                        value={instDetails.state}
-                        onChange={e => setInstDetails({...instDetails, state: e.target.value})}
-                      />
-                    </GlassInputWrapper>
-                  </div>
+                  <button 
+                    onClick={handleSaveDetails} 
+                    className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+                    disabled={loading}
+                  >
+                    {loading ? <Loader2 className="animate-spin size-5" /> : <>Save & Continue <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" /></>}
+                  </button>
                 </div>
-
-                <button 
-                  onClick={handleSaveDetails} 
-                  className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                  disabled={loading}
-                >
-                  {loading ? <Loader2 className="animate-spin size-5" /> : <>Save & Continue <ArrowRight className="size-5" /></>}
-                </button>
+              </div>
+            </div>
               </motion.div>
             )}
 
@@ -496,179 +583,209 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="space-y-8"
               >
-                <SectionTitle title="Add Programs" subtitle="List at least one academic program to complete onboarding." />
-                
-                <div className="bg-slate-100/50 border border-slate-200 p-8 rounded-2xl space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="md:col-span-2 space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Program Name</label>
-                      <GlassInputWrapper>
-                        <input 
-                          placeholder="e.g. Computer Science Engineering"
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
-                          value={newProgram.program_name}
-                          onChange={e => setNewProgram({...newProgram, program_name: e.target.value})}
-                        />
-                      </GlassInputWrapper>
-                    </div>
+                <div className="md:col-span-2">
+                  <div className="w-full max-w-[600px] mx-auto bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
+                    <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
+                    
+                    {/* Scrollable Content Area */}
+                    <div className="overflow-y-auto p-8 lg:p-12 custom-scrollbar">
+                      <div className="mb-8 text-center">
+                          <SectionTitle title="Add Programs" subtitle="List at least one academic program to complete onboarding." />
+                      </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Degree</label>
-                      <GlassInputWrapper>
-                        <select 
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
-                          value={newProgram.degree}
-                          onChange={e => setNewProgram({...newProgram, degree: e.target.value})}
-                        >
-                          <option>B.Tech</option>
-                          <option>B.Sc</option>
-                          <option>B.Com</option>
-                          <option>MBA</option>
-                          <option>M.Tech</option>
-                          <option>PhD</option>
-                        </select>
-                      </GlassInputWrapper>
-                    </div>
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Program Name</label>
+                          <GlassInputWrapper>
+                            <input 
+                              placeholder="e.g. Computer Science and Engineering"
+                              className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
+                              value={newProgram.program_name}
+                              onChange={e => setNewProgram({...newProgram, program_name: e.target.value})}
+                            />
+                          </GlassInputWrapper>
+                        </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Level</label>
-                      <GlassInputWrapper>
-                        <select 
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
-                          value={newProgram.level}
-                          onChange={e => setNewProgram({...newProgram, level: e.target.value})}
-                        >
-                          <option>UG</option>
-                          <option>PG</option>
-                          <option>Diploma</option>
-                          <option>Doctorate</option>
-                        </select>
-                      </GlassInputWrapper>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Duration (Years)</label>
-                      <GlassInputWrapper>
-                        <input 
-                          type="number" 
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
-                          value={newProgram.duration}
-                          onChange={e => setNewProgram({...newProgram, duration: parseInt(e.target.value) || 4})}
-                          min="1" max="6"
-                        />
-                      </GlassInputWrapper>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Intake Capacity</label>
-                      <GlassInputWrapper>
-                        <input 
-                          type="number" 
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
-                          value={newProgram.intake}
-                          onChange={e => setNewProgram({...newProgram, intake: parseInt(e.target.value) || 60})}
-                        />
-                      </GlassInputWrapper>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Academic Year</label>
-                      <GlassInputWrapper>
-                        <select 
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
-                          value={newProgram.academic_year}
-                          onChange={e => setNewProgram({...newProgram, academic_year: e.target.value})}
-                        >
-                          <option>2025-2026</option>
-                          <option>2026-2027</option>
-                        </select>
-                      </GlassInputWrapper>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">Program Code</label>
-                      <GlassInputWrapper>
-                        <input 
-                          placeholder="e.g. CSE101"
-                          className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 uppercase" 
-                          value={newProgram.program_code}
-                          onChange={e => setNewProgram({...newProgram, program_code: e.target.value.toUpperCase()})}
-                        />
-                      </GlassInputWrapper>
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={handleAddProgram} 
-                    className="w-full py-4 border-2 border-dashed border-border/60 bg-background/40 hover:bg-background/80 hover:border-primary/40 rounded-2xl font-bold text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-2"
-                    disabled={loading}
-                  >
-                    <Plus className="size-5" /> Add Program to List
-                  </button>
-                </div>
-
-                {/* List of Added Programs */}
-                <div className="space-y-4">
-                  <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest">Added Programs ({programs.length})</h3>
-                  {programs.length === 0 ? (
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-slate-400 text-sm italic">No programs added yet.</motion.p>
-                  ) : (
-                    <div className="space-y-3">
-                      <AnimatePresence>
-                      {programs.map((p, idx) => (
-                        <motion.div 
-                          key={p.id || idx} 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="p-4 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-sm"
-                        >
-                          <div>
-                            <p className="font-bold text-slate-900">{p.program_name}</p>
-                            <p className="text-xs text-slate-500">{p.degree} • {p.level} • {p.duration} Years • Code: {p.program_code}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Degree</label>
+                            <div className="relative">
+                              <GlassInputWrapper>
+                                <select 
+                                  className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                                  value={newProgram.degree}
+                                  onChange={e => setNewProgram({...newProgram, degree: e.target.value})}
+                                >
+                                  <option value="">Select Degree</option>
+                                  <option>Diploma</option>
+                                  <option>B.E</option>
+                                  <option>B.Tech</option>
+                                  <option>M.Tech</option>
+                                </select>
+                              </GlassInputWrapper>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                            </div>
                           </div>
-                          <button 
-                            onClick={async () => {
-                              if (p.id) {
-                                try {
-                                  const res = await fetch(`/api/institution/programs?id=${p.id}`, {
-                                    method: 'DELETE'
-                                  });
-                                  if (res.ok) {
-                                    setPrograms(programs.filter(prog => prog.id !== p.id));
-                                  } else {
-                                    console.error('Failed to delete program');
-                                  }
-                                } catch (err) {
-                                  console.error('Error deleting program:', err);
-                                }
-                              }
-                            }}
-                            className="p-2 hover:bg-red-50 text-red-400 hover:text-red-500 rounded-lg transition-all"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </motion.div>
-                      ))}
-                      </AnimatePresence>
-                    </div>
-                  )}
-                </div>
 
-                <div className="flex gap-4">
-                  <button 
-                    onClick={() => setCurrentStep(1)} 
-                    className="px-8 py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all flex items-center gap-2"
-                  >
-                    <ArrowLeft className="size-5" /> Back
-                  </button>
-                  <button 
-                    onClick={() => setCurrentStep(3)} 
-                    className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                    disabled={programs.length === 0}
-                  >
-                    Review Data <ArrowRight className="size-5" />
-                  </button>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Level</label>
+                            <div className="relative">
+                              <GlassInputWrapper>
+                                <select 
+                                  className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                                  value={newProgram.level}
+                                  onChange={e => setNewProgram({...newProgram, level: e.target.value})}
+                                >
+                                  <option value="">Select Level</option>
+                                  <option>Diploma</option>
+                                  <option>UG</option>
+                                  <option>PG</option>
+                                  <option>Integrated PG</option>
+                                </select>
+                              </GlassInputWrapper>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Program Duration</label>
+                            <div className="relative">
+                              <GlassInputWrapper>
+                                <select
+                                  className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
+                                  value={newProgram.duration}
+                                  onChange={e => setNewProgram({...newProgram, duration: parseInt(e.target.value)})}
+                                >
+                                  <option value="">Select Duration</option>
+                                  <option value="2">2 Years</option>
+                                  <option value="3">3 Years</option>
+                                  <option value="4">4 Years</option>
+                                  <option value="5">5 Years</option>
+                                </select>
+                              </GlassInputWrapper>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Intake Capacity</label>
+                            <GlassInputWrapper>
+                              <input 
+                                type="text" 
+                                inputMode="numeric"
+                                placeholder="e.g. 60"
+                                className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
+                                value={newProgram.intake}
+                                onChange={e => setNewProgram({...newProgram, intake: parseInt(e.target.value) || 60})}
+                              />
+                            </GlassInputWrapper>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Academic Year</label>
+                            <GlassInputWrapper>
+                              <input 
+                                type="text"
+                                className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
+                                placeholder="e.g. 2025"
+                                value={newProgram.academic_year}
+                                onChange={e => {
+                                  setNewProgram({...newProgram, academic_year: e.target.value})
+                                }}
+                              />
+                            </GlassInputWrapper>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Program Code (Unique ID)</label>
+                            <GlassInputWrapper>
+                              <input 
+                                placeholder="e.g. CSE-101"
+                                className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 uppercase" 
+                                value={newProgram.program_code}
+                                onChange={e => setNewProgram({...newProgram, program_code: e.target.value.toUpperCase()})}
+                              />
+                            </GlassInputWrapper>
+                          </div>
+                        </div>
+
+                          <button 
+                            onClick={handleAddProgram} 
+                            className="w-full py-4 mt-2 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl font-bold text-primary transition-all flex items-center justify-center gap-2 group"
+                            disabled={loading}
+                          >
+                            <Plus className="size-5 group-hover:scale-110 transition-transform" /> Add Program
+                          </button>
+                      </div>
+
+                      {/* List of Added Programs inside the card */}
+                      <div className="space-y-4 pt-4 border-t border-border/50">
+                        <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2">
+                          <Layers className="size-4" /> Added Programs ({programs.length})
+                        </h3>
+                        {programs.length === 0 ? (
+                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center p-6 border border-dashed border-border rounded-xl bg-background/30">
+                            <p className="text-muted-foreground text-sm">No programs added yet.</p>
+                          </motion.div>
+                        ) : (
+                          <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                            <AnimatePresence>
+                            {programs.map((p, idx) => (
+                              <motion.div 
+                                key={p.id || idx} 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="p-4 bg-background/50 border border-border rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all group"
+                              >
+                                <div>
+                                  <p className="font-bold text-foreground">{p.program_name}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {p.degree} • {p.level} • {p.duration} Years • Intake: {p.intake} • {p.academic_year} • Code: {p.program_code}
+                                  </p>
+                                </div>
+                                <button 
+                                  onClick={async () => {
+                                    if (p.id) {
+                                      try {
+                                        const res = await fetch(`/api/institution/programs?id=${p.id}`, {
+                                          method: 'DELETE'
+                                        });
+                                        if (res.ok) {
+                                          setPrograms(programs.filter(prog => prog.id !== p.id));
+                                        } else {
+                                          console.error('Failed to delete program');
+                                        }
+                                      } catch (err) {
+                                        console.error('Error deleting program:', err);
+                                      }
+                                    }
+                                  }}
+                                  className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <Trash2 className="size-4" />
+                                </button>
+                              </motion.div>
+                            ))}
+                            </AnimatePresence>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Sticky Footer for Actions */}
+                      <div className="sticky bottom-0 bg-card/80 backdrop-blur-xl p-4 -mx-4 -mb-4 mt-4 border-t border-border/50 flex gap-4 z-10 rounded-b-3xl">
+                        <button 
+                          onClick={() => setCurrentStep(3)} 
+                          className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={programs.length === 0}
+                        >
+                          Review Data <ArrowRight className="size-5" />
+                        </button>
+                      </div>
+                      </div>
+                    </div> {/* End of scrollable content area */}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -683,66 +800,79 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="space-y-8"
               >
-                <SectionTitle title="Final Review" subtitle="Verify your institutional and program data before submitting." />
-                
-                <div className="space-y-8">
-                  {/* Institution Summary */}
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <Building2 className="size-4" /> Institution Summary
-                    </h4>
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 grid grid-cols-2 gap-6 shadow-sm">
-                      <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase">Type</p>
-                        <p className="font-semibold text-slate-900">{instDetails.institution_type}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase">Status</p>
-                        <p className="font-semibold text-slate-900">{instDetails.institution_status}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-xs font-bold text-slate-500 uppercase">Location</p>
-                        <p className="font-semibold text-slate-900">{instDetails.city}, {instDetails.state}</p>
-                      </div>
+                <div className="md:col-span-2">
+                  <div className="w-full max-w-[600px] mx-auto bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl p-8 lg:p-12 relative overflow-hidden">
+                    <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+                    
+                    <div className="mb-8 text-center">
+                        <SectionTitle title="Final Review" subtitle="Verify your institutional and program data before submitting." />
                     </div>
-                  </div>
 
-                  {/* Programs Summary */}
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <Layers className="size-4" /> Programs ({programs.length})
-                    </h4>
-                    <div className="space-y-3">
-                      {programs.map((p, idx) => (
-                        <div key={idx} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
-                          <p className="font-bold text-slate-900">{p.program_name}</p>
-                          <p className="text-xs text-slate-500">{p.degree} • Code: {p.program_code} • Intake: {p.intake}</p>
+                    <div className="space-y-8">
+                      {/* Institution Summary */}
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                          <Building2 className="size-4" /> Institution Summary
+                        </h4>
+                        <div className="bg-background/40 border border-border/50 rounded-xl p-6 grid grid-cols-2 gap-4 shadow-sm group hover:border-primary/20 transition-colors">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Type</p>
+                            <p className="font-bold text-foreground">{instDetails.institution_type}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Status</p>
+                            <p className="font-bold text-foreground">{instDetails.institution_status}</p>
+                          </div>
+                          <div className="col-span-2 pt-2 border-t border-border/30 mt-2">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">Location</p>
+                            <div className="flex items-center gap-2 text-foreground font-medium">
+                                <MapPin className="size-4 text-primary" />
+                                {instDetails.city}, {instDetails.state}
+                            </div>
+                          </div>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Programs Summary */}
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                          <Layers className="size-4" /> Programs ({programs.length})
+                        </h4>
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                          {programs.map((p, idx) => (
+                            <div key={idx} className="p-4 bg-background/40 border border-border/50 rounded-xl shadow-sm hover:border-primary/20 transition-all">
+                              <p className="font-bold text-foreground flex justify-between items-center">
+                                {p.program_name}
+                                <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full uppercase tracking-wider">{p.program_code}</span>
+                              </p>
+                              <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-muted-foreground">
+                                <div><span className="font-semibold text-foreground">Degree:</span> {p.degree}</div>
+                                <div><span className="font-semibold text-foreground">Intake:</span> {p.intake}</div>
+                                <div><span className="font-semibold text-foreground">Duration:</span> {p.duration} Years</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-8 border-t border-border/30 mt-8">
+                      <button 
+                        onClick={handleCompleteOnboarding} 
+                        className="w-full py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 group"
+                        disabled={loading}
+                      >
+                        {loading ? <Loader2 className="animate-spin size-5" /> : <>Submit & Launch Portal <CheckCircle2 className="size-5 group-hover:scale-110 transition-transform" /></>}
+                      </button>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex gap-4 pt-8">
-                  <button 
-                    onClick={() => setCurrentStep(2)} 
-                    className="px-8 py-4 bg-card/40 border border-border/40 text-muted-foreground font-bold rounded-2xl hover:bg-card/60 hover:text-foreground transition-all flex items-center gap-2"
-                  >
-                    <ArrowLeft className="size-5" /> Back
-                  </button>
-                  <button 
-                    onClick={handleCompleteOnboarding} 
-                    className="flex-1 py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                    disabled={loading}
-                  >
-                    {loading ? <Loader2 className="animate-spin size-5" /> : <>Submit & Launch Portal <CheckCircle2 className="size-5" /></>}
-                  </button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
-    </div>
+      </div>
+    </AuthBackground>
   );
 }

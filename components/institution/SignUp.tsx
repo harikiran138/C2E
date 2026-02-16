@@ -5,7 +5,7 @@ import { ShieldCheck, Mail, ArrowRight, Building2, Loader2, Eye, EyeOff, Lock } 
 import { useRouter } from 'next/navigation';
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-lg border border-slate-200 bg-slate-50 shadow-sm backdrop-blur-sm transition-all focus-within:border-slate-900 focus-within:bg-white focus-within:shadow-md">
+  <div className="rounded-md border border-slate-200 bg-slate-50 shadow-sm backdrop-blur-sm transition-all focus-within:border-slate-900 focus-within:bg-white focus-within:shadow-md">
     {children}
   </div>
 );
@@ -22,7 +22,8 @@ export default function SignUp() {
   const router = useRouter();
 
   const validatePassword = (pass: string) => {
-    const regex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+    // At least 8 chars, 1 letter, 1 number, 1 special char
+    const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[\W_]).{8,}$/;
     return regex.test(pass);
   };
 
@@ -45,7 +46,7 @@ export default function SignUp() {
       }
 
       if (!validatePassword(password)) {
-        throw new Error('Password must be at least 8 characters, include at least one letter and one number, and use only letters and numbers.');
+        throw new Error('Password must be at least 8 characters and include a letter, a number, and a special character.');
       }
 
       if (institutionName.trim().length > 100) {
@@ -103,10 +104,8 @@ export default function SignUp() {
       localStorage.removeItem('onboarding_step');
 
       // Redirect to onboarding
-      setTimeout(() => {
-        router.push('/institution/onboarding');
-        router.refresh(); 
-      }, 800);
+      router.replace('/institution/onboarding');
+      router.refresh();
 
 
     } catch (err: any) {
@@ -120,14 +119,14 @@ export default function SignUp() {
 
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
+    <div className="space-y-4">
+      <div className="space-y-3">
         <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">
                 <Building2 className="size-3.5" />
                 Institution Name
             </label>
-            <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
+            <div className="rounded-lg border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
                 <input 
                     className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                     placeholder="e.g. Acme Institute of Technology" 
@@ -143,7 +142,7 @@ export default function SignUp() {
               <Mail className="size-3.5" />
               Official Email Address
           </label>
-          <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
+          <div className="rounded-lg border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
               <input 
                   className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                   placeholder="admin@institution.edu" 
@@ -154,13 +153,13 @@ export default function SignUp() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-2 px-1">
                     <Lock className="size-3.5" />
-                    Password
+                    Set Password
                 </label>
-                <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
+                <div className="rounded-lg border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
                     <div className="relative">
                         <input 
                             className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
@@ -181,7 +180,7 @@ export default function SignUp() {
                     <ShieldCheck className="size-3.5" />
                     Confirm Password
                 </label>
-                <div className="rounded-xl border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
+                <div className="rounded-lg border border-border/60 bg-background/50 backdrop-blur-sm transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 overflow-hidden">
                     <input 
                         className="w-full bg-transparent text-sm p-4 focus:outline-none text-foreground font-medium placeholder:text-muted-foreground/50" 
                         placeholder="••••••••" 
@@ -195,7 +194,7 @@ export default function SignUp() {
       </div>
 
       {errorMsg && (
-        <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-xl border border-destructive/20 flex items-center gap-2">
+        <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-lg border border-destructive/20 flex items-center gap-2">
             <AlertTriangle className="size-4 shrink-0" />
             {errorMsg}
         </div>
@@ -204,12 +203,12 @@ export default function SignUp() {
       <button 
         onClick={handleSignUp}
         disabled={loading}
-        className="w-full py-4 text-sm font-bold rounded-xl transition-all bg-primary text-primary-foreground shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+        className="w-full py-4 text-sm font-bold rounded-lg transition-all bg-primary text-primary-foreground shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
       >
         {loading ? <Loader2 className="animate-spin size-5" /> : <>Create Account <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" /></>}
       </button>
       
-      <p className="text-[10px] text-center text-muted-foreground uppercase tracking-wider font-medium">
+      <p className="text-[10px] text-center text-muted-foreground uppercase tracking-normal font-medium !mt-2">
         By creating an account, you agree to our <span className="text-primary hover:underline cursor-pointer">Terms</span> and <span className="text-primary hover:underline cursor-pointer">Privacy</span>.
       </p>
     </div>

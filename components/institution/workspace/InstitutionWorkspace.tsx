@@ -169,7 +169,7 @@ export default function InstitutionWorkspace({
                 <div className="p-6 border-b border-border/40 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-black italic text-sm">C</div>
-                    <span className="font-bold">C2X Portal</span>
+                    <span className="font-bold">C2X Plus+</span>
                   </div>
                   <button onClick={() => setIsSidebarOpen(false)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground">
                     <X className="size-5" />

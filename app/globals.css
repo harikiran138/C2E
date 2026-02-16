@@ -304,3 +304,27 @@
   background-size: var(--s) var(--s);
 }
 
+/* Remove default dropdown arrow */
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: none !important;
+  background-color: transparent;
+}
+
+/* Remove arrow in IE */
+select::-ms-expand {
+  display: none;
+}
+
+/* Remove number input arrows */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
