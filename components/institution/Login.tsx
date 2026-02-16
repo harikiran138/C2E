@@ -64,12 +64,8 @@ export default function Login() {
         role: 'institution_admin' 
       }));
 
-      // Force refresh to update middleware state
-      router.refresh();
-      
-      // We can optimistically redirect based on the response if it returned status, 
-      // but middleware is the source of truth.
-      router.push('/institution/dashboard'); 
+      // Force a hard reload to the dashboard to ensure middleware and state are fresh
+      window.location.href = '/institution/dashboard'; 
 
     } catch (err: any) {
       console.error('Login Error:', err);

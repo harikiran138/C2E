@@ -44,22 +44,29 @@ export async function POST(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      const duplicateCode = await client.query(
-        `SELECT id
-         FROM programs
-         WHERE institution_id = $1
-           AND LOWER(program_code) = LOWER($2)
-         LIMIT 1`,
+      // Check for duplicate code
+      const checkResult = await client.query(
+        'SELECT id FROM programs WHERE institution_id = $1 AND UPPER(program_code) = $2 LIMIT 1',
         [institutionId, normalizedProgramCode]
       );
 
-      if ((duplicateCode.rowCount ?? 0) > 0) {
+      if (checkResult.rows.length > 0) {
         return NextResponse.json({ error: 'Program code already exists for this institution.' }, { status: 409 });
       }
 
       await client.query(
         `INSERT INTO programs (
-          id, institution_id, program_name, degree, level, duration, intake, academic_year, program_code, created_at, updated_at
+          id,
+          institution_id,
+          program_name,
+          degree,
+          level,
+          duration,
+          intake,
+          academic_year,
+          program_code,
+          created_at,
+          updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
         [
           newId,
@@ -70,7 +77,7 @@ export async function POST(request: NextRequest) {
           payload.duration,
           payload.intake,
           payload.academic_year.trim(),
-          normalizedProgramCode,
+          normalizedProgramCode
         ]
       );
 
@@ -87,11 +94,6 @@ export async function POST(request: NextRequest) {
           program_code: normalizedProgramCode,
         } 
       });
-    } catch (dbError: any) {
-      if (dbError?.code === '23505') {
-        return NextResponse.json({ error: 'Program code already exists for this institution.' }, { status: 409 });
-      }
-      throw dbError;
     } finally {
       client.release();
     }
@@ -117,13 +119,12 @@ export async function DELETE(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      // Ensure the program belongs to the institution
-      const result = await client.query(
+      const deleteResult = await client.query(
         'DELETE FROM programs WHERE id = $1 AND institution_id = $2 RETURNING id',
         [id, institutionId]
       );
 
-      if (result.rowCount === 0) {
+      if (deleteResult.rows.length === 0) {
         return NextResponse.json({ error: 'Program not found or unauthorized' }, { status: 404 });
       }
 

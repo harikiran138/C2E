@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
 
     const client = await pool.connect();
     try {
+      // Fetch Institution
       const instResult = await client.query(
         `SELECT
           id,
@@ -42,6 +43,9 @@ export async function GET(request: NextRequest) {
         [institutionId]
       );
 
+      const institution = instResult.rows[0];
+
+      // Fetch Programs
       const progResult = await client.query(
         `SELECT
           id,
@@ -58,10 +62,12 @@ export async function GET(request: NextRequest) {
         [institutionId]
       );
 
-      const institution = instResult.rows[0] || {};
-      const programs = progResult.rows || [];
+      const programs = progResult.rows;
 
-      return NextResponse.json({ institution, programs });
+      return NextResponse.json({ 
+        institution: institution || {}, 
+        programs: programs || [] 
+      });
     } finally {
       client.release();
     }

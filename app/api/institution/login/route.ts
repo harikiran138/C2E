@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
       );
 
       const institution = result.rows[0];
-      if (!institution) {
-        return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
+      if (!institution || !institution.password_hash) {
+        return NextResponse.json({ error: 'Invalid credentials or account incomplete.' }, { status: 401 });
       }
 
       // Verify password

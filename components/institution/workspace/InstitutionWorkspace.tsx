@@ -102,10 +102,17 @@ export default function InstitutionWorkspace({
   }, [activeStepKey, isSidebarOpen]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    // Clear cookies manually if needed, but Supabase signOut should handle the session
-    document.cookie = 'institution_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    router.push('/institution/login');
+    try {
+      await supabase.auth.signOut();
+      // Call server-side logout to clear HttpOnly cookies
+      await fetch('/api/institution/logout', { method: 'POST' });
+      // Use window.location.href for a hard reload to clear any stale state
+      window.location.href = '/institution/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback redirect
+      window.location.href = '/institution/login';
+    }
   };
 
   const selectedProgramLabel = useMemo(() => {

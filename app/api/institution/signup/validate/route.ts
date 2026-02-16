@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/postgres';
 import { validateSignupPayload } from '@/lib/validation/onboarding';
+import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,21 +15,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const dupInstitution = await pool.query(
-      'SELECT id FROM public.institutions WHERE LOWER(institution_name) = LOWER($1) LIMIT 1',
-      [institutionName.trim()]
-    );
+    const supabase = await createClient();
 
-    if (dupInstitution.rowCount) {
+    // Check for duplicate institution name
+    const { data: dupInstitution, error: instError } = await supabase
+      .from('institutions')
+      .select('id')
+      .ilike('institution_name', institutionName.trim())
+      .maybeSingle();
+
+    if (instError) {
+      console.error('Error checking duplicate institution name:', instError);
+    }
+
+    if (dupInstitution) {
       return NextResponse.json({ error: 'An institution with this name is already registered.' }, { status: 409 });
     }
 
-    const dupEmail = await pool.query(
-      'SELECT id FROM public.institutions WHERE LOWER(email) = LOWER($1) LIMIT 1',
-      [email.trim()]
-    );
+    // Check for duplicate email
+    const { data: dupEmail, error: emailError } = await supabase
+      .from('institutions')
+      .select('id')
+      .ilike('email', email.trim())
+      .maybeSingle();
 
-    if (dupEmail.rowCount) {
+    if (emailError) {
+      console.error('Error checking duplicate email:', emailError);
+    }
+
+    if (dupEmail) {
       return NextResponse.json({ error: 'This email is already registered.' }, { status: 409 });
     }
 
