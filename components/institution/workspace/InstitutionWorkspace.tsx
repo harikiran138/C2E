@@ -175,7 +175,7 @@ export default function InstitutionWorkspace({
                     <X className="size-5" />
                   </button>
                 </div>
-                <div ref={mobileSidebarRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar scroll-smooth [scrollbar-gutter:stable]">
+                <div ref={mobileSidebarRef} className="flex-1 overflow-y-auto p-4 overscroll-y-contain scroll-smooth scrollbar-hide pb-20">
                   <SidebarContent 
                     activeStepKey={activeStepKey} 
                     buildHref={buildHref} 
@@ -195,7 +195,7 @@ export default function InstitutionWorkspace({
       <div className="flex min-h-screen">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:block fixed inset-y-0 left-0 w-[320px] z-30">
-          <div className="flex h-full flex-col border-r border-border/40 bg-sidebar/60 backdrop-blur-2xl shadow-xl relative overflow-hidden">
+          <div className="flex h-full flex-col border-r border-border/40 bg-sidebar/60 backdrop-blur-2xl shadow-xl relative">
              <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
              <div className="p-8 pb-6 border-b border-border/40 shrink-0">
                 <div className="flex items-center gap-3">
@@ -208,7 +208,7 @@ export default function InstitutionWorkspace({
              </div>
              
              {/* Robust Scrollable Area */}
-             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-smooth [scrollbar-gutter:stable]">
+             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide pb-20">
                 <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} institutionName={institutionName} />
              </div>
 

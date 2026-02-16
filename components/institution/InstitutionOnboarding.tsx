@@ -370,7 +370,7 @@ export default function InstitutionOnboarding() {
         </div>
       </section>
 
-      <main ref={scrollRef} className="flex-[1.15] relative z-10 overflow-y-auto bg-background/5">
+      <main ref={scrollRef} className="flex-[1.15] relative z-10 bg-background/5">
         <div className="min-h-full flex flex-col items-center justify-center p-6 lg:p-12">
           <div className="w-full max-w-[620px] space-y-8 py-12">
             {/* Back Button */}
@@ -406,10 +406,10 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="w-full"
               >
-                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[80vh]">
+                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[85vh]">
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
                   
-                  <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-10">
+                  <div className="flex-1 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20">
                     <div className="mb-8 text-center px-2">
                         <SectionTitle title="Basic Institution Details" subtitle="Provide your institution's core administrative information." />
                     </div>
@@ -585,10 +585,10 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="w-full"
               >
-                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[80vh]">
+                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[85vh]">
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
                   
-                  <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-10">
+                  <div className="flex-1 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20">
                     <div className="mb-8 text-center px-2">
                         <SectionTitle title="Add Programs" subtitle="List the academic programs offered by your institution." />
                     </div>
@@ -806,10 +806,10 @@ export default function InstitutionOnboarding() {
                 exit="exit"
                 className="w-full"
               >
-                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[80vh]">
+                <div className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-hidden flex flex-col h-[85vh]">
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
                   
-                  <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-10">
+                  <div className="flex-1 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20">
                     <div className="mb-8 text-center px-2">
                         <SectionTitle title="Final Review" subtitle="Verify your institutional and program data before submission." />
                     </div>
