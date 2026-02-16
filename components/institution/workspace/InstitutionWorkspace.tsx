@@ -335,7 +335,7 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, pr
                     const isActive = activeStepKey === step.key;
                     
                     return (
-                        <div key={step.key} className="relative">
+                        <motion.div layout initial={false} key={step.key} className="relative">
                             <SidebarLink 
                                 href={buildHref(step.key)} 
                                 active={isActive}
@@ -382,7 +382,7 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, pr
                                                     initial={{ opacity: 0, height: 0 }}
                                                     animate={{ opacity: 1, height: 'auto' }}
                                                     exit={{ opacity: 0, height: 0 }}
-                                                    transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }} // Smooth cubic-bezier
+                                                    transition={{ duration: 0.3, ease: "easeInOut" }}
                                                     className="overflow-hidden"
                                                 >
                                                     <div className="pt-1 pb-2 space-y-0.5">
@@ -426,7 +426,7 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, pr
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </motion.div>
                     );
                 })}
                 {PROCESS_MENU_STEPS.map((step) => {

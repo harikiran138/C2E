@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ProcessStep } from '@/lib/institution/process';
+import ProgramAdvisoryCommitteeForm from '@/components/institution/process/ProgramAdvisoryCommitteeForm';
+import BoardOfStudiesForm from '@/components/institution/process/BoardOfStudiesForm';
+import RepresentativeStakeholdersForm from '@/components/institution/process/RepresentativeStakeholdersForm';
+import VisionMissionGenerator from '@/components/institution/process/VisionMissionGenerator';
 
 interface ProcessStepPanelProps {
   step: ProcessStep;
@@ -447,171 +451,10 @@ function AcademicCouncilForm() {
   );
 }
 
-const PAC_CATEGORIES = [
-  'Program Head (Chairman)',
-  'Senior Faculty',
-  'Industry Expert',
-  'Alumni',
-  'Student Representative'
-];
 
-const BOS_CATEGORIES = [
-    'HOD (Chairman)',
-    'Internal Member',
-    'External Subject Expert',
-    'Industry Representative',
-    'University Nominee'
-];
 
-function PACForm() {
-    const searchParams = useSearchParams();
-    const programId = searchParams.get('programId');
-    const [submitting, setSubmitting] = useState(false);
-    const [formData, setFormData] = useState({
-        member_name: '',
-        member_id: '',
-        organization: '',
-        email: '',
-        mobile_number: '',
-        category: '',
-        specialisation: ''
-    });
 
-    if (!programId) {
-        return (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                Please select a program first to constitution PAC.
-            </div>
-        );
-    }
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSubmitting(true);
-        try {
-            const response = await fetch('/api/institution/pac', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, program_id: programId }),
-            });
-            if (response.ok) {
-                alert('PAC member saved successfully!');
-                setFormData({
-                    member_name: '',
-                    member_id: '',
-                    organization: '',
-                    email: '',
-                    mobile_number: '',
-                    category: '',
-                    specialisation: ''
-                });
-            }
-        } catch (error) {
-            console.error('Failed to save PAC member:', error);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    return (
-        <div className="space-y-5">
-            <h3 className="text-xl font-semibold">Constitute PAC (Program Advisory Committee)</h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Name</label>
-                    <input required className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" value={formData.member_name} onChange={e => setFormData({...formData, member_name: e.target.value})} placeholder="Member name" />
-                </div>
-                <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Category</label>
-                    <select className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                        <option value="">Select Category</option>
-                        {PAC_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                </div>
-                <div className="md:col-span-2">
-                    <button type="submit" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
-                        {submitting ? 'Saving...' : 'Save Member'}
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-}
-
-function BoSForm() {
-    const searchParams = useSearchParams();
-    const programId = searchParams.get('programId');
-    const [submitting, setSubmitting] = useState(false);
-    const [formData, setFormData] = useState({
-        member_name: '',
-        member_id: '',
-        organization: '',
-        email: '',
-        mobile_number: '',
-        category: '',
-        role: ''
-    });
-
-    if (!programId) {
-        return (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                Please select a program first to constitution BoS.
-            </div>
-        );
-    }
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSubmitting(true);
-        try {
-            const response = await fetch('/api/institution/bos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, program_id: programId }),
-            });
-            if (response.ok) {
-                alert('BoS member saved successfully!');
-                setFormData({
-                    member_name: '',
-                    member_id: '',
-                    organization: '',
-                    email: '',
-                    mobile_number: '',
-                    category: '',
-                    role: ''
-                });
-            }
-        } catch (error) {
-            console.error('Failed to save BoS member:', error);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    return (
-        <div className="space-y-5">
-            <h3 className="text-xl font-semibold">Constitute BoS (Board of Studies)</h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Name</label>
-                    <input required className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" value={formData.member_name} onChange={e => setFormData({...formData, member_name: e.target.value})} placeholder="Member name" />
-                </div>
-                <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Category</label>
-                    <select className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                        <option value="">Select Category</option>
-                        {BOS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                </div>
-                <div className="md:col-span-2">
-                    <button type="submit" disabled={submitting} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50">
-                        {submitting ? 'Saving...' : 'Save Member'}
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-}
 
 function SelectProgramPanel() {
   const router = useRouter();
@@ -777,7 +620,7 @@ function ActionPanel({ step }: { step: ProcessStep }) {
   );
 }
 
-export default function ProcessStepPanel({ step, selectedProgramId, programs }: ProcessStepPanelProps & { selectedProgramId: string | null, programs: ProgramOption[] }) {
+export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
   if (step.key === 'council') {
     return <AcademicCouncilForm />;
   }
@@ -787,11 +630,19 @@ export default function ProcessStepPanel({ step, selectedProgramId, programs }: 
   }
 
   if (step.key === 'process-3') {
-    return <PACForm />;
+    return <ProgramAdvisoryCommitteeForm />;
   }
 
   if (step.key === 'process-4') {
-    return <BoSForm />;
+    return <BoardOfStudiesForm />;
+  }
+
+  if (step.key === 'process-5') {
+    return <RepresentativeStakeholdersForm />;
+  }
+
+  if (step.key === 'process-6') {
+    return <VisionMissionGenerator />;
   }
 
   if (step.key === 'process-7') {

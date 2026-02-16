@@ -5,11 +5,11 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const programId = searchParams.get('programId');
-    const memberId = searchParams.get('id'); // Use 'id' for DELETE query mainly, but consistent naming
+    const memberId = searchParams.get('id');
 
     const client = await pool.connect();
     try {
-      let queryText = 'SELECT * FROM pac_members';
+      let queryText = 'SELECT * FROM representative_stakeholders';
       const params: any[] = [];
 
       if (programId) {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       client.release();
     }
   } catch (error: any) {
-    console.error('PAC API Error:', error);
+    console.error('Stakeholders API Error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const client = await pool.connect();
     try {
       const result = await client.query(
-        `INSERT INTO pac_members (
+        `INSERT INTO representative_stakeholders (
             program_id,
             member_name,
             member_id,
@@ -48,10 +48,8 @@ export async function POST(request: Request) {
             mobile_number,
             specialisation,
             category,
-            tenure_start_date,
-            tenure_end_date,
             linkedin_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
         [
           body.program_id,
           body.member_name,
@@ -61,8 +59,6 @@ export async function POST(request: Request) {
           body.mobile_number,
           body.specialisation,
           body.category,
-          body.tenure_start_date || null,
-          body.tenure_end_date || null,
           body.linkedin_id
         ]
       );
@@ -72,7 +68,7 @@ export async function POST(request: Request) {
       client.release();
     }
   } catch (error: any) {
-    console.error('PAC API Error:', error);
+    console.error('Stakeholders API Error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -83,13 +79,13 @@ export async function PUT(request: Request) {
       const { id, ...fields } = body;
 
       if (!id) {
-        return NextResponse.json({ error: 'Member ID is required for update' }, { status: 400 });
+        return NextResponse.json({ error: 'Stakeholder ID is required for update' }, { status: 400 });
       }
 
       const client = await pool.connect();
       try {
         const result = await client.query(
-          `UPDATE pac_members SET
+          `UPDATE representative_stakeholders SET
               member_name = $1,
               member_id = $2,
               organization = $3,
@@ -97,11 +93,9 @@ export async function PUT(request: Request) {
               mobile_number = $5,
               specialisation = $6,
               category = $7,
-              tenure_start_date = $8,
-              tenure_end_date = $9,
-              linkedin_id = $10,
+              linkedin_id = $8,
               updated_at = CURRENT_TIMESTAMP
-           WHERE id = $11 RETURNING *`,
+           WHERE id = $9 RETURNING *`,
           [
             fields.member_name,
             fields.member_id,
@@ -110,15 +104,13 @@ export async function PUT(request: Request) {
             fields.mobile_number,
             fields.specialisation,
             fields.category,
-            fields.tenure_start_date || null,
-            fields.tenure_end_date || null,
             fields.linkedin_id,
             id
           ]
         );
   
         if (result.rowCount === 0) {
-            return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Stakeholder not found' }, { status: 404 });
         }
 
         return NextResponse.json({ data: result.rows[0] });
@@ -126,7 +118,7 @@ export async function PUT(request: Request) {
         client.release();
       }
     } catch (error: any) {
-      console.error('PAC API Error:', error);
+      console.error('Stakeholders API Error:', error);
       return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
     }
 }
@@ -142,13 +134,13 @@ export async function DELETE(request: Request) {
 
         const client = await pool.connect();
         try {
-            await client.query('DELETE FROM pac_members WHERE id = $1', [id]);
+            await client.query('DELETE FROM representative_stakeholders WHERE id = $1', [id]);
             return NextResponse.json({ success: true });
         } finally {
             client.release();
         }
     } catch (error: any) {
-        console.error('PAC API Error:', error);
+        console.error('Stakeholders API Error:', error);
         return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
     }
 }

@@ -11,7 +11,7 @@ export interface ProcessStep {
   processNumber?: number;
   kind: StepKind;
   aiDriven?: boolean;
-  description: string;
+  description?: string;
   icon?: string;
   phase?: ProcessPhase;
 }
@@ -27,8 +27,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
   {
     key: 'process-1',
     title: 'OBE Framework & Protocols',
-    section: 'process',
-    processNumber: 1,
+    section: 'side_menu',
     kind: 'info',
     phase: 'Set-up',
     description: 'Establish the formal OBE framework, tutoring protocols, and implementation guidelines for the institution.',
@@ -37,8 +36,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
   {
     key: 'process-2',
     title: 'Add Program Coordinator',
-    section: 'process',
-    processNumber: 2,
+    section: 'side_menu',
     kind: 'form',
     phase: 'Set-up',
     description: 'Assign a Program Coordinator and define their responsibilities and authority.',
@@ -89,7 +87,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
     key: 'process-7',
     title: 'Formulate PEOs',
     section: 'process',
-    processNumber: 6,
+    processNumber: 7,
     kind: 'form',
     aiDriven: true,
     phase: 'Stakeholder & PEOs',
@@ -100,7 +98,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
     key: 'process-8',
     title: 'Consistency Matrix',
     section: 'process',
-    processNumber: 7,
+    processNumber: 8,
     kind: 'matrix',
     phase: 'Stakeholder & PEOs',
     description: 'Generate consistency matrix between mission components and PEOs.',
@@ -110,7 +108,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
     key: 'process-9',
     title: 'Generate Program Outcomes',
     section: 'process',
-    processNumber: 8,
+    processNumber: 9,
     kind: 'form',
     phase: 'Program Outcomes',
     description: 'Draft and store measurable program outcomes.',
@@ -120,7 +118,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
     key: 'process-10',
     title: 'Formulate PSOs',
     section: 'process',
-    processNumber: 9,
+    processNumber: 10,
     kind: 'form',
     aiDriven: true,
     phase: 'Program Outcomes',
@@ -128,80 +126,80 @@ export const PROCESS_STEPS: ProcessStep[] = [
     icon: 'Sparkles'
   },
   {
-    key: 'process-10',
+    key: 'process-11',
     title: 'Disseminate VMP',
     section: 'process',
-    processNumber: 10,
+    processNumber: 11,
     kind: 'action',
     phase: 'Program Outcomes',
     description: 'Track dissemination actions across approved communication channels.',
     icon: 'Share2'
   },
   {
-    key: 'process-11',
+    key: 'process-12',
     title: 'Curriculum Structure',
     section: 'process',
-    processNumber: 11,
+    processNumber: 12,
     kind: 'form',
     phase: 'Curriculum Development',
     description: 'Create the curriculum structure for the selected program.',
     icon: 'Layers'
   },
   {
-    key: 'process-12',
+    key: 'process-13',
     title: 'Identify OBE Courses',
     section: 'process',
-    processNumber: 12,
+    processNumber: 13,
     kind: 'form',
     phase: 'Curriculum Development',
     description: 'Identify and register courses aligned with OBE principles.',
     icon: 'Book'
   },
   {
-    key: 'process-13',
+    key: 'process-14',
     title: 'Course Outcomes (COs)',
     section: 'process',
-    processNumber: 13,
+    processNumber: 14,
     kind: 'form',
     phase: 'Curriculum Development',
     description: 'Generate course outcomes mapped to revised Bloom taxonomy levels.',
     icon: 'FileHeader'
   },
   {
-    key: 'process-14',
+    key: 'process-15',
     title: 'Develop Curriculum',
     section: 'process',
-    processNumber: 14,
+    processNumber: 15,
     kind: 'table',
     phase: 'Curriculum Development',
     description: 'Fill curriculum in a structured table/Excel-style prescribed format.',
     icon: 'Table'
   },
   {
-    key: 'process-15',
+    key: 'process-16',
     title: 'Curriculum Feedback',
     section: 'process',
-    processNumber: 15,
+    processNumber: 16,
     kind: 'form',
     phase: 'Approval & Closure',
     description: 'Create and float curriculum feedback form on the right-side panel.',
     icon: 'MessageSquare'
   },
   {
-    key: 'process-16',
+    key: 'process-17',
     title: 'Intimate BoS & ACM',
     section: 'process',
-    processNumber: 16,
+    processNumber: 17,
     kind: 'action',
     phase: 'Approval & Closure',
     description: 'Record communication sent to BoS and ACM.',
     icon: 'Send'
   },
   {
-    key: 'process-17',
+    key: 'process-18',
     title: 'Finalise Curriculum',
     section: 'process',
-    processNumber: 17,
+    processNumber: 18,
     kind: 'action',
     phase: 'Approval & Closure',
     description: 'Finalize curriculum after approvals and communication closure.',
