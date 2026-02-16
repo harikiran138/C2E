@@ -12,13 +12,13 @@ export async function GET() {
       WHERE table_schema = 'public'
     `);
 
-    // Check institutions columns if it exists
+    // Check for program_coordinators table
     let columns = [];
-    if (tablesRes.rows.some(r => r.table_name === 'institutions')) {
+    if (tablesRes.rows.some(r => r.table_name === 'program_coordinators')) {
         const columnsRes = await client.query(`
             SELECT column_name, data_type, is_nullable
             FROM information_schema.columns
-            WHERE table_name = 'institutions'
+            WHERE table_name = 'program_coordinators'
         `);
         columns = columnsRes.rows;
     }

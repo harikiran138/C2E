@@ -28,7 +28,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
     key: 'process-1',
     title: 'OBE Framework & Protocols',
     section: 'side_menu',
-    kind: 'info',
+    kind: 'form',
     phase: 'Set-up',
     description: 'Establish the formal OBE framework, tutoring protocols, and implementation guidelines for the institution.',
     icon: 'BookOpen'

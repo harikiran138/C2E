@@ -155,46 +155,7 @@ export default function InstitutionWorkspace({
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
       {/* Mobile Header */}
-      <header className={cn(
-        "fixed top-0 left-0 right-0 z-[60] flex h-16 items-center justify-between border-b border-border/40 px-4 transition-all duration-300",
-        isScrolled ? "bg-background/80 backdrop-blur-xl shadow-lg border-primary/10" : "bg-transparent"
-      )}>
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-            className="flex-none p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors active:scale-95 lg:hidden"
-            aria-label="Open menu"
-          >
-            <Menu className={cn("size-6", !isScrolled && "text-white")} />
-          </button>
-          
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="size-8 relative flex-none">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={isScrolled ? "scrolled" : "initial"}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute inset-0"
-                >
-                  <Image 
-                    src={isScrolled ? "/C2XPlusb_text.jpeg" : "/Logo2w_text.jpeg"} 
-                    alt="C2X Plus" 
-                    fill 
-                    className="object-contain rounded-lg" 
-                  />
-                </motion.div>
-              </AnimatePresence>
-            </div>
-            <h1 className={cn(
-              "text-sm font-bold tracking-tight truncate transition-colors",
-              isScrolled ? "text-foreground" : "text-white drop-shadow-sm"
-            )}>{institutionName}</h1>
-          </div>
-        </div>
-      </header>
+
 
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
@@ -281,7 +242,7 @@ export default function InstitutionWorkspace({
 
         <main className="flex-1 min-w-0 lg:pl-[320px] transition-all duration-300">
           <div 
-            className="h-screen overflow-y-auto overscroll-y-contain scroll-smooth custom-scrollbar p-6 lg:p-12 space-y-12 pt-24 lg:pt-12 pb-24" 
+            className="h-screen overflow-y-auto overscroll-y-contain scroll-smooth custom-scrollbar p-6 lg:p-12 space-y-12 pt-6 lg:pt-12 pb-24" 
             data-lenis-prevent
           >
             <div>

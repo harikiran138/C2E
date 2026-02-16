@@ -19,34 +19,20 @@ export async function GET(request: Request) {
     const institutionId = payload.id;
 
     const supabase = await createClient();
-    
-    // Fetch coordinators
-    const { data: coordinators, error } = await supabase
-        .from('program_coordinators')
-        .select(`
-            *,
-            programs (
-                program_name
-            )
-        `)
+    const { data, error } = await supabase
+        .from('obe_framework')
+        .select('*')
         .eq('institution_id', institutionId)
         .order('created_at', { ascending: true });
 
     if (error) {
-        console.error('Error fetching Program Coordinators:', error);
+        console.error('Error fetching Framework members:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Flatten the structure for easier frontend consumption if needed, 
-    // or just return as is. The frontend can access programs.program_name
-    const formattedData = coordinators.map(c => ({
-        ...c,
-        program_name: c.programs?.program_name || 'Unknown Program'
-    }));
-
-    return NextResponse.json({ data: formattedData });
+    return NextResponse.json({ data });
   } catch (error) {
-    console.error('Program Coordinator Fetch Error:', error);
+    console.error('OBE Framework Fetch Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -72,13 +58,13 @@ export async function POST(request: Request) {
     let query;
 
     if (body.id) {
-        // Update existing coordinator
+        // Update existing member
         query = supabase
-            .from('program_coordinators')
+            .from('obe_framework')
             .update({
-                name: body.name,
+                member_name: body.member_name,
                 designation: body.designation,
-                program_id: body.program_id,
+                program: body.program,
                 email_official: body.email_official,
                 email_personal: body.email_personal,
                 mobile_official: body.mobile_official,
@@ -90,14 +76,14 @@ export async function POST(request: Request) {
             .select()
             .single();
     } else {
-        // Insert new coordinator
+        // Insert new member
         query = supabase
-            .from('program_coordinators')
+            .from('obe_framework')
             .insert({
                 institution_id: institutionId,
-                name: body.name,
+                member_name: body.member_name,
                 designation: body.designation,
-                program_id: body.program_id,
+                program: body.program,
                 email_official: body.email_official,
                 email_personal: body.email_personal,
                 mobile_official: body.mobile_official,
@@ -111,14 +97,14 @@ export async function POST(request: Request) {
     const { data, error } = await query;
 
     if (error) {
-        console.error('Error saving program coordinator:', error);
+        console.error('Error saving framework member:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ data });
 
   } catch (error) {
-    console.error('Program Coordinator API Error:', error);
+    console.error('OBE Framework API Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
