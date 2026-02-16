@@ -113,7 +113,7 @@ export default function Login() {
               <div className="flex flex-col gap-4 items-center text-center">
                 <div className="flex flex-col items-center gap-3 mb-1">
                      <div className="size-14 bg-primary rounded-xl flex items-center justify-center shadow-2xl shadow-primary/20 p-3">
-                        <Image src="/x.png" alt="C2X Logo" width={32} height={32} className="brightness-0 invert" />
+                        <Image src="/C2XPlus.jpeg" alt="C2X Logo" width={48} height={48} className="object-contain rounded-lg" />
                      </div>
                      <div className="text-center space-y-0.5">
                          <span className="block text-xl font-black tracking-tight text-foreground leading-none">C2X Plus+</span>

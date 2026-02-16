@@ -1,5 +1,5 @@
 
-import pool from './lib/postgres.ts';
+import pool from './lib/postgres';
 
 async function testConnection() {
   try {

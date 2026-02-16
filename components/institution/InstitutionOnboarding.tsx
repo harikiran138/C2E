@@ -109,7 +109,7 @@ export default function InstitutionOnboarding() {
     degree: string;
     level: string;
     duration: number | string; // Allow string for initial empty state
-    intake: number;
+    intake: number | string; // Allow string for initial empty state
     academic_year: string;
     program_code: string;
   }>({
@@ -142,7 +142,7 @@ export default function InstitutionOnboarding() {
     typeof newProgram.duration === 'number' &&
     newProgram.duration >= 1 &&
     newProgram.duration <= 6 &&
-    Number.isInteger(newProgram.intake) &&
+    typeof newProgram.intake === 'number' &&
     newProgram.intake > 0;
 
   // --- SCROLL TO TOP ON STEP CHANGE ---
@@ -256,7 +256,11 @@ export default function InstitutionOnboarding() {
       const res = await fetch('/api/institution/programs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newProgram)
+        body: JSON.stringify({
+          ...newProgram,
+          duration: Number(newProgram.duration),
+          intake: Number(newProgram.intake)
+        })
       });
 
       const payload = await res.json();
@@ -272,7 +276,7 @@ export default function InstitutionOnboarding() {
         degree: '',
         level: '',
         duration: '',
-        intake: 60,
+        intake: '',
         academic_year: '',
         program_code: ''
       });
@@ -328,7 +332,9 @@ export default function InstitutionOnboarding() {
       <section className="hidden lg:flex flex-[0.85] flex-col justify-between p-12 lg:p-16 bg-sidebar/40 backdrop-blur-3xl border-r border-border/40 text-foreground relative z-10 h-full overflow-y-auto">
         <div className="space-y-12">
           <div className="flex items-center gap-3">
-            <div className="size-12 bg-primary rounded-xl flex items-center justify-center shadow-2xl shadow-primary/20 font-black italic text-2xl text-primary-foreground">C</div>
+            <div className="size-12 relative">
+              <Image src="/C2XPlus.jpeg" alt="C2X Plus" fill className="object-contain rounded-xl shadow-2xl shadow-primary/20" />
+            </div>
             <div className="text-left">
               <span className="block text-xl font-bold tracking-tight leading-none text-foreground">C2XPlus</span>
               <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-muted-foreground mt-1 block">Onboarding</span>

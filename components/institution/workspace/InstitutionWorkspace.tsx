@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -135,7 +136,9 @@ export default function InstitutionWorkspace({
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 z-[60] flex h-16 items-center justify-between border-b border-border/40 bg-background/60 px-4 backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="size-8 flex-none rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 font-black italic text-sm">C</div>
+          <div className="size-8 relative flex-none">
+            <Image src="/C2XPlus.jpeg" alt="C2X Plus" fill className="object-contain rounded-lg shadow-lg shadow-primary/20" />
+          </div>
           <h1 className="text-sm font-bold tracking-tight truncate">{institutionName}</h1>
         </div>
         <button 
@@ -199,7 +202,9 @@ export default function InstitutionWorkspace({
              <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
              <div className="p-8 pb-6 border-b border-border/40 shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 font-black italic">C</div>
+                    <div className="size-10 relative flex-none">
+                      <Image src="/C2XPlus.jpeg" alt="C2X Plus" fill className="object-contain rounded-xl shadow-lg shadow-primary/20" />
+                    </div>
                     <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Institution</p>
                         <h1 className="text-lg font-bold leading-none mt-0.5">{institutionName}</h1>

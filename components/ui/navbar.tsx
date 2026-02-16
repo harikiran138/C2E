@@ -62,12 +62,12 @@ export function NavBar({ items, className }: NavBarProps) {
                     className="absolute inset-0 flex items-center justify-center"
                   >
                     <Image 
-                      src={isScrolled ? "/x.png" : "/x1.png"} 
+                      src="/C2XPlus.jpeg" 
                       alt="C2X Logo" 
                       width={100} 
                       height={100} 
                       className={cn(
-                        "w-full h-full object-contain transition-all duration-300",
+                        "w-full h-full object-contain transition-all duration-300 rounded-xl",
                         !isScrolled && "brightness-110 drop-shadow-[0_0_15px_rgba(201,169,97,0.4)]"
                       )}
                       priority
