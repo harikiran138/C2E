@@ -3,6 +3,15 @@ import { NextResponse, type NextRequest } from 'next/server'
 import * as jose from 'jose';
 
 export async function proxy(request: NextRequest) {
+  // 1. Handle API routes early - NEVER redirect or call Supabase for /api
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    return NextResponse.next({
+      request: {
+        headers: request.headers,
+      },
+    });
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -68,13 +77,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Handle API routes early - NEVER redirect /api
-  if (request.nextUrl.pathname.startsWith('/api')) {
-    return response;
-  }
-
   const effectiveUser = customUser || (user ? { id: user.id, email: user.email || '' } : null);
-
   // 3. Protected routes check
   const isProtectedPath = request.nextUrl.pathname.startsWith('/institution/dashboard') ||
                           request.nextUrl.pathname.startsWith('/institution/onboarding') ||
