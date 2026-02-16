@@ -6,6 +6,7 @@ import Stats from '@/components/institution/dashboard/Stats';
 import RecentActivity from '@/components/institution/dashboard/RecentActivity';
 import PerformanceChart from '@/components/institution/dashboard/PerformanceChart';
 import { Loader2 } from 'lucide-react';
+import * as Icons from 'lucide-react';
 
 import { motion, Variants } from 'framer-motion';
 
@@ -60,8 +61,30 @@ export default function Dashboard() {
                variants={container}
                initial="hidden"
                animate="show"
-               className="space-y-8"
+               className="space-y-10"
              >
+                <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                  <div>
+                    <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-foreground">
+                      Welcome back,<br />
+                      <span className="text-primary">{statsData?.institutionName || 'Institution'}</span>
+                    </h2>
+                    <p className="mt-4 text-muted-foreground flex items-center gap-2">
+                       <span className="inline-block size-2 rounded-full bg-emerald-500 animate-pulse" />
+                       System is synchronized with the database.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 bg-card/30 backdrop-blur-xl border border-border/40 p-2 rounded-2xl">
+                     <div className="px-4 py-2 text-right">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Local Time</p>
+                        <p className="text-sm font-bold tabular-nums">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                     </div>
+                     <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                        <Icons.Clock className="size-5" />
+                     </div>
+                  </div>
+                </motion.div>
+
                 <motion.div variants={item}>
                   <Stats data={statsData} />
                 </motion.div>
@@ -71,7 +94,7 @@ export default function Dashboard() {
                     <PerformanceChart />
                   </motion.div>
                   <motion.div variants={item}>
-                    <RecentActivity />
+                    <RecentActivity activities={statsData?.recentActivities} />
                   </motion.div>
                 </div>
             </motion.div>

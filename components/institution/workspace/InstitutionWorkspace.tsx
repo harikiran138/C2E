@@ -34,7 +34,8 @@ export default function InstitutionWorkspace({
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createClient();
-  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const desktopSidebarRef = useRef<HTMLDivElement>(null);
+  const mobileSidebarRef = useRef<HTMLDivElement>(null);
 
   const [institutionName, setInstitutionName] = useState('Institution');
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
@@ -81,13 +82,24 @@ export default function InstitutionWorkspace({
 
   // Handle automatic scrolling to active item
   useEffect(() => {
-    if (activeStepKey && sidebarScrollRef.current) {
-      const activeItem = sidebarScrollRef.current.querySelector('[data-active="true"]');
+    if (!activeStepKey) return;
+
+    const scrollActiveIntoView = (container: HTMLDivElement | null) => {
+      if (!container) return;
+      const activeItem = container.querySelector('[data-active="true"]');
       if (activeItem) {
-        activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    }
-  }, [activeStepKey]);
+    };
+
+    // Use a small timeout to ensure the DOM has updated and sidebar is potentially open
+    const timer = setTimeout(() => {
+      scrollActiveIntoView(desktopSidebarRef.current);
+      scrollActiveIntoView(mobileSidebarRef.current);
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [activeStepKey, isSidebarOpen]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -114,14 +126,15 @@ export default function InstitutionWorkspace({
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
       {/* Mobile Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-b border-border/40 bg-background/60 px-6 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center gap-3">
-          <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 font-black italic text-sm">C</div>
-          <h1 className="text-sm font-bold tracking-tight">{institutionName}</h1>
+      <header className="fixed top-0 left-0 right-0 z-[60] flex h-16 items-center justify-between border-b border-border/40 bg-background/60 px-4 backdrop-blur-xl lg:hidden">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="size-8 flex-none rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 font-black italic text-sm">C</div>
+          <h1 className="text-sm font-bold tracking-tight truncate">{institutionName}</h1>
         </div>
         <button 
           onClick={() => setIsSidebarOpen(true)}
-          className="p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors"
+          className="flex-none p-2 -mr-1 text-muted-foreground hover:text-foreground transition-colors active:scale-95"
+          aria-label="Open menu"
         >
           <Menu className="size-6" />
         </button>
@@ -155,7 +168,7 @@ export default function InstitutionWorkspace({
                     <X className="size-5" />
                   </button>
                 </div>
-                <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar scroll-smooth">
+                <div ref={mobileSidebarRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar scroll-smooth [scrollbar-gutter:stable]">
                   <SidebarContent 
                     activeStepKey={activeStepKey} 
                     buildHref={buildHref} 
@@ -188,7 +201,7 @@ export default function InstitutionWorkspace({
              </div>
              
              {/* Robust Scrollable Area */}
-             <div ref={sidebarScrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-smooth">
+             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-smooth [scrollbar-gutter:stable]">
                 <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} institutionName={institutionName} />
              </div>
 

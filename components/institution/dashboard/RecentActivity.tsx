@@ -20,8 +20,13 @@ interface ActivityItem {
   type: 'purchase' | 'signup' | 'update' | 'comment' | 'survey' | 'program';
 }
 
-export default function RecentActivity() {
+interface RecentActivityProps {
+  activities?: ActivityItem[];
+}
+
+export default function RecentActivity({ activities: propActivities }: RecentActivityProps) {
   const getActivityColor = (type: string) => {
+    // ... existing logic ...
     switch (type) {
       case 'program':
         return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
@@ -34,13 +39,13 @@ export default function RecentActivity() {
     }
   };
 
-  const activities: ActivityItem[] = [
+  const defaultActivities: ActivityItem[] = [
     { id: '1', user: { name: 'Sarah Johnson', avatar: '', initials: 'SJ' }, action: 'added a new program', target: 'B.Tech CSE', timestamp: '2 hours ago', type: 'program' },
     { id: '2', user: { name: 'Michael Chen', avatar: '', initials: 'MC' }, action: 'submitted survey', target: 'Course Feedback', timestamp: '4 hours ago', type: 'survey' },
     { id: '3', user: { name: 'Emily Rodriguez', avatar: '', initials: 'ER' }, action: 'updated profile', target: 'Settings', timestamp: '1 day ago', type: 'update' },
-    { id: '4', user: { name: 'David Kim', avatar: '', initials: 'DK' }, action: 'submitted survey', target: 'Facility Review', timestamp: '1 day ago', type: 'survey' },
-    { id: '5', user: { name: 'Lisa Anderson', avatar: '', initials: 'LA' }, action: 'generated report', target: 'Monthly Analysis', timestamp: '2 days ago', type: 'update' },
   ];
+
+  const activities = propActivities || defaultActivities;
 
   return (
     <Card className="col-span-1 border-border/40 bg-background/40 backdrop-blur-xl relative overflow-hidden">
