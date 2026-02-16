@@ -28,6 +28,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Country, State, City } from 'country-state-city';
 import { cn } from '@/lib/utils';
+import { INSTITUTION_TYPES, DEGREES, LEVELS } from '@/lib/validation/onboarding';
 
 // --- TYPES ---
 type OnboardingStep = 1 | 2 | 3;
@@ -116,7 +117,7 @@ export default function InstitutionOnboarding() {
     degree: '',
     level: '',
     duration: '', // Empty initially
-    intake: 60,
+    intake: '',
     academic_year: '',
     program_code: ''
   });
@@ -337,7 +338,7 @@ export default function InstitutionOnboarding() {
           <div className="space-y-6">
             <h1 className="text-5xl font-extrabold tracking-tight leading-[1.1] text-foreground">
               {currentStep === 1 && "Setup your institution profile."}
-              {currentStep === 2 && "Add your academic programs."}
+              {currentStep === 2 && "Add your academic programs"}
               {currentStep === 3 && "Review and finalize your data."}
             </h1>
             <p className="text-base text-muted-foreground font-medium max-w-md">
@@ -588,7 +589,7 @@ export default function InstitutionOnboarding() {
                     <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
                     
                     {/* Scrollable Content Area */}
-                    <div className="overflow-y-auto p-8 lg:p-12 custom-scrollbar">
+                    <div className="overflow-y-auto p-8 lg:p-12 custom-scrollbar flex-1">
                       <div className="mb-8 text-center">
                           <SectionTitle title="Add Programs" subtitle="List at least one academic program to complete onboarding." />
                       </div>
@@ -610,7 +611,6 @@ export default function InstitutionOnboarding() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Degree</label>
-                            <div className="relative">
                               <GlassInputWrapper>
                                 <select 
                                   className="w-full bg-transparent p-4 pr-10 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
@@ -618,10 +618,9 @@ export default function InstitutionOnboarding() {
                                   onChange={e => setNewProgram({...newProgram, degree: e.target.value})}
                                 >
                                   <option value="">Select Degree</option>
-                                  <option>Diploma</option>
-                                  <option>B.E</option>
-                                  <option>B.Tech</option>
-                                  <option>M.Tech</option>
+                                  {DEGREES.map((deg) => (
+                                    <option key={deg} value={deg}>{deg}</option>
+                                  ))}
                                 </select>
                               </GlassInputWrapper>
                               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
@@ -638,10 +637,9 @@ export default function InstitutionOnboarding() {
                                   onChange={e => setNewProgram({...newProgram, level: e.target.value})}
                                 >
                                   <option value="">Select Level</option>
-                                  <option>Diploma</option>
-                                  <option>UG</option>
-                                  <option>PG</option>
-                                  <option>Integrated PG</option>
+                                  {LEVELS.map((lvl) => (
+                                    <option key={lvl} value={lvl}>{lvl}</option>
+                                  ))}
                                 </select>
                               </GlassInputWrapper>
                               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
@@ -650,18 +648,22 @@ export default function InstitutionOnboarding() {
 
                           <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground px-1">Program Duration</label>
-                            <div className="relative">
                               <GlassInputWrapper>
                                 <select
                                   className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 appearance-none cursor-pointer"
                                   value={newProgram.duration}
-                                  onChange={e => setNewProgram({...newProgram, duration: parseInt(e.target.value)})}
+                                  onChange={e => {
+                                      const val = parseInt(e.target.value);
+                                      setNewProgram({...newProgram, duration: isNaN(val) ? '' : val});
+                                  }}
                                 >
                                   <option value="">Select Duration</option>
+                                  <option value="1">1 Year</option>
                                   <option value="2">2 Years</option>
                                   <option value="3">3 Years</option>
                                   <option value="4">4 Years</option>
                                   <option value="5">5 Years</option>
+                                  <option value="6">6 Years</option>
                                 </select>
                               </GlassInputWrapper>
                               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
@@ -776,15 +778,20 @@ export default function InstitutionOnboarding() {
                       {/* Sticky Footer for Actions */}
                       <div className="sticky bottom-0 bg-card/80 backdrop-blur-xl p-4 -mx-4 -mb-4 mt-4 border-t border-border/50 flex gap-4 z-10 rounded-b-3xl">
                         <button 
+                          onClick={() => setCurrentStep(1)} 
+                          className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-bold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
+                        >
+                          <ArrowLeft className="size-5" /> Back
+                        </button>
+                        <button 
                           onClick={() => setCurrentStep(3)} 
-                          className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={programs.length === 0}
                         >
                           Review Data <ArrowRight className="size-5" />
                         </button>
                       </div>
-                      </div>
-                    </div> {/* End of scrollable content area */}
+                    </div>
                   </div>
                 </div>
               </motion.div>
