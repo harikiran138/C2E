@@ -7,11 +7,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const programId = searchParams.get('programId');
+    console.log(`API Dashboard: Request received for programId: ${programId}`);
 
     const cookieStore = await cookies();
     const token = cookieStore.get('institution_token')?.value;
 
     if (!token) {
+        console.warn('API Dashboard: Unauthorized - No Token');
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

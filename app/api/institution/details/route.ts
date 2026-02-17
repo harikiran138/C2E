@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
           academic_year,
           program_code,
           vision,
-          mission
+          mission,
+          vision_priorities,
+          mission_priorities
          FROM programs
          WHERE institution_id = $1
          ORDER BY created_at ASC`,

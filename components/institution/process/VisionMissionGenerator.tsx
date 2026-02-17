@@ -93,6 +93,21 @@ export default function VisionMissionGenerator() {
                 setProgram(currentProgram);
                 if (currentProgram.vision) setSelectedVision(currentProgram.vision);
                 if (currentProgram.mission) setSelectedMission(currentProgram.mission);
+                
+                // Load saved priorities
+                if (currentProgram.vision_priorities && Array.isArray(currentProgram.vision_priorities)) {
+                    setSelectedVisionPriorities(currentProgram.vision_priorities);
+                    // Add any that aren't in standard list to custom list
+                    const customV = currentProgram.vision_priorities.filter((p: string) => !VISION_PRIORITIES.includes(p));
+                    setCustomVisionPriorities(customV);
+                }
+                
+                if (currentProgram.mission_priorities && Array.isArray(currentProgram.mission_priorities)) {
+                    setSelectedMissionPriorities(currentProgram.mission_priorities);
+                    // Add any that aren't in standard list to custom list
+                    const customM = currentProgram.mission_priorities.filter((p: string) => !MISSION_PRIORITIES.includes(p));
+                    setCustomMissionPriorities(customM);
+                }
              }
           }
         }
@@ -119,9 +134,14 @@ export default function VisionMissionGenerator() {
     const customList = isVision ? customVisionPriorities : customMissionPriorities;
     const setCustomList = isVision ? setCustomVisionPriorities : setCustomMissionPriorities;
     const setNewPriority = isVision ? setNewVisionPriority : setNewMissionPriority;
+    
+    // Auto-select logic
+    const selectedList = isVision ? selectedVisionPriorities : selectedMissionPriorities;
+    const setSelectedList = isVision ? setSelectedVisionPriorities : setSelectedMissionPriorities;
 
     if (newPriority && !customList.includes(newPriority)) {
       setCustomList([...customList, newPriority]);
+      setSelectedList([...selectedList, newPriority]); // Auto-select
       setNewPriority('');
     }
   };
@@ -192,12 +212,14 @@ export default function VisionMissionGenerator() {
             body: JSON.stringify({
                 program_id: programId,
                 vision: selectedVision,
-                mission: selectedMission
+                mission: selectedMission,
+                vision_priorities: selectedVisionPriorities,
+                mission_priorities: selectedMissionPriorities
             })
         });
         
         if (response.ok) {
-            alert('Vision and Mission saved successfully!');
+            alert('Vision, Mission, and Priorities saved successfully!');
         } else {
             alert('Failed to save.');
         }
@@ -237,7 +259,7 @@ export default function VisionMissionGenerator() {
       <div className="h-px bg-slate-200" />
       
       {/* VISION SECTION */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="size-5 text-amber-500" /> Program Vision
@@ -254,10 +276,10 @@ export default function VisionMissionGenerator() {
             </div>
         </div>
 
-        <div className="space-y-3">
+            <div className="space-y-3">
             <label className="text-sm font-semibold text-slate-700">Select Priorities</label>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {allVisionPriorities.map(item => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {VISION_PRIORITIES.map(item => (
                     <button
                         key={item}
                         onClick={() => togglePriority(item, selectedVisionPriorities, setSelectedVisionPriorities)}
@@ -276,6 +298,42 @@ export default function VisionMissionGenerator() {
                         </div>
                         <span className="line-clamp-2">{item}</span>
                     </button>
+                ))}
+
+                {/* Custom Priorities with Delete Option */}
+                {customVisionPriorities.map(item => (
+                     <div key={item} className="relative group">
+                        <button
+                            onClick={() => togglePriority(item, selectedVisionPriorities, setSelectedVisionPriorities)}
+                            className={`w-full h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${
+                                selectedVisionPriorities.includes(item)
+                                ? 'bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                            }`}
+                        >
+                            <div className={`shrink-0 size-4 rounded border-2 flex items-center justify-center ${
+                                selectedVisionPriorities.includes(item)
+                                ? 'bg-purple-500 border-purple-500'
+                                : 'border-slate-300'
+                            }`}>
+                                {selectedVisionPriorities.includes(item) && <Check className="size-3 text-white" strokeWidth={3} />}
+                            </div>
+                            <span className="line-clamp-2 pr-6">{item}</span>
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setCustomVisionPriorities(prev => prev.filter(p => p !== item));
+                                if (selectedVisionPriorities.includes(item)) {
+                                    setSelectedVisionPriorities(prev => prev.filter(p => p !== item));
+                                }
+                            }}
+                            className="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remove custom priority"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                     </div>
                 ))}
                 
                 {/* Add Custom Priority Button */}
@@ -391,7 +449,7 @@ export default function VisionMissionGenerator() {
       <div className="h-px bg-slate-200" />
 
       {/* MISSION SECTION */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="size-5 text-blue-500" /> Program Mission
@@ -410,8 +468,8 @@ export default function VisionMissionGenerator() {
 
         <div className="space-y-3">
             <label className="text-sm font-semibold text-slate-700">Select Priorities</label>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {allMissionPriorities.map(item => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {MISSION_PRIORITIES.map(item => (
                     <button
                         key={item}
                         onClick={() => togglePriority(item, selectedMissionPriorities, setSelectedMissionPriorities)}
@@ -430,6 +488,42 @@ export default function VisionMissionGenerator() {
                         </div>
                         <span className="line-clamp-2">{item}</span>
                     </button>
+                ))}
+
+                {/* Custom Priorities with Delete */}
+                {customMissionPriorities.map(item => (
+                     <div key={item} className="relative group">
+                        <button
+                            onClick={() => togglePriority(item, selectedMissionPriorities, setSelectedMissionPriorities)}
+                            className={`w-full h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${
+                                selectedMissionPriorities.includes(item)
+                                ? 'bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                            }`}
+                        >
+                            <div className={`shrink-0 size-4 rounded border-2 flex items-center justify-center ${
+                                selectedMissionPriorities.includes(item)
+                                ? 'bg-blue-500 border-blue-500'
+                                : 'border-slate-300'
+                            }`}>
+                                {selectedMissionPriorities.includes(item) && <Check className="size-3 text-white" strokeWidth={3} />}
+                            </div>
+                            <span className="line-clamp-2 pr-6">{item}</span>
+                        </button>
+                         <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setCustomMissionPriorities(prev => prev.filter(p => p !== item));
+                                if (selectedMissionPriorities.includes(item)) {
+                                    setSelectedMissionPriorities(prev => prev.filter(p => p !== item));
+                                }
+                            }}
+                            className="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remove custom priority"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                     </div>
                 ))}
                 
                 {/* Add Custom Priority Button */}

@@ -41,14 +41,26 @@ export default function Dashboard() {
       const url = selectedProgram?.id 
         ? `/api/institution/dashboard?programId=${selectedProgram.id}` 
         : '/api/institution/dashboard';
+      
+      console.log(`Dashboard: Fetching data from URL: ${url}`);
         
       const res = await fetch(url);
+      console.log(`Dashboard: Fetch response status: ${res.status}`);
+
       if (res.ok) {
         const data = await res.json();
         setStatsData(data);
+      } else {
+        console.error(`Dashboard: Fetch failed with status: ${res.status} ${res.statusText}`);
+        try {
+            const errorText = await res.text();
+            console.error(`Dashboard: Error response body: ${errorText}`);
+        } catch (e) {
+            console.error('Dashboard: Could not read error body');
+        }
       }
     } catch (error) {
-      console.error("Failed to fetch dashboard data", error);
+      console.error("Dashboard: Failed to fetch dashboard data (Network/Client Error)", error);
     } finally {
       setLoading(false);
     }

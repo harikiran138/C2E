@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { program_id, vision, mission } = body;
+    const { program_id, vision, mission, vision_priorities, mission_priorities } = body;
 
     if (!program_id) {
       return NextResponse.json({ error: 'Program ID is required' }, { status: 400 });
@@ -16,10 +16,12 @@ export async function PUT(request: Request) {
         `UPDATE programs 
          SET vision = $1, 
              mission = $2,
+             vision_priorities = $3,
+             mission_priorities = $4,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3
+         WHERE id = $5
          RETURNING *`,
-        [vision, mission, program_id]
+        [vision, mission, vision_priorities, mission_priorities, program_id]
       );
 
       if (result.rowCount === 0) {
