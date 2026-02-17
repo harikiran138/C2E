@@ -131,10 +131,24 @@ export default function AcademicCouncilForm() {
     }
   };
 
-  const handleDelete = (member: any, e: React.MouseEvent) => {
+  const handleDelete = async (member: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Implement delete logic here if API supports it
-    console.log('Delete requested for:', member.id);
+    if (!confirm('Are you sure you want to delete this member from the Academic Council?')) return;
+    
+    try {
+      const response = await fetch(`/api/institution/academic-council?id=${member.id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        fetchMembers();
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to delete: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('An error occurred while deleting.');
+    }
   };
 
   const handlePrintPDF = () => {

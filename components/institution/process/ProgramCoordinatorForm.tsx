@@ -156,9 +156,24 @@ export default function ProgramCoordinatorForm() {
     }
   };
 
-  const handleDelete = (coordinator: ProgramCoordinator, e: React.MouseEvent) => {
+  const handleDelete = async (coordinator: ProgramCoordinator, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Delete requested for:', coordinator.id);
+    if (!confirm('Are you sure you want to remove this program coordinator?')) return;
+    
+    try {
+      const response = await fetch(`/api/institution/program-coordinator?id=${coordinator.id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        fetchCoordinators();
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to delete: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('An error occurred while deleting.');
+    }
   };
 
   const toggleExpand = (id: string) => {

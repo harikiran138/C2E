@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data, error } = await supabase
         .from('obe_framework')
-        .select('*')
+        .select('*, programs(program_name)')
         .eq('institution_id', institutionId)
         .order('created_at', { ascending: true });
 
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
             .update({
                 member_name: body.member_name,
                 designation: body.designation,
-                program: body.program,
+                program_id: body.program_id,
                 email_official: body.email_official,
                 email_personal: body.email_personal,
                 mobile_official: body.mobile_official,
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
                 institution_id: institutionId,
                 member_name: body.member_name,
                 designation: body.designation,
-                program: body.program,
+                program_id: body.program_id,
                 email_official: body.email_official,
                 email_personal: body.email_personal,
                 mobile_official: body.mobile_official,
@@ -105,6 +105,47 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('OBE Framework API Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('institution_token')?.value;
+
+    if (!token) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifyToken(token);
+    if (!payload || !payload.id) {
+        return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+    const institutionId = payload.id;
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+        return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase
+        .from('obe_framework')
+        .delete()
+        .eq('id', id)
+        .eq('institution_id', institutionId);
+
+    if (error) {
+        console.error('Error deleting framework member:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('OBE Framework DELETE Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

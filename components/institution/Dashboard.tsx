@@ -25,14 +25,21 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
 };
 
+import { useInstitution } from '@/context/InstitutionContext';
+
 export default function Dashboard() {
+  const { institution, selectedProgram } = useInstitution();
   const [loading, setLoading] = useState(true);
   const [statsData, setStatsData] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/institution/dashboard');
+        const url = selectedProgram?.id 
+          ? `/api/institution/dashboard?programId=${selectedProgram.id}` 
+          : '/api/institution/dashboard';
+          
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           setStatsData(data);
@@ -44,12 +51,13 @@ export default function Dashboard() {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedProgram?.id]);
 
   return (
     <InstitutionWorkspace
       title="Dashboard"
       subtitle="Overview of your institution's performance and curriculum status."
+      activeStepKey="dashboard"
     >
       <div className="space-y-8">
         {loading ? (
@@ -82,6 +90,43 @@ export default function Dashboard() {
                      <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                         <Icons.Clock className="size-5" />
                      </div>
+                  </div>
+                </motion.div>
+
+                {/* Institute Context / Connect Section */}
+                <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-card/40 backdrop-blur-xl border border-border/50 rounded-3xl p-8 relative overflow-hidden group hover:border-primary/30 transition-all">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <Icons.Target className="size-24 -mr-8 -mt-8" />
+                    </div>
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                          <Icons.Target className="size-4" />
+                        </div>
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Institute Vision</h3>
+                      </div>
+                      <p className="text-lg font-medium leading-relaxed italic text-foreground/90">
+                        {statsData?.vision ? `"${statsData.vision}"` : "Vision statement not yet defined."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-card/40 backdrop-blur-xl border border-border/50 rounded-3xl p-8 relative overflow-hidden group hover:border-primary/30 transition-all">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <Icons.Sparkles className="size-24 -mr-8 -mt-8" />
+                    </div>
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">
+                          <Icons.Sparkles className="size-4" />
+                        </div>
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Institute Mission</h3>
+                      </div>
+                      <p className="text-lg font-medium leading-relaxed italic text-foreground/90">
+                        {statsData?.mission ? `"${statsData.mission}"` : "Mission statement not yet defined."}
+                      </p>
+                    </div>
                   </div>
                 </motion.div>
 

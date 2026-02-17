@@ -5,6 +5,9 @@ import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const programId = searchParams.get('programId');
+
     const cookieStore = await cookies();
     const token = cookieStore.get('institution_token')?.value;
 
@@ -20,28 +23,50 @@ export async function GET(request: Request) {
 
     const client = await pool.connect();
     try {
-        // 1. Fetch Institution Name
-        const nameRes = await client.query('SELECT institution_name FROM institutions WHERE id = $1', [institutionId]);
+        // 1. Fetch Institution Name, Vision, and Mission
+        const nameRes = await client.query('SELECT institution_name, vision, mission FROM institutions WHERE id = $1', [institutionId]);
         const institutionName = nameRes.rows[0]?.institution_name || 'Institution';
+        const vision = nameRes.rows[0]?.vision;
+        const mission = nameRes.rows[0]?.mission;
 
         // 2. Total Programs
         const progRes = await client.query('SELECT COUNT(*) as count FROM programs WHERE institution_id = $1', [institutionId]);
         const programsCount = parseInt(progRes.rows[0]?.count || '0');
 
-        // 3. PAC Members
-        const pacRes = await client.query('SELECT COUNT(*) as count FROM pac_council p JOIN programs pr ON p.program_id = pr.id WHERE pr.institution_id = $1', [institutionId]);
+        // 3. PAC Members (Filter by program if selected)
+        let pacQuery = 'SELECT COUNT(*) as count FROM pac_council p JOIN programs pr ON p.program_id = pr.id WHERE pr.institution_id = $1';
+        let pacParams = [institutionId];
+        if (programId) {
+            pacQuery += ' AND p.program_id = $2';
+            pacParams.push(programId);
+        }
+        const pacRes = await client.query(pacQuery, pacParams);
         const pacCount = parseInt(pacRes.rows[0]?.count || '0');
 
-        // 4. BoS Members
-        const bosRes = await client.query('SELECT COUNT(*) as count FROM bos_council b JOIN programs pr ON b.program_id = pr.id WHERE pr.institution_id = $1', [institutionId]);
+        // 4. BoS Members (Filter by program if selected)
+        let bosQuery = 'SELECT COUNT(*) as count FROM bos_council b JOIN programs pr ON b.program_id = pr.id WHERE pr.institution_id = $1';
+        let bosParams = [institutionId];
+        if (programId) {
+            bosQuery += ' AND b.program_id = $2';
+            bosParams.push(programId);
+        }
+        const bosRes = await client.query(bosQuery, bosParams);
         const bosCount = parseInt(bosRes.rows[0]?.count || '0');
 
-        // 5. Academic Council Members
+        // 5. Academic Council Members (Always institutional)
         const acRes = await client.query('SELECT COUNT(*) as count FROM academic_council WHERE institution_id = $1', [institutionId]);
         const acCount = parseInt(acRes.rows[0]?.count || '0');
 
-        // 6. Recent Activities (Programs)
-        const recentRes = await client.query('SELECT id, program_name, created_at FROM programs WHERE institution_id = $1 ORDER BY created_at DESC LIMIT 5', [institutionId]);
+        // 6. Recent Activities (Filter by program if selected)
+        let recentQuery = 'SELECT id, program_name, created_at FROM programs WHERE institution_id = $1';
+        let recentParams = [institutionId];
+        if (programId) {
+            recentQuery += ' AND id = $2';
+            recentParams.push(programId);
+        }
+        recentQuery += ' ORDER BY created_at DESC LIMIT 5';
+        
+        const recentRes = await client.query(recentQuery, recentParams);
         const activities = (recentRes.rows || []).map(p => ({
             id: p.id,
             user: { name: 'Institutional Admin', avatar: '', initials: 'IA' },
@@ -53,6 +78,8 @@ export async function GET(request: Request) {
 
         const data = {
             institutionName,
+            vision,
+            mission,
             totalPrograms: programsCount,
             pacMembers: pacCount,
             bosMembers: bosCount,

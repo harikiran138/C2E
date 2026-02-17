@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
       intake: Number(body.intake),
       academic_year: String(body.academic_year || ''),
       program_code: String(body.program_code || ''),
+      vision: body.vision ? String(body.vision) : null,
+      mission: body.mission ? String(body.mission) : null,
     };
 
     const validationError = validateProgramPayload(payload);
@@ -60,9 +62,11 @@ export async function POST(request: NextRequest) {
           intake,
           academic_year,
           program_code,
+          vision,
+          mission,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
         [
           newId,
           institutionId,
@@ -72,7 +76,9 @@ export async function POST(request: NextRequest) {
           payload.duration,
           payload.intake,
           payload.academic_year.trim(),
-          normalizedProgramCode
+          normalizedProgramCode,
+          payload.vision?.trim() || null,
+          payload.mission?.trim() || null
         ]
       );
 
@@ -87,6 +93,8 @@ export async function POST(request: NextRequest) {
           intake: payload.intake,
           academic_year: payload.academic_year.trim(),
           program_code: normalizedProgramCode,
+          vision: payload.vision,
+          mission: payload.mission
         } 
       });
     } finally {
@@ -129,6 +137,45 @@ export async function DELETE(request: NextRequest) {
     }
   } catch (error: any) {
     console.error('Error deleting program:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+export async function PUT(request: NextRequest) {
+  try {
+    const institutionId = await getInstitutionId(request);
+    if (!institutionId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Program ID required' }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const { vision, mission } = body;
+
+    const client = await pool.connect();
+    try {
+      const updateResult = await client.query(
+        `UPDATE programs 
+         SET vision = $1, mission = $2, updated_at = NOW() 
+         WHERE id = $3 AND institution_id = $4
+         RETURNING id`,
+        [vision || null, mission || null, id, institutionId]
+      );
+
+      if (updateResult.rows.length === 0) {
+        return NextResponse.json({ error: 'Program not found or unauthorized' }, { status: 404 });
+      }
+
+      return NextResponse.json({ ok: true });
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error('Error updating program VM:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

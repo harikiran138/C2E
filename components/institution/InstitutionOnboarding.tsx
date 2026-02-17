@@ -31,15 +31,18 @@ import { cn } from '@/lib/utils';
 import { INSTITUTION_TYPES, DEGREES, LEVELS } from '@/lib/validation/onboarding';
 
 // --- TYPES ---
-type OnboardingStep = 1 | 2 | 3;
+type OnboardingStep = 1 | 2 | 3 | 4;
 
 interface InstitutionDetails {
+  institution_name: string;
   institution_type: 'Private' | 'Government' | 'Deemed' | 'Trust';
   institution_status: string;
   established_year: number;
   university_affiliation?: string;
   city: string;
   state: string;
+  vision?: string;
+  mission?: string;
 }
 
 interface Program {
@@ -51,6 +54,8 @@ interface Program {
   intake: number;
   academic_year: string;
   program_code: string;
+  vision?: string;
+  mission?: string;
 }
 
 // --- SUB-COMPONENTS ---
@@ -87,12 +92,15 @@ export default function InstitutionOnboarding() {
 
   // DATA STATES
   const [instDetails, setInstDetails] = useState<InstitutionDetails>({
+    institution_name: '',
     institution_type: 'Private',
     institution_status: 'Non-Autonomous',
     established_year: new Date().getFullYear(),
     university_affiliation: '',
     city: '',
-    state: ''
+    state: '',
+    vision: '',
+    mission: ''
   });
 
   // Location State Management
@@ -108,18 +116,22 @@ export default function InstitutionOnboarding() {
     program_name: string;
     degree: string;
     level: string;
-    duration: number | string; // Allow string for initial empty state
-    intake: number | string; // Allow string for initial empty state
+    duration: number | string;
+    intake: number | string;
     academic_year: string;
     program_code: string;
+    vision: string;
+    mission: string;
   }>({
     program_name: '',
     degree: '',
     level: '',
-    duration: '', // Empty initially
+    duration: '',
     intake: '',
     academic_year: '',
-    program_code: ''
+    program_code: '',
+    vision: '',
+    mission: ''
   });
 
   const currentYear = new Date().getFullYear();
@@ -144,6 +156,12 @@ export default function InstitutionOnboarding() {
     newProgram.duration <= 6 &&
     typeof newProgram.intake === 'number' &&
     newProgram.intake > 0;
+
+  const isVisionMissionValid = 
+    !!instDetails.vision?.trim() && 
+    instDetails.vision.trim().length >= 10 &&
+    !!instDetails.mission?.trim() && 
+    instDetails.mission.trim().length >= 10;
 
   // --- SCROLL TO TOP ON STEP CHANGE ---
   useEffect(() => {
@@ -180,12 +198,15 @@ export default function InstitutionOnboarding() {
       if (institution) {
          setUserId(institution.id);
          setInstDetails({
+            institution_name: institution.institution_name || '',
             institution_type: (institution.institution_type as any) || 'Private',
             institution_status: (institution.institution_status as any) || 'Non-Autonomous',
             established_year: institution.established_year || new Date().getFullYear(),
             university_affiliation: institution.university_affiliation || '',
             city: institution.city || '',
-            state: institution.state || ''
+            state: institution.state || '',
+            vision: institution.vision || '',
+            mission: institution.mission || ''
          });
       }
       
@@ -203,10 +224,10 @@ export default function InstitutionOnboarding() {
       return;
     }
 
-    // Removed status validation
     const currentYear = new Date().getFullYear();
-    if (!Number.isInteger(instDetails.established_year) || instDetails.established_year < 1900 || instDetails.established_year > currentYear) {
-      setErrorMsg(`Established year must be between 1900 and ${currentYear}.`);
+    // Allow year to be 0 (while typing) but validate range on save
+    if (!instDetails.established_year || instDetails.established_year < 1800 || instDetails.established_year > currentYear + 1) {
+      setErrorMsg(`Established year must be a valid year between 1800 and ${currentYear + 1}.`);
       return;
     }
 
@@ -217,29 +238,31 @@ export default function InstitutionOnboarding() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        institution_name: instDetails.institution_name,
         institution_type: instDetails.institution_type,
         institution_status: instDetails.institution_status,
         established_year: instDetails.established_year,
         university_affiliation: instDetails.university_affiliation,
         city: instDetails.city,
-        state: instDetails.state
+        state: instDetails.state,
+        vision: instDetails.vision,
+        mission: instDetails.mission
       }),
     });
 
     setLoading(false);
-    if (response.ok) {
-      setCurrentStep(2);
-      return;
+    if (!response.ok) {
+      const payload = await response.json();
+      setErrorMsg(payload.error || 'Failed to save institution details.');
+      return false;
     }
-
-    const payload = await response.json();
-    setErrorMsg(payload.error || 'Failed to save institution details.');
+    return true;
   };
 
   const handleAddProgram = async () => {
     // Validate required fields
-    if (!newProgram.program_name || !newProgram.degree || !newProgram.level || !newProgram.duration || !newProgram.program_code) {
-      setErrorMsg("Please fill all required fields");
+    if (!newProgram.program_name || !newProgram.degree || !newProgram.level || newProgram.duration === '' || !newProgram.program_code) {
+      setErrorMsg("Please fill all required fields (Name, Degree, Level, Duration, Code)");
       return;
     }
 
@@ -278,7 +301,9 @@ export default function InstitutionOnboarding() {
         duration: '',
         intake: '',
         academic_year: '',
-        program_code: ''
+        program_code: '',
+        vision: '',
+        mission: ''
       });
     } catch (err: any) {
       console.error(err);
@@ -345,7 +370,8 @@ export default function InstitutionOnboarding() {
             <h1 className="text-5xl font-extrabold tracking-tight leading-[1.1] text-foreground">
               {currentStep === 1 && "Setup your institution profile"}
               {currentStep === 2 && "Add your academic programs"}
-              {currentStep === 3 && "Review and finalize your data."}
+              {currentStep === 3 && "Define your Vision & Mission"}
+              {currentStep === 4 && "Review and finalize your data."}
             </h1>
             <p className="text-base text-muted-foreground font-medium max-w-md">
               Complete these steps to unlock your institutional dashboard and start your journey towards excellence.
@@ -356,7 +382,8 @@ export default function InstitutionOnboarding() {
             {[
               { step: 1, label: "Institution Details", active: currentStep >= 1 },
               { step: 2, label: "Program Details", active: currentStep >= 2 },
-              { step: 3, label: "Review & Submit", active: currentStep >= 3 }
+              { step: 3, label: "Vision & Mission", active: currentStep >= 3 },
+              { step: 4, label: "Review & Submit", active: currentStep >= 4 }
             ].map((s) => (
               <div key={s.step} className={`flex items-center gap-4 transition-all duration-500 ${s.active ? 'opacity-100 translate-x-1' : 'opacity-20 translate-x-0'}`}>
                 <div className={cn(
@@ -380,12 +407,15 @@ export default function InstitutionOnboarding() {
         <div className="min-h-full flex flex-col items-center justify-center p-6 lg:p-12">
           <div className="w-full max-w-[620px] space-y-8 py-12">
             {/* Back Button */}
-            <button 
-              onClick={handleBack}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-xl bg-card/40 border border-border/40 backdrop-blur-xl hover:scale-105"
-            >
-              <ArrowLeft className="size-4" /> Back
-            </button>
+            {/* Back Button - Only show if step > 1 */}
+            {currentStep > 1 && (
+              <button 
+                onClick={handleBack}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-xl bg-card/40 border border-border/40 backdrop-blur-xl hover:scale-105"
+              >
+                <ArrowLeft className="size-4" /> Back
+              </button>
+            )}
 
           <AnimatePresence mode="wait">
             {errorMsg && (
@@ -424,6 +454,18 @@ export default function InstitutionOnboarding() {
               
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                        <div className="space-y-2 md:col-span-2">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">Institution Name</label>
+                          <GlassInputWrapper>
+                            <input 
+                              placeholder="Name of your Institution"
+                              className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
+                              value={instDetails.institution_name}
+                              onChange={e => setInstDetails({...instDetails, institution_name: e.target.value})}
+                            />
+                          </GlassInputWrapper>
+                        </div>
+
                         <div className="space-y-2">
                           <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 px-1">Institution Type</label>
                           <div className="relative">
@@ -570,7 +612,10 @@ export default function InstitutionOnboarding() {
                     </div>
                   <div className="mt-8 pt-6 border-t border-border/50">
                     <button 
-                      onClick={handleSaveDetails} 
+                      onClick={async () => {
+                        const ok = await handleSaveDetails();
+                        if (ok) setCurrentStep(2);
+                      }} 
                       className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group transition-all"
                       disabled={loading}
                     >
@@ -667,12 +712,10 @@ export default function InstitutionOnboarding() {
                                   }}
                                 >
                                   <option value="">Select Duration</option>
-
                                   <option value="2">2 Years</option>
                                   <option value="3">3 Years</option>
                                   <option value="4">4 Years</option>
                                   <option value="5">5 Years</option>
-                  
                                 </select>
                               </GlassInputWrapper>
                               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
@@ -694,16 +737,14 @@ export default function InstitutionOnboarding() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Year Of Enstablishment</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Year Of Establishment</label>
                             <GlassInputWrapper>
                               <input 
                                 type="text"
                                 className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800"
                                 placeholder="e.g. 2025"
                                 value={newProgram.academic_year}
-                                onChange={e => {
-                                  setNewProgram({...newProgram, academic_year: e.target.value})
-                                }}
+                                onChange={e => setNewProgram({...newProgram, academic_year: e.target.value})}
                               />
                             </GlassInputWrapper>
                           </div>
@@ -722,6 +763,7 @@ export default function InstitutionOnboarding() {
                         </div>
 
                         <button 
+                          type="button"
                           onClick={handleAddProgram} 
                           className="w-full py-4 mt-2 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl font-bold text-primary transition-all flex items-center justify-center gap-2 group"
                           disabled={loading}
@@ -730,15 +772,14 @@ export default function InstitutionOnboarding() {
                         </button>
                       </div>
 
-                      {/* List of Added Programs */}
                       <div className="space-y-4 pt-6 border-t border-border/50">
                         <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2">
                           <Layers className="size-4 text-primary" /> Added Programs ({programs.length})
                         </h3>
                         {programs.length === 0 ? (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center p-8 border border-dashed border-border/60 rounded-xl bg-background/20">
-                            <p className="text-muted-foreground text-sm font-medium">No programs added yet. Add at least one to continue.</p>
-                          </motion.div>
+                          <div className="text-center p-8 border border-dashed border-border/60 rounded-xl bg-background/20">
+                            <p className="text-muted-foreground text-sm font-medium">No programs added yet.</p>
+                          </div>
                         ) : (
                           <div className="space-y-3">
                             <AnimatePresence initial={false}>
@@ -748,7 +789,7 @@ export default function InstitutionOnboarding() {
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 10 }}
-                                className="p-4 bg-background/60 border border-border/50 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md hover:border-primary/20 transition-all group"
+                                className="p-4 bg-background/60 border border-border/50 rounded-xl flex items-center justify-between shadow-sm"
                               >
                                 <div>
                                   <p className="font-bold text-slate-800">{p.program_name}</p>
@@ -756,25 +797,6 @@ export default function InstitutionOnboarding() {
                                     {p.degree} • {p.level} • {p.duration}Y • Intake: {p.intake} • {p.program_code}
                                   </p>
                                 </div>
-                                <button 
-                                  onClick={async () => {
-                                    if (p.id) {
-                                      try {
-                                        const res = await fetch(`/api/institution/programs?id=${p.id}`, {
-                                          method: 'DELETE'
-                                        });
-                                        if (res.ok) {
-                                          setPrograms(programs.filter(prog => prog.id !== p.id));
-                                        }
-                                      } catch (err) {
-                                        console.error('Error deleting program:', err);
-                                      }
-                                    }
-                                  }}
-                                  className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors lg:opacity-0 lg:group-hover:opacity-100"
-                                >
-                                  <Trash2 className="size-4" />
-                                </button>
                               </motion.div>
                             ))}
                             </AnimatePresence>
@@ -791,10 +813,146 @@ export default function InstitutionOnboarding() {
                     </button>
                     <button 
                       onClick={() => setCurrentStep(3)} 
-                      className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                       disabled={programs.length === 0}
                     >
-                      Review Data <ArrowRight className="size-5" />
+                      Define Vision & Mission <ArrowRight className="size-5" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* STEP 3: Combined Vision & Mission */}
+            {currentStep === 3 && (
+              <motion.div 
+                key="step3"
+                variants={fadeIn}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="w-full"
+              >
+                <div 
+                  className="w-full bg-card/60 backdrop-blur-3xl rounded-3xl border border-border/50 shadow-2xl relative overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide p-8 lg:p-10 pb-20 h-[80vh]"
+                  data-lenis-prevent
+                >
+                  <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
+
+                    <div className="mb-8 text-center px-2">
+                        <SectionTitle title="Define Vision & Mission" subtitle="State vision and mission for your institution and each program." />
+                    </div>
+              
+                    <div className="space-y-12">
+                      {/* Institute VM */}
+                      <div className="space-y-6">
+                        <h3 className="font-bold text-primary uppercase text-xs tracking-widest flex items-center gap-2">
+                           <Building2 className="size-4" /> Institute Level
+                        </h3>
+                        <div className="grid grid-cols-1 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Institute Vision</label>
+                            <GlassInputWrapper>
+                              <textarea 
+                                className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 min-h-[100px] resize-none" 
+                                placeholder="To become a center of excellence..."
+                                value={instDetails.vision || ''}
+                                onChange={e => setInstDetails({...instDetails, vision: e.target.value})}
+                              />
+                            </GlassInputWrapper>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Institute Mission</label>
+                            <GlassInputWrapper>
+                              <textarea 
+                                className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 min-h-[100px] resize-none" 
+                                placeholder="To provide quality education..."
+                                value={instDetails.mission || ''}
+                                onChange={e => setInstDetails({...instDetails, mission: e.target.value})}
+                              />
+                            </GlassInputWrapper>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Programs VM */}
+                      {programs.map((p, pIdx) => (
+                        <div key={p.id || pIdx} className="space-y-6 pt-8 border-t border-border/40">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2">
+                               <School className="size-4 text-primary" /> Program: {p.program_name}
+                            </h3>
+                            <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded uppercase tracking-tighter">{p.program_code}</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-6">
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Program Vision</label>
+                              <GlassInputWrapper>
+                                <textarea 
+                                  className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 min-h-[80px] resize-none" 
+                                  placeholder={`Vision for ${p.program_name}...`}
+                                  value={p.vision || ''}
+                                  onChange={e => {
+                                    const updated = [...programs];
+                                    updated[pIdx] = { ...updated[pIdx], vision: e.target.value };
+                                    setPrograms(updated);
+                                  }}
+                                />
+                              </GlassInputWrapper>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Program Mission</label>
+                              <GlassInputWrapper>
+                                <textarea 
+                                  className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 min-h-[80px] resize-none" 
+                                  placeholder={`Mission for ${p.program_name}...`}
+                                  value={p.mission || ''}
+                                  onChange={e => {
+                                    const updated = [...programs];
+                                    updated[pIdx] = { ...updated[pIdx], mission: e.target.value };
+                                    setPrograms(updated);
+                                  }}
+                                />
+                              </GlassInputWrapper>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                  <div className="mt-8 pt-6 border-t border-border/50 flex gap-4">
+                    <button 
+                      onClick={() => setCurrentStep(2)} 
+                      className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-bold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
+                    >
+                      <ArrowLeft className="size-5" /> Back
+                    </button>
+                    <button 
+                      onClick={async () => {
+                         setLoading(true);
+                         // Save Institute VM
+                         const ok = await handleSaveDetails();
+                         if (!ok) {
+                           setLoading(false);
+                           return;
+                         }
+                         // Save Program VM
+                         for (const p of programs) {
+                           if (p.id) {
+                             await fetch(`/api/institution/programs?id=${p.id}`, {
+                               method: 'PUT',
+                               headers: { 'Content-Type': 'application/json' },
+                               body: JSON.stringify({ vision: p.vision, mission: p.mission })
+                             });
+                           }
+                         }
+                         setLoading(false);
+                         setCurrentStep(4);
+                      }} 
+                      className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                      disabled={loading}
+                    >
+                      {loading ? <Loader2 className="animate-spin size-5" /> : <>Review & Continue <ArrowRight className="size-5" /></>}
                     </button>
                   </div>
                 </div>
@@ -802,10 +960,10 @@ export default function InstitutionOnboarding() {
             )}
 
 
-            {/* STEP 3: Final Review */}
-            {currentStep === 3 && (
+            {/* STEP 4: Final Review */}
+            {currentStep === 4 && (
               <motion.div 
-                key="step3"
+                key="step4"
                 variants={fadeIn}
                 initial="hidden"
                 animate="visible"
@@ -844,6 +1002,14 @@ export default function InstitutionOnboarding() {
                                 {instDetails.city}, {instDetails.state}
                             </div>
                           </div>
+                          <div className="col-span-2 pt-4 border-t border-border/30">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Vision</p>
+                            <p className="text-slate-700 text-sm font-medium leading-relaxed italic">"{instDetails.vision}"</p>
+                          </div>
+                          <div className="col-span-2 pt-4 border-t border-border/30">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Mission</p>
+                            <p className="text-slate-700 text-sm font-medium leading-relaxed italic">"{instDetails.mission}"</p>
+                          </div>
                         </div>
                       </div>
 
@@ -867,11 +1033,48 @@ export default function InstitutionOnboarding() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Vision & Mission Summary */}
+                        <div className="pt-8 border-t border-border/50 space-y-8">
+                          <div>
+                            <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2 mb-4">
+                              <Building2 className="size-4 text-primary" /> Institute Vision & Mission
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="p-4 bg-background/40 border border-border/40 rounded-xl">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Vision</p>
+                                <p className="text-sm font-medium text-slate-800 line-clamp-3">{instDetails.vision || 'Not specified'}</p>
+                              </div>
+                              <div className="p-4 bg-background/40 border border-border/40 rounded-xl">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Mission</p>
+                                <p className="text-sm font-medium text-slate-800 line-clamp-3">{instDetails.mission || 'Not specified'}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {programs.map((p, idx) => (
+                            <div key={idx}>
+                              <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2 mb-4">
+                                <School className="size-4 text-primary" /> Program: {p.program_name} VM
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="p-4 bg-background/40 border border-border/40 rounded-xl">
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Vision</p>
+                                  <p className="text-sm font-medium text-slate-800 line-clamp-3">{p.vision || 'Not specified'}</p>
+                                </div>
+                                <div className="p-4 bg-background/40 border border-border/40 rounded-xl">
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Mission</p>
+                                  <p className="text-sm font-medium text-slate-800 line-clamp-3">{p.mission || 'Not specified'}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   <div className="mt-8 pt-6 border-t border-border/50 flex gap-4">
                     <button 
-                      onClick={() => setCurrentStep(2)} 
+                      onClick={() => setCurrentStep(3)} 
                       className="px-6 py-4 bg-background/50 border border-border text-muted-foreground font-bold rounded-xl hover:bg-background hover:text-foreground transition-all flex items-center gap-2"
                     >
                       <ArrowLeft className="size-5" />

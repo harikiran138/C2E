@@ -12,6 +12,7 @@ export default function ConsistencyMatrix() {
   const [missionStatements, setMissionStatements] = useState<string[]>([]);
   const [peos, setPeos] = useState<any[]>([]);
   const [matrix, setMatrix] = useState<Record<string, string>>({}); // Key: "M-index_P-id", Value: "1"|"2"|"3"|"-"
+  const [institution, setInstitution] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -42,6 +43,7 @@ export default function ConsistencyMatrix() {
                    setMatrix(currentProgram.consistency_matrix);
                }
            }
+           setInstitution(data.institution);
         }
 
         // Fetch PEOs
@@ -150,6 +152,26 @@ export default function ConsistencyMatrix() {
              </button>
         </div>
       </div>
+
+      {/* Institute Mission Context */}
+      {institution?.mission && (
+        <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Sparkles className="size-24 -mr-8 -mt-8 text-emerald-600" />
+          </div>
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-emerald-100 rounded text-emerald-600">
+                <Sparkles className="size-3.5" />
+              </div>
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600">Institute Mission Context</h4>
+            </div>
+            <p className="text-sm font-medium text-slate-700 leading-relaxed italic">
+              "{institution.mission}"
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
           <table className="w-full text-sm text-left">

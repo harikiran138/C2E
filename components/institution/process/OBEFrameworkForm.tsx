@@ -32,7 +32,11 @@ interface OBEFrameworkMember {
   id: string;
   member_name: string;
   designation: string;
-  program: string;
+  program_id?: string;
+  program?: string; // Legacy support
+  programs?: {
+    program_name: string;
+  };
   email_official: string;
   email_personal: string;
   mobile_official: string;
@@ -47,12 +51,12 @@ export default function OBEFrameworkForm() {
   const [isLocked, setIsLocked] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [programs, setPrograms] = useState<string[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     member_name: '',
     designation: '',
-    program: '',
+    program_id: '',
     email_official: '',
     email_personal: '',
     mobile_official: '',
@@ -80,7 +84,7 @@ export default function OBEFrameworkForm() {
           if (response.ok) {
               const payload = await response.json();
               if (Array.isArray(payload.programs)) {
-                  setPrograms(payload.programs.map((p: any) => p.program_name));
+                  setPrograms(payload.programs);
               }
           }
       } catch (error) {
@@ -107,7 +111,7 @@ export default function OBEFrameworkForm() {
         setFormData({
             member_name: '',
             designation: '',
-            program: '',
+            program_id: '',
             email_official: '',
             email_personal: '',
             mobile_official: '',
@@ -133,7 +137,7 @@ export default function OBEFrameworkForm() {
     setFormData({
       member_name: member.member_name || '',
       designation: member.designation || '',
-      program: member.program || '',
+      program_id: (member as any).program_id || '',
       email_official: member.email_official || '',
       email_personal: member.email_personal || '',
       mobile_official: member.mobile_official || '',
@@ -149,9 +153,24 @@ export default function OBEFrameworkForm() {
     }
   };
 
-  const handleDelete = (member: OBEFrameworkMember, e: React.MouseEvent) => {
+  const handleDelete = async (member: OBEFrameworkMember, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Delete requested for:', member.id);
+    if (!confirm('Are you sure you want to remove this framework member?')) return;
+    
+    try {
+      const response = await fetch(`/api/institution/obe-framework?id=${member.id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        fetchMembers();
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to delete: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('An error occurred while deleting.');
+    }
   };
 
   const toggleExpand = (id: string) => {
@@ -211,14 +230,14 @@ export default function OBEFrameworkForm() {
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Program of Study</label>
                <select 
-                value={formData.program}
-                onChange={(e) => setFormData({ ...formData, program: e.target.value })}
+                value={formData.program_id}
+                onChange={(e) => setFormData({ ...formData, program_id: e.target.value })}
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none appearance-none cursor-pointer"
               >
                 <option value="">Select Program</option>
-                {programs.map((program) => (
-                  <option key={program} value={program}>
-                    {program}
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.program_name}
                   </option>
                 ))}
               </select>
@@ -386,7 +405,7 @@ export default function OBEFrameworkForm() {
                                                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
                                                         <BookOpen className="size-3" /> Program
                                                     </div>
-                                                    <div className="text-sm font-medium text-slate-700">{member.program || 'N/A'}</div>
+                                                    <div className="text-sm font-medium text-slate-700">{(member as any).programs?.program_name || member.program || 'N/A'}</div>
                                                 </div>
                                                 
                                                 <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">

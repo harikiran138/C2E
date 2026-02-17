@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 interface Program {
   id: string;
-  name: string;
+  program_name: string;
   program_chair?: string;
   nba_coordinator?: string;
   vision?: string;
@@ -200,7 +200,7 @@ export default function ProgramDetails() {
                       className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedProgramId === program.id ? 'border-[#137fec] bg-blue-50 dark:bg-blue-900/20' : 'border-slate-100 dark:border-slate-800 hover:border-blue-200'}`}
                   >
                       <div className="flex items-center justify-between">
-                          <span className={`font-semibold ${selectedProgramId === program.id ? 'text-[#137fec]' : 'text-slate-700 dark:text-slate-300'}`}>{program.name}</span>
+                          <span className={`font-semibold ${selectedProgramId === program.id ? 'text-[#137fec]' : 'text-slate-700 dark:text-slate-300'}`}>{program.program_name}</span>
                           {selectedProgramId === program.id && <span className="material-symbols-outlined text-[#137fec]">check_circle</span>}
                       </div>
                   </div>

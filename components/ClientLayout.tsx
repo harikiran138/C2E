@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useInstitution } from '@/context/InstitutionContext';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,9 +16,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   // Let's exclude ALL /institution routes from global nav.
   
   const isInstitutionSection = pathname?.startsWith('/institution');
+  const { loading } = useInstitution();
+
+  const showLoading = isInstitutionSection && loading && !pathname.includes('/login') && !pathname.includes('/signup');
 
   return (
     <>
+      {showLoading && <LoadingScreen />}
       {!isInstitutionSection && <Navbar />}
       <main className="min-h-screen overflow-x-hidden">
         {children}

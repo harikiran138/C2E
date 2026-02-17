@@ -15,32 +15,24 @@ export async function GET() {
 
       const tables = tablesRes.rows.map(r => r.table_name);
       
-      // Check for pac_members and bos_members tables
-      let pacColumns = [];
-      let bosColumns = [];
+      // Check for relevant tables
+      const tableList = ['academic_council', 'obe_framework', 'program_coordinators', 'pac_members', 'bos_members'];
+      const schemaInfo: any = {};
       
-      if (tables.includes('pac_members')) {
-          const res = await client.query(`
-              SELECT column_name, data_type, is_nullable
-              FROM information_schema.columns
-              WHERE table_name = 'pac_members'
-          `);
-          pacColumns = res.rows;
-      }
-
-      if (tables.includes('bos_members')) {
-          const res = await client.query(`
-              SELECT column_name, data_type, is_nullable
-              FROM information_schema.columns
-              WHERE table_name = 'bos_members'
-          `);
-          bosColumns = res.rows;
+      for (const table of tableList) {
+          if (tables.includes(table)) {
+              const res = await client.query(`
+                  SELECT column_name, data_type, is_nullable
+                  FROM information_schema.columns
+                  WHERE table_name = $1
+              `, [table]);
+              schemaInfo[table] = res.rows;
+          }
       }
 
       return NextResponse.json({ 
         tables,
-        pacMembersColumns: pacColumns,
-        bosMembersColumns: bosColumns
+        schemaInfo
       }, { status: 200 });
     } finally {
       client.release();

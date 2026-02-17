@@ -122,3 +122,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('institution_token')?.value;
+
+    if (!token) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifyToken(token);
+    if (!payload || !payload.id) {
+        return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+    const institutionId = payload.id;
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+        return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase
+        .from('program_coordinators')
+        .delete()
+        .eq('id', id)
+        .eq('institution_id', institutionId);
+
+    if (error) {
+        console.error('Error deleting coordinator:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Program Coordinator DELETE Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

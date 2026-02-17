@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       const cookieOptions = {
           httpOnly: true,
           secure: isProduction,
-          sameSite: 'strict' as const, // Hardened
+          sameSite: 'lax' as const, // Changed from strict to lax for better redirect stability
           path: '/',
       };
 

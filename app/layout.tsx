@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   description: "A showcase of modern web development excellence. Institutional consultancy specializing in higher education compliance and OBE implementation.",
 };
 
+import { InstitutionProvider } from "@/context/InstitutionContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,9 +31,11 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <SmoothScrollProvider>
-          <ClientLayout>
-            {children}
-          </ClientLayout>
+          <InstitutionProvider>
+            <ClientLayout>
+              {children}
+            </ClientLayout>
+          </InstitutionProvider>
         </SmoothScrollProvider>
       </body>
     </html>

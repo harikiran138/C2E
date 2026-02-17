@@ -107,3 +107,16 @@ export function validateProgramPayload(payload: {
 
   return null;
 }
+
+export function validateVisionMissionPayload(payload: {
+  vision: string;
+  mission: string;
+}) {
+  if (!payload.vision?.trim()) return 'Vision statement is required.';
+  if (payload.vision.trim().length < 10) return 'Vision statement must be at least 10 characters.';
+  
+  if (!payload.mission?.trim()) return 'Mission statement is required.';
+  if (payload.mission.trim().length < 10) return 'Mission statement must be at least 10 characters.';
+
+  return null;
+}

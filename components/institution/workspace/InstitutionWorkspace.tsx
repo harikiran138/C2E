@@ -26,6 +26,8 @@ interface InstitutionWorkspaceProps {
   children: React.ReactNode;
 }
 
+import { useInstitution } from '@/context/InstitutionContext';
+
 export default function InstitutionWorkspace({
   title,
   subtitle,
@@ -38,49 +40,13 @@ export default function InstitutionWorkspace({
   const desktopSidebarRef = useRef<HTMLDivElement>(null);
   const mobileSidebarRef = useRef<HTMLDivElement>(null);
 
-  const [institutionName, setInstitutionName] = useState('Institution');
-  const [programs, setPrograms] = useState<ProgramOption[]>([]);
+  const { institution, programs, selectProgram, selectedProgram } = useInstitution();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProgramDropdownOpen, setIsProgramDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  const selectedProgramId = searchParams.get('programId') || '';
-
-  useEffect(() => {
-    const loadWorkspaceData = async () => {
-      const response = await fetch('/api/institution/details');
-      if (response.status === 401) {
-        router.push('/institution/login');
-        return;
-      }
-
-      if (!response.ok) {
-        return;
-      }
-
-      const payload = await response.json();
-      const institution = payload?.institution;
-      const dbPrograms = payload?.programs;
-
-      if (institution?.institution_name) {
-        setInstitutionName(institution.institution_name);
-      }
-
-      if (Array.isArray(dbPrograms)) {
-        setPrograms(
-          dbPrograms
-            .map((program: ProgramOption) => ({
-              id: program.id,
-              program_name: program.program_name,
-              program_code: program.program_code,
-            }))
-            .sort((a: ProgramOption, b: ProgramOption) => a.program_name.localeCompare(b.program_name))
-        );
-      }
-    };
-
-    loadWorkspaceData();
-  }, [router]);
+  const institutionName = institution?.institution_name || 'Institution';
+  const selectedProgramId = selectedProgram?.id || '';
 
   // Handle scroll listener for header transitions
   useEffect(() => {
@@ -447,18 +413,24 @@ function SidebarLink({ href, active, children, onClick }: any) {
 }
 
 function UserSection({ onLogout }: { onLogout: () => void }) {
+    const { institution } = useInstitution();
+    const email = institution?.email || 'admin@c2xplus.com';
+    const name = institution?.institution_name || 'Admin User';
+    const initials = name.substring(0, 2).toUpperCase();
+
     return (
         <div className="p-6 border-t border-border/40 bg-muted/20">
             <div className="flex items-center gap-3">
-                <Avatar className="size-10 border border-border/40">
+                <Avatar className="size-10 border border-border/40 shadow-sm">
                     <AvatarImage src="" />
-                    <AvatarFallback>AD</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate">Admin User</p>
+                    <p className="text-sm font-bold truncate text-foreground">{name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate mb-1">{email}</p>
                     <button 
                         onClick={onLogout}
-                        className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors group"
+                        className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors group"
                     >
                         <LogOut className="size-3 group-hover:translate-x-0.5 transition-transform" />
                         <span>Logout</span>

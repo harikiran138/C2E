@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/postgres';
 import { verifyToken } from '@/lib/auth';
-import { validateInstitutionDetailsPayload } from '@/lib/validation/onboarding';
+import { validateInstitutionDetailsPayload, validateVisionMissionPayload } from '@/lib/validation/onboarding';
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('institution_token')?.value;
@@ -31,7 +31,9 @@ export async function GET(request: NextRequest) {
           established_year,
           university_affiliation,
           city,
-          state
+          state,
+          vision,
+          mission
          FROM institutions
          WHERE id = $1`,
         [institutionId]
@@ -49,7 +51,9 @@ export async function GET(request: NextRequest) {
           duration,
           intake,
           academic_year,
-          program_code
+          program_code,
+          vision,
+          mission
          FROM programs
          WHERE institution_id = $1
          ORDER BY created_at ASC`,
@@ -67,7 +71,11 @@ export async function GET(request: NextRequest) {
     }
   } catch (error: any) {
     console.error('Error fetching details:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+        error: error.message,
+        stack: error.stack,
+        details: 'Failed at /api/institution/details GET'
+    }, { status: 500 });
   }
 }
 
@@ -80,12 +88,15 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const payload = {
+      institution_name: String(body.institution_name || ''),
       institution_type: String(body.institution_type || ''),
       institution_status: String(body.institution_status || ''),
       established_year: Number(body.established_year),
       university_affiliation: body.university_affiliation ? String(body.university_affiliation) : null,
       city: String(body.city || ''),
       state: String(body.state || ''),
+      vision: body.vision ? String(body.vision) : null,
+      mission: body.mission ? String(body.mission) : null,
     };
 
     const validationError = validateInstitutionDetailsPayload(payload);
@@ -97,21 +108,27 @@ export async function POST(request: NextRequest) {
     try {
       await client.query(
         `UPDATE institutions 
-         SET institution_type = $1, 
-             institution_status = $2, 
-             established_year = $3, 
-             university_affiliation = $4, 
-             city = $5, 
-             state = $6, 
+         SET institution_name = $1,
+             institution_type = $2, 
+             institution_status = $3, 
+             established_year = $4, 
+             university_affiliation = $5, 
+             city = $6, 
+             state = $7, 
+             vision = $8,
+             mission = $9,
              updated_at = NOW()
-         WHERE id = $7`,
+         WHERE id = $10`,
         [
+          payload.institution_name.trim(),
           payload.institution_type,
           payload.institution_status,
           payload.established_year,
           payload.university_affiliation?.trim() || null,
           payload.city.trim(),
           payload.state.trim(),
+          payload.vision?.trim() || null,
+          payload.mission?.trim() || null,
           institutionId
         ]
       );
