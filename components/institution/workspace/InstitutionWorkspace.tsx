@@ -97,7 +97,7 @@ export default function InstitutionWorkspace({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 font-sans">
+    <div className="min-h-screen bg-gray-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 font-sans">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -260,16 +260,19 @@ export default function InstitutionWorkspace({
                     )}
             </div>
 
-            {/* Content Card */}
-            <motion.div 
-              key={activeStepKey || 'dashboard'}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[600px] relative"
-            >
-               {children}
-            </motion.div>
+            {/* Content Area - No more nested white card */}
+            <AnimatePresence mode="wait">
+              <motion.div 
+                key={activeStepKey || 'dashboard'}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="w-full"
+              >
+                 {children}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
         </main>

@@ -63,7 +63,6 @@ export async function middleware(request: NextRequest) {
     form-action 'self';
     frame-ancestors 'none';
     block-all-mixed-content;
-    upgrade-insecure-requests;
     connect-src 'self' https://*.supabase.co https://*.supabase.in https://ncofwpuabtxddvdjljgj.supabase.co;
   `;
 

@@ -14,7 +14,8 @@ import {
   Plus,
   ChevronRight,
   GraduationCap,
-  LayoutGrid
+  LayoutGrid,
+  Loader2
 } from 'lucide-react';
 import * as Icons from 'lucide-react';
 
@@ -167,6 +168,18 @@ const getStatusIcon = (status: string) => {
 export default function ComplianceModule({ statsData }: { statsData: any }) {
   const router = useRouter();
   const [selectedItem, setSelectedItem] = useState<ComplianceItem | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    program_name: '',
+    degree: 'B.Tech',
+    academic_year: '2024-25',
+    program_code: '',
+    level: 'Undergraduate',
+    duration: 4,
+    intake: 60
+  });
+
   const [filter, setFilter] = useState<string>('all');
   const stats = calculateStats(DEMO_COMPLIANCE_DATA);
 
@@ -217,6 +230,41 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
         teal: "bg-teal-50/50 border-teal-100/50"
     };
     return bgs[color];
+  };
+
+  const handleCreateProgram = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/institution/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setIsAddModalOpen(false);
+        // Refresh page or update state optimistically
+        router.refresh();
+        setFormData({
+            program_name: '',
+            degree: 'B.Tech',
+            academic_year: '2024-25',
+            program_code: '',
+            level: 'Undergraduate',
+            duration: 4,
+            intake: 60
+        });
+      } else {
+        const err = await response.json();
+        alert(err.error || 'Failed to create program');
+      }
+    } catch (error) {
+      console.error('Error creating program:', error);
+      alert('Internal Server Error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -296,6 +344,13 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                   </h2>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Manage academic governance across all departments</p>
               </div>
+              <button 
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all flex items-center gap-2 active:scale-95"
+              >
+                  <Plus className="w-4 h-4" />
+                  Add Program
+              </button>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -432,6 +487,102 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                     Update Progress
                   </Button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Program Modal */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-[110] p-4"
+            onClick={() => setIsAddModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-xl relative"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h2 className="text-lg font-bold text-slate-900">Add New Program</h2>
+                    <p className="text-xs text-slate-500">Initialize a new academic program</p>
+                </div>
+                <button
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 flex items-center justify-center transition-colors group"
+                >
+                  <X className="w-4 h-4 text-slate-400 group-hover:text-slate-900" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateProgram} className="space-y-4">
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Program Name</label>
+                    <input 
+                        required
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                        placeholder="e.g. Computer Science and Engineering"
+                        value={formData.program_name}
+                        onChange={(e) => setFormData({...formData, program_name: e.target.value})}
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Program Code</label>
+                        <input 
+                            required
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                            placeholder="e.g. CSE"
+                            value={formData.program_code}
+                            onChange={(e) => setFormData({...formData, program_code: e.target.value})}
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Degree Type</label>
+                        <select 
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                            value={formData.degree}
+                            onChange={(e) => setFormData({...formData, degree: e.target.value})}
+                        >
+                            <option>B.Tech</option>
+                            <option>M.Tech</option>
+                            <option>B.Sc</option>
+                            <option>M.Sc</option>
+                            <option>PhD</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Academic Year</label>
+                    <input 
+                        required
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                        placeholder="e.g. 2024-25"
+                        value={formData.academic_year}
+                        onChange={(e) => setFormData({...formData, academic_year: e.target.value})}
+                    />
+                </div>
+
+                <div className="pt-2">
+                    <button 
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-lg shadow-blue-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        Create Program
+                    </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

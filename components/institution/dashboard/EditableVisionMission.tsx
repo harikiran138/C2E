@@ -66,18 +66,18 @@ export default function EditableVisionMission({
       <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
         {/* Vision Section */}
         <div className={cn(
-          "flex-1 min-w-0 bg-indigo-50/50 border border-indigo-100 rounded-2xl px-4 py-2.5 transition-all",
-          isEditing && "ring-2 ring-indigo-500/20 border-indigo-300 bg-white"
+          "flex-1 min-w-0 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all",
+          isEditing && "ring-2 ring-indigo-500/10 border-indigo-500"
         )}>
           <div className="flex items-center gap-2 mb-1">
             <Target className="size-3 text-indigo-600" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Vision</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Vision</span>
           </div>
           {isEditing ? (
             <textarea
               value={vision}
               onChange={(e) => setVision(e.target.value)}
-              className="w-full bg-transparent text-sm font-bold text-slate-700 italic focus:outline-none resize-none h-12"
+              className="w-full bg-transparent text-sm font-bold text-slate-900 italic focus:outline-none resize-none h-12"
               placeholder="Enter institution vision..."
               autoFocus
             />
@@ -90,12 +90,12 @@ export default function EditableVisionMission({
 
         {/* Mission Section */}
         <div className={cn(
-          "flex-1 min-w-0 bg-teal-50/50 border border-teal-100 rounded-2xl px-4 py-2.5 transition-all",
-          isEditing && "ring-2 ring-teal-500/20 border-teal-300 bg-white"
+          "flex-1 min-w-0 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all",
+          isEditing && "ring-2 ring-indigo-500/10 border-indigo-500"
         )}>
           <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="size-3 text-teal-600" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-teal-400">Mission</span>
+            <Sparkles className="size-3 text-emerald-600" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Mission</span>
           </div>
           {isEditing ? (
             <textarea

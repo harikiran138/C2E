@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
+import { Loader2, Settings2, Check, X, ArrowRight, Plus } from 'lucide-react';
 import { PROCESS_MENU_STEPS } from '@/lib/institution/process';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -29,9 +30,24 @@ const item: Variants = {
 };
 
 export default function ProgramDashboardHome({ statsData, loading, selectedProgramId }: ProgramDashboardHomeProps) {
-  // Pinned module keys - defaulting to BOS, PAC, and Stakeholders
+  // Pinned module keys - loading from DB preferences if available
   const [pinnedKeys, setPinnedKeys] = useState<string[]>(['process-4', 'process-3', 'process-5']);
-  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showCustomizePanel, setShowCustomizePanel] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load preferences
+  React.useEffect(() => {
+    if (selectedProgramId) {
+        fetch(`/api/institution/dashboard/preferences?programId=${selectedProgramId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.enabled_modules && data.enabled_modules.length > 0) {
+                    setPinnedKeys(data.enabled_modules);
+                }
+            })
+            .catch(err => console.error('Failed to load preferences:', err));
+    }
+  }, [selectedProgramId]);
 
   if (loading) return null;
 
@@ -75,70 +91,45 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
     );
   };
 
+  const handleSavePreferences = async () => {
+    if (!selectedProgramId) return;
+    setIsSaving(true);
+    try {
+        await fetch('/api/institution/dashboard/preferences', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                programId: selectedProgramId,
+                enabled_modules: pinnedKeys,
+                layout_order: pinnedKeys // Defaulting order to current selection
+            })
+        });
+        setShowCustomizePanel(false);
+    } catch (error) {
+        console.error('Failed to save preferences:', error);
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-2">
-           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Pinned Modules</h2>
+      <div className="flex items-center justify-between">
+           <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Pinned Modules</h2>
            <button 
-             onClick={() => setShowAddMenu(!showAddMenu)}
-             className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-full"
+             onClick={() => setShowCustomizePanel(true)}
+             className="text-[11px] font-bold text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1.5 bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded-md hover:bg-gray-50"
            >
-             <Icons.Plus className="size-3" />
+             <Settings2 className="size-3.5" />
              Customize Grid
            </button>
       </div>
-
-      <AnimatePresence>
-        {showAddMenu && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden mb-6"
-          >
-            <div className="bg-slate-50/50 rounded-[32px] p-8 border border-slate-200/40 backdrop-blur-sm">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Customize Dashboard</h3>
-                        <p className="text-[10px] text-slate-400 font-medium">Select modules to pin on your program overview grid</p>
-                    </div>
-                    <button onClick={() => setShowAddMenu(false)} className="size-8 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 shadow-sm transition-all">
-                        <Icons.X className="size-4" />
-                    </button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    {PROCESS_MENU_STEPS.map((step) => (
-                        <button
-                          key={step.key}
-                          onClick={() => togglePin(step.key)}
-                          className={cn(
-                            "flex items-center gap-3 p-3 rounded-2xl border text-[11px] font-bold transition-all duration-300",
-                            pinnedKeys.includes(step.key)
-                              ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100"
-                              : "bg-white border-slate-100 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30"
-                          )}
-                        >
-                          <div className={cn(
-                            "size-6 rounded-lg flex items-center justify-center",
-                            pinnedKeys.includes(step.key) ? "bg-white/20" : "bg-slate-50"
-                          )}>
-                             {React.createElement((Icons as any)[step.icon || 'Circle'], { size: 14 })}
-                          </div>
-                          <span className="truncate flex-1 text-left">{step.title}</span>
-                          {pinnedKeys.includes(step.key) && <Icons.Check className="size-3" />}
-                        </button>
-                    ))}
-                </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <motion.div 
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
       >
         {pinnedKeys.map((key) => {
           const step = PROCESS_MENU_STEPS.find(s => s.key === key);
@@ -150,48 +141,44 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
           return (
             <motion.div key={key} variants={item}>
               <Link href={`/institution/dashboard?programId=${selectedProgramId}&step=${key}`}>
-                <Card className="h-full border-border/40 bg-white/60 hover:bg-white transition-all duration-500 shadow-sm hover:shadow-2xl hover:shadow-indigo-100/40 hover:-translate-y-1 flex flex-col justify-between p-7 rounded-[32px] group relative overflow-hidden isolate">
-                    <div className="flex items-start justify-between mb-5">
+                <Card className="h-full border border-slate-200 bg-white hover:border-indigo-300 transition-all duration-300 shadow-sm hover:shadow-md flex flex-col justify-between p-4 rounded-lg group relative overflow-hidden">
+                    <div className="flex items-start justify-between mb-3">
                         <div className={cn(
-                            "size-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
+                            "size-8 rounded-md flex items-center justify-center transition-all duration-300",
                             metric?.color === 'blue' ? "bg-blue-50 text-blue-600" :
                             metric?.color === 'purple' ? "bg-purple-50 text-purple-600" :
                             metric?.color === 'amber' ? "bg-amber-50 text-amber-600" :
-                            "bg-indigo-50 text-indigo-600",
-                            "group-hover:scale-110 group-hover:rotate-3"
+                            "bg-indigo-50 text-indigo-600"
                         )}>
-                            {React.createElement((Icons as any)[step.icon || 'Circle'], { className: 'size-6' })}
+                            {React.createElement((Icons as any)[step.icon || 'Circle'], { className: 'size-4' })}
                         </div>
                         
                         <div className={cn(
-                            "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em]",
+                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
                             isCompleted ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-50 text-slate-400 border border-slate-100"
                         )}>
-                            {isCompleted ? 'Completed' : 'Pending'}
+                            {isCompleted ? 'Done' : 'Pending'}
                         </div>
                     </div>
 
                     <div className="relative z-10">
-                        <h3 className="font-black text-slate-800 text-sm mb-1.5 group-hover:text-indigo-600 transition-colors line-clamp-1">{step.title}</h3>
-                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed line-clamp-2 mb-5">
-                            {step.description || 'Module details and progress tracking.'}
+                        <h3 className="font-bold text-slate-900 text-[13px] mb-0.5 group-hover:text-indigo-600 transition-colors line-clamp-1">{step.title || 'Untitled'}</h3>
+                        <p className="text-[10px] text-slate-500 font-medium leading-tight line-clamp-1 mb-3">
+                            {step.description || 'Module details.'}
                         </p>
                         
                         {metric && (
-                           <div className="flex items-baseline gap-2.5">
-                               <span className="text-3xl font-black text-slate-900 tracking-tight">{metric.value}</span>
-                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{metric.label}</span>
+                           <div className="flex items-baseline gap-1.5">
+                               <span className="text-xl font-bold text-slate-900 tracking-tight">{metric.value}</span>
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{metric.label}</span>
                            </div>
                         )}
                     </div>
                     
-                    <div className="mt-6 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-300 group-hover:text-indigo-500 transition-colors">
-                        <span>Open Section</span>
-                        <Icons.ArrowRight className="size-3.5 group-hover:translate-x-1.5 transition-transform duration-300" />
+                    <div className="mt-4 flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-slate-300 group-hover:text-indigo-500 transition-colors">
+                        <span>Details</span>
+                        <ArrowRight className="size-3 group-hover:translate-x-1 transition-transform duration-300" />
                     </div>
-
-                    {/* Background Decorative Elements */}
-                    <div className="absolute -bottom-10 -right-10 size-32 bg-slate-50 rounded-full blur-3xl group-hover:bg-indigo-50 transition-colors duration-500 -z-10" />
                 </Card>
               </Link>
             </motion.div>
@@ -201,19 +188,95 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
         {/* Add Card Placeholder */}
         <motion.div variants={item}>
             <button 
-              onClick={() => setShowAddMenu(true)}
-              className="w-full h-full min-h-[200px] border-2 border-dashed border-slate-200 rounded-[32px] flex flex-col items-center justify-center gap-4 transition-all duration-500 hover:bg-indigo-50/50 hover:border-indigo-300 group shadow-sm hover:shadow-xl hover:shadow-indigo-50"
+              onClick={() => setShowCustomizePanel(true)}
+              className="w-full h-full min-h-[120px] border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-300 hover:bg-slate-50 hover:border-indigo-300 group shadow-sm bg-white"
             >
-                <div className="size-14 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-100 group-hover:bg-white group-hover:text-indigo-600 group-hover:scale-110 group-hover:rotate-90 transition-all duration-500 shadow-sm">
-                    <Icons.Plus className="size-6" />
+                <div className="size-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-200 group-hover:bg-white group-hover:text-indigo-600 transition-all duration-300 shadow-sm">
+                    <Plus className="size-4" />
                 </div>
                 <div className="text-center">
-                    <span className="block text-[11px] font-black text-slate-400 group-hover:text-indigo-600 uppercase tracking-widest">Pin More</span>
-                    <span className="block text-[9px] text-slate-300 group-hover:text-indigo-400 ont-medium mt-1">Customize Grid</span>
+                    <span className="block text-[10px] font-bold text-slate-400 group-hover:text-indigo-600 uppercase tracking-widest">Pin More</span>
                 </div>
             </button>
         </motion.div>
       </motion.div>
+
+      {/* Customize Side Panel */}
+      <AnimatePresence>
+        {showCustomizePanel && (
+            <>
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowCustomizePanel(false)}
+                    className="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-[100]"
+                />
+                <motion.div 
+                    initial={{ x: '100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '100%' }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                    className="fixed top-0 right-0 bottom-0 w-80 bg-white border-l border-slate-200 shadow-2xl z-[110] flex flex-col"
+                >
+                    <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest">Customize Grid</h3>
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">Select modules to display on home</p>
+                        </div>
+                        <button onClick={() => setShowCustomizePanel(false)} className="p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                            <X className="size-4 text-slate-400" />
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 space-y-2">
+                        {PROCESS_MENU_STEPS.map((step) => {
+                             const isPinned = pinnedKeys.includes(step.key);
+                             return (
+                                <button
+                                    key={step.key}
+                                    onClick={() => togglePin(step.key)}
+                                    className={cn(
+                                        "w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-200",
+                                        isPinned 
+                                            ? "bg-indigo-50/50 border-indigo-200 text-indigo-700" 
+                                            : "bg-white border-slate-100 text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn(
+                                            "size-7 rounded-lg flex items-center justify-center",
+                                            isPinned ? "bg-white border border-indigo-100" : "bg-slate-50"
+                                        )}>
+                                            {React.createElement((Icons as any)[step.icon || 'Circle'], { className: 'size-3.5' })}
+                                        </div>
+                                        <span className="text-[11px] font-bold">{step.title}</span>
+                                    </div>
+                                    <div className={cn(
+                                        "size-4 rounded border flex items-center justify-center transition-colors",
+                                        isPinned ? "bg-indigo-600 border-indigo-600" : "bg-white border-slate-200"
+                                    )}>
+                                        {isPinned && <Check className="size-2.5 text-white" />}
+                                    </div>
+                                </button>
+                             )
+                        })}
+                    </div>
+
+                    <div className="p-6 border-t border-slate-100 bg-slate-50/30">
+                        <button 
+                            disabled={isSaving}
+                            onClick={handleSavePreferences}
+                            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                            Update Dashboard
+                        </button>
+                    </div>
+                </motion.div>
+            </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

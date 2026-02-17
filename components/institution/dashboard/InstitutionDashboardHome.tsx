@@ -28,9 +28,9 @@ export default function InstitutionDashboardHome({ loading, statsData }: Institu
       variants={container}
       initial="hidden"
       animate="show"
-      className="max-w-[1400px] mx-auto px-4 sm:px-8 py-10 space-y-12 pb-20"
+      className="max-w-[1400px] mx-auto py-4 space-y-10 pb-20"
     >
-      <motion.div variants={item} className="bg-white/40 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl p-8">
+      <motion.div variants={item}>
           <ComplianceModule statsData={statsData} />
       </motion.div>
     </motion.div>
