@@ -226,14 +226,14 @@ export default function VisionMissionGenerator() {
 
         <div className="space-y-3">
             <label className="text-sm font-semibold text-slate-700">Select Priorities</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {VISION_PRIORITIES.map(item => (
                     <button
                         key={item}
                         onClick={() => togglePriority(item, selectedVisionPriorities, setSelectedVisionPriorities)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                        className={`px-3 py-2 rounded-lg text-xs font-medium transition-all border text-left ${
                             selectedVisionPriorities.includes(item)
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-md'
                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                         }`}
                     >
@@ -311,14 +311,14 @@ export default function VisionMissionGenerator() {
 
         <div className="space-y-3">
             <label className="text-sm font-semibold text-slate-700">Select Priorities</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {MISSION_PRIORITIES.map(item => (
                     <button
                         key={item}
                         onClick={() => togglePriority(item, selectedMissionPriorities, setSelectedMissionPriorities)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                        className={`px-3 py-2 rounded-lg text-xs font-medium transition-all border text-left ${
                             selectedMissionPriorities.includes(item)
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-md'
                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                         }`}
                     >
