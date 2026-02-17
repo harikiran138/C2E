@@ -45,6 +45,7 @@ interface InstitutionDetails {
   mission?: string;
 }
 
+
 interface Program {
   id?: string;
   program_name: string;
@@ -54,8 +55,6 @@ interface Program {
   intake: number;
   academic_year: string;
   program_code: string;
-  vision?: string;
-  mission?: string;
 }
 
 // --- SUB-COMPONENTS ---
@@ -130,8 +129,7 @@ export default function InstitutionOnboarding() {
     intake: '',
     academic_year: '',
     program_code: '',
-    vision: '',
-    mission: ''
+    program_code: ''
   });
 
   const currentYear = new Date().getFullYear();
@@ -157,11 +155,7 @@ export default function InstitutionOnboarding() {
     typeof newProgram.intake === 'number' &&
     newProgram.intake > 0;
 
-  const isVisionMissionValid = 
-    !!instDetails.vision?.trim() && 
-    instDetails.vision.trim().length >= 10 &&
-    !!instDetails.mission?.trim() && 
-    instDetails.mission.trim().length >= 10;
+
 
   // --- SCROLL TO TOP ON STEP CHANGE ---
   useEffect(() => {
@@ -302,8 +296,8 @@ export default function InstitutionOnboarding() {
         intake: '',
         academic_year: '',
         program_code: '',
-        vision: '',
-        mission: ''
+        academic_year: '',
+        program_code: ''
       });
     } catch (err: any) {
       console.error(err);
@@ -370,7 +364,7 @@ export default function InstitutionOnboarding() {
             <h1 className="text-5xl font-extrabold tracking-tight leading-[1.1] text-foreground">
               {currentStep === 1 && "Setup your institution profile"}
               {currentStep === 2 && "Add your academic programs"}
-              {currentStep === 3 && "Define your Vision & Mission"}
+              {currentStep === 3 && "Define your Institute Vision & Mission"}
               {currentStep === 4 && "Review and finalize your data."}
             </h1>
             <p className="text-base text-muted-foreground font-medium max-w-md">
@@ -840,7 +834,7 @@ export default function InstitutionOnboarding() {
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent z-20" />
 
                     <div className="mb-8 text-center px-2">
-                        <SectionTitle title="Define Vision & Mission" subtitle="State vision and mission for your institution and each program." />
+                        <SectionTitle title="Define Institute Vision & Mission" subtitle="State the overarching vision and mission for your institution." />
                     </div>
               
                     <div className="space-y-12">
@@ -874,50 +868,6 @@ export default function InstitutionOnboarding() {
                           </div>
                         </div>
                       </div>
-
-                      {/* Programs VM */}
-                      {programs.map((p, pIdx) => (
-                        <div key={p.id || pIdx} className="space-y-6 pt-8 border-t border-border/40">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2">
-                               <School className="size-4 text-primary" /> Program: {p.program_name}
-                            </h3>
-                            <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded uppercase tracking-tighter">{p.program_code}</span>
-                          </div>
-                          <div className="grid grid-cols-1 gap-6">
-                            <div className="space-y-2">
-                              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Program Vision</label>
-                              <GlassInputWrapper>
-                                <textarea 
-                                  className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 min-h-[80px] resize-none" 
-                                  placeholder={`Vision for ${p.program_name}...`}
-                                  value={p.vision || ''}
-                                  onChange={e => {
-                                    const updated = [...programs];
-                                    updated[pIdx] = { ...updated[pIdx], vision: e.target.value };
-                                    setPrograms(updated);
-                                  }}
-                                />
-                              </GlassInputWrapper>
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Program Mission</label>
-                              <GlassInputWrapper>
-                                <textarea 
-                                  className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800 min-h-[80px] resize-none" 
-                                  placeholder={`Mission for ${p.program_name}...`}
-                                  value={p.mission || ''}
-                                  onChange={e => {
-                                    const updated = [...programs];
-                                    updated[pIdx] = { ...updated[pIdx], mission: e.target.value };
-                                    setPrograms(updated);
-                                  }}
-                                />
-                              </GlassInputWrapper>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
                     </div>
 
                   <div className="mt-8 pt-6 border-t border-border/50 flex gap-4">
@@ -930,24 +880,12 @@ export default function InstitutionOnboarding() {
                     <button 
                       onClick={async () => {
                          setLoading(true);
-                         // Save Institute VM
+                         // Save Institute VM ONLY
                          const ok = await handleSaveDetails();
-                         if (!ok) {
-                           setLoading(false);
-                           return;
-                         }
-                         // Save Program VM
-                         for (const p of programs) {
-                           if (p.id) {
-                             await fetch(`/api/institution/programs?id=${p.id}`, {
-                               method: 'PUT',
-                               headers: { 'Content-Type': 'application/json' },
-                               body: JSON.stringify({ vision: p.vision, mission: p.mission })
-                             });
-                           }
-                         }
                          setLoading(false);
-                         setCurrentStep(4);
+                         if (ok) {
+                           setCurrentStep(4);
+                         }
                       }} 
                       className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
                       disabled={loading}
@@ -1052,23 +990,7 @@ export default function InstitutionOnboarding() {
                             </div>
                           </div>
 
-                          {programs.map((p, idx) => (
-                            <div key={idx}>
-                              <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest flex items-center gap-2 mb-4">
-                                <School className="size-4 text-primary" /> Program: {p.program_name} VM
-                              </h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="p-4 bg-background/40 border border-border/40 rounded-xl">
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Vision</p>
-                                  <p className="text-sm font-medium text-slate-800 line-clamp-3">{p.vision || 'Not specified'}</p>
-                                </div>
-                                <div className="p-4 bg-background/40 border border-border/40 rounded-xl">
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Mission</p>
-                                  <p className="text-sm font-medium text-slate-800 line-clamp-3">{p.mission || 'Not specified'}</p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                          {/* Programs VM Summary Removed */}
                         </div>
                       </div>
                     </div>
