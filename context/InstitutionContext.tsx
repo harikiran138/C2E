@@ -57,18 +57,24 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
         setPrograms(data.programs);
         setAuthenticated(data.authenticated);
 
-        // Handle program selection from URL or default to first
+        // Handle program selection from URL or default to first ONLY if strictly needed
         const urlProgramId = searchParams.get('programId');
         if (urlProgramId) {
           const found = data.programs.find((p: Program) => p.id === urlProgramId);
           setSelectedProgram(found || null);
-        } else if (data.programs.length > 0) {
-          setSelectedProgram(data.programs[0]);
-          // Optionally update URL if we are in a process page
+        } else {
+          // No program in URL
           if (pathname.includes('/process/')) {
-             const params = new URLSearchParams(searchParams.toString());
-             params.set('programId', data.programs[0].id);
-             router.replace(`${pathname}?${params.toString()}`);
+             // If on a process page, we MUST have a program. Default to first.
+             if (data.programs.length > 0) {
+                 setSelectedProgram(data.programs[0]);
+                 const params = new URLSearchParams(searchParams.toString());
+                 params.set('programId', data.programs[0].id);
+                 router.replace(`${pathname}?${params.toString()}`);
+             }
+          } else {
+             // On Dashboard or other pages, allow "No Program" state (Institution View)
+             setSelectedProgram(null);
           }
         }
       } else if (res.status === 401) {
@@ -100,11 +106,15 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
         const found = programs.find(p => p.id === urlProgramId);
         if (found) setSelectedProgram(found);
       }
-    } else if (!urlProgramId && programs.length > 0 && selectedProgram) {
-      // If no program in URL but we have one selected, stay on it or default to first? 
-      // Usually sidebar expects one to be active.
+    } else if (!urlProgramId && selectedProgram) {
+      // URL has no programId, but we have a selectedProgram.
+      // If we are on dashboard, this means we want to go up to Institution View.
+      // If we are on process, we usually redirect in fetchData, but for client-side nav:
+      if (!pathname.includes('/process/')) {
+          setSelectedProgram(null);
+      }
     }
-  }, [searchParams, programs, selectedProgram]);
+  }, [searchParams, programs, selectedProgram, pathname]);
 
   const selectProgram = useCallback((programId: string) => {
     const found = programs.find(p => p.id === programId);

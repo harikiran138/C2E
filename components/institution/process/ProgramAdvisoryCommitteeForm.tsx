@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { 
   Edit2, 
@@ -18,10 +18,15 @@ import {
   Calendar,
   Linkedin,
   Award,
-  BookOpen
+  BookOpen,
+  UserCog,
+  Info,
+  Shield,
+  Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const PAC_CATEGORIES = [
   'Senior Industry Expert (Chairman)',
@@ -49,7 +54,7 @@ interface PACMember {
   linkedin_id: string;
 }
 
-export default function ProgramAdvisoryCommitteeForm() {
+function PACFormContent() {
   const searchParams = useSearchParams();
   const programId = searchParams.get('programId');
 
@@ -58,9 +63,6 @@ export default function ProgramAdvisoryCommitteeForm() {
   const [members, setMembers] = useState<PACMember[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  
-  // We'll treat "Lock" as a local UI state for now, 
-  // though typically it might be persisted if the backend supported it.
   const [isLocked, setIsLocked] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -153,10 +155,9 @@ export default function ProgramAdvisoryCommitteeForm() {
     setEditingId(member.id);
     setExpandedId(member.id);
     
-    // Find the inner scroll container and scroll it to the top
-    const innerContainer = document.querySelector('.custom-scrollbar');
-    if (innerContainer) {
-      innerContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    const formElement = document.getElementById('pac-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
@@ -182,7 +183,6 @@ export default function ProgramAdvisoryCommitteeForm() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    // TODO: Ideally fetch institution/program details for header
     const content = `
       <html>
         <head>
@@ -260,171 +260,205 @@ export default function ProgramAdvisoryCommitteeForm() {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  const scrollToForm = () => {
+    const formElement = document.getElementById('pac-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
   if (!programId) {
     return (
-        <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-slate-300 bg-slate-50">
-            <div className="rounded-full bg-slate-100 p-4 mb-4">
-                <Lock className="size-8 text-slate-400" />
+        <div className="flex flex-col items-center justify-center p-20 text-center rounded-[2rem] border-2 border-dashed border-slate-200 bg-white/50 backdrop-blur-sm shadow-sm animate-element">
+            <div className="rounded-2xl bg-slate-50 p-6 mb-6">
+                <Shield className="size-12 text-slate-300" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Program Not Selected</h3>
-            <p className="text-slate-500 max-w-sm mt-2">Please select a program from the top menu to constitute the Program Advisory Committee.</p>
+            <h3 className="text-xl font-bold text-slate-900">Program Not Selected</h3>
+            <p className="text-slate-500 max-w-sm mt-2 font-medium">Please select a program from the top menu to constitute the Program Advisory Committee.</p>
         </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight text-slate-900">Constitute PAC</h3>
-          <p className="text-sm font-medium text-slate-500 mt-1">Program Advisory Committee</p>
-        </div>
-        <div className="flex gap-2">
+    <div className="space-y-8 animate-element">
+      {/* Main Form Section */}
+      <div id="pac-form" className="group rounded-[1.5rem] border border-slate-200 bg-white p-8 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center justify-between mb-8 border-b border-slate-100 pb-6">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Shield className="size-5 text-indigo-600" />
+              Constitute PAC
+            </h2>
+            <p className="text-sm text-slate-500 mt-1 font-medium">Define Program Advisory Committee members and tenure</p>
+          </div>
+          <div className="flex items-center gap-2">
             {isLocked && (
                 <button 
                 type="button" 
                 onClick={() => setIsLocked(false)}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-white hover:shadow-sm transition-all uppercase tracking-wide"
                 >
-                <Edit2 className="size-4" /> Edit Committee
+                <Edit2 className="size-3.5" /> Unlock to Edit
                 </button>
             )}
-            <button 
-              type="button" 
-              onClick={handlePrintPDF}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
-            >
-              <Printer className="size-4" /> Print PDF
-            </button>
+           </div>
         </div>
-      </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white/50 backdrop-blur-sm p-6 lg:p-8 shadow-sm">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Name of the Member</label>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+            
+            {/* Name Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Name of the Member</label>
               <input 
                 required
                 value={formData.member_name}
                 onChange={(e) => setFormData({ ...formData, member_name: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
                 placeholder="Full name" 
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Member ID</label>
+            {/* Member ID Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Member ID</label>
               <input 
                 value={formData.member_id}
                 onChange={(e) => setFormData({ ...formData, member_id: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
                 placeholder="Unique ID" 
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Category</label>
-              <select 
-                required
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none appearance-none cursor-pointer"
-              >
-                <option value="">Select Category</option>
-                {PAC_CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+            {/* Category Field */}
+            <div className="space-y-1.5">
+               <div className="flex items-center gap-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Category</label>
+                <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="size-3 text-slate-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs font-medium">Select representative category</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+              </div>
+              <div className="relative">
+                <select 
+                    required
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none appearance-none cursor-pointer"
+                >
+                    <option value="">Select Category</option>
+                    {PAC_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                        {category}
+                    </option>
+                    ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Organisation</label>
+            {/* Organisation Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Organisation</label>
               <input 
                 value={formData.organization}
                 onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
                 placeholder="Current Organisation" 
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Email ID</label>
+            {/* Email Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Email ID</label>
               <input 
                 type="email" 
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
                 placeholder="email@example.com" 
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Mobile Number</label>
+            {/* Mobile Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Mobile Number</label>
               <input 
                 value={formData.mobile_number}
                 onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
                 placeholder="+91 00000 00000" 
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Specialisation</label>
+            {/* Specialisation Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Specialisation</label>
               <input 
                 value={formData.specialisation}
                 onChange={(e) => setFormData({ ...formData, specialisation: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
                 placeholder="Area of expertise" 
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">LinkedIn ID</label>
-               <input 
-                 value={formData.linkedin_id}
-                 onChange={(e) => setFormData({ ...formData, linkedin_id: e.target.value })}
-                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
-                 placeholder="Profile URL" 
-               />
+            {/* LinkedIn Field */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">LinkedIn Profile</label>
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <Linkedin className="size-4" />
+                </div>
+                <input 
+                    value={formData.linkedin_id}
+                    onChange={(e) => setFormData({ ...formData, linkedin_id: e.target.value })}
+                    className="w-full h-11 pl-10 rounded-xl border border-slate-200 bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                    placeholder="linkedin.com/in/username" 
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Tenure Start</label>
+            {/* Tenure Fields */}
+            <div className="grid grid-cols-2 gap-4 md:col-span-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Tenure Start</label>
                 <input 
                   type="date" 
                   value={formData.tenure_start_date}
                   onChange={(e) => setFormData({ ...formData, tenure_start_date: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Tenure End</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Tenure End</label>
                 <input 
                   type="date" 
                   value={formData.tenure_end_date}
                   onChange={(e) => setFormData({ ...formData, tenure_end_date: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none" 
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
                 />
               </div>
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 pt-6 border-t border-slate-100 mt-6">
             {(!isLocked || editingId) && (
               <button 
                 type="submit" 
                 disabled={submitting}
-                className="group relative flex-1 overflow-hidden rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-bold text-white transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-50"
+                className="group relative overflow-hidden rounded-xl bg-indigo-600 px-8 py-3.5 text-sm font-bold text-white transition-all hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/30 active:scale-95 disabled:opacity-50"
               >
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center justify-center gap-2 relative z-10">
                   {submitting ? (
                     <Loader2 className="size-5 animate-spin" />
                   ) : editingId ? (
-                    <> <SaveIcon className="size-5" /> Save Changes </>
+                    <> <SaveIcon className="size-5" /> Update Member </>
                   ) : (
                     <> <Plus className="size-5" /> Save & Add Member </>
                   )}
@@ -436,58 +470,76 @@ export default function ProgramAdvisoryCommitteeForm() {
               <button 
                 type="button"
                 onClick={() => setIsLocked(true)}
-                className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95 shrink-0"
+                className="flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95"
               >
-                <Lock className="size-5" /> Lock Committee
+                <Lock className="size-5 text-slate-400" /> Lock Committee
               </button>
             )}
+            
+             <button 
+                type="button"
+                onClick={handlePrintPDF}
+                className="flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95"
+              >
+                <Printer className="size-5 text-slate-400" /> Print PDF
+              </button>
 
             {isLocked && !editingId && (
-              <div className="flex-1 flex items-center justify-center py-3.5 px-6 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 font-bold text-sm gap-2">
-                <Lock className="size-4" /> Committee Locked
+              <div className="flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-6 py-3.5 text-sm font-bold text-slate-500 cursor-not-allowed">
+                <Lock className="size-4" /> Locked
               </div>
             )}
             
             {editingId && (
-                <button 
-                type="button" 
-                onClick={() => {
-                    setEditingId(null);
-                    setFormData({
-                        member_name: '',
-                        member_id: '',
-                        organization: '',
-                        email: '',
-                        mobile_number: '',
-                        specialisation: '',
-                        category: '',
-                        tenure_start_date: '',
-                        tenure_end_date: '',
-                        linkedin_id: ''
-                    });
-                }}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                 <button 
+                    type="button"
+                    onClick={() => {
+                        setEditingId(null);
+                        setFormData({
+                            member_name: '',
+                            member_id: '',
+                            organization: '',
+                            email: '',
+                            mobile_number: '',
+                            specialisation: '',
+                            category: '',
+                            tenure_start_date: '',
+                            tenure_end_date: '',
+                            linkedin_id: ''
+                        });
+                    }}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95"
                 >
-                Cancel
+                    Cancel Edit
                 </button>
             )}
           </div>
         </form>
       </div>
 
-      <div className="space-y-4">
-        <h4 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-900">
-           <UserPlus className="size-4 text-primary" /> PAC Members ({members.length})
-        </h4>
+      {/* List Section */}
+      <div className="space-y-4 pt-4">
+        <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 px-1">
+           <Shield className="size-4 text-indigo-500" /> PAC Members 
+           <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs ml-2">{members.length}</span>
+        </h3>
         
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-4">
             {loading ? (
-                <div className="flex justify-center items-center py-12 bg-white rounded-2xl border border-slate-200">
-                    <Loader2 className="size-6 animate-spin text-slate-300" />
+                <div className="flex flex-col justify-center items-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
+                    <Loader2 className="size-8 animate-spin text-indigo-200 mb-3" />
+                    <p className="text-sm font-medium text-slate-400">Loading committee members...</p>
                 </div>
             ) : members.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 text-slate-500 font-medium">
-                    No members registered yet.
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[1.5rem] border border-slate-200 border-dashed text-center">
+                    <div className="size-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+                        <Shield className="size-8 text-slate-300" />
+                    </div>
+                    <h4 className="text-lg font-bold text-slate-900">No Members Added</h4>
+                    <p className="text-sm text-slate-500 max-w-xs mt-1 mb-6">Start by adding representative members to your Program Advisory Committee.</p>
+                    <button onClick={scrollToForm} className="text-indigo-600 font-bold text-sm hover:underline">
+                        + Add First Member
+                    </button>
                 </div>
             ) : (
                 members.map((member, index) => {
@@ -499,36 +551,63 @@ export default function ProgramAdvisoryCommitteeForm() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className={cn(
-                                "rounded-xl border transition-all duration-200 overflow-hidden bg-white hover:border-primary/30",
-                                isExpanded ? "border-primary/40 ring-4 ring-primary/5 shadow-md" : "border-slate-200 shadow-sm"
+                                "group rounded-2xl border bg-white transition-all duration-300 overflow-hidden",
+                                isExpanded 
+                                ? "border-indigo-200 shadow-xl shadow-indigo-100" 
+                                : "border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200/50 hover:translate-y-[-2px]"
                             )}
                         >
                             <div 
                                 onClick={() => toggleExpand(member.id)}
-                                className="p-4 flex items-center gap-4 cursor-pointer select-none"
+                                className="p-5 flex items-center gap-5 cursor-pointer select-none"
                             >
                                 <div className={cn(
-                                    "flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-colors",
-                                    isExpanded ? "bg-primary text-white" : "bg-slate-100 text-slate-500"
+                                    "flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold transition-all duration-300",
+                                    isExpanded 
+                                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" 
+                                    : "bg-slate-50 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600"
                                 )}>
                                     {index + 1}
                                 </div>
 
-                                <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                                    <div className="font-bold text-slate-900 truncate">{member.member_name}</div>
-                                    <div className="text-sm text-slate-500 flex items-center gap-2 truncate">
-                                        <Phone className="size-3.5" />
-                                        {member.mobile_number || 'N/A'}
+                                <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                                    <div className="md:col-span-5">
+                                        <div className="font-bold text-slate-900 truncate text-lg">{member.member_name}</div>
+                                        <div className="text-xs font-bold text-indigo-600 uppercase tracking-wide mt-0.5">{member.category}</div>
                                     </div>
-                                    <div className="flex items-center justify-between gap-4">
-                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 uppercase tracking-tight truncate max-w-[150px]">
-                                            {member.category}
-                                        </span>
-                                        <ChevronDown className={cn(
-                                            "size-5 text-slate-400 transition-transform duration-300 shrink-0",
-                                            isExpanded ? "rotate-180 text-primary" : ""
-                                        )} />
+                                    
+                                    <div className="md:col-span-4 hidden md:block">
+                                        <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg w-fit">
+                                            <Building className="size-3.5 text-slate-400" />
+                                            <span className="truncate max-w-[200px] font-medium">{member.organization || 'No Organization'}</span>
+                                        </div>
                                     </div>
+
+                                    <div className="md:col-span-3 hidden md:flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <button 
+                                            onClick={(e) => handleEdit(member, e)}
+                                            className="size-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                            title="Edit"
+                                        >
+                                            <Edit2 className="size-4" />
+                                        </button>
+                                        {!isLocked && (
+                                            <button 
+                                                onClick={(e) => handleDelete(member, e)}
+                                                className="size-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="size-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                <div className={cn(
+                                    "size-8 rounded-full flex items-center justify-center transition-all duration-300",
+                                    isExpanded ? "bg-indigo-50 text-indigo-600 rotate-180" : "bg-transparent text-slate-400 group-hover:bg-slate-50"
+                                )}>
+                                     <ChevronDown className="size-5" />
                                 </div>
                             </div>
 
@@ -538,62 +617,30 @@ export default function ProgramAdvisoryCommitteeForm() {
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: 'auto', opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.2 }}
+                                        transition={{ duration: 0.3, ease: "easeInOut" }}
                                     >
-                                        <div className="px-4 pb-4 pt-0 border-t border-slate-100/80 bg-slate-50/50">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
-                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                                        <Building className="size-3" /> Organization
-                                                    </div>
-                                                    <div className="text-sm font-medium text-slate-700">{member.organization || 'N/A'}</div>
-                                                </div>
+                                        <div className="px-5 pb-6 pt-0 border-t border-slate-100/80 bg-slate-50/30">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-6">
+                                                <InfoCard icon={Mail} label="Email Address" value={member.email} />
+                                                <InfoCard icon={Phone} label="Mobile Number" value={member.mobile_number} />
+                                                <InfoCard icon={Linkedin} label="LinkedIn Profile" value={member.linkedin_id} isLink />
                                                 
-                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                                        <Mail className="size-3" /> Email Address
-                                                    </div>
-                                                    <div className="text-sm font-medium text-slate-700">{member.email || 'N/A'}</div>
-                                                </div>
-
-                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                                        <Award className="size-3" /> Specialisation
-                                                    </div>
-                                                    <div className="text-sm font-medium text-slate-700">{member.specialisation || 'N/A'}</div>
-                                                </div>
-
-                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                                        <Calendar className="size-3" /> Tenure
-                                                    </div>
-                                                    <div className="text-sm font-medium text-slate-700">
-                                                        {member.tenure_start_date ? new Date(member.tenure_start_date).toLocaleDateString() : 'N/A'} 
-                                                        {' - '} 
-                                                        {member.tenure_end_date ? new Date(member.tenure_end_date).toLocaleDateString() : 'N/A'}
-                                                    </div>
-                                                </div>
-
-                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1.5">
-                                                        <Linkedin className="size-3" /> LinkedIn
-                                                    </div>
-                                                    <div className="text-sm font-medium text-slate-700 break-all">{member.linkedin_id || 'N/A'}</div>
-                                                </div>
-
-                                                <div className="p-3 bg-white rounded-lg border border-slate-100 shadow-sm flex items-center justify-end gap-2">
+                                                <InfoCard icon={Award} label="Specialisation" value={member.specialisation} />
+                                                <InfoCard icon={Calendar} label="Tenure Period" value={`${member.tenure_start_date ? new Date(member.tenure_start_date).toLocaleDateString() : 'N/A'} - ${member.tenure_end_date ? new Date(member.tenure_end_date).toLocaleDateString() : 'N/A'}`} secondary />
+                                                
+                                                <div className="md:col-span-2 lg:col-span-1 flex items-end justify-end gap-2 h-full min-h-[60px]">
                                                     <button 
                                                         onClick={(e) => handleEdit(member, e)}
-                                                        className="px-3 py-1.5 rounded-lg bg-primary/5 text-primary text-xs font-bold hover:bg-primary/10 transition-colors"
+                                                        className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm"
                                                     >
-                                                        Edit Member
+                                                        Edit Details
                                                     </button>
                                                     {!isLocked && (
                                                         <button 
                                                             onClick={(e) => handleDelete(member, e)}
-                                                            className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 transition-colors"
+                                                            className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-100 transition-all shadow-sm"
                                                         >
-                                                            Remove
+                                                            <Trash2 className="size-4" />
                                                         </button>
                                                     )}
                                                 </div>
@@ -610,4 +657,40 @@ export default function ProgramAdvisoryCommitteeForm() {
       </div>
     </div>
   );
+}
+
+function InfoCard({ icon: Icon, label, value, isLink, secondary }: any) {
+    if (!value) return null;
+    return (
+        <div className={cn(
+            "p-3.5 rounded-xl border transition-all",
+            secondary ? "bg-slate-50 border-slate-100/50" : "bg-white border-slate-100 shadow-sm"
+        )}>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                <Icon className="size-3" /> {label}
+            </div>
+            <div className={cn(
+                "text-sm font-medium truncate",
+                secondary ? "text-slate-500" : "text-slate-800"
+            )}>
+                {isLink ? (
+                    <a href={value.startsWith('http') ? value : `https://${value}`} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
+                        {value}
+                    </a>
+                ) : value}
+            </div>
+        </div>
+    );
+}
+
+export default function ProgramAdvisoryCommitteeForm() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center py-20">
+                <Loader2 className="size-8 animate-spin text-indigo-200" />
+            </div>
+        }>
+            <PACFormContent />
+        </Suspense>
+    );
 }

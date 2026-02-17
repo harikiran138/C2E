@@ -7,6 +7,8 @@ import RecentActivity from '@/components/institution/dashboard/RecentActivity';
 import PerformanceChart from '@/components/institution/dashboard/PerformanceChart';
 import { Loader2 } from 'lucide-react';
 import * as Icons from 'lucide-react';
+import InstitutionDashboardHome from '@/components/institution/dashboard/InstitutionDashboardHome';
+import ProgramDashboardHome from '@/components/institution/dashboard/ProgramDashboardHome';
 
 import { motion, Variants } from 'framer-motion';
 
@@ -34,6 +36,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const url = selectedProgram?.id 
           ? `/api/institution/dashboard?programId=${selectedProgram.id}` 
@@ -53,99 +56,67 @@ export default function Dashboard() {
     fetchData();
   }, [selectedProgram?.id]);
 
+  // Determine Title and Subtitle based on context
+  const pageTitle = selectedProgram 
+    ? selectedProgram.program_name 
+    : "Institution Dashboard";
+    
+  const pageSubtitle = selectedProgram
+    ? "Manage curriculum, assessments, and outcomes."
+    : "Overview of your institution's performance and status.";
+
+  const headerContent = !selectedProgram && statsData && (
+    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        {/* Vision */}
+        <div className="flex-1 min-w-0 bg-indigo-50/50 border border-indigo-100 rounded-2xl px-4 py-2.5">
+            <div className="flex items-center gap-2 mb-0.5">
+                <Icons.Target className="size-3 text-indigo-600" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Vision</span>
+            </div>
+            <p className="text-sm font-bold text-slate-700 truncate italic">
+                {statsData.vision ? `"${statsData.vision}"` : "Leading global transformative education."}
+            </p>
+        </div>
+        {/* Mission */}
+        <div className="flex-1 min-w-0 bg-teal-50/50 border border-teal-100 rounded-2xl px-4 py-2.5">
+            <div className="flex items-center gap-2 mb-0.5">
+                <Icons.Sparkles className="size-3 text-teal-600" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-teal-400">Mission</span>
+            </div>
+            <p className="text-sm font-bold text-slate-700 truncate italic">
+                {statsData.mission ? `"${statsData.mission}"` : "Fostering innovation and ethical leadership."}
+            </p>
+        </div>
+    </div>
+  );
+
   return (
     <InstitutionWorkspace
-      title="Program Dashboard"
-      subtitle="Overview of your institution's performance and curriculum status."
+      title={pageTitle}
+      subtitle={pageSubtitle}
       activeStepKey="dashboard"
+      headerContent={headerContent}
     >
-      <div className="space-y-8">
-        {loading ? (
-             <div className="flex h-64 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-             </div>
-        ) : (
-             <motion.div 
-               variants={container}
-               initial="hidden"
-               animate="show"
-               className="space-y-10"
-             >
-                <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                  <div>
-
-                    <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary-dark to-secondary pb-2">
-                       WELCOME BACK!
-                    </h2>
-
-                    <p className="mt-4 text-muted-foreground flex items-center gap-2">
-                       <span className="inline-block size-2 rounded-full bg-secondary animate-pulse" />
-                       System is synchronized with the database.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 bg-card/30 backdrop-blur-xl border border-border/40 p-2 rounded-2xl">
-                     <div className="px-4 py-2 text-right">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Local Time</p>
-                        <p className="text-sm font-bold tabular-nums">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                     </div>
-                     <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                        <Icons.Clock className="size-5" />
-                     </div>
-                  </div>
-                </motion.div>
-
-                {/* Institute Context / Connect Section */}
-                <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-card/40 backdrop-blur-xl border border-border/50 rounded-3xl p-8 relative overflow-hidden group hover:border-primary/30 transition-all">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <Icons.Target className="size-24 -mr-8 -mt-8" />
-                    </div>
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                          <Icons.Target className="size-4" />
-                        </div>
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Institute Vision</h3>
-                      </div>
-                      <p className="text-lg font-medium leading-relaxed italic text-foreground/90">
-                        {statsData?.vision ? `"${statsData.vision}"` : "Vision statement not yet defined."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-card/40 backdrop-blur-xl border border-border/50 rounded-3xl p-8 relative overflow-hidden group hover:border-primary/30 transition-all">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <Icons.Sparkles className="size-24 -mr-8 -mt-8" />
-                    </div>
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-secondary/10 rounded-lg text-secondary">
-                          <Icons.Sparkles className="size-4" />
-                        </div>
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Institute Mission</h3>
-                      </div>
-                      <p className="text-lg font-medium leading-relaxed italic text-foreground/90">
-                        {statsData?.mission ? `"${statsData.mission}"` : "Mission statement not yet defined."}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-
-                <motion.div variants={item}>
-                  <Stats data={statsData} />
-                </motion.div>
-
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                  <motion.div className="lg:col-span-2" variants={item}>
-                    <PerformanceChart />
-                  </motion.div>
-                  <motion.div variants={item}>
-                    <RecentActivity activities={statsData?.recentActivities} />
-                  </motion.div>
-                </div>
-            </motion.div>
-        )}
-      </div>
+      {loading ? (
+           <div className="flex h-64 items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+           </div>
+      ) : (
+          <div className="min-h-[600px]">
+            {selectedProgram ? (
+                <ProgramDashboardHome 
+                    statsData={statsData} 
+                    loading={loading}
+                    programName={selectedProgram.program_name} 
+                />
+            ) : (
+                <InstitutionDashboardHome 
+                    statsData={statsData} 
+                    loading={loading} 
+                />
+            )}
+          </div>
+      )}
     </InstitutionWorkspace>
   );
 }

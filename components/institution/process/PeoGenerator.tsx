@@ -2,7 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2, Sparkles, Save, Calendar, Check, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { 
+  Sparkles, 
+  Save, 
+  Calendar, 
+  Check, 
+  Trash2, 
+  Plus,
+  Info,
+  Clock,
+  Layers,
+  Loader2,
+  MoreHorizontal
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// --- MASTER UI DESIGN TOKENS ---
+// Typography: System (Inter-like)
+// Colors: Indigo (Primary), Slate (Neutral), Teal (Accent)
 
 const PEO_PRIORITIES = [
   'Institute Vision',
@@ -11,19 +28,25 @@ const PEO_PRIORITIES = [
   'Regional Priorities',
   'Local Priorities',
   '21st Century Skills',
-  'Sustainable Development Goals (SDGs)',
+  'Sustainable Development Goals',
   'Entrepreneurship',
   'Professional Practice',
-  'Higher Education and Growth',
-  'Leadership and Teamwork',
-  'Ethics and Society',
+  'Higher Education',
+  'Leadership',
+  'Ethics & Society',
   'Adaptability'
 ];
+
+interface DateRange {
+  start: string;
+  end: string;
+}
 
 export default function PeoGenerator() {
   const searchParams = useSearchParams();
   const programId = searchParams.get('programId');
 
+  // --- STATE ---
   const [loading, setLoading] = useState(true);
   const [institution, setInstitution] = useState<any>(null);
   const [program, setProgram] = useState<any>(null);
@@ -37,9 +60,12 @@ export default function PeoGenerator() {
   const [saving, setSaving] = useState(false);
 
   // Process Dates
-  const [brainstormingDates, setBrainstormingDates] = useState({ start: '', end: '' });
-  const [feedbackDates, setFeedbackDates] = useState({ start: '', end: '' });
-  const [consolidationDates, setConsolidationDates] = useState({ start: '', end: '' });
+  const [brainstormingDates, setBrainstormingDates] = useState<DateRange>({ start: '', end: '' });
+  const [feedbackDates, setFeedbackDates] = useState<DateRange>({ start: '', end: '' });
+  const [consolidationDates, setConsolidationDates] = useState<DateRange>({ start: '', end: '' });
+
+  // UI State
+  const [activeTab, setActiveTab] = useState<'config' | 'workspace'>('workspace');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,7 +101,7 @@ export default function PeoGenerator() {
             const peoResponse = await fetch(`/api/institution/peos?programId=${programId}`);
             if (peoResponse.ok) {
                 const peoData = await peoResponse.json();
-                setPeos(peoData.data);
+                setPeos(peoData.data || []);
             }
         }
       } catch (error) {
@@ -97,7 +123,8 @@ export default function PeoGenerator() {
 
   const handleGenerate = async () => {
     if (!selectedPriorities.length) {
-        alert('Please select at least one priority.');
+        // High-end UI custom alert would be better, but native alert for MVP speed
+        alert('Please select at least one priority context.');
         return;
     }
 
@@ -117,8 +144,6 @@ export default function PeoGenerator() {
       if (response.ok) {
         const data = await response.json();
         setGeneratedPeos(data.results);
-      } else {
-        alert('Generation failed.');
       }
     } catch (error) {
       console.error('Generation error:', error);
@@ -129,17 +154,23 @@ export default function PeoGenerator() {
 
   const handleAddPeo = (statement: string) => {
       setPeos([...peos, { id: `temp-${Date.now()}`, peo_statement: statement, peo_number: peos.length + 1 }]);
+      setGeneratedPeos(generatedPeos.filter(p => p !== statement)); // Remove from suggestions
   };
 
   const handleDeletePeo = async (id: string) => {
       if (id.startsWith('temp')) {
           setPeos(peos.filter(p => p.id !== id));
       } else {
+          // Optimistic UI update could be risky without robust undo, but we'll delete on server first
           try {
               await fetch(`/api/institution/peos?id=${id}`, { method: 'DELETE' });
               setPeos(peos.filter(p => p.id !== id));
           } catch (e) { console.error(e); }
       }
+  };
+
+  const handleUpdatePeo = (id: string, newStatement: string) => {
+      setPeos(peos.map(p => p.id === id ? { ...p, peo_statement: newStatement } : p));
   };
 
   const handleSaveAll = async () => {
@@ -161,12 +192,9 @@ export default function PeoGenerator() {
             })
         });
 
-        // Save PEOs (Only new tech - simple sync for now, deleting old and re-inserting is easiest for MVP 
-        // but better to upsert. Here we'll just save the list via bulk API if we make one, 
-        // or loop calls. Let's use a bulk save endpoint to be efficient).
-        
+        // Save PEOs
         await fetch('/api/institution/peos', {
-            method: 'POST', // Implies bulk save/sync
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 program_id: programId,
@@ -174,9 +202,7 @@ export default function PeoGenerator() {
             })
         });
 
-        alert('PEOs and Process Dates saved successfully!');
-        
-        // Refresh to get real IDs
+        // Refetch to ensure IDs
         const peoResponse = await fetch(`/api/institution/peos?programId=${programId}`);
         if (peoResponse.ok) {
             const peoData = await peoResponse.json();
@@ -185,218 +211,285 @@ export default function PeoGenerator() {
 
     } catch (error) {
         console.error('Save error:', error);
-        alert('Failed to save.');
     } finally {
         setSaving(false);
     }
   };
 
-  if (!programId) {
-     return <div className="p-8 text-center text-slate-500">Please select a program first.</div>;
-  }
-
-  if (loading) {
-    return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary size-8" /></div>;
-  }
+  if (!programId) return <div className="p-12 text-center text-slate-400 font-light text-lg">Please select a program of study to begin.</div>;
+  if (loading) return (
+      <div className="flex flex-col items-center justify-center p-24 space-y-4">
+          <div className="size-12 border-4 border-slate-100 border-t-slate-800 rounded-full animate-spin" />
+          <p className="text-slate-400 text-sm font-medium tracking-widest uppercase">Loading Context...</p>
+      </div>
+  );
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto pb-20">
-      
-      {/* 1. Context Display */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Institute Vision</h4>
-            <p className="text-xs text-slate-700">{institution?.vision || 'Not defined'}</p>
-        </div>
-        <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Institute Mission</h4>
-            <p className="text-xs text-slate-700">{institution?.mission || 'Not defined'}</p>
-        </div>
-      </div>
-
-      <div className="h-px bg-slate-200" />
-
-      {/* 2. Priority Selection */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-bold text-slate-900">Select Priorities for PEOs</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {PEO_PRIORITIES.map(item => (
-                <button
-                    key={item}
-                    onClick={() => togglePriority(item)}
-                    className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-all border text-center flex items-center justify-center h-full ${
-                        selectedPriorities.includes(item)
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.02]'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                >
-                    {item}
-                </button>
-            ))}
-        </div>
-      </div>
-
-      {/* 3. Generation Control */}
-      <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-        <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-slate-700">No. of PEOs:</span>
-            <select 
-                value={peoCount}
-                onChange={(e) => setPeoCount(Number(e.target.value))}
-                className="rounded-lg border border-slate-300 text-sm py-1.5 px-2"
+    <div className="space-y-8 pb-32">
+        {/* --- 1. QUICK ACTION SHORTCUT BAR --- */}
+        {/* Placed immediately below H1 (Layout handles H1) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button 
+                onClick={() => setPeos([...peos, { id: `temp-new-${Date.now()}`, peo_statement: '', peo_number: peos.length + 1 }])}
+                className="group flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
             >
-                {[...Array(20)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
-            </select>
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg mb-2 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <Plus className="size-5" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900">Add PEO</span>
+            </button>
+
+            <button 
+                onClick={() => document.getElementById('ai-generator')?.scrollIntoView({ behavior: 'smooth' })}
+                className="group flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-xl hover:border-amber-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+            >
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg mb-2 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                    <Sparkles className="size-5" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900">Generate</span>
+            </button>
+
+            <button 
+                onClick={() => document.getElementById('process-dates')?.scrollIntoView({ behavior: 'smooth' })}
+                className="group flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-xl hover:border-teal-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+            >
+                <div className="p-2 bg-teal-50 text-teal-600 rounded-lg mb-2 group-hover:bg-teal-500 group-hover:text-white transition-colors">
+                    <Calendar className="size-5" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900">Timeline</span>
+            </button>
+
+             <button 
+                onClick={handleSaveAll}
+                disabled={saving}
+                className="group flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-xl hover:border-emerald-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50"
+            >
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg mb-2 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
+                </div>
+                <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900">Save All</span>
+            </button>
         </div>
-        <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-        >
-            {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            Generate Draft PEOs
-        </button>
-      </div>
 
-      {/* 4. Generated Results */}
-      {generatedPeos.length > 0 && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-500">AI Generated Suggestions</h4>
-              <div className="grid grid-cols-1 gap-3">
-                  {generatedPeos.map((peo, i) => (
-                      <div key={i} className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 flex justify-between items-center gap-4 group hover:bg-indigo-50 transition-colors">
-                          <p className="text-sm text-slate-800 flex-1">{peo}</p>
-                          <button 
-                            onClick={() => handleAddPeo(peo)}
-                            className="bg-white text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                          >
-                             Add
-                          </button>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      )}
+        {/* --- 2. MAIN CONTENT ZONE --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* LEFT COLUMN: STRATEGY & AI */}
+            <div className="lg:col-span-5 space-y-8">
+                
+                {/* Institutional Context */}
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-slate-100 rounded-lg">
+                             <Layers className="size-4 text-slate-600" />
+                        </div>
+                        <h2 className="text-base font-bold text-slate-900">Institutional Anchor</h2>
+                    </div>
+                    
+                    <div className="space-y-6">
+                        <div className="relative pl-4 border-l-2 border-slate-100">
+                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Vision</h3>
+                            <p className="text-sm text-slate-600 leading-relaxed italic">
+                                "{institution?.vision || 'Vision not defined.'}"
+                            </p>
+                        </div>
+                        <div className="relative pl-4 border-l-2 border-slate-100">
+                             <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Mission</h3>
+                            <p className="text-sm text-slate-600 leading-relaxed italic">
+                                "{institution?.mission || 'Mission not defined.'}"
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
-      <div className="h-px bg-slate-200" />
+                {/* AI Generator */}
+                <div id="ai-generator" className="bg-white rounded-2xl p-6 border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-[100px] -mr-8 -mt-8 opacity-50" />
+                    
+                    <div className="flex items-center gap-3 mb-6 relative z-10">
+                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                             <Sparkles className="size-4" />
+                        </div>
+                         <h2 className="text-base font-bold text-slate-900">AI Architect</h2>
+                    </div>
 
-      {/* 5. Process Roadmap & Final List */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left: Process Timeline */}
-          <div className="lg:col-span-1 space-y-6">
-              <h3 className="text-lg font-bold text-slate-900">Process Timeline</h3>
-              
-              <div className="relative pl-6 border-l-2 border-slate-200 space-y-8">
-                  {/* Step 1 */}
-                  <div className="relative">
-                      <div className="absolute -left-[29px] top-1 rounded-full bg-slate-100 border-2 border-slate-300 p-1">
-                          <span className="block size-2 rounded-full bg-slate-400"></span>
-                      </div>
-                      <h4 className="text-sm font-bold text-slate-900">Internal Brainstorming</h4>
-                      <div className="mt-2 space-y-2">
-                          <div>
-                            <label className="text-xs text-slate-500 block">Start Date</label>
-                            <input type="date" value={brainstormingDates.start} onChange={e => setBrainstormingDates({...brainstormingDates, start: e.target.value})} className="w-full text-xs border rounded p-1" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-slate-500 block">End Date</label>
-                            <input type="date" value={brainstormingDates.end} onChange={e => setBrainstormingDates({...brainstormingDates, end: e.target.value})} className="w-full text-xs border rounded p-1" />
-                          </div>
-                      </div>
-                  </div>
+                    <div className="space-y-5 relative z-10">
+                        <div>
+                             <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 block">Strategic Focus Areas</label>
+                             <div className="flex flex-wrap gap-2">
+                                {PEO_PRIORITIES.map(item => (
+                                    <button
+                                        key={item}
+                                        onClick={() => togglePriority(item)}
+                                        className={`
+                                            px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all
+                                            ${selectedPriorities.includes(item)
+                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-200' 
+                                                : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600'
+                                            }
+                                        `}
+                                    >
+                                        {item}
+                                    </button>
+                                ))}
+                             </div>
+                        </div>
 
-                  {/* Step 2 */}
-                  <div className="relative">
-                      <div className="absolute -left-[29px] top-1 rounded-full bg-slate-100 border-2 border-slate-300 p-1">
-                          <span className="block size-2 rounded-full bg-slate-400"></span>
-                      </div>
-                      <h4 className="text-sm font-bold text-slate-900">Stakeholder Feedback</h4>
-                      <div className="mt-2 space-y-2">
-                          <div>
-                            <label className="text-xs text-slate-500 block">Start Date</label>
-                            <input type="date" value={feedbackDates.start} onChange={e => setFeedbackDates({...feedbackDates, start: e.target.value})} className="w-full text-xs border rounded p-1" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-slate-500 block">End Date</label>
-                            <input type="date" value={feedbackDates.end} onChange={e => setFeedbackDates({...feedbackDates, end: e.target.value})} className="w-full text-xs border rounded p-1" />
-                          </div>
-                      </div>
-                  </div>
+                        <div className="flex items-end gap-3 pt-2">
+                            <div className="flex-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">Quantity</label>
+                                <select 
+                                    value={peoCount}
+                                    onChange={(e) => setPeoCount(Number(e.target.value))}
+                                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold px-3 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                >
+                                    {[3,4,5,6].map(n => <option key={n} value={n}>{n} Outcomes</option>)}
+                                </select>
+                            </div>
+                            <button
+                                onClick={handleGenerate}
+                                disabled={generating || selectedPriorities.length === 0}
+                                className="flex-1 h-10 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
+                            >
+                                {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                                <span>Generate Drafts</span>
+                            </button>
+                        </div>
+                    </div>
 
-                  {/* Step 3 */}
-                  <div className="relative">
-                      <div className="absolute -left-[29px] top-1 rounded-full bg-slate-100 border-2 border-slate-300 p-1">
-                          <span className="block size-2 rounded-full bg-slate-400"></span>
-                      </div>
-                      <h4 className="text-sm font-bold text-slate-900">Consolidation</h4>
-                      <div className="mt-2 space-y-2">
-                          <div>
-                            <label className="text-xs text-slate-500 block">Start Date</label>
-                            <input type="date" value={consolidationDates.start} onChange={e => setConsolidationDates({...consolidationDates, start: e.target.value})} className="w-full text-xs border rounded p-1" />
-                          </div>
-                          <div>
-                            <label className="text-xs text-slate-500 block">End Date</label>
-                            <input type="date" value={consolidationDates.end} onChange={e => setConsolidationDates({...consolidationDates, end: e.target.value})} className="w-full text-xs border rounded p-1" />
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          </div>
+                    {/* AI Results */}
+                    <AnimatePresence>
+                        {generatedPeos.length > 0 && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="mt-6 pt-6 border-t border-slate-100 space-y-3"
+                            >
+                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Suggestions</h3>
+                                {generatedPeos.map((peo, i) => (
+                                    <div 
+                                        key={i} 
+                                        className="group p-3 rounded-xl bg-indigo-50/50 border border-indigo-100 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all relative"
+                                        onClick={() => handleAddPeo(peo)}
+                                    >
+                                        <p className="text-sm text-slate-700 font-medium pr-8">{peo}</p>
+                                        <div className="absolute right-2 top-2 p-1.5 bg-white text-indigo-600 rounded-lg opacity-0 group-hover:opacity-100 shadow-sm transition-opacity">
+                                            <Plus className="size-3.5" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
 
-          {/* Right: Final PEO List */}
-          <div className="lg:col-span-2 space-y-4">
-               <div className="flex items-center justify-between">
-                   <h3 className="text-lg font-bold text-slate-900">Draft PEOs</h3>
-                   <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{peos.length} Items</span>
-               </div>
-               
-               <div className="space-y-3">
-                   {peos.length === 0 ? (
-                       <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-sm">
-                           No PEOs added yet. Generate or add new ones.
-                       </div>
-                   ) : (
-                       peos.map((peo, index) => (
-                           <div key={peo.id} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm flex gap-4 group">
-                               <div className="size-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 font-bold text-slate-600 text-sm">
-                                   {index + 1}
-                               </div>
-                               <div className="flex-1">
-                                   <textarea 
-                                       value={peo.peo_statement}
-                                       onChange={(e) => {
-                                           const newPeos = [...peos];
-                                           newPeos[index].peo_statement = e.target.value;
-                                           setPeos(newPeos);
-                                       }}
-                                       className="w-full text-sm text-slate-700 bg-transparent border-none focus:ring-0 p-0 resize-none h-auto"
-                                       rows={2}
-                                   />
-                               </div>
-                               <button 
-                                 onClick={() => handleDeletePeo(peo.id)}
-                                 className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                               >
-                                   <Trash2 className="size-4" />
-                               </button>
+            {/* RIGHT COLUMN: EDITOR & TIMELINE */}
+            <div className="lg:col-span-7 space-y-8">
+                
+                {/* Timeline Card */}
+                <div id="process-dates" className="bg-white rounded-2xl p-6 border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-shadow">
+                    <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
+                                <Clock className="size-4" />
+                            </div>
+                            <h2 className="text-base font-bold text-slate-900">Process Timeline</h2>
+                        </div>
+                        <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded text-slate-500 uppercase tracking-widest">Optional</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                       {/* Date items with consistent styling */}
+                       <div className="space-y-2">
+                           <label className="text-xs font-semibold text-slate-600 flex items-center gap-2">
+                               <div className="size-1.5 rounded-full bg-slate-300" /> Brainstorming
+                           </label>
+                           <div className="space-y-2">
+                               <input type="date" value={brainstormingDates.start} onChange={e => setBrainstormingDates({...brainstormingDates, start: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
+                               <input type="date" value={brainstormingDates.end} onChange={e => setBrainstormingDates({...brainstormingDates, end: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
                            </div>
-                       ))
-                   )}
-               </div>
+                       </div>
+                       <div className="space-y-2">
+                           <label className="text-xs font-semibold text-slate-600 flex items-center gap-2">
+                               <div className="size-1.5 rounded-full bg-slate-300" /> Feedback
+                           </label>
+                           <div className="space-y-2">
+                               <input type="date" value={feedbackDates.start} onChange={e => setFeedbackDates({...feedbackDates, start: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
+                               <input type="date" value={feedbackDates.end} onChange={e => setFeedbackDates({...feedbackDates, end: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
+                           </div>
+                       </div>
+                       <div className="space-y-2">
+                           <label className="text-xs font-semibold text-slate-600 flex items-center gap-2">
+                               <div className="size-1.5 rounded-full bg-slate-300" /> Consolidation
+                           </label>
+                           <div className="space-y-2">
+                               <input type="date" value={consolidationDates.start} onChange={e => setConsolidationDates({...consolidationDates, start: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
+                               <input type="date" value={consolidationDates.end} onChange={e => setConsolidationDates({...consolidationDates, end: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
+                           </div>
+                       </div>
+                    </div>
+                </div>
 
-               <div className="pt-4 flex justify-end">
-                  <button 
-                    onClick={handleSaveAll}
-                    disabled={saving}
-                    className="flex items-center gap-2 rounded-xl bg-slate-900 px-8 py-4 text-sm font-bold text-white shadow-lg hover:bg-slate-800 disabled:opacity-50 transition-all active:scale-95"
-                  >
-                        {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-                        Finalise Draft Version
-                  </button>
-               </div>
-          </div>
-      </div>
+                {/* Defined PEOs List */}
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Defined PEOs</h3>
+                         <span className="text-xs font-medium bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">{peos.length} Items</span>
+                    </div>
 
+                    <div className="grid gap-4">
+                        {peos.length === 0 ? (
+                            <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl">
+                                <p className="text-slate-400 text-sm">No PEOs defined yet. Use the generator or add one manually.</p>
+                            </div>
+                        ) : (
+                            <AnimatePresence>
+                                {peos.map((peo, index) => (
+                                    <motion.div 
+                                        key={peo.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="group bg-white p-6 rounded-2xl border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all"
+                                    >
+                                        <div className="flex gap-4">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <div className="size-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shadow-sm">
+                                                    PEO{index + 1}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex-1 space-y-3">
+                                                <textarea 
+                                                    value={peo.peo_statement}
+                                                    onChange={(e) => handleUpdatePeo(peo.id, e.target.value)}
+                                                    className="w-full min-h-[80px] text-base text-slate-800 font-medium bg-transparent border-none p-0 focus:ring-0 resize-none placeholder:text-slate-300"
+                                                    placeholder="Enter PEO statement..."
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={() => handleDeletePeo(peo.id)}
+                                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete PEO"
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </button>
+                                                <div className="p-2 cursor-grab active:cursor-grabbing text-slate-200 hover:text-slate-400">
+                                                    <MoreHorizontal className="size-4" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
   );
 }

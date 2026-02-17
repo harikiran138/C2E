@@ -35,8 +35,9 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: 'process-2',
-    title: 'Add Program Coordinator',
-    section: 'side_menu',
+    title: 'Program Coordinator',
+    section: 'process',
+    processNumber: 1, // Making it the first process step or 1
     kind: 'form',
     phase: 'Set-up',
     description: 'Assign a Program Coordinator and define their responsibilities and authority.',

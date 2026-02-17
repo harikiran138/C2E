@@ -24,6 +24,7 @@ interface InstitutionWorkspaceProps {
   subtitle: string;
   activeStepKey?: string;
   children: React.ReactNode;
+  headerContent?: React.ReactNode;
 }
 
 import { useInstitution } from '@/context/InstitutionContext';
@@ -33,6 +34,7 @@ export default function InstitutionWorkspace({
   subtitle,
   activeStepKey,
   children,
+  headerContent,
 }: InstitutionWorkspaceProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -158,7 +160,7 @@ export default function InstitutionWorkspace({
              </div>
              
              {/* Navigation */}
-             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain scroll-smooth custom-scrollbar px-3 py-4 space-y-1">
+             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain scroll-smooth custom-scrollbar px-3 py-2 pb-24 space-y-2" data-lenis-prevent>
                 <SidebarContent 
                     activeStepKey={activeStepKey} 
                     buildHref={buildHref} 
@@ -246,9 +248,16 @@ export default function InstitutionWorkspace({
           {/* Page Content */}
           <div className="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full">
             {/* Breadcrumb / Layout Title */}
-            <div className="mb-8">
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
-                    {subtitle && <p className="mt-2 text-lg text-slate-500">{subtitle}</p>}
+            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
+                        {subtitle && <p className="mt-2 text-lg text-slate-500">{subtitle}</p>}
+                    </div>
+                    {headerContent && (
+                        <div className="flex-1 max-w-2xl">
+                            {headerContent}
+                        </div>
+                    )}
             </div>
 
             {/* Content Card */}
@@ -271,8 +280,9 @@ export default function InstitutionWorkspace({
 
 // --- SHARED SIDEBAR COMPONENTS ---
 
-function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, programs, selectedProgramId, onSelectProgram }: any) {
-    const [isProgramExpanded, setIsProgramExpanded] = useState(true);
+function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedProgramId, onSelectProgram }: any) {
+    const [showAllProgramSteps, setShowAllProgramSteps] = useState(false);
+    const [isProgramListOpen, setIsProgramListOpen] = useState(false);
 
     const selectedProgramName = useMemo(() => {
         if (!selectedProgramId) return 'Select Program';
@@ -280,164 +290,219 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, pr
         return prog ? prog.program_name : 'Select Program';
     }, [selectedProgramId, programs]);
 
+    const visibleProgramSteps = showAllProgramSteps 
+        ? PROCESS_MENU_STEPS 
+        : PROCESS_MENU_STEPS.slice(0, 5);
+
     return (
-        <nav className="flex-1 px-4 py-6">
-            <div className="space-y-1">
-                <SidebarLink 
-                    href={buildHref('dashboard')} 
-                    active={!activeStepKey || activeStepKey === 'dashboard'}
-                    onClick={onClose}
+        <div className="flex flex-col gap-6 py-4">
+            {/* GROUP 1 — Institution (Always Visible) */}
+            <SidebarGroup title="Institution" variant="blue">
+                <SidebarNavItem 
+                    href="/institution/dashboard" 
+                    active={(!activeStepKey || activeStepKey === 'dashboard') && !selectedProgramId}
+                    onClick={() => {
+                        onSelectProgram('');
+                        if (window.innerWidth < 1024) onClose();
+                    }}
+                    icon={<LayoutDashboard className="size-4" />}
                 >
-                    <LayoutDashboard className="size-4" />
-                    <span className="text-sm font-semibold">Program Dashboard</span>
-                </SidebarLink>
+                    Institution Dashboard
+                </SidebarNavItem>
+
                 {SIDE_MENU_STEPS.map((step) => {
                     const Icon = (Icons as any)[step.icon || 'FileText'] || FileText;
                     const isActive = activeStepKey === step.key;
                     
                     return (
-                        <motion.div layout initial={false} key={step.key} className="relative">
-                            <SidebarLink 
-                                href={buildHref(step.key)} 
-                                active={isActive}
-                                onClick={onClose}
-                            >
-                                <Icon className="size-4" />
-                                <span className="text-sm font-semibold">{step.title}</span>
-                            </SidebarLink>
-
-                            {/* Program Selector - Nested under Constitute Academic Council */}
-                            {step.key === 'council' && (
-                                <div className="ml-5 pl-4 border-l border-border/40 my-1">
-                                    <div className="relative">
-                                        <button 
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setIsProgramExpanded(!isProgramExpanded);
-                                            }}
-                                            className={cn(
-                                                "flex items-center gap-2 w-full text-left py-2 px-2 rounded-lg transition-all group",
-                                                "hover:bg-muted/50"
-                                            )}
-                                        >
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-0.5">Select Program of Study</p>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className={cn(
-                                                        "text-sm font-medium truncate",
-                                                        selectedProgramId ? "text-primary" : "text-foreground/80"
-                                                    )}>
-                                                        {selectedProgramName}
-                                                    </span>
-                                                    <ChevronRight className={cn(
-                                                        "size-3.5 text-muted-foreground transition-transform duration-300", 
-                                                        isProgramExpanded ? "rotate-90" : ""
-                                                    )} />
-                                                </div>
-                                            </div>
-                                        </button>
-                                        
-                                        <AnimatePresence initial={false}>
-                                            {isProgramExpanded && (
-                                                <motion.div 
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                                                    className="overflow-hidden"
-                                                >
-                                                    <div className="pt-1 pb-2 space-y-0.5">
-                                                        {programs?.map((program: any) => {
-                                                            const isSelected = selectedProgramId === program.id;
-                                                            return (
-                                                                <button
-                                                                    key={program.id}
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        onSelectProgram(program.id);
-                                                                        if (window.innerWidth < 1024) onClose();
-                                                                    }}
-                                                                    className={cn(
-                                                                        "w-full flex items-center justify-between text-left px-3 py-2 rounded-md transition-all text-xs group/item ml-1",
-                                                                        isSelected 
-                                                                        ? "bg-primary/10 text-primary font-semibold" 
-                                                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                                    )}
-                                                                >
-                                                                    <div className="flex flex-col truncate">
-                                                                        <span className="truncate">{program.program_name}</span>
-                                                                        <span className="text-[10px] opacity-70 font-normal">{program.program_code}</span>
-                                                                    </div>
-                                                                    {isSelected && (
-                                                                        <motion.div
-                                                                            layoutId="active-program-indicator"
-                                                                            className="size-1.5 rounded-full bg-primary shrink-0 ml-2"
-                                                                        />
-                                                                    )}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                        {(!programs || programs.length === 0) && (
-                                                            <div className="text-[11px] text-muted-foreground/60 italic px-3 py-2">No programs available</div>
-                                                        )}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
-                                </div>
-                            )}
-                        </motion.div>
-                    );
-                })}
-                {PROCESS_MENU_STEPS.map((step) => {
-                    const active = activeStepKey === step.key;
-                    const Icon = (Icons as any)[step.icon || 'Circle'] || ChevronRight;
-                    return (
-                        <SidebarLink 
-                            key={step.key} 
+                        <SidebarNavItem 
+                            key={step.key}
                             href={buildHref(step.key)} 
-                            active={active}
+                            active={isActive}
                             onClick={onClose}
+                            icon={<Icon className="size-4" />}
                         >
-                            <div className={cn(
-                                "size-6 flex items-center justify-center rounded-lg text-[10px] font-bold border transition-colors shrink-0",
-                                active ? "bg-white/20 border-white/20 text-white" : "bg-muted border-border/40 text-muted-foreground group-hover:bg-background group-hover:border-primary/40 group-hover:text-primary"
-                            )}>
-                                <Icon className="size-3.5" />
-                            </div>
-                            <span className="text-sm font-semibold flex-1 truncate">{step.title}</span>
-                            {step.aiDriven && (
-                                <Icons.Sparkles className={cn(
-                                    "size-3",
-                                    active ? "text-white" : "text-primary/60"
-                                )} />
-                            )}
-                        </SidebarLink>
+                            {step.title}
+                        </SidebarNavItem>
                     );
                 })}
+            </SidebarGroup>
+
+            {/* PROGRAM SELECTOR (Dropdown Section) */}
+            <div className="space-y-2 px-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3">Select Program</p>
+                <div className="relative">
+                    <button 
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setIsProgramListOpen(!isProgramListOpen);
+                        }}
+                        className={cn(
+                            "flex items-center gap-3 w-full text-left px-5 py-3 rounded-2xl transition-all group border",
+                            isProgramListOpen 
+                                ? "bg-white border-slate-200 shadow-sm" 
+                                : "bg-slate-50 border-slate-100/50 hover:bg-slate-100"
+                        )}
+                    >
+                        <BookOpen className="size-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                        <span className={cn(
+                            "flex-1 text-sm font-medium truncate",
+                            selectedProgramId ? "text-slate-900" : "text-slate-400"
+                        )}>
+                            {selectedProgramName}
+                        </span>
+                        <ChevronRight className={cn(
+                            "size-4 text-slate-300 transition-transform duration-300 group-hover:text-slate-400",
+                            isProgramListOpen ? "rotate-90" : ""
+                        )} />
+                    </button>
+                    
+                    <AnimatePresence>
+                        {isProgramListOpen && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0, y: -10 }}
+                                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                                exit={{ opacity: 0, height: 0, y: -10 }}
+                                transition={{ duration: 0.2, ease: "easeInOut" }}
+                                className="overflow-hidden mt-2 z-10"
+                            >
+                                <div className="p-2 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/50 space-y-1">
+                                    {programs && programs.length > 0 ? (
+                                        programs.map((program: any) => (
+                                            <button
+                                                key={program.id}
+                                                onClick={() => {
+                                                    onSelectProgram(program.id);
+                                                    setIsProgramListOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "w-full flex items-center px-4 py-2.5 rounded-xl text-xs font-medium transition-all text-left",
+                                                    selectedProgramId === program.id 
+                                                        ? "bg-slate-100 text-slate-900" 
+                                                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                                                )}
+                                            >
+                                                <span className="truncate flex-1 pr-2">{program.program_name}</span>
+                                                {selectedProgramId === program.id && (
+                                                    <motion.div
+                                                        initial={{ scale: 0 }}
+                                                        animate={{ scale: 1 }}
+                                                    >
+                                                        <CheckSquare className="size-3.5 text-slate-900" />
+                                                    </motion.div>
+                                                )}
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="px-4 py-3 text-xs text-slate-400 italic text-center">No programs found</div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
-        </nav>
+
+            {/* GROUP 2 — Program (Visible After Selection) */}
+            <AnimatePresence>
+                {selectedProgramId && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <SidebarGroup title="Program" variant="purple">
+                            <SidebarNavItem 
+                                 href={`/institution/dashboard?programId=${selectedProgramId}`}
+                                 active={activeStepKey === 'dashboard' && !!selectedProgramId}
+                                 onClick={onClose}
+                                 icon={<LayoutDashboard className="size-4" />}
+                             >
+                                 Program Dashboard
+                             </SidebarNavItem>
+
+                            {visibleProgramSteps.map((step) => {
+                                const active = activeStepKey === step.key;
+                                const Icon = (Icons as any)[step.icon || 'Circle'] || ChevronRight;
+                                
+                                return (
+                                    <SidebarNavItem 
+                                        key={step.key} 
+                                        href={buildHref(step.key)} 
+                                        active={active}
+                                        onClick={onClose}
+                                        icon={<Icon className="size-4" />}
+                                        aiDriven={step.aiDriven}
+                                    >
+                                        {step.title}
+                                    </SidebarNavItem>
+                                );
+                            })}
+                            
+                            {PROCESS_MENU_STEPS.length > 5 && (
+                                <button 
+                                    onClick={() => setShowAllProgramSteps(!showAllProgramSteps)}
+                                    className="w-full mt-2 py-2 px-3 text-[11px] font-bold text-purple-600/70 hover:text-purple-700 hover:bg-purple-100/50 rounded-lg transition-all flex items-center justify-center gap-2 group"
+                                >
+                                    {showAllProgramSteps ? 'Show Less' : 'Show More'}
+                                    <ChevronRight className={cn("size-3 transition-transform", showAllProgramSteps ? "-rotate-90" : "rotate-90")} />
+                                </button>
+                            )}
+                        </SidebarGroup>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }
 
-function SidebarLink({ href, active, children, onClick }: any) {
+function SidebarGroup({ title, children, variant = 'neutral' }: { title: string, children: React.ReactNode, variant?: 'blue' | 'purple' | 'neutral' }) {
+    const variants = {
+        blue: 'bg-blue-50/40 border-blue-100/50 text-blue-900',
+        purple: 'bg-purple-50/40 border-purple-100/50 text-purple-900',
+        neutral: 'bg-slate-50/40 border-slate-100/50 text-slate-900'
+    };
+
+    return (
+        <div className={cn("rounded-[24px] p-5 border backdrop-blur-sm space-y-1 shadow-sm", variants[variant])}>
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-40 px-3 mb-3">{title}</p>
+            <div className="space-y-0.5">
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function SidebarNavItem({ href, active, children, onClick, icon, aiDriven, className }: any) {
     return (
         <Link
             href={href}
             onClick={onClick}
-            data-active={active}
             className={cn(
-                "group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative",
+                "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative text-sm font-medium",
                 active 
-                ? "bg-indigo-50 text-indigo-700"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-white shadow-sm text-slate-900 border border-slate-100/50"
+                    : "text-slate-500 hover:bg-white/50 hover:text-slate-900",
+                className
             )}
-            >
+        >
             {active && (
-                <div className="absolute left-0 bottom-1 top-1 w-1 bg-indigo-600 rounded-r-full" />
+                <div className="absolute left-0 bottom-2.5 top-2.5 w-0.5 bg-slate-900 rounded-full" />
             )}
-            {children}
+            <div className={cn(
+                "size-8 flex items-center justify-center rounded-lg transition-colors",
+                active ? "bg-slate-900 text-white shadow-md shadow-slate-200" : "bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-slate-600 border border-transparent group-hover:border-slate-100"
+            )}>
+                {icon}
+            </div>
+            <span className="flex-1 truncate">{children}</span>
+            {aiDriven && (
+                <Sparkles className={cn(
+                    "size-3",
+                    active ? "text-indigo-500" : "text-slate-300"
+                )} />
+            )}
         </Link>
     );
 }
