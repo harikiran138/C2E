@@ -1,22 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { 
-  Shield, 
   AlertTriangle, 
   CheckCircle2, 
   Clock, 
   FileText, 
   TrendingUp,
-  Calendar,
-  Users,
-  Building2,
-  ChevronRight,
   X,
-  Download,
-  Eye
+  Eye,
+  Plus,
+  ChevronRight,
+  GraduationCap,
+  LayoutGrid
 } from 'lucide-react';
+import * as Icons from 'lucide-react';
 
 const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 
@@ -164,7 +164,8 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-export default function ComplianceModule() {
+export default function ComplianceModule({ statsData }: { statsData: any }) {
+  const router = useRouter();
   const [selectedItem, setSelectedItem] = useState<ComplianceItem | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const stats = calculateStats(DEMO_COMPLIANCE_DATA);
@@ -174,116 +175,182 @@ export default function ComplianceModule() {
     return item.status === filter;
   });
 
+  const institutionalStats = [
+    { 
+        id: "PRG-001",
+        label: "Total Programs",
+        value: statsData?.totalPrograms || 0,
+        sub: "Active academic programs",
+        icon: Icons.LayoutGrid,
+        color: "blue",
+        action: {
+            label: "Add Program",
+            icon: Icons.Plus,
+            onClick: () => router.push('/institution/programs')
+        }
+    },
+    { 
+        id: "AC-001",
+        label: "Academic Council",
+        value: statsData?.academicCouncilMembers || 0,
+        sub: "Institutional Governance",
+        icon: Icons.GraduationCap,
+        color: "teal"
+    }
+  ];
+
+  const getColorClasses = (color: string) => {
+    const colors: Record<string, string> = {
+        blue: "bg-blue-600 shadow-blue-200 border-blue-50 text-blue-600",
+        purple: "bg-purple-600 shadow-purple-200 border-purple-50 text-purple-600",
+        indigo: "bg-indigo-600 shadow-indigo-200 border-indigo-50 text-indigo-600",
+        teal: "bg-teal-600 shadow-teal-200 border-teal-50 text-teal-600"
+    };
+    return colors[color];
+  };
+
+  const getBgClasses = (color: string) => {
+    const bgs: Record<string, string> = {
+        blue: "bg-blue-50/50 border-blue-100/50",
+        purple: "bg-purple-50/50 border-purple-100/50",
+        indigo: "bg-indigo-50/50 border-indigo-100/50",
+        teal: "bg-teal-50/50 border-teal-100/50"
+    };
+    return bgs[color];
+  };
+
   return (
-    <div className="w-full space-y-6">
-      {/* Header Container */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white/40 backdrop-blur-xl p-8 shadow-sm"
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-violet-500/5 pointer-events-none" />
-        
-        <div className="relative">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200">
-                <Shield className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Compliance & Accreditation</h2>
-                <p className="text-sm font-medium text-slate-500">Institutional Regulatory Tracking Status</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-                 <Button variant="outline" className="gap-2 shadow-sm">
-                    <Download className="w-4 h-4" />
-                    Export Audit
-                </Button>
-                <Button className="gap-2 shadow-lg shadow-indigo-200">
-                    <TrendingUp className="w-4 h-4" />
-                    New Assessment
-                </Button>
-            </div>
-          </div>
-
-        </div>
-      </motion.div>
-
-      {/* Content Area */}
-      <div className="space-y-6">
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredData.map((item, index) => (
+    <div className="w-full space-y-12">
+      {/* Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        {institutionalStats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
                 <motion.div
-                    key={item.id}
+                    key={stat.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    onClick={() => setSelectedItem(item)}
-                    className="group relative bg-white border border-slate-200/60 rounded-3xl p-6 cursor-pointer hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all duration-300"
+                    className={cn(
+                        "group relative overflow-hidden bg-white border border-slate-200/60 rounded-3xl p-6 hover:shadow-xl transition-all duration-300",
+                        getBgClasses(stat.color)
+                    )}
                 >
-                    <div className="flex items-start justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border", getStatusColor(item.status))}>
-                                {getStatusIcon(item.status)}
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{item.id}</span>
-                                    <div className="h-1 w-1 bg-slate-300 rounded-full" />
-                                    <span className="text-xs font-bold text-indigo-600">{item.category}</span>
-                                </div>
-                                <h3 className="text-base font-bold text-slate-900 mt-1 line-clamp-1">{item.requirement}</h3>
-                            </div>
+                    <div className="flex items-start justify-between mb-4">
+                        <div className={cn(
+                            "w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110",
+                            stat.color === 'blue' ? 'bg-blue-600' : 
+                            stat.color === 'purple' ? 'bg-purple-600' :
+                            stat.color === 'indigo' ? 'bg-indigo-600' : 'bg-teal-600'
+                        )}>
+                            <Icon className="w-5 h-5" />
                         </div>
-                        <div className="p-2 bg-slate-50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ChevronRight className="w-5 h-5 text-slate-400" />
+                        <div className="text-right">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.id}</p>
+                            <span className={cn("text-[10px] font-black uppercase tracking-widest", getColorClasses(stat.color).split(' ').pop())}>
+                                Live
+                            </span>
                         </div>
                     </div>
 
-                    <div className="space-y-3 mb-6">
-                        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider">
-                            <span className="text-slate-400">Implementation Progress</span>
-                            <span className="text-slate-900">{item.progress}%</span>
+                    <div className="flex justify-between items-end">
+                        <div>
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{stat.label}</h3>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-3xl font-black text-slate-900 tracking-tight">{stat.value}</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">Total</span>
+                            </div>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${item.progress}%` }}
-                                transition={{ duration: 1, ease: "circOut" }}
-                                className={cn(
-                                    "h-full rounded-full",
-                                    item.status === 'compliant' ? 'bg-emerald-500' :
-                                    item.status === 'warning' ? 'bg-amber-500' :
-                                    item.status === 'critical' ? 'bg-rose-500' : 'bg-indigo-500'
-                                )}
-                            />
-                        </div>
+
+                        {stat.action && (
+                            <button 
+                                onClick={stat.action.onClick}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95"
+                            >
+                                <Plus className="w-3 h-3" />
+                                {stat.action.label}
+                            </button>
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
-                                <Users className="w-4 h-4 text-slate-400" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Owner</p>
-                                <p className="text-xs font-bold text-slate-900 truncate">{item.assignee}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
-                                <Calendar className="w-4 h-4 text-slate-400" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Due Date</p>
-                                <p className="text-xs font-bold text-slate-900 truncate">{item.nextReview}</p>
-                            </div>
-                        </div>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-2 italic">{stat.sub}</p>
+
+                    {/* Decorative element */}
+                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none group-hover:scale-150 transition-transform duration-700">
+                         <Icon className="w-20 h-20" />
                     </div>
                 </motion.div>
-            ))}
+            );
+        })}
+      </div>
+
+      {/* Programs List Section */}
+      <div className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+              <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                      Institutional Programs
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-black rounded-full uppercase tracking-widest">
+                        {statsData?.programs?.length || 0}
+                      </span>
+                  </h2>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Manage academic governance across all departments</p>
+              </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+              {statsData?.programs && statsData.programs.length > 0 ? (
+                  statsData.programs.map((prog: any, index: number) => (
+                      <motion.div
+                          key={prog.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.2 + index * 0.05 }}
+                          className="group bg-white/50 border border-slate-200/60 rounded-3xl p-5 hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 flex items-center justify-between"
+                      >
+                          <div className="flex items-center gap-5">
+                              <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 group-hover:border-blue-100 transition-all">
+                                  <GraduationCap className="w-6 h-6" />
+                              </div>
+                              <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{prog.program_code}</span>
+                                      <div className="h-1 w-1 bg-slate-200 rounded-full" />
+                                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{prog.degree}</span>
+                                  </div>
+                                  <h3 className="text-base font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">{prog.program_name}</h3>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                      {prog.level} • {prog.academic_year}
+                                  </p>
+                              </div>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                              <div className="text-right hidden sm:block">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Created</p>
+                                  <p className="text-[11px] font-bold text-slate-700">{new Date(prog.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <button 
+                                onClick={() => router.push(`/institution/programs?id=${prog.id}`)}
+                                className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-100 hover:shadow-lg transition-all"
+                              >
+                                  <ChevronRight className="w-5 h-5" />
+                              </button>
+                          </div>
+                      </motion.div>
+                  ))
+              ) : (
+                  <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-3xl">
+                      <LayoutGrid className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                      <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No programs found</p>
+                      <button 
+                        onClick={() => router.push('/institution/programs')}
+                        className="mt-4 text-blue-600 font-black text-[10px] uppercase tracking-widest hover:underline"
+                      >
+                        Add your first program
+                      </button>
+                  </div>
+              )}
           </div>
       </div>
 

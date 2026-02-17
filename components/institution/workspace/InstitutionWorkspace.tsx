@@ -281,7 +281,6 @@ export default function InstitutionWorkspace({
 // --- SHARED SIDEBAR COMPONENTS ---
 
 function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedProgramId, onSelectProgram }: any) {
-    const [showAllProgramSteps, setShowAllProgramSteps] = useState(false);
     const [isProgramListOpen, setIsProgramListOpen] = useState(false);
 
     const selectedProgramName = useMemo(() => {
@@ -290,14 +289,10 @@ function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedP
         return prog ? prog.program_name : 'Select Program';
     }, [selectedProgramId, programs]);
 
-    const visibleProgramSteps = showAllProgramSteps 
-        ? PROCESS_MENU_STEPS 
-        : PROCESS_MENU_STEPS.slice(0, 5);
-
     return (
         <div className="flex flex-col gap-6 py-4">
             {/* GROUP 1 — Institution (Always Visible) */}
-            <SidebarGroup title="Institution" variant="blue">
+            <SidebarGroup title="Institution Dashboard" variant="blue">
                 <SidebarNavItem 
                     href="/institution/dashboard" 
                     active={(!activeStepKey || activeStepKey === 'dashboard') && !selectedProgramId}
@@ -329,8 +324,8 @@ function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedP
             </SidebarGroup>
 
             {/* PROGRAM SELECTOR (Dropdown Section) */}
-            <div className="space-y-2 px-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3">Select Program</p>
+            <div className="space-y-3 px-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 px-4">Program Selection</p>
                 <div className="relative">
                     <button 
                         onClick={(e) => {
@@ -338,65 +333,65 @@ function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedP
                             setIsProgramListOpen(!isProgramListOpen);
                         }}
                         className={cn(
-                            "flex items-center gap-3 w-full text-left px-5 py-3 rounded-2xl transition-all group border",
+                            "flex items-center gap-3 w-full text-left px-5 py-4 rounded-2xl transition-all group border-2 shadow-sm",
                             isProgramListOpen 
-                                ? "bg-white border-slate-200 shadow-sm" 
-                                : "bg-slate-50 border-slate-100/50 hover:bg-slate-100"
+                                ? "bg-white border-slate-900 ring-4 ring-slate-900/5 shadow-xl shadow-slate-200" 
+                                : "bg-slate-50 border-transparent hover:border-slate-200 hover:bg-white hover:shadow-md"
                         )}
                     >
-                        <BookOpen className="size-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                        <div className={cn(
+                            "size-8 flex items-center justify-center rounded-xl transition-colors",
+                            isProgramListOpen ? "bg-slate-900 text-white" : "bg-white text-slate-400 border border-slate-100 shadow-sm"
+                        )}>
+                            <BookOpen className="size-4" />
+                        </div>
                         <span className={cn(
-                            "flex-1 text-sm font-medium truncate",
+                            "flex-1 text-sm font-bold",
                             selectedProgramId ? "text-slate-900" : "text-slate-400"
                         )}>
                             {selectedProgramName}
                         </span>
                         <ChevronRight className={cn(
-                            "size-4 text-slate-300 transition-transform duration-300 group-hover:text-slate-400",
-                            isProgramListOpen ? "rotate-90" : ""
+                            "size-4 text-slate-300 transition-transform duration-500",
+                            isProgramListOpen ? "rotate-90 text-slate-900" : "group-hover:text-slate-600"
                         )} />
                     </button>
                     
                     <AnimatePresence>
                         {isProgramListOpen && (
                             <motion.div 
-                                initial={{ opacity: 0, height: 0, y: -10 }}
-                                animate={{ opacity: 1, height: 'auto', y: 0 }}
-                                exit={{ opacity: 0, height: 0, y: -10 }}
-                                transition={{ duration: 0.2, ease: "easeInOut" }}
-                                className="overflow-hidden mt-2 z-10"
+                                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                                className="absolute top-full left-0 right-0 mt-2 z-50 p-2 bg-white border border-slate-100 rounded-[24px] shadow-2xl shadow-slate-300/50 space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar"
                             >
-                                <div className="p-2 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/50 space-y-1">
-                                    {programs && programs.length > 0 ? (
-                                        programs.map((program: any) => (
-                                            <button
-                                                key={program.id}
-                                                onClick={() => {
-                                                    onSelectProgram(program.id);
-                                                    setIsProgramListOpen(false);
-                                                }}
-                                                className={cn(
-                                                    "w-full flex items-center px-4 py-2.5 rounded-xl text-xs font-medium transition-all text-left",
-                                                    selectedProgramId === program.id 
-                                                        ? "bg-slate-100 text-slate-900" 
-                                                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                                                )}
-                                            >
-                                                <span className="truncate flex-1 pr-2">{program.program_name}</span>
-                                                {selectedProgramId === program.id && (
-                                                    <motion.div
-                                                        initial={{ scale: 0 }}
-                                                        animate={{ scale: 1 }}
-                                                    >
-                                                        <CheckSquare className="size-3.5 text-slate-900" />
-                                                    </motion.div>
-                                                )}
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <div className="px-4 py-3 text-xs text-slate-400 italic text-center">No programs found</div>
-                                    )}
-                                </div>
+                                {programs && programs.length > 0 ? (
+                                    programs.map((program: any) => (
+                                        <button
+                                            key={program.id}
+                                            onClick={() => {
+                                                onSelectProgram(program.id);
+                                                setIsProgramListOpen(false);
+                                            }}
+                                            className={cn(
+                                                "w-full flex items-center px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left",
+                                                selectedProgramId === program.id 
+                                                    ? "bg-slate-900 text-white shadow-lg shadow-slate-200" 
+                                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                            )}
+                                        >
+                                            <span className="flex-1 pr-2">{program.program_name}</span>
+                                            {selectedProgramId === program.id && (
+                                                <div className="size-4 rounded-full bg-white flex items-center justify-center">
+                                                    <CheckSquare className="size-2.5 text-slate-900" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="px-4 py-6 text-xs text-slate-400 font-medium italic text-center">No programs available</div>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -404,15 +399,15 @@ function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedP
             </div>
 
             {/* GROUP 2 — Program (Visible After Selection) */}
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
                 {selectedProgramId && (
                     <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                     >
-                        <SidebarGroup title="Program" variant="purple">
+                        <SidebarGroup title="Program Execution" variant="purple">
                             <SidebarNavItem 
                                  href={`/institution/dashboard?programId=${selectedProgramId}`}
                                  active={activeStepKey === 'dashboard' && !!selectedProgramId}
@@ -422,7 +417,7 @@ function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedP
                                  Program Dashboard
                              </SidebarNavItem>
 
-                            {visibleProgramSteps.map((step) => {
+                            {PROCESS_MENU_STEPS.map((step) => {
                                 const active = activeStepKey === step.key;
                                 const Icon = (Icons as any)[step.icon || 'Circle'] || ChevronRight;
                                 
@@ -439,16 +434,6 @@ function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedP
                                     </SidebarNavItem>
                                 );
                             })}
-                            
-                            {PROCESS_MENU_STEPS.length > 5 && (
-                                <button 
-                                    onClick={() => setShowAllProgramSteps(!showAllProgramSteps)}
-                                    className="w-full mt-2 py-2 px-3 text-[11px] font-bold text-purple-600/70 hover:text-purple-700 hover:bg-purple-100/50 rounded-lg transition-all flex items-center justify-center gap-2 group"
-                                >
-                                    {showAllProgramSteps ? 'Show Less' : 'Show More'}
-                                    <ChevronRight className={cn("size-3 transition-transform", showAllProgramSteps ? "-rotate-90" : "rotate-90")} />
-                                </button>
-                            )}
                         </SidebarGroup>
                     </motion.div>
                 )}
@@ -459,15 +444,21 @@ function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedP
 
 function SidebarGroup({ title, children, variant = 'neutral' }: { title: string, children: React.ReactNode, variant?: 'blue' | 'purple' | 'neutral' }) {
     const variants = {
-        blue: 'bg-blue-50/40 border-blue-100/50 text-blue-900',
-        purple: 'bg-purple-50/40 border-purple-100/50 text-purple-900',
-        neutral: 'bg-slate-50/40 border-slate-100/50 text-slate-900'
+        blue: 'bg-blue-400/[0.06] border-blue-200/40 text-blue-900',
+        purple: 'bg-purple-400/[0.06] border-purple-200/40 text-purple-900',
+        neutral: 'bg-slate-400/[0.06] border-slate-200/40 text-slate-900'
+    };
+
+    const labelVariants = {
+        blue: 'text-blue-500',
+        purple: 'text-purple-500',
+        neutral: 'text-slate-500'
     };
 
     return (
-        <div className={cn("rounded-[24px] p-5 border backdrop-blur-sm space-y-1 shadow-sm", variants[variant])}>
-            <p className="text-[10px] font-bold uppercase tracking-wider opacity-40 px-3 mb-3">{title}</p>
-            <div className="space-y-0.5">
+        <div className={cn("rounded-[32px] p-4 border backdrop-blur-md space-y-1.5 shadow-sm transition-all duration-500", variants[variant])}>
+            <p className={cn("text-[10px] font-black uppercase tracking-[0.2em] px-4 mb-4", labelVariants[variant])}>{title}</p>
+            <div className="space-y-1">
                 {children}
             </div>
         </div>
@@ -480,29 +471,40 @@ function SidebarNavItem({ href, active, children, onClick, icon, aiDriven, class
             href={href}
             onClick={onClick}
             className={cn(
-                "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative text-sm font-medium",
+                "group flex items-start gap-3 px-4 py-3 rounded-2xl transition-all duration-300 relative text-sm font-semibold",
                 active 
-                    ? "bg-white shadow-sm text-slate-900 border border-slate-100/50"
-                    : "text-slate-500 hover:bg-white/50 hover:text-slate-900",
+                    ? "bg-white shadow-xl shadow-slate-200/50 text-slate-900 border border-slate-100 ring-1 ring-slate-900/5"
+                    : "text-slate-500 hover:bg-white/60 hover:text-slate-900 hover:shadow-md",
+                aiDriven && !active && "border border-dashed border-indigo-200/50 bg-indigo-50/10",
                 className
             )}
         >
             {active && (
-                <div className="absolute left-0 bottom-2.5 top-2.5 w-0.5 bg-slate-900 rounded-full" />
+                <motion.div 
+                    layoutId="sidebar-active-pill"
+                    className="absolute left-0 bottom-3 top-3 w-1 bg-slate-900 rounded-full" 
+                />
             )}
             <div className={cn(
-                "size-8 flex items-center justify-center rounded-lg transition-colors",
-                active ? "bg-slate-900 text-white shadow-md shadow-slate-200" : "bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-slate-600 border border-transparent group-hover:border-slate-100"
+                "size-9 flex items-center justify-center rounded-xl transition-all duration-300 shrink-0",
+                active 
+                    ? "bg-slate-900 text-white shadow-lg shadow-slate-300 scale-110" 
+                    : "bg-white text-slate-400 group-hover:bg-slate-900 group-hover:text-white border border-slate-100 group-hover:border-slate-900 group-hover:scale-105"
             )}>
                 {icon}
             </div>
-            <span className="flex-1 truncate">{children}</span>
-            {aiDriven && (
-                <Sparkles className={cn(
-                    "size-3",
-                    active ? "text-indigo-500" : "text-slate-300"
-                )} />
-            )}
+            <div className="flex flex-col gap-0.5 min-w-0 pt-0.5">
+                <span className="leading-tight break-words">{children}</span>
+                {aiDriven && (
+                    <div className="flex items-center gap-1 mt-1">
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100">
+                            <Sparkles className="size-2 text-indigo-500" />
+                            <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">AI Powered</span>
+                        </div>
+                        {active && <motion.div animate={{ opacity: [0.3, 0.6, 0.3] }} transition={{ repeat: Infinity, duration: 2 }} className="size-1.5 bg-indigo-400 rounded-full blur-[2px]" />}
+                    </div>
+                )}
+            </div>
         </Link>
     );
 }
