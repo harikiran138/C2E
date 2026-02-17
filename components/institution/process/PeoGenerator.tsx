@@ -27,12 +27,12 @@ const PEO_PRIORITIES = [
   'Regional Priorities',
   'Local Priorities',
   '21st Century Skills',
-  'Sustainable Development Goals',
+  'Sustainable Development Goals (SDGs)',
   'Entrepreneurship',
   'Professional Practice',
-  'Higher Education',
-  'Leadership',
-  'Ethics & Society',
+  'Higher Education and Growth',
+  'Leadership and Teamwork',
+  'Ethics and Society',
   'Adaptability'
 ];
 
@@ -56,6 +56,7 @@ export default function PeoGenerator() {
   const [newPriority, setNewPriority] = useState('');
   const [peoCount, setPeoCount] = useState(4);
   const [generatedPeos, setGeneratedPeos] = useState<string[]>([]);
+  const [draftVersion, setDraftVersion] = useState<number>(0); // 0 = no draft, 1 = v1, 2 = v2
   
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,6 +94,7 @@ export default function PeoGenerator() {
                     start: currentProgram.peo_consolidation_start_date ? currentProgram.peo_consolidation_start_date.split('T')[0] : '',
                     end: currentProgram.peo_consolidation_end_date ? currentProgram.peo_consolidation_end_date.split('T')[0] : ''
                 });
+                setDraftVersion(currentProgram.peo_draft_version || 0);
              }
           }
         }
@@ -200,6 +202,7 @@ export default function PeoGenerator() {
                 peo_feedback_end_date: feedbackDates.end || null,
                 peo_consolidation_start_date: consolidationDates.start || null,
                 peo_consolidation_end_date: consolidationDates.end || null,
+                peo_draft_version: draftVersion,
             })
         });
 
@@ -297,6 +300,20 @@ export default function PeoGenerator() {
                         </div>
                     </div>
 
+                    {/* PEO Count Selector */}
+                    <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 block">No. of PEOs to Generate</label>
+                        <select
+                            value={peoCount}
+                            onChange={(e) => setPeoCount(Number(e.target.value))}
+                            className="w-full h-[52px] px-4 text-sm font-semibold bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none hover:border-slate-300 transition-colors"
+                        >
+                            {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
+                                <option key={num} value={num}>{num} PEO{num > 1 ? 's' : ''}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* Generate Button */}
                     <button
                         onClick={handleGenerate}
@@ -304,7 +321,7 @@ export default function PeoGenerator() {
                         className="w-full py-3 rounded-xl bg-slate-100 text-slate-900 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                         {generating ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                        Generate {peoCount} Draft PEOs
+                        Generate {peoCount} Draft PEO{peoCount > 1 ? 's' : ''}
                     </button>
                     {/* AI Results */}
                     {generatedPeos.length > 0 && (
@@ -389,6 +406,163 @@ export default function PeoGenerator() {
                     )}
                 </div>
             </div>
+
+            {/* Finalise Draft Version #1 */}
+            {peos.length > 0 && draftVersion === 0 && (
+                <div className="flex justify-center">
+                    <button
+                        onClick={() => setDraftVersion(1)}
+                        className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                    >
+                        <Layers className="size-4" />
+                        Finalise Draft Version #1 of Vision, Mission and PEOs
+                    </button>
+                </div>
+            )}
+
+            {/* Stakeholder Feedback Section */}
+            {draftVersion >= 1 && (
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
+                            <Clock className="size-4" />
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900">Seek Feedback on Vision, Mission and PEOs from Stakeholders</h3>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Start Date</label>
+                            <input
+                                type="date"
+                                value={feedbackDates.start}
+                                onChange={(e) => setFeedbackDates({ ...feedbackDates, start: e.target.value })}
+                                className="w-full h-[52px] px-4 text-sm font-semibold bg-white border-2 border-slate-200 rounded-xl focus:border-teal-400 focus:outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">End Date</label>
+                            <input
+                                type="date"
+                                value={feedbackDates.end}
+                                onChange={(e) => setFeedbackDates({ ...feedbackDates, end: e.target.value })}
+                                className="w-full h-[52px] px-4 text-sm font-semibold bg-white border-2 border-slate-200 rounded-xl focus:border-teal-400 focus:outline-none"
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="mt-4">
+                        <button
+                            onClick={() => alert('Feedback request initiated! Stakeholders will be notified.')}
+                            disabled={!feedbackDates.start || !feedbackDates.end}
+                            className="w-full py-3 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Seek Feedback
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Consolidate Feedback Section */}
+            {draftVersion >= 1 && (
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                            <Layers className="size-4" />
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900">Consolidate Feedback on Statement Formulation</h3>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Start Date</label>
+                            <input
+                                type="date"
+                                value={consolidationDates.start}
+                                onChange={(e) => setConsolidationDates({ ...consolidationDates, start: e.target.value })}
+                                className="w-full h-[52px] px-4 text-sm font-semibold bg-white border-2 border-slate-200 rounded-xl focus:border-amber-400 focus:outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">End Date</label>
+                            <input
+                                type="date"
+                                value={consolidationDates.end}
+                                onChange={(e) => setConsolidationDates({ ...consolidationDates, end: e.target.value })}
+                                className="w-full h-[52px] px-4 text-sm font-semibold bg-white border-2 border-slate-200 rounded-xl focus:border-amber-400 focus:outline-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Internal Virtual Brainstorming Section */}
+            {draftVersion >= 1 && (
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                            <Sparkles className="size-4" />
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900">Initiate Internal Virtual Brain Storming</h3>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Start Date</label>
+                            <input
+                                type="date"
+                                value={brainstormingDates.start}
+                                onChange={(e) => setBrainstormingDates({ ...brainstormingDates, start: e.target.value })}
+                                className="w-full h-[52px] px-4 text-sm font-semibold bg-white border-2 border-slate-200 rounded-xl focus:border-blue-400 focus:outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">End Date</label>
+                            <input
+                                type="date"
+                                value={brainstormingDates.end}
+                                onChange={(e) => setBrainstormingDates({ ...brainstormingDates, end: e.target.value })}
+                                className="w-full h-[52px] px-4 text-sm font-semibold bg-white border-2 border-slate-200 rounded-xl focus:border-blue-400 focus:outline-none"
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="mt-4">
+                        <button
+                            onClick={() => alert('Brainstorming session initiated! Team members will be notified.')}
+                            disabled={!brainstormingDates.start || !brainstormingDates.end}
+                            className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Seek Brainstorming
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Finalise Draft Version #2 */}
+            {draftVersion === 1 && (
+                <div className="flex justify-center">
+                    <button
+                        onClick={() => setDraftVersion(2)}
+                        className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                    >
+                        <Layers className="size-4" />
+                        Finalise Draft Version #2
+                    </button>
+                </div>
+            )}
+
+            {/* Draft Version Indicator */}
+            {draftVersion > 0 && (
+                <div className="flex justify-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full">
+                        <div className={`size-2 rounded-full ${draftVersion === 1 ? 'bg-purple-500' : 'bg-emerald-500'}`} />
+                        <span className="text-xs font-bold text-slate-700">
+                            Current Draft: Version {draftVersion}
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {/* Save All Button */}
             <div className="flex justify-end">

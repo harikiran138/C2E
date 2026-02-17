@@ -8,7 +8,8 @@ export async function PUT(request: Request) {
         program_id, 
         peo_brainstorming_start_date, peo_brainstorming_end_date,
         peo_feedback_start_date, peo_feedback_end_date,
-        peo_consolidation_start_date, peo_consolidation_end_date
+        peo_consolidation_start_date, peo_consolidation_end_date,
+        peo_draft_version
     } = body;
 
     if (!program_id) {
@@ -25,12 +26,14 @@ export async function PUT(request: Request) {
              peo_feedback_end_date = $4,
              peo_consolidation_start_date = $5,
              peo_consolidation_end_date = $6,
+             peo_draft_version = $7,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $7`,
+         WHERE id = $8`,
         [
             peo_brainstorming_start_date, peo_brainstorming_end_date,
             peo_feedback_start_date, peo_feedback_end_date,
             peo_consolidation_start_date, peo_consolidation_end_date,
+            peo_draft_version,
             program_id
         ]
       );

@@ -32,7 +32,8 @@ async function runMigration() {
       ADD COLUMN IF NOT EXISTS peo_feedback_start_date DATE,
       ADD COLUMN IF NOT EXISTS peo_feedback_end_date DATE,
       ADD COLUMN IF NOT EXISTS peo_consolidation_start_date DATE,
-      ADD COLUMN IF NOT EXISTS peo_consolidation_end_date DATE;
+      ADD COLUMN IF NOT EXISTS peo_consolidation_end_date DATE,
+      ADD COLUMN IF NOT EXISTS peo_draft_version INTEGER DEFAULT 0;
     `);
 
     console.log('PEOs migration completed successfully.');
