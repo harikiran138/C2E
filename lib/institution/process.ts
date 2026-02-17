@@ -163,7 +163,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
     kind: 'form',
     phase: 'Curriculum Development',
     description: 'Generate course outcomes mapped to revised Bloom taxonomy levels.',
-    icon: 'FileHeader'
+    icon: 'FileText'
   },
   {
     key: 'process-15',

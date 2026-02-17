@@ -55,7 +55,7 @@ export default function Dashboard() {
 
   return (
     <InstitutionWorkspace
-      title="Dashboard"
+      title="Program Dashboard"
       subtitle="Overview of your institution's performance and curriculum status."
       activeStepKey="dashboard"
     >
@@ -74,12 +74,12 @@ export default function Dashboard() {
                 <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                   <div>
 
-                    <h2 className="text-3xl lg:text-5xl font-blue tracking-tight text-foreground ">
-                      WELCOME BACK!<br />
+                    <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary-dark to-secondary pb-2">
+                       WELCOME BACK!
                     </h2>
 
                     <p className="mt-4 text-muted-foreground flex items-center gap-2">
-                       <span className="inline-block size-2 rounded-full bg-emerald-500 animate-pulse" />
+                       <span className="inline-block size-2 rounded-full bg-secondary animate-pulse" />
                        System is synchronized with the database.
                     </p>
                   </div>
@@ -119,7 +119,7 @@ export default function Dashboard() {
                     </div>
                     <div className="relative z-10">
                       <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">
+                        <div className="p-2 bg-secondary/10 rounded-lg text-secondary">
                           <Icons.Sparkles className="size-4" />
                         </div>
                         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Institute Mission</h3>

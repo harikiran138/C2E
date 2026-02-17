@@ -51,43 +51,19 @@ export default function InstitutionWorkspace({
   // Handle scroll listener for header transitions
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      setIsScrolled(window.scrollY > 10);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Handle automatic scrolling to active item
-  useEffect(() => {
-    if (!activeStepKey) return;
-
-    const scrollActiveIntoView = (container: HTMLDivElement | null) => {
-      if (!container) return;
-      const activeItem = container.querySelector('[data-active="true"]');
-      if (activeItem) {
-        activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    };
-
-    // Use a small timeout to ensure the DOM has updated and sidebar is potentially open
-    const timer = setTimeout(() => {
-      scrollActiveIntoView(desktopSidebarRef.current);
-      scrollActiveIntoView(mobileSidebarRef.current);
-    }, 150);
-
-    return () => clearTimeout(timer);
-  }, [activeStepKey, isSidebarOpen]);
-
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      // Call server-side logout to clear HttpOnly cookies
       await fetch('/api/institution/logout', { method: 'POST' });
-      // Use window.location.href for a hard reload to clear any stale state
       window.location.href = '/institution/login';
     } catch (error) {
       console.error('Logout error:', error);
-      // Fallback redirect
       window.location.href = '/institution/login';
     }
   };
@@ -119,10 +95,7 @@ export default function InstitutionWorkspace({
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
-      {/* Mobile Header */}
-
-
+    <div className="min-h-screen bg-slate-50/50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 font-sans">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -132,26 +105,26 @@ export default function InstitutionWorkspace({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm lg:hidden"
             />
             <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 z-50 w-[80%] max-w-[320px] bg-sidebar/80 backdrop-blur-2xl border-r border-border/40 lg:hidden"
+              className="fixed inset-y-0 left-0 z-50 w-[80%] max-w-[320px] bg-white border-r border-slate-200 lg:hidden"
             >
               <div className="flex flex-col h-full">
-                <div className="p-6 border-b border-border/40 flex items-center justify-between">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-black italic text-sm">C</div>
-                    <span className="font-bold">C2X Plus+</span>
+                    <div className="size-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black italic text-sm shadow-indigo-200 shadow-lg">C</div>
+                    <span className="font-bold text-slate-900">C2X Plus+</span>
                   </div>
-                  <button onClick={() => setIsSidebarOpen(false)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground">
+                  <button onClick={() => setIsSidebarOpen(false)} className="p-2 -mr-2 text-slate-400 hover:text-slate-600">
                     <X className="size-5" />
                   </button>
                 </div>
-                <div ref={mobileSidebarRef} className="flex-1 overflow-y-auto p-4 overscroll-y-contain scroll-smooth scrollbar-hide pb-20" data-lenis-prevent>
+                <div ref={mobileSidebarRef} className="flex-1 overflow-y-auto p-4 overscroll-y-contain scroll-smooth scrollbar-hide pb-20">
                   <SidebarContent 
                     activeStepKey={activeStepKey} 
                     buildHref={buildHref} 
@@ -162,9 +135,6 @@ export default function InstitutionWorkspace({
                     onSelectProgram={handleProgramSelect}
                   />
                 </div>
-                <div className="p-6 border-t border-border/40 mt-auto">
-                   <UserSection onLogout={handleLogout} />
-                </div>
               </div>
             </motion.aside>
           </>
@@ -173,23 +143,22 @@ export default function InstitutionWorkspace({
 
       <div className="flex min-h-screen">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:block fixed inset-y-0 left-0 w-[320px] z-30">
-          <div className="flex h-full flex-col border-r border-border/40 bg-sidebar/60 backdrop-blur-2xl shadow-xl relative">
-             <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-             <div className="p-8 pb-6 border-b border-border/40 shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="size-10 relative flex-none">
-                      <Image src="/C2XPlus.jpeg" alt="C2X Plus" fill className="object-contain rounded-xl shadow-lg shadow-primary/20" />
+        <aside className="hidden lg:block fixed inset-y-0 left-0 w-[280px] z-30 bg-white border-r border-slate-100 shadow-[2px_0_20px_-10px_rgba(0,0,0,0.05)]">
+          <div className="flex h-full flex-col">
+             <div className="p-6 pb-2 shrink-0">
+                <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="size-10 relative flex-none bg-white rounded-lg shadow-sm border border-slate-100 overflow-hidden">
+                      <Image src="/C2XPlus.jpeg" alt="C2X Plus" fill className="object-contain p-1" />
                     </div>
-                    <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Institution</p>
-                        <h1 className="text-lg font-bold leading-none mt-0.5">{institutionName}</h1>
+                    <div className="min-w-0">
+                        <h1 className="text-xs font-bold text-slate-900 truncate leading-tight">{institutionName}</h1>
+                        <p className="text-[10px] text-slate-500 font-medium">Academic Portal</p>
                     </div>
                 </div>
              </div>
              
-             {/* Robust Scrollable Area */}
-             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain scroll-smooth scrollbar-hide pb-20" data-lenis-prevent>
+             {/* Navigation */}
+             <div ref={desktopSidebarRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain scroll-smooth custom-scrollbar px-3 py-4 space-y-1">
                 <SidebarContent 
                     activeStepKey={activeStepKey} 
                     buildHref={buildHref} 
@@ -199,36 +168,101 @@ export default function InstitutionWorkspace({
                     onSelectProgram={handleProgramSelect}
                 />
              </div>
-
-             <div className="mt-auto border-t border-border/40 shrink-0">
-                <UserSection onLogout={handleLogout} />
+             
+             {/* Footer Info */}
+             <div className="p-4 text-center">
+                <p className="text-[10px] text-slate-300 font-medium">Powered by C2X Plus v2.0</p>
              </div>
           </div>
         </aside>
 
-        <main className="flex-1 min-w-0 lg:pl-[320px] transition-all duration-300">
-          <div 
-            className="h-screen overflow-y-auto overscroll-y-contain scroll-smooth custom-scrollbar p-6 lg:p-12 space-y-12 pt-6 lg:pt-12 pb-24" 
-            data-lenis-prevent
-          >
-            <div>
-              <h1 className="text-4xl font-extrabold tracking-tight">{title}</h1>
-              <p className="mt-2 text-lg text-muted-foreground">{subtitle}</p>
+        {/* Main Layout Area */}
+        <main className="flex-1 flex flex-col min-w-0 lg:pl-[280px] transition-all duration-300">
+          
+          {/* Sticky Header */}
+          <header className={`sticky top-0 z-20 px-6 py-3 transition-all duration-200 ${isScrolled ? 'bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm' : 'bg-transparent'}`}>
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                {/* Mobile Toggle */}
+                <button 
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-900"
+                >
+                  <Menu className="size-6" />
+                </button>
+
+                {/* Search Bar (Placeholder) */}
+                <div className="hidden md:flex items-center gap-2 bg-white/60 border border-slate-200 px-3 py-2 rounded-full w-full max-w-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all shadow-sm">
+                    <Icons.Search className="size-4 text-slate-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Search processes, programs..." 
+                      className="bg-transparent border-none outline-none text-sm w-full placeholder:text-slate-400 text-slate-700"
+                    />
+                    <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border bg-slate-50 px-1.5 font-mono text-[10px] font-medium text-slate-500 border-slate-200">
+                      <span className="text-xs">⌘</span>K
+                    </kbd>
+                </div>
+
+                {/* Right Actions */}
+                <div className="flex items-center gap-3 ml-auto">
+                    {/* Notifications */}
+                    <button className="relative p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors">
+                        <Icons.Bell className="size-5" />
+                        <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white" />
+                    </button>
+                    
+                    {/* Help */}
+                    <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors hidden sm:block">
+                        <Icons.HelpCircle className="size-5" />
+                    </button>
+
+                    <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+                    {/* User Profile dropdown */}
+                    <div className="flex items-center gap-3 pl-1">
+                        <div className="text-right hidden sm:block">
+                            <p className="text-sm font-bold text-slate-900 leading-none">{institution?.institution_name || 'Admin'}</p>
+                            <p className="text-[10px] text-slate-500 font-medium">Administrator</p>
+                        </div>
+                        <Avatar className="size-9 bg-white border border-slate-200 shadow-sm cursor-pointer hover:ring-2 hover:ring-indigo-500/20 transition-all">
+                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-bold text-xs">
+                                {(institution?.institution_name || 'A').substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
+                        
+                        {/* Simple Logout Button for now */}
+                        <button 
+                            onClick={handleLogout}
+                            title="Logout"
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                        >
+                            <LogOut className="size-4" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+          </header>
+
+          {/* Page Content */}
+          <div className="flex-1 p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            {/* Breadcrumb / Layout Title */}
+            <div className="mb-8">
+                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
+                    {subtitle && <p className="mt-2 text-lg text-slate-500">{subtitle}</p>}
             </div>
 
+            {/* Content Card */}
             <motion.div 
               key={activeStepKey || 'dashboard'}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="rounded-[2.5rem] border border-border/40 bg-card/40 backdrop-blur-2xl shadow-xl min-h-[600px] relative overflow-hidden mb-12"
+              transition={{ duration: 0.3 }}
+              className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[600px] relative"
             >
-              <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-              <div className="relative p-8 lg:p-12">
-                {children}
-              </div>
+               {children}
             </motion.div>
           </div>
+
         </main>
       </div>
     </div>
@@ -255,7 +289,7 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, pr
                     onClick={onClose}
                 >
                     <LayoutDashboard className="size-4" />
-                    <span className="text-sm font-semibold">Dashboard</span>
+                    <span className="text-sm font-semibold">Program Dashboard</span>
                 </SidebarLink>
                 {SIDE_MENU_STEPS.map((step) => {
                     const Icon = (Icons as any)[step.icon || 'FileText'] || FileText;
@@ -370,7 +404,7 @@ function SidebarContent({ activeStepKey, buildHref, institutionName, onClose, pr
                                 "size-6 flex items-center justify-center rounded-lg text-[10px] font-bold border transition-colors shrink-0",
                                 active ? "bg-white/20 border-white/20 text-white" : "bg-muted border-border/40 text-muted-foreground group-hover:bg-background group-hover:border-primary/40 group-hover:text-primary"
                             )}>
-                                {step.processNumber}
+                                <Icon className="size-3.5" />
                             </div>
                             <span className="text-sm font-semibold flex-1 truncate">{step.title}</span>
                             {step.aiDriven && (
@@ -394,49 +428,18 @@ function SidebarLink({ href, active, children, onClick }: any) {
             onClick={onClick}
             data-active={active}
             className={cn(
-                "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative",
+                "group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative",
                 active 
-                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                ? "bg-indigo-50 text-indigo-700"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
             )}
             >
             {active && (
-                <motion.div 
-                    layoutId="mobile-sidebar-pill"
-                    className="absolute inset-0 bg-primary rounded-xl -z-10"
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                />
+                <div className="absolute left-0 bottom-1 top-1 w-1 bg-indigo-600 rounded-r-full" />
             )}
             {children}
         </Link>
     );
 }
 
-function UserSection({ onLogout }: { onLogout: () => void }) {
-    const { institution } = useInstitution();
-    const email = institution?.email || 'admin@c2xplus.com';
-    const name = institution?.institution_name || 'Admin User';
-    const initials = name.substring(0, 2).toUpperCase();
 
-    return (
-        <div className="p-6 border-t border-border/40 bg-muted/20">
-            <div className="flex items-center gap-3">
-                <Avatar className="size-10 border border-border/40 shadow-sm">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate text-foreground">{name}</p>
-                    <p className="text-[10px] text-muted-foreground truncate mb-1">{email}</p>
-                    <button 
-                        onClick={onLogout}
-                        className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors group"
-                    >
-                        <LogOut className="size-3 group-hover:translate-x-0.5 transition-transform" />
-                        <span>Logout</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}

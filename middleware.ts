@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
   });
 
   const { pathname } = request.nextUrl;
-  const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
+  const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   // [SECURITY] Rate Limiting (Basic)
   // Limit sensitive routes more strictly

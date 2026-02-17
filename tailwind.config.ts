@@ -13,9 +13,14 @@ const config: Config = {
       },
       colors: {
         primary: {
-          DEFAULT: "#1e3a8a", // Deep Blue
-          light: "#3b82f6",
-          dark: "#172554",
+          DEFAULT: "#2845D6", // Bright Blue
+          light: "#4C6EF5", // Generated lighter shade for hover states
+          dark: "#1A2CA3", // Medium Blue from palette
+          darker: "#0D1A63", // Deep Blue from palette
+        },
+        secondary: {
+          DEFAULT: "#F68048", // Orange from palette
+          foreground: "#FFFFFF",
         },
         background: "var(--background)",
         foreground: "var(--foreground)",

@@ -25,15 +25,13 @@ export default function Stats({ data }: StatsProps) {
       icon: <Layers className="h-8 w-8" />,
       change: 2,
       trend: 'up' as const,
-      color: 'blue',
     },
     {
-      title: 'PAC Members',
+      title: 'Prg. Advi. Committee',
       value: data?.pacMembers || 0,
       icon: <Users className="h-8 w-8" />,
       change: 0,
       trend: 'up' as const,
-      color: 'emerald',
     },
     {
       title: 'BoS Members',
@@ -41,15 +39,13 @@ export default function Stats({ data }: StatsProps) {
       icon: <FileText className="h-8 w-8" />,
       change: 0,
       trend: 'up' as const,
-      color: 'purple',
     },
     {
-      title: 'Council Members',
+      title: 'Academic Council',
       value: data?.academicCouncilMembers || 0,
       icon: <Star className="h-8 w-8" />,
       change: 0,
       trend: 'up' as const,
-      color: 'amber',
     },
   ];
 

@@ -29,11 +29,11 @@ export default function RecentActivity({ activities: propActivities }: RecentAct
     // ... existing logic ...
     switch (type) {
       case 'program':
-        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+        return 'bg-primary/10 text-primary border-primary/20';
       case 'survey':
-        return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+        return 'bg-primary-dark/10 text-primary-dark border-primary-dark/20';
       case 'update':
-        return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+        return 'bg-secondary/10 text-secondary border-secondary/20';
       default:
         return 'bg-primary/10 text-primary border-primary/20';
     }

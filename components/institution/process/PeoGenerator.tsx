@@ -219,15 +219,15 @@ export default function PeoGenerator() {
       {/* 2. Priority Selection */}
       <div className="space-y-4">
         <h3 className="text-lg font-bold text-slate-900">Select Priorities for PEOs</h3>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {PEO_PRIORITIES.map(item => (
                 <button
                     key={item}
                     onClick={() => togglePriority(item)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                    className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-all border text-center flex items-center justify-center h-full ${
                         selectedPriorities.includes(item)
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.02]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                 >
                     {item}
