@@ -16,6 +16,8 @@ export const metadata: Metadata = {
 
 import { InstitutionProvider } from "@/context/InstitutionContext";
 
+import { Suspense } from "react";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,11 +33,13 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <SmoothScrollProvider>
-          <InstitutionProvider>
-            <ClientLayout>
-              {children}
-            </ClientLayout>
-          </InstitutionProvider>
+          <Suspense fallback={null}>
+            <InstitutionProvider>
+              <ClientLayout>
+                {children}
+              </ClientLayout>
+            </InstitutionProvider>
+          </Suspense>
         </SmoothScrollProvider>
       </body>
     </html>

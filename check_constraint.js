@@ -1,15 +1,17 @@
 const { Pool } = require('pg');
+require('dotenv').config();
 
-const connectionString = "postgres://postgres.ncofwpuabtxddvdjljgj:w8HpdxF%2FCiGp_sn@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres";
+const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error("DATABASE_URL is not defined in the environment.");
+  console.error("CRITICAL ERROR: DATABASE_URL is not defined in the environment.");
+  console.error("Please set DATABASE_URL in your .env file.");
   process.exit(1);
 }
 
 const pool = new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: process.env.NODE_ENV === 'production' }
 });
 
 async function checkConstraints() {

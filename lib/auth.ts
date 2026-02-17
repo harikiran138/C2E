@@ -1,23 +1,29 @@
 import * as jose from 'jose';
 
-const SECRET_KEY = process.env.JWT_SECRET || 'super-secret-fallback-key-change-me';
-
-if (!process.env.JWT_SECRET) {
-  console.warn('WARNING: JWT_SECRET environment variable is not set. Using a fallback secret. This is insecure for production.');
-}
-
-const secret = new TextEncoder().encode(SECRET_KEY);
 const alg = 'HS256';
 
-const REFRESH_SECRET_KEY = process.env.REFRESH_TOKEN_SECRET || 'fallback-refresh-secret-change-me-prod';
-const refreshSecret = new TextEncoder().encode(REFRESH_SECRET_KEY);
+function getSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable is missing.');
+  }
+  return new TextEncoder().encode(secret);
+}
+
+function getRefreshSecret() {
+  const secret = process.env.REFRESH_TOKEN_SECRET;
+  if (!secret) {
+    throw new Error('CRITICAL SECURITY ERROR: REFRESH_TOKEN_SECRET environment variable is missing.');
+  }
+  return new TextEncoder().encode(secret);
+}
 
 export async function signToken(payload: any) {
   return await new jose.SignJWT(payload)
     .setProtectedHeader({ alg })
     .setIssuedAt()
     .setExpirationTime('15m') // Hardened: 15 minutes
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export async function signRefreshToken(payload: any) {
@@ -25,12 +31,12 @@ export async function signRefreshToken(payload: any) {
     .setProtectedHeader({ alg })
     .setIssuedAt()
     .setExpirationTime('7d') // Hardened: 7 days
-    .sign(refreshSecret);
+    .sign(getRefreshSecret());
 }
 
 export async function verifyToken(token: string) {
   try {
-    const { payload } = await jose.jwtVerify(token, secret);
+    const { payload } = await jose.jwtVerify(token, getSecret());
     return payload;
   } catch (error) {
     return null;
@@ -39,7 +45,7 @@ export async function verifyToken(token: string) {
 
 export async function verifyRefreshToken(token: string) {
   try {
-    const { payload } = await jose.jwtVerify(token, refreshSecret);
+    const { payload } = await jose.jwtVerify(token, getRefreshSecret());
     return payload;
   } catch (error) {
     return null;

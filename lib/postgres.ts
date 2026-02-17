@@ -4,9 +4,12 @@ import { Pool } from 'pg';
 // to avoid DNS resolution issues (IPv6) and connection limits in serverless functions.
 const pool = new Pool(
   process.env.DATABASE_URL 
-    ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+    ? { 
+        connectionString: process.env.DATABASE_URL, 
+        ssl: { rejectUnauthorized: process.env.NODE_ENV === 'production' } 
+      }
     : {
-        ssl: { rejectUnauthorized: false },
+        ssl: { rejectUnauthorized: process.env.NODE_ENV === 'production' },
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         host: process.env.DB_HOST,
