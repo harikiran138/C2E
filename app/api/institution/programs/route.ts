@@ -3,6 +3,7 @@ import pool from '@/lib/postgres';
 import { v4 as uuidv4 } from 'uuid';
 import { validateProgramPayload } from '@/lib/validation/onboarding';
 import { verifyToken } from '@/lib/auth';
+import { logAudit, ACTION_TYPES } from '@/lib/audit';
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('institution_token')?.value;
@@ -12,6 +13,7 @@ async function getInstitutionId(request: NextRequest): Promise<string | null> {
 }
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
   try {
     const institutionId = await getInstitutionId(request);
     if (!institutionId) {
@@ -82,6 +84,14 @@ export async function POST(request: NextRequest) {
         ]
       );
 
+      // [Audit Log]
+      await logAudit({
+          institutionId,
+          action: 'PROGRAM_CREATED',
+          ipAddress: ip,
+          details: { programId: newId, programCode: normalizedProgramCode }
+      });
+
       return NextResponse.json({ 
         ok: true, 
         program: { 
@@ -107,6 +117,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
   try {
     const institutionId = await getInstitutionId(request);
     if (!institutionId) {
@@ -131,6 +142,14 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: 'Program not found or unauthorized' }, { status: 404 });
       }
 
+      // [Audit Log]
+      await logAudit({
+        institutionId,
+        action: 'PROGRAM_DELETED',
+        ipAddress: ip,
+        details: { programId: id }
+      });
+
       return NextResponse.json({ ok: true });
     } finally {
       client.release();
@@ -141,6 +160,7 @@ export async function DELETE(request: NextRequest) {
   }
 }
 export async function PUT(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
   try {
     const institutionId = await getInstitutionId(request);
     if (!institutionId) {
@@ -169,6 +189,14 @@ export async function PUT(request: NextRequest) {
       if (updateResult.rows.length === 0) {
         return NextResponse.json({ error: 'Program not found or unauthorized' }, { status: 404 });
       }
+
+      // [Audit Log]
+      await logAudit({
+        institutionId,
+        action: 'PROGRAM_UPDATED',
+        ipAddress: ip,
+        details: { programId: id, updates: { vision: !!vision, mission: !!mission } }
+      });
 
       return NextResponse.json({ ok: true });
     } finally {

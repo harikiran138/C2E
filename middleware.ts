@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
   });
 
   const { pathname } = request.nextUrl;
-  const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
+  const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
 
   // [SECURITY] Rate Limiting (Basic)
   // Limit sensitive routes more strictly
@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
       : { limit: 100, windowMs: 60 * 1000 }; // 100 reqs/min general
 
   if (pathname.startsWith('/api')) {
-      const allowed = checkRateLimit({ ip, ...limitInfo });
+      const allowed = checkRateLimit({ ip: String(ip), ...limitInfo });
       if (!allowed) {
           return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
       }
