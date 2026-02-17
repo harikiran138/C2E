@@ -48,7 +48,17 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const fetchData = useCallback(async () => {
+  /* 
+     Refactored to separate data fetching from URL parameter syncing.
+     fetchData now only fetches if we don't have data or explicitly requested.
+  */
+  const fetchData = useCallback(async (force = false) => {
+    // If we already have data and not forcing, don't re-fetch
+    if (institution && programs.length > 0 && !force) {
+        setLoading(false); 
+        return;
+    }
+
     try {
       const res = await fetch('/api/institution/me');
       if (res.ok) {
@@ -56,29 +66,9 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
         setInstitution(data.institution);
         setPrograms(data.programs);
         setAuthenticated(data.authenticated);
-
-        // Handle program selection from URL or default to first ONLY if strictly needed
-        const urlProgramId = searchParams.get('programId');
-        if (urlProgramId) {
-          const found = data.programs.find((p: Program) => p.id === urlProgramId);
-          setSelectedProgram(found || null);
-        } else {
-          // No program in URL
-          if (pathname.includes('/process/')) {
-             // If on a process page, we MUST have a program. Default to first.
-             if (data.programs.length > 0) {
-                 setSelectedProgram(data.programs[0]);
-                 const params = new URLSearchParams(searchParams.toString());
-                 params.set('programId', data.programs[0].id);
-                 router.replace(`${pathname}?${params.toString()}`);
-             }
-          } else {
-             // On Dashboard or other pages, allow "No Program" state (Institution View)
-             setSelectedProgram(null);
-          }
-        }
       } else if (res.status === 401) {
         setAuthenticated(false);
+        // Only redirect if valid path
         if (pathname.startsWith('/institution') && !pathname.includes('/login') && !pathname.includes('/signup')) {
             router.push('/institution/login');
         }
@@ -88,33 +78,52 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
     } finally {
       setLoading(false);
     }
-  }, [pathname, searchParams, router]);
+  }, [institution, programs.length, pathname, router]);
 
+  // Initial fetch
   useEffect(() => {
     if (pathname.startsWith('/institution') && !pathname.includes('/login') && !pathname.includes('/signup')) {
-      fetchData();
+        // Pass false to avoid refetching if we already have data (handled inside fetchData)
+        // But actually, we want to ensure we fetch at least once.
+        // The check inside fetchData handles it.
+        fetchData();
     } else {
-      setLoading(false);
+        setLoading(false);
     }
-  }, [pathname, fetchData]);
+  }, [fetchData, pathname]);
 
-  // Sync selectedProgram with URL param reactively
+  // Sync selectedProgram with URL param reactively - SEPARATED from fetching
   useEffect(() => {
+    if (loading) return; // Wait for data
+
     const urlProgramId = searchParams.get('programId');
-    if (urlProgramId && programs.length > 0) {
+    
+    // 1. If URL has programId, try to select it
+    if (urlProgramId) {
       if (selectedProgram?.id !== urlProgramId) {
         const found = programs.find(p => p.id === urlProgramId);
-        if (found) setSelectedProgram(found);
+        if (found) {
+            setSelectedProgram(found);
+        }
       }
-    } else if (!urlProgramId && selectedProgram) {
-      // URL has no programId, but we have a selectedProgram.
-      // If we are on dashboard, this means we want to go up to Institution View.
-      // If we are on process, we usually redirect in fetchData, but for client-side nav:
-      if (!pathname.includes('/process/')) {
-          setSelectedProgram(null);
-      }
+    } 
+    // 2. If no URL param, but we are in a /process/ route, we MUST have a program.
+    else if (pathname.includes('/process/')) {
+        if (programs.length > 0) {
+            // Default to first program
+            const first = programs[0];
+            setSelectedProgram(first);
+            // Update URL
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('programId', first.id);
+            router.replace(`${pathname}?${params.toString()}`);
+        }
     }
-  }, [searchParams, programs, selectedProgram, pathname]);
+    // 3. If no URL param and NOT in process (e.g. Dashboard), allow null (Institution View)
+    else if (!urlProgramId && selectedProgram) {
+         setSelectedProgram(null);
+    }
+  }, [searchParams, programs, selectedProgram, pathname, loading, router]);
 
   const selectProgram = useCallback((programId: string) => {
     const found = programs.find(p => p.id === programId);

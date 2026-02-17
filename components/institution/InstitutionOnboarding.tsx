@@ -119,8 +119,6 @@ export default function InstitutionOnboarding() {
     intake: number | string;
     academic_year: string;
     program_code: string;
-    vision: string;
-    mission: string;
   }>({
     program_name: '',
     degree: '',
@@ -128,7 +126,6 @@ export default function InstitutionOnboarding() {
     duration: '',
     intake: '',
     academic_year: '',
-    program_code: '',
     program_code: ''
   });
 
@@ -294,8 +291,6 @@ export default function InstitutionOnboarding() {
         level: '',
         duration: '',
         intake: '',
-        academic_year: '',
-        program_code: '',
         academic_year: '',
         program_code: ''
       });
