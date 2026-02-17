@@ -40,16 +40,27 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
   // Load preferences
   React.useEffect(() => {
     if (selectedProgramId) {
+        console.log('[Dashboard] Loading preferences for program:', selectedProgramId);
         fetch(`/api/institution/dashboard/preferences?programId=${selectedProgramId}`)
             .then(res => res.json())
             .then(data => {
+                console.log('[Dashboard] Loaded preferences:', data);
                 if (data.enabled_modules && data.enabled_modules.length > 0) {
                     setPinnedKeys(data.enabled_modules);
+                    console.log('[Dashboard] Set pinned keys to:', data.enabled_modules);
+                } else {
+                    console.log('[Dashboard] No saved preferences, using defaults');
                 }
             })
             .catch(err => console.error('Failed to load preferences:', err));
     }
   }, [selectedProgramId]);
+
+  // Debug: Log when pinnedKeys changes
+  React.useEffect(() => {
+    console.log('[Dashboard] pinnedKeys updated:', pinnedKeys);
+    console.log('[Dashboard] Number of pinned cards:', pinnedKeys.length);
+  }, [pinnedKeys]);
 
   // Sync temp state when panel opens
   React.useEffect(() => {
@@ -127,9 +138,10 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
 
   const handleSavePreferences = async () => {
     if (!selectedProgramId) return;
+    console.log('[Dashboard] Saving preferences:', tempPinnedKeys);
     setIsSaving(true);
     try {
-        await fetch('/api/institution/dashboard/preferences', {
+        const response = await fetch('/api/institution/dashboard/preferences', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -138,7 +150,10 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
                 layout_order: tempPinnedKeys // Defaulting order to current selection
             })
         });
+        const result = await response.json();
+        console.log('[Dashboard] Save response:', result);
         setPinnedKeys([...tempPinnedKeys]);
+        console.log('[Dashboard] Updated pinnedKeys to:', tempPinnedKeys);
         setSaveSuccess(true);
         setTimeout(() => {
             setShowCustomizePanel(false);
@@ -186,6 +201,7 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
                             metric?.color === 'blue' ? "bg-blue-50 text-blue-600" :
                             metric?.color === 'purple' ? "bg-purple-50 text-purple-600" :
                             metric?.color === 'amber' ? "bg-amber-50 text-amber-600" :
+                            metric?.color === 'emerald' ? "bg-emerald-50 text-emerald-600" :
                             "bg-indigo-50 text-indigo-600"
                         )}>
                             {React.createElement((Icons as any)[step.icon || 'Circle'], { className: 'size-4' })}
@@ -205,10 +221,14 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
                             {step.description || 'Module details.'}
                         </p>
                         
-                        {metric && (
+                        {metric ? (
                            <div className="flex items-baseline gap-1.5">
                                <span className="text-xl font-bold text-slate-900 tracking-tight">{metric.value}</span>
                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{metric.label}</span>
+                           </div>
+                        ) : (
+                           <div className="flex items-baseline gap-1.5">
+                               <span className="text-xs font-medium text-slate-400 italic">Data coming soon</span>
                            </div>
                         )}
                     </div>
