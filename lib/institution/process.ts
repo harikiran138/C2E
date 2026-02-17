@@ -26,11 +26,11 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: 'process-1',
-    title: 'OBE Framework & Protocols',
+    title: 'OBE Operating System',
     section: 'side_menu',
     kind: 'form',
     phase: 'Set-up',
-    description: 'Establish the formal OBE framework, tutoring protocols, and implementation guidelines for the institution.',
+    description: 'Manage and access academic frameworks, books, and institutional operating protocols.',
     icon: 'BookOpen'
   },
   {
@@ -45,7 +45,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: 'process-3',
-    title: 'Constitute PAC',
+    title: 'Program Advisory Committee',
     section: 'process',
     processNumber: 3,
     kind: 'form',
@@ -55,7 +55,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: 'process-4',
-    title: 'Constitute BoS',
+    title: 'Board of Studies',
     section: 'process',
     processNumber: 4,
     kind: 'form',
@@ -65,7 +65,7 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: 'process-5',
-    title: 'Add Representative Stakeholders',
+    title: 'Representative Stakeholders',
     section: 'process',
     processNumber: 5,
     kind: 'form',

@@ -275,7 +275,7 @@ function BoSFormContent() {
           <div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <Gavel className="size-6 text-indigo-600" />
-              Constitute BoS
+              Board of Studies
             </h2>
             <p className="text-sm text-slate-500 mt-1 font-medium">Board of Studies membership management</p>
           </div>
@@ -546,7 +546,7 @@ function BoSFormContent() {
                     <h4 className="text-lg font-bold text-slate-900">No Members Added</h4>
                     <p className="text-sm text-slate-500 max-w-xs mt-1 mb-6">The Board of Studies for this program hasn't been constituted yet.</p>
                     <button onClick={scrollToForm} className="text-indigo-600 font-bold text-sm hover:underline">
-                        + Constitute BoS
+                        + Board of Studies
                     </button>
                 </div>
             ) : (

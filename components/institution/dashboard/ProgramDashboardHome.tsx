@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
-import { Loader2, Settings2, Check, X, ArrowRight, Plus } from 'lucide-react';
+import { Loader2, Settings2, Check, X, ArrowRight, Plus, Save } from 'lucide-react';
 import { PROCESS_MENU_STEPS } from '@/lib/institution/process';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -32,8 +32,10 @@ const item: Variants = {
 export default function ProgramDashboardHome({ statsData, loading, selectedProgramId }: ProgramDashboardHomeProps) {
   // Pinned module keys - loading from DB preferences if available
   const [pinnedKeys, setPinnedKeys] = useState<string[]>(['process-4', 'process-3', 'process-5']);
+  const [tempPinnedKeys, setTempPinnedKeys] = useState<string[]>([]);
   const [showCustomizePanel, setShowCustomizePanel] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Load preferences
   React.useEffect(() => {
@@ -49,10 +51,24 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
     }
   }, [selectedProgramId]);
 
+  // Sync temp state when panel opens
+  React.useEffect(() => {
+    if (showCustomizePanel) {
+        setTempPinnedKeys([...pinnedKeys]);
+        setSaveSuccess(false);
+    }
+  }, [showCustomizePanel, pinnedKeys]);
+
   if (loading) return null;
 
   // Get dynamic values for BOS, PAC, Stakeholders
   const metricsMap: Record<string, { label: string; value: string | number; color: string; icon: keyof typeof Icons }> = {
+    'process-1': {
+      label: 'Resources',
+      value: statsData?.obeFrameworkCount || 0,
+      color: 'emerald',
+      icon: 'BookOpen'
+    },
     'process-4': { 
       label: 'Members', 
       value: statsData?.bosMembers || 0,
@@ -79,14 +95,32 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
     },
     'process-6': {
       label: 'Finalised',
-      value: statsData?.stepStatus?.['process-5'] ? 'Yes' : 'No',
+      value: statsData?.stepStatus?.['process-6'] ? 'Yes' : 'No',
       color: 'emerald',
+      icon: 'Target'
+    },
+    'process-7': {
+      label: 'PEOs',
+      value: statsData?.peoCount || 0,
+      color: 'blue',
+      icon: 'Target'
+    },
+    'process-9': {
+      label: 'POs',
+      value: statsData?.poCount || 0,
+      color: 'indigo',
+      icon: 'Target'
+    },
+    'process-10': {
+      label: 'PSOs',
+      value: statsData?.psoCount || 0,
+      color: 'purple',
       icon: 'Target'
     }
   };
 
   const togglePin = (key: string) => {
-    setPinnedKeys(prev => 
+    setTempPinnedKeys(prev => 
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
   };
@@ -100,11 +134,15 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 programId: selectedProgramId,
-                enabled_modules: pinnedKeys,
-                layout_order: pinnedKeys // Defaulting order to current selection
+                enabled_modules: tempPinnedKeys,
+                layout_order: tempPinnedKeys // Defaulting order to current selection
             })
         });
-        setShowCustomizePanel(false);
+        setPinnedKeys([...tempPinnedKeys]);
+        setSaveSuccess(true);
+        setTimeout(() => {
+            setShowCustomizePanel(false);
+        }, 800);
     } catch (error) {
         console.error('Failed to save preferences:', error);
     } finally {
@@ -135,7 +173,7 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
           const step = PROCESS_MENU_STEPS.find(s => s.key === key);
           if (!step) return null;
           
-          const metric = metricsMap[key];
+          const metric = (metricsMap as any)[key];
           const isCompleted = statsData?.stepStatus?.[key];
           
           return (
@@ -231,7 +269,7 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
 
                     <div className="flex-1 overflow-y-auto p-6 space-y-2">
                         {PROCESS_MENU_STEPS.map((step) => {
-                             const isPinned = pinnedKeys.includes(step.key);
+                             const isPinned = tempPinnedKeys.includes(step.key);
                              return (
                                 <button
                                     key={step.key}
@@ -250,10 +288,10 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
                                         )}>
                                             {React.createElement((Icons as any)[step.icon || 'Circle'], { className: 'size-3.5' })}
                                         </div>
-                                        <span className="text-[11px] font-bold">{step.title}</span>
+                                        <span className="text-[11px] font-bold text-left">{step.title}</span>
                                     </div>
                                     <div className={cn(
-                                        "size-4 rounded border flex items-center justify-center transition-colors",
+                                        "size-4 shrink-0 rounded border flex items-center justify-center transition-colors",
                                         isPinned ? "bg-indigo-600 border-indigo-600" : "bg-white border-slate-200"
                                     )}>
                                         {isPinned && <Check className="size-2.5 text-white" />}
@@ -265,12 +303,15 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
 
                     <div className="p-6 border-t border-slate-100 bg-slate-50/30">
                         <button 
-                            disabled={isSaving}
+                            disabled={isSaving || saveSuccess}
                             onClick={handleSavePreferences}
-                            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            className={cn(
+                                "w-full py-3 rounded-xl text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50",
+                                saveSuccess ? "bg-emerald-600 text-white shadow-emerald-200" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200"
+                            )}
                         >
-                            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                            Update Dashboard
+                            {isSaving ? <Loader2 className="size-4 animate-spin" /> : saveSuccess ? <Check className="size-4" /> : <Save className="size-4" />}
+                            {saveSuccess ? 'Dashboard Updated!' : 'Update Dashboard'}
                         </button>
                     </div>
                 </motion.div>

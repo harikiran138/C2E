@@ -198,7 +198,7 @@ function PACFormContent() {
           </style>
         </head>
         <body>
-          <h1>Constitution of Program Advisory Committee (PAC)</h1>
+          <h1>Constitution of Program Advisory Committee</h1>
           <div class="header-info">Department Report</div>
           <table>
             <thead>
@@ -287,7 +287,7 @@ function PACFormContent() {
           <div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <Shield className="size-5 text-indigo-600" />
-              Constitute PAC
+              Program Advisory Committee
             </h2>
             <p className="text-sm text-slate-500 mt-1 font-medium">Define Program Advisory Committee members and tenure</p>
           </div>
@@ -538,7 +538,7 @@ function PACFormContent() {
                     <h4 className="text-lg font-bold text-slate-900">No Members Added</h4>
                     <p className="text-sm text-slate-500 max-w-xs mt-1 mb-6">Start by adding representative members to your Program Advisory Committee.</p>
                     <button onClick={scrollToForm} className="text-indigo-600 font-bold text-sm hover:underline">
-                        + Add First Member
+                        + Program Advisory Committee
                     </button>
                 </div>
             ) : (

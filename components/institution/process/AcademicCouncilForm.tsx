@@ -236,7 +236,7 @@ export default function AcademicCouncilForm() {
               <GraduationCap className="size-6 text-indigo-600" />
               Constitute Academic Council
             </h2>
-            <p className="text-sm text-slate-500 mt-1 font-medium">Add and manage Academic Council (AC) members</p>
+            <p className="text-sm text-slate-500 mt-1 font-medium">Add and Manage Academic Council (AC) Members</p>
           </div>
           <div className="flex items-center gap-2">
             {isLocked && (

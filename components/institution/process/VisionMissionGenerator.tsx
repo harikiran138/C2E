@@ -2,63 +2,47 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { 
-  Sparkles, 
-  Save, 
-  Check, 
-  RefreshCw, 
-  Loader2, 
-  Lightbulb, 
-  Target, 
-  ArrowRight,
-  Quote,
-  Zap,
-  BookOpen
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-
-// --- DESIGN TOKENS ---
-// Typography: Inter (System)
-// Colors: Slate (Neutral), Indigo (Vision), Emerald (Mission/Active)
+import { Loader2, Sparkles, Save, Check, RefreshCw } from 'lucide-react';
 
 const VISION_PRIORITIES = [
   'Global Engineering Excellence',
-  'Future-ready Engineers',
-  'Innovation-driven Education',
-  'Technology with Purpose',
-  'Societal Impact',
-  'Internationally Benchmarked',
-  'Outcome-oriented',
-  'Professional Standards',
-  'Globally Competitive',
-  'Ethics & Integrity',
-  'Sustainable Development',
-  'Human-centric',
-  'Responsible Innovation'
+  'Future-ready engineers',
+  'Innovation-driven education',
+  'Technology with purpose',
+  'Engineering for societal impact',
+  'Internationally benchmarked',
+  'Outcome-oriented education',
+  'Professional engineering standards',
+  'Globally competitive graduates',
+  'Ethics and integrity',
+  'Sustainable development',
+  'Human-centric engineering',
+  'Responsible innovation'
 ];
 
 const MISSION_PRIORITIES = [
   'Outcome Based Education',
-  'Experiential Learning',
-  'Strong Theoretical Foundation',
-  'Practice-oriented Curriculum',
-  'Continuous Improvement',
-  'Industry Alignment',
-  'Hands-on Laboratories',
-  'Internship-embedded',
-  'Professional Skills',
-  'Employability',
-  'Research-led Teaching',
-  'Innovation & Entrepreneurship',
-  'Problem-based Learning',
-  'Interdisciplinary Approach',
-  'Critical Thinking',
-  'Teamwork & Leadership',
-  'Effective Communication',
-  'Ethical Practice',
-  'Sustainability',
-  'Social Responsibility',
-  'Lifelong Learning'
+  'Experiential learning',
+  'Strong theoretical foundation',
+  'Practice-oriented curriculum',
+  'Continuous academic improvement',
+  'Industry-aligned curriculum',
+  'Hands-on laboratories',
+  'Internship-embedded learning',
+  'Professional skill development',
+  'Employability enhancement',
+  'Research-led teaching',
+  'Innovation and entrepreneurship',
+  'Problem-based learning',
+  'Interdisciplinary approach',
+  'Critical thinking',
+  'Problem solving',
+  'Teamwork and leadership',
+  'Effective communication',
+  'Ethical engineering practice',
+  'Sustainability consciousness',
+  'Social responsibility',
+  'Lifelong learning mindset'
 ];
 
 export default function VisionMissionGenerator() {
@@ -89,10 +73,12 @@ export default function VisionMissionGenerator() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        // Fetch Institution Details
         const instResponse = await fetch('/api/institution/details');
         if (instResponse.ok) {
           const instData = await instResponse.json();
           setInstitution(instData.institution);
+          // Also try to find the current program if programId is present
           if (programId && instData.programs) {
              const currentProgram = instData.programs.find((p: any) => p.id === programId);
              if (currentProgram) {
@@ -151,9 +137,19 @@ export default function VisionMissionGenerator() {
       if (response.ok) {
         const data = await response.json();
         setGenerated(data.results);
+      } else {
+        const err = await response.json();
+        alert(`Generation failed: ${err.error}`);
+        // Mock fallback for demo if API fails/no key
+        // setGenerated([
+        //     `Mock Generated ${type} 1 based on ${priorities.join(', ')}`,
+        //     `Mock Generated ${type} 2 focusing on excellence`,
+        //     `Mock Generated ${type} 3 with student focus`
+        // ]);
       }
     } catch (error) {
       console.error('Generation error:', error);
+      alert('Failed to generate. Please try again.');
     } finally {
       setGenerating(false);
     }
@@ -163,7 +159,7 @@ export default function VisionMissionGenerator() {
     if (!programId) return;
     setSaving(true);
     try {
-        const response = await fetch('/api/institution/program/update-vm', {
+        const response = await fetch('/api/institution/program/update-vm', { // We'll create this or use specific endpoint
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -174,7 +170,9 @@ export default function VisionMissionGenerator() {
         });
         
         if (response.ok) {
-            // alert('Saved!'); // Replaced with toast or silent success for premium feel
+            alert('Vision and Mission saved successfully!');
+        } else {
+            alert('Failed to save.');
         }
     } catch (error) {
         console.error('Save error:', error);
@@ -183,273 +181,210 @@ export default function VisionMissionGenerator() {
     }
   };
 
-  if (!programId) return <div className="p-12 text-center text-slate-400 font-light text-lg">Please select a program of study to begin.</div>;
-  if (loading) return (
-      <div className="flex flex-col items-center justify-center p-24 space-y-4">
-          <div className="size-12 border-4 border-slate-100 border-t-slate-800 rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm font-medium tracking-widest uppercase">Loading Context...</p>
-      </div>
-  );
+  if (!programId) {
+     return <div className="p-8 text-center text-slate-500">Please select a program first.</div>;
+  }
+
+  if (loading) {
+    return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary size-8" /></div>;
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-32">
-        {/* --- HERO HEADER (Subtle to avoid duplication) --- */}
-        <section className="relative px-8 pt-8 pb-10 lg:px-12">
-            <div className="relative z-10 max-w-4xl">
-                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-[11px] font-bold uppercase tracking-widest text-indigo-600 mb-6">
-                    <span className="current-process">Strategic Direction</span>
-                    <span className="w-px h-3 bg-indigo-200" />
-                    <span>Core Identity</span>
-                </div>
-                {/* 
-                   Replacing duplicate H1 with a strong subtitle asking the core question.
-                   This follows Option A: Remove duplicate title, use subtitle.
-                */}
-                <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 mb-4 leading-tight">
-                    Define the program's <span className="text-indigo-600">future direction</span>.
-                </h2>
-                <p className="text-lg text-slate-500 font-medium max-w-2xl leading-relaxed">
-                    Formulate a visionary roadmap and mission statement that aligns with institutional goals and inspires excellence.
-                </p>
-            </div>
-        </section>
-
-        <div className="px-6 lg:px-12 space-y-12 max-w-[1600px] mx-auto">
-            
-            {/* --- INSTITUTIONAL CONTEXT RIBBON --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_20px_-10px_rgba(0,0,0,0.05)] relative overflow-hidden group hover:border-indigo-100 transition-all">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-900" />
-                    <div className="flex items-center gap-3 mb-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <Quote className="size-4 text-slate-400" />
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Institute Vision</h4>
-                    </div>
-                    <p className="text-sm text-slate-700 font-medium leading-relaxed italic">
-                        "{institution?.vision || 'Vision not defined.'}"
-                    </p>
-                </div>
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_20px_-10px_rgba(0,0,0,0.05)] relative overflow-hidden group hover:border-emerald-100 transition-all">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-slate-900" />
-                    <div className="flex items-center gap-3 mb-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <Quote className="size-4 text-slate-400" />
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Institute Mission</h4>
-                    </div>
-                    <p className="text-sm text-slate-700 font-medium leading-relaxed italic">
-                        "{institution?.mission || 'Mission not defined.'}"
-                    </p>
-                </div>
-            </div>
-
-            {/* --- VISION SECTION --- */}
-            <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-                {/* Left: Configuration */}
-                <div className="lg:col-span-5 space-y-6">
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="size-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shadow-sm">
-                            <Lightbulb className="size-5" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-900">Program Vision</h3>
-                            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Aspiration & Future State</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm relative overflow-hidden">
-                         <div className="flex items-center justify-between mb-4">
-                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Key Themes</label>
-                            <span className="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-600">Max 5 Rec.</span>
-                         </div>
-                         <div className="flex flex-wrap gap-2">
-                            {VISION_PRIORITIES.map(item => (
-                                <button
-                                    key={item}
-                                    onClick={() => togglePriority(item, selectedVisionPriorities, setSelectedVisionPriorities)}
-                                    className={`
-                                        px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border
-                                        ${selectedVisionPriorities.includes(item)
-                                            ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' 
-                                            : 'bg-slate-50 text-slate-600 border-slate-100 hover:border-amber-200 hover:bg-white'
-                                        }
-                                    `}
-                                >
-                                    {item}
-                                </button>
-                            ))}
-                         </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                         <div className="flex-1">
-                             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">Variations</label>
-                             <select 
-                                value={visionCount}
-                                onChange={(e) => setVisionCount(Number(e.target.value))}
-                                className="w-full bg-slate-50 border-none rounded-lg text-sm font-bold text-slate-900 p-2"
-                             >
-                                 {[1,2,3].map(n => <option key={n} value={n}>{n} Options</option>)}
-                             </select>
-                         </div>
-                         <button 
-                            onClick={() => handleGenerate('vision')}
-                            disabled={generatingVision || selectedVisionPriorities.length === 0}
-                            className="flex-1 h-[52px] rounded-xl bg-slate-900 text-white font-bold text-sm shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-                         >
-                            {generatingVision ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-amber-400" />}
-                            <span>Generate</span>
-                         </button>
-                    </div>
-
-                    {/* AI Results */}
-                    <AnimatePresence>
-                        {generatedVisions.length > 0 && (
-                            <motion.div initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}} className="space-y-3">
-                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-amber-500 pl-1">Suggestions</h4>
-                                {generatedVisions.map((v, i) => (
-                                    <div 
-                                        key={i} 
-                                        onClick={() => setSelectedVision(v)}
-                                        className="p-4 rounded-xl bg-white border border-indigo-50 shadow-sm cursor-pointer hover:border-amber-400 hover:shadow-md transition-all group relative"
-                                    >
-                                        <p className="text-sm text-slate-600 leading-relaxed font-medium">{v}</p>
-                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100">
-                                             <ArrowRight className="size-4 text-amber-500" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Right: Editor */}
-                <div className="lg:col-span-7">
-                    <div className="h-full bg-white rounded-3xl p-1 border border-slate-200 shadow-sm">
-                        <textarea 
-                            value={selectedVision}
-                            onChange={(e) => setSelectedVision(e.target.value)}
-                            className="w-full h-full min-h-[400px] rounded-[1.4rem] p-8 text-lg md:text-xl text-slate-800 font-medium leading-relaxed border-none focus:ring-0 resize-none placeholder:text-slate-300 bg-slate-50/50 focus:bg-white transition-colors"
-                            placeholder="Select a generated vision or craft your own statement here..."
-                        />
-                    </div>
-                </div>
-            </section>
-
-            <div className="w-full h-px bg-slate-200" />
-
-            {/* --- MISSION SECTION --- */}
-            <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-                {/* Left: Configuration */}
-                <div className="lg:col-span-5 space-y-6">
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="size-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm">
-                            <Target className="size-5" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-900">Program Mission</h3>
-                            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Methods & Approach</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm relative overflow-hidden">
-                         <div className="flex items-center justify-between mb-4">
-                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Key Methods</label>
-                            <span className="px-2 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-600">Max 5 Rec.</span>
-                         </div>
-                         <div className="flex flex-wrap gap-2">
-                            {MISSION_PRIORITIES.map(item => (
-                                <button
-                                    key={item}
-                                    onClick={() => togglePriority(item, selectedMissionPriorities, setSelectedMissionPriorities)}
-                                    className={`
-                                        px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border
-                                        ${selectedMissionPriorities.includes(item)
-                                            ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/10' 
-                                            : 'bg-slate-50 text-slate-600 border-slate-100 hover:border-emerald-200 hover:bg-white'
-                                        }
-                                    `}
-                                >
-                                    {item}
-                                </button>
-                            ))}
-                         </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                         <div className="flex-1">
-                             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">Variations</label>
-                             <select 
-                                value={missionCount}
-                                onChange={(e) => setMissionCount(Number(e.target.value))}
-                                className="w-full bg-slate-50 border-none rounded-lg text-sm font-bold text-slate-900 p-2"
-                             >
-                                 {[1,2,3].map(n => <option key={n} value={n}>{n} Options</option>)}
-                             </select>
-                         </div>
-                         <button 
-                            onClick={() => handleGenerate('mission')}
-                            disabled={generatingMission || selectedMissionPriorities.length === 0}
-                            className="flex-1 h-[52px] rounded-xl bg-slate-900 text-white font-bold text-sm shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-                         >
-                            {generatingMission ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-emerald-400" />}
-                            <span>Generate</span>
-                         </button>
-                    </div>
-
-                    {/* AI Results */}
-                    <AnimatePresence>
-                        {generatedMissions.length > 0 && (
-                            <motion.div initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}} className="space-y-3">
-                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 pl-1">Suggestions</h4>
-                                {generatedMissions.map((m, i) => (
-                                    <div 
-                                        key={i} 
-                                        onClick={() => setSelectedMission(m)}
-                                        className="p-4 rounded-xl bg-white border border-indigo-50 shadow-sm cursor-pointer hover:border-emerald-400 hover:shadow-md transition-all group relative"
-                                    >
-                                        <p className="text-sm text-slate-600 leading-relaxed font-medium">{m}</p>
-                                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100">
-                                             <ArrowRight className="size-4 text-emerald-500" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Right: Editor */}
-                <div className="lg:col-span-7">
-                    <div className="h-full bg-white rounded-3xl p-1 border border-slate-200 shadow-sm">
-                        <textarea 
-                            value={selectedMission}
-                            onChange={(e) => setSelectedMission(e.target.value)}
-                            className="w-full h-full min-h-[400px] rounded-[1.4rem] p-8 text-lg md:text-xl text-slate-800 font-medium leading-relaxed border-none focus:ring-0 resize-none placeholder:text-slate-300 bg-slate-50/50 focus:bg-white transition-colors"
-                            placeholder="Select a generated mission or craft your own statement here..."
-                        />
-                    </div>
-                </div>
-            </section>
-
-             {/* 3. Actions Footer (Sticky) */}
-            <div className="sticky bottom-6 z-20">
-                <div className="bg-slate-900/90 backdrop-blur-xl p-4 rounded-2xl shadow-2xl shadow-slate-900/20 text-white flex items-center justify-between border border-white/10">
-                        <div className="flex items-center gap-3 px-2">
-                        <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-sm font-bold tracking-wide">Ready to Finalize</span>
-                        </div>
-                        <button 
-                        onClick={handleSave}
-                        disabled={saving || (!selectedVision && !selectedMission)}
-                        className="bg-white text-slate-900 px-8 py-3 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors shadow-lg shadow-white/10 flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:scale-100"
-                        >
-                        {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                        <span>Save & Finalize Draft</span>
-                        <ArrowRight className="size-4 opacity-50" />
-                        </button>
-                </div>
-            </div>
-
+    <div className="space-y-8 max-w-5xl mx-auto pb-20">
+      
+      {/* Header with Institution Context */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-6">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-2">Institute Vision</h4>
+            <p className="text-sm font-medium text-slate-700 italic">"{institution?.vision || 'Not defined'}"</p>
         </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-6">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-2">Institute Mission</h4>
+            <p className="text-sm font-medium text-slate-700 italic">"{institution?.mission || 'Not defined'}"</p>
+        </div>
+      </div>
+
+      <div className="h-px bg-slate-200" />
+      
+      {/* VISION SECTION */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="size-5 text-amber-500" /> Program Vision
+            </h3>
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-500">Generate</span>
+                <select 
+                    value={visionCount}
+                    onChange={(e) => setVisionCount(Number(e.target.value))}
+                    className="rounded-lg border border-slate-200 text-sm py-1.5 px-3 font-medium cursor-pointer"
+                >
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+            </div>
+        </div>
+
+        <div className="space-y-3">
+            <label className="text-sm font-semibold text-slate-700">Select Priorities</label>
+            <div className="flex flex-wrap gap-2">
+                {VISION_PRIORITIES.map(item => (
+                    <button
+                        key={item}
+                        onClick={() => togglePriority(item, selectedVisionPriorities, setSelectedVisionPriorities)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                            selectedVisionPriorities.includes(item)
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        }`}
+                    >
+                        {item}
+                    </button>
+                ))}
+            </div>
+        </div>
+
+        <button
+            onClick={() => handleGenerate('vision')}
+            disabled={generatingVision}
+            className="w-full py-3 rounded-xl bg-slate-100 text-slate-900 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+        >
+            {generatingVision ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            Generate Draft Vision
+        </button>
+
+        {generatedVisions.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {generatedVisions.map((v, i) => (
+                    <div 
+                        key={i}
+                        onClick={() => setSelectedVision(v)}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+                            selectedVision === v 
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                            : 'border-slate-200 bg-white'
+                        }`}
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className={`mt-0.5 size-5 rounded-full border flex items-center justify-center shrink-0 ${
+                                selectedVision === v ? 'border-primary bg-primary text-white' : 'border-slate-300'
+                            }`}>
+                                {selectedVision === v && <Check className="size-3" />}
+                            </div>
+                            <p className="text-sm text-slate-700 leading-relaxed">{v}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+        
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Final Selected Vision</label>
+            <textarea 
+                value={selectedVision}
+                onChange={(e) => setSelectedVision(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                rows={3}
+                placeholder="Select a generated vision or type here..."
+            />
+        </div>
+      </div>
+
+      <div className="h-px bg-slate-200" />
+
+      {/* MISSION SECTION */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="size-5 text-blue-500" /> Program Mission
+            </h3>
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-500">Generate</span>
+                <select 
+                    value={missionCount}
+                    onChange={(e) => setMissionCount(Number(e.target.value))}
+                    className="rounded-lg border border-slate-200 text-sm py-1.5 px-3 font-medium cursor-pointer"
+                >
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+            </div>
+        </div>
+
+        <div className="space-y-3">
+            <label className="text-sm font-semibold text-slate-700">Select Priorities</label>
+            <div className="flex flex-wrap gap-2">
+                {MISSION_PRIORITIES.map(item => (
+                    <button
+                        key={item}
+                        onClick={() => togglePriority(item, selectedMissionPriorities, setSelectedMissionPriorities)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                            selectedMissionPriorities.includes(item)
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        }`}
+                    >
+                        {item}
+                    </button>
+                ))}
+            </div>
+        </div>
+
+        <button
+            onClick={() => handleGenerate('mission')}
+            disabled={generatingMission}
+            className="w-full py-3 rounded-xl bg-slate-100 text-slate-900 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+        >
+            {generatingMission ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            Generate Draft Mission
+        </button>
+
+        {generatedMissions.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {generatedMissions.map((m, i) => (
+                    <div 
+                        key={i}
+                        onClick={() => setSelectedMission(m)}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+                            selectedMission === m 
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                            : 'border-slate-200 bg-white'
+                        }`}
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className={`mt-0.5 size-5 rounded-full border flex items-center justify-center shrink-0 ${
+                                selectedMission === m ? 'border-primary bg-primary text-white' : 'border-slate-300'
+                            }`}>
+                                {selectedMission === m && <Check className="size-3" />}
+                            </div>
+                            <p className="text-sm text-slate-700 leading-relaxed">{m}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+        
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Final Selected Mission</label>
+            <textarea 
+                value={selectedMission}
+                onChange={(e) => setSelectedMission(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                rows={3}
+                placeholder="Select a generated mission or type here..."
+            />
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-6">
+        <button 
+            onClick={handleSave}
+            disabled={saving || (!selectedVision && !selectedMission)}
+            className="flex items-center gap-2 rounded-xl bg-slate-900 px-8 py-4 text-sm font-bold text-white shadow-lg hover:bg-slate-800 disabled:opacity-50 transition-all active:scale-95"
+        >
+            {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
+            Save Vision & Mission
+        </button>
+      </div>
+
     </div>
   );
 }

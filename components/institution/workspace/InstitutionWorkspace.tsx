@@ -474,7 +474,7 @@ function SidebarNavItem({ href, active, children, onClick, icon, aiDriven, class
             href={href}
             onClick={onClick}
             className={cn(
-                "group flex items-start gap-3 px-4 py-3 rounded-2xl transition-all duration-300 relative text-sm font-semibold",
+                "group flex items-start gap-3 px-4 py-3 rounded-2xl transition-all duration-300 relative text-xs font-semibold",
                 active 
                     ? "bg-white shadow-xl shadow-slate-200/50 text-slate-900 border border-slate-100 ring-1 ring-slate-900/5"
                     : "text-slate-500 hover:bg-white/60 hover:text-slate-900 hover:shadow-md",
@@ -496,8 +496,8 @@ function SidebarNavItem({ href, active, children, onClick, icon, aiDriven, class
             )}>
                 {icon}
             </div>
-            <div className="flex flex-col gap-0.5 min-w-0 pt-0.5">
-                <span className="leading-tight break-words">{children}</span>
+            <div className="flex flex-col gap-0.5 min-w-0 pt-0.5 flex-1">
+                <span className="leading-tight truncate">{children}</span>
                 {aiDriven && (
                     <div className="flex items-center gap-1 mt-1">
                         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100">

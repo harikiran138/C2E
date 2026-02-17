@@ -20,6 +20,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
     const institutionId = payload.id as string;
+    let dataVars: any = {};
 
     const client = await pool.connect();
     try {
@@ -56,6 +57,12 @@ export async function GET(request: Request) {
 
         // 6. Program Step Statuses (New mapping for customization)
         let stepStatus: Record<string, any> = {};
+        
+        // Check OBE Operating System (institutional level)
+        const obeRes = await client.query('SELECT COUNT(*) as count FROM obe_framework WHERE institution_id = $1', [institutionId]);
+        const obeCount = parseInt(obeRes.rows[0]?.count || '0');
+        stepStatus['process-1'] = obeCount > 0;
+        
         if (programId) {
             // Check Program Coordinator
             const coordRes = await client.query('SELECT COUNT(*) as count FROM program_coordinators WHERE program_id = $1', [programId]);
@@ -64,17 +71,39 @@ export async function GET(request: Request) {
             // Check PAC
             stepStatus['process-3'] = pacCount > 0;
 
+            // Check BoS
+            stepStatus['process-4'] = bosCount > 0;
+
             // Check Stakeholders
-            stepStatus['process-4'] = stakeholdersCount > 0;
+            stepStatus['process-5'] = stakeholdersCount > 0;
 
             // Check Vision/Mission (finalized)
             const vmpRes = await client.query('SELECT COUNT(*) as count FROM program_vmp_versions WHERE program_id = $1 AND is_final = true', [programId]);
-            stepStatus['process-5'] = parseInt(vmpRes.rows[0]?.count) > 0;
+            stepStatus['process-6'] = parseInt(vmpRes.rows[0]?.count || '0') > 0;
 
-            // Check PO/PSOs
+            // Check PEOs
+            const peoRes = await client.query('SELECT COUNT(*) as count FROM program_peos WHERE program_id = $1', [programId]);
+            const peoCount = parseInt(peoRes.rows[0]?.count || '0');
+            stepStatus['process-7'] = peoCount > 0;
+
+            // Check POs
             const poRes = await client.query('SELECT COUNT(*) as count FROM program_outcomes WHERE program_id = $1', [programId]);
+            const poCount = parseInt(poRes.rows[0]?.count || '0');
+            stepStatus['process-9'] = poCount > 0;
+
+            // Check PSOs
             const psoRes = await client.query('SELECT COUNT(*) as count FROM program_psos WHERE program_id = $1', [programId]);
-            stepStatus['process-6'] = parseInt(poRes.rows[0]?.count) > 0 || parseInt(psoRes.rows[0]?.count) > 0;
+            const psoCount = parseInt(psoRes.rows[0]?.count || '0');
+            stepStatus['process-10'] = psoCount > 0;
+
+            // Add counts to step status
+            stepStatus['process-7'] = peoCount > 0;
+            stepStatus['process-9'] = poCount > 0;
+            stepStatus['process-10'] = psoCount > 0;
+
+            (dataVars as any).peoCount = peoCount;
+            (dataVars as any).poCount = poCount;
+            (dataVars as any).psoCount = psoCount;
         }
 
         // 7. Academic Council Members (Always institutional)
@@ -108,6 +137,7 @@ export async function GET(request: Request) {
         }));
 
         const data = {
+            ...dataVars,
             institutionName,
             vision,
             mission,
@@ -116,6 +146,7 @@ export async function GET(request: Request) {
             pacMembers: pacCount,
             bosMembers: bosCount,
             stakeholdersCount,
+            obeFrameworkCount: obeCount,
             stepStatus,
             academicCouncilMembers: acCount,
             activeStudents: 120, // Placeholder

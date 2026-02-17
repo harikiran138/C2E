@@ -58,37 +58,45 @@ export async function POST(request: Request) {
     let query;
 
     if (body.id) {
-        // Update existing member
+        // Update existing member/framework/library item
         query = supabase
             .from('obe_framework')
             .update({
-                member_name: body.member_name,
-                designation: body.designation,
+                member_name: body.member_name || 'N/A',
+                designation: body.designation || 'N/A',
                 program_id: body.program_id,
                 email_official: body.email_official,
                 email_personal: body.email_personal,
                 mobile_official: body.mobile_official,
                 mobile_personal: body.mobile_personal,
-                linkedin_id: body.linkedin_id
+                linkedin_id: body.linkedin_id,
+                pdf_url: body.pdf_url,
+                pdf_name: body.pdf_name,
+                title: body.title,
+                description: body.description
             })
             .eq('id', body.id)
             .eq('institution_id', institutionId)
             .select()
             .single();
     } else {
-        // Insert new member
+        // Insert new library item
         query = supabase
             .from('obe_framework')
             .insert({
                 institution_id: institutionId,
-                member_name: body.member_name,
-                designation: body.designation,
+                member_name: body.member_name || 'N/A',
+                designation: body.designation || 'N/A',
                 program_id: body.program_id,
                 email_official: body.email_official,
                 email_personal: body.email_personal,
                 mobile_official: body.mobile_official,
                 mobile_personal: body.mobile_personal,
-                linkedin_id: body.linkedin_id
+                linkedin_id: body.linkedin_id,
+                pdf_url: body.pdf_url,
+                pdf_name: body.pdf_name,
+                title: body.title,
+                description: body.description
             })
             .select()
             .single();

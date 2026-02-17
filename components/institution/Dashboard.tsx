@@ -95,6 +95,7 @@ export default function Dashboard() {
                     statsData={statsData} 
                     loading={loading}
                     programName={selectedProgram.program_name} 
+                    selectedProgramId={selectedProgram.id}
                 />
             ) : (
                 <InstitutionDashboardHome 
