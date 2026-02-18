@@ -3,9 +3,17 @@ import { NextResponse } from 'next/server';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
+// Simple in-memory cache for AI results
+const aiCache = new Map<string, string[]>();
+
 export async function POST(request: Request) {
   try {
     const { type, priorities, count, institutionContext, programName } = await request.json();
+
+    const cacheKey = JSON.stringify({ type, priorities, count, institutionContext, programName });
+    if (aiCache.has(cacheKey)) {
+      return NextResponse.json({ results: aiCache.get(cacheKey) });
+    }
 
     if (!priorities || priorities.length === 0) {
       return NextResponse.json({ error: 'Priorities are required' }, { status: 400 });
@@ -67,19 +75,22 @@ export async function POST(request: Request) {
 
     // Clean up and parse the array
     let cleanedText = generatedText.replace(/```json/g, '').replace(/```/g, '').trim();
-    // Sometimes it might not be a perfect JSON array, so we try to parse
+    let results: string[] = [];
+    
     try {
         const parsed = JSON.parse(cleanedText);
         if (Array.isArray(parsed)) {
-            return NextResponse.json({ results: parsed });
+            results = parsed;
         } else {
-            return NextResponse.json({ results: [cleanedText] });
+            results = [cleanedText];
         }
     } catch (e) {
-        // If parsing fails, split by newlines or numbers if it looks like a list
-        const fallbackList = cleanedText.split('\n').filter((l: string) => l.trim().length > 10).map((l: string) => l.replace(/^\d+\.\s*/, '').trim());
-        return NextResponse.json({ results: fallbackList });
+        results = cleanedText.split('\n').filter((l: string) => l.trim().length > 10).map((l: string) => l.replace(/^\d+\.\s*/, '').trim());
     }
+
+    // Cache the results
+    aiCache.set(cacheKey, results);
+    return NextResponse.json({ results });
 
   } catch (error: any) {
     console.error('Generation Error:', error);

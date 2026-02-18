@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import useSWR from 'swr';
 import InstitutionWorkspace from '@/components/institution/workspace/InstitutionWorkspace';
 import Stats from '@/components/institution/dashboard/Stats';
 import RecentActivity from '@/components/institution/dashboard/RecentActivity';
@@ -30,45 +31,25 @@ const item: Variants = {
 
 import { useInstitution } from '@/context/InstitutionContext';
 
-export default function Dashboard() {
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+const Dashboard = memo(function Dashboard() {
   const { institution, selectedProgram } = useInstitution();
-  const [loading, setLoading] = useState(true);
-  const [statsData, setStatsData] = useState<any>(null);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const url = selectedProgram?.id 
-        ? `/api/institution/dashboard?programId=${selectedProgram.id}` 
-        : '/api/institution/dashboard';
-      
-      console.log(`Dashboard: Fetching data from URL: ${url}`);
-        
-      const res = await fetch(url);
-      console.log(`Dashboard: Fetch response status: ${res.status}`);
-
-      if (res.ok) {
-        const data = await res.json();
-        setStatsData(data);
-      } else {
-        console.error(`Dashboard: Fetch failed with status: ${res.status} ${res.statusText}`);
-        try {
-            const errorText = await res.text();
-            console.error(`Dashboard: Error response body: ${errorText}`);
-        } catch (e) {
-            console.error('Dashboard: Could not read error body');
-        }
-      }
-    } catch (error) {
-      console.error("Dashboard: Failed to fetch dashboard data (Network/Client Error)", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
+  
+  const apiUrl = useMemo(() => {
+    return selectedProgram?.id 
+      ? `/api/institution/dashboard?programId=${selectedProgram.id}` 
+      : '/api/institution/dashboard';
   }, [selectedProgram?.id]);
+
+  const { data: statsData, error, isLoading, mutate } = useSWR(apiUrl, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000, // 10 seconds
+  });
+
+  const handleUpdate = useCallback(() => {
+    mutate();
+  }, [mutate]);
 
   // Determine Title and Subtitle based on context
   const pageTitle = selectedProgram 
@@ -79,15 +60,36 @@ export default function Dashboard() {
     ? "Manage curriculum, assessments, and outcomes."
     : "";
 
-  const headerContent = !selectedProgram && statsData && (
-    <div className="flex-1 max-w-4xl">
-      <EditableVisionMission 
-        initialVision={statsData.vision}
-        initialMission={statsData.mission}
-        onUpdate={fetchData}
-      />
-    </div>
-  );
+  const headerContent = useMemo(() => {
+    if (!selectedProgram && statsData) {
+      return (
+        <div className="flex-1 max-w-4xl">
+          <EditableVisionMission 
+            initialVision={statsData.vision}
+            initialMission={statsData.mission}
+            onUpdate={handleUpdate}
+          />
+        </div>
+      );
+    }
+    return null;
+  }, [selectedProgram, statsData, handleUpdate]);
+
+  if (error) {
+    return (
+      <InstitutionWorkspace title={pageTitle} subtitle={pageSubtitle} activeStepKey="dashboard">
+        <div className="flex h-64 flex-col items-center justify-center space-y-4">
+          <p className="text-red-500 font-medium">Failed to load dashboard data.</p>
+          <button 
+            onClick={() => mutate()}
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </InstitutionWorkspace>
+    );
+  }
 
   return (
     <InstitutionWorkspace
@@ -96,7 +98,7 @@ export default function Dashboard() {
       activeStepKey="dashboard"
       headerContent={headerContent}
     >
-      {loading ? (
+      {isLoading ? (
            <div className="flex h-64 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
            </div>
@@ -105,18 +107,20 @@ export default function Dashboard() {
             {selectedProgram ? (
                 <ProgramDashboardHome 
                     statsData={statsData} 
-                    loading={loading}
+                    loading={isLoading}
                     programName={selectedProgram.program_name} 
                     selectedProgramId={selectedProgram.id}
                 />
             ) : (
                 <InstitutionDashboardHome 
                     statsData={statsData} 
-                    loading={loading} 
+                    loading={isLoading} 
                 />
             )}
           </div>
       )}
     </InstitutionWorkspace>
   );
-}
+});
+
+export default Dashboard;

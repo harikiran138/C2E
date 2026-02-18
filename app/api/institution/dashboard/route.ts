@@ -26,98 +26,82 @@ export async function GET(request: Request) {
 
     const client = await pool.connect();
     try {
-        // 1. Fetch Institution Name, Vision, and Mission
-        const nameRes = await client.query('SELECT institution_name, vision, mission FROM institutions WHERE id = $1', [institutionId]);
+        // Run independent queries in parallel
+        const [
+            nameRes,
+            progRes,
+            obeRes,
+            acRes,
+            allProgsRes
+        ] = await Promise.all([
+            client.query('SELECT institution_name, vision, mission FROM institutions WHERE id = $1', [institutionId]),
+            client.query('SELECT COUNT(*) as count FROM programs WHERE institution_id = $1', [institutionId]),
+            client.query('SELECT COUNT(*) as count FROM obe_framework WHERE institution_id = $1', [institutionId]),
+            client.query('SELECT COUNT(*) as count FROM academic_council WHERE institution_id = $1', [institutionId]),
+            client.query('SELECT id, program_name, degree, level, program_code, academic_year, created_at FROM programs WHERE institution_id = $1 ORDER BY created_at DESC', [institutionId])
+        ]);
+
         const institutionName = nameRes.rows[0]?.institution_name || 'Institution';
         const vision = nameRes.rows[0]?.vision;
         const mission = nameRes.rows[0]?.mission;
-
-        // 2. Total Programs
-        const progRes = await client.query('SELECT COUNT(*) as count FROM programs WHERE institution_id = $1', [institutionId]);
         const programsCount = parseInt(progRes.rows[0]?.count || '0');
-
-        // 3. PAC Members (Correct table: pac_members)
-        let pacCount = 0;
-        if (programId) {
-            const pacRes = await client.query('SELECT COUNT(*) as count FROM pac_members WHERE program_id = $1', [programId]);
-            pacCount = parseInt(pacRes.rows[0]?.count || '0');
-        }
-
-        // 4. BoS Members (Correct table: bos_members)
-        let bosCount = 0;
-        if (programId) {
-            const bosRes = await client.query('SELECT COUNT(*) as count FROM bos_members WHERE program_id = $1', [programId]);
-            bosCount = parseInt(bosRes.rows[0]?.count || '0');
-        }
-
-        // 5. Representative Stakeholders (Correct table: representative_stakeholders)
-        let stakeholdersCount = 0;
-        if (programId) {
-            const stakeRes = await client.query('SELECT COUNT(*) as count FROM representative_stakeholders WHERE program_id = $1', [programId]);
-            stakeholdersCount = parseInt(stakeRes.rows[0]?.count || '0');
-        }
-
-        // 6. Program Step Statuses (New mapping for customization)
-        let stepStatus: Record<string, any> = {};
-        
-        // Check OBE Operating System (institutional level)
-        const obeRes = await client.query('SELECT COUNT(*) as count FROM obe_framework WHERE institution_id = $1', [institutionId]);
         const obeCount = parseInt(obeRes.rows[0]?.count || '0');
-        stepStatus['process-1'] = obeCount > 0;
-        
-        if (programId) {
-            // Check Program Coordinator
-            const coordRes = await client.query('SELECT COUNT(*) as count FROM program_coordinators WHERE program_id = $1', [programId]);
-            stepStatus['process-2'] = parseInt(coordRes.rows[0]?.count) > 0;
-
-            // Check PAC
-            stepStatus['process-3'] = pacCount > 0;
-
-            // Check BoS
-            stepStatus['process-4'] = bosCount > 0;
-
-            // Check Stakeholders
-            stepStatus['process-5'] = stakeholdersCount > 0;
-
-            // Check Vision/Mission (finalized)
-            const vmpRes = await client.query('SELECT COUNT(*) as count FROM program_vmp_versions WHERE program_id = $1 AND is_final = true', [programId]);
-            stepStatus['process-6'] = parseInt(vmpRes.rows[0]?.count || '0') > 0;
-
-            // Check PEOs
-            const peoRes = await client.query('SELECT COUNT(*) as count FROM program_peos WHERE program_id = $1', [programId]);
-            const peoCount = parseInt(peoRes.rows[0]?.count || '0');
-            stepStatus['process-7'] = peoCount > 0;
-
-            // Check POs
-            const poRes = await client.query('SELECT COUNT(*) as count FROM program_outcomes WHERE program_id = $1', [programId]);
-            const poCount = parseInt(poRes.rows[0]?.count || '0');
-            stepStatus['process-9'] = poCount > 0;
-
-            // Check PSOs
-            const psoRes = await client.query('SELECT COUNT(*) as count FROM program_psos WHERE program_id = $1', [programId]);
-            const psoCount = parseInt(psoRes.rows[0]?.count || '0');
-            stepStatus['process-10'] = psoCount > 0;
-
-            // Add counts to step status
-            stepStatus['process-7'] = peoCount > 0;
-            stepStatus['process-9'] = poCount > 0;
-            stepStatus['process-10'] = psoCount > 0;
-
-            (dataVars as any).peoCount = peoCount;
-            (dataVars as any).poCount = poCount;
-            (dataVars as any).psoCount = psoCount;
-        }
-
-        // 7. Academic Council Members (Always institutional)
-        const acRes = await client.query('SELECT COUNT(*) as count FROM academic_council WHERE institution_id = $1', [institutionId]);
         const acCount = parseInt(acRes.rows[0]?.count || '0');
-
-        // 6. Full Programs List (New)
-        const allProgsRes = await client.query(
-            'SELECT id, program_name, degree, level, program_code, academic_year, created_at FROM programs WHERE institution_id = $1 ORDER BY created_at DESC',
-            [institutionId]
-        );
         const programsList = allProgsRes.rows || [];
+
+        let dataVars: any = {};
+        let stepStatus: Record<string, any> = {};
+        stepStatus['process-1'] = obeCount > 0;
+
+        let pacCount = 0;
+        let bosCount = 0;
+        let stakeholdersCount = 0;
+        let peoCount = 0;
+        let poCount = 0;
+        let psoCount = 0;
+
+        if (programId) {
+            // Run program-specific queries in parallel
+            const [
+                pacRes,
+                bosRes,
+                stakeRes,
+                coordRes,
+                vmpRes,
+                peoRes,
+                poRes,
+                psoRes
+            ] = await Promise.all([
+                client.query('SELECT COUNT(*) as count FROM pac_members WHERE program_id = $1', [programId]),
+                client.query('SELECT COUNT(*) as count FROM bos_members WHERE program_id = $1', [programId]),
+                client.query('SELECT COUNT(*) as count FROM representative_stakeholders WHERE program_id = $1', [programId]),
+                client.query('SELECT COUNT(*) as count FROM program_coordinators WHERE program_id = $1', [programId]),
+                client.query('SELECT EXISTS(SELECT 1 FROM program_vmp_versions WHERE program_id = $1 AND is_final = true) as finalized', [programId]),
+                client.query('SELECT COUNT(*) as count FROM program_peos WHERE program_id = $1', [programId]),
+                client.query('SELECT COUNT(*) as count FROM program_outcomes WHERE program_id = $1', [programId]),
+                client.query('SELECT COUNT(*) as count FROM program_psos WHERE program_id = $1', [programId])
+            ]);
+
+            pacCount = parseInt(pacRes.rows[0]?.count || '0');
+            bosCount = parseInt(bosRes.rows[0]?.count || '0');
+            stakeholdersCount = parseInt(stakeRes.rows[0]?.count || '0');
+            peoCount = parseInt(peoRes.rows[0]?.count || '0');
+            poCount = parseInt(poRes.rows[0]?.count || '0');
+            psoCount = parseInt(psoRes.rows[0]?.count || '0');
+
+            stepStatus['process-2'] = parseInt(coordRes.rows[0]?.count) > 0;
+            stepStatus['process-3'] = pacCount > 0;
+            stepStatus['process-4'] = bosCount > 0;
+            stepStatus['process-5'] = stakeholdersCount > 0;
+            stepStatus['process-6'] = vmpRes.rows[0]?.finalized;
+            stepStatus['process-7'] = peoCount > 0;
+            stepStatus['process-9'] = poCount > 0;
+            stepStatus['process-10'] = psoCount > 0;
+
+            dataVars.peoCount = peoCount;
+            dataVars.poCount = poCount;
+            dataVars.psoCount = psoCount;
+        }
 
         // 7. Recent Activities (Filter by program if selected)
         let recentQuery = 'SELECT id, program_name, created_at FROM programs WHERE institution_id = $1';

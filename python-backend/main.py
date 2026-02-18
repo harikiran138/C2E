@@ -1,6 +1,7 @@
 import os
-import requests
+import httpx
 import json
+import asyncio
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,9 +45,16 @@ class VMGenerateResponse(BaseModel):
     vision: str
     mission: str
 
-def call_gemini_rest(prompt: str) -> str:
+# Simple in-memory cache
+ai_cache = {}
+
+async def call_gemini_rest_async(prompt: str) -> str:
     if not api_key:
         raise Exception("GEMINI_API_KEY not found")
+    
+    # Check cache
+    if prompt in ai_cache:
+        return ai_cache[prompt]
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
     headers = {'Content-Type': 'application/json'}
@@ -56,24 +64,27 @@ def call_gemini_rest(prompt: str) -> str:
         }]
     }
     
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code != 200:
-        raise Exception(f"Gemini API error: {response.text}")
-    
-    result = response.json()
-    try:
-        return result['candidates'][0]['content']['parts'][0]['text'].strip()
-    except (KeyError, IndexError):
-        raise Exception("Unexpected response format from Gemini API")
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(url, headers=headers, json=data)
+        if response.status_code != 200:
+            raise Exception(f"Gemini API error: {response.text}")
+        
+        result = response.json()
+        try:
+            generated_text = result['candidates'][0]['content']['parts'][0]['text'].strip()
+            ai_cache[prompt] = generated_text # Cache result
+            return generated_text
+        except (KeyError, IndexError):
+            raise Exception("Unexpected response format from Gemini API")
 
 @app.get("/")
 async def root():
-    return {"message": "AI Generation Backend (REST) is running"}
+    return {"message": "AI Generation Backend (REST) is running with Async & Cache"}
 
 @app.post("/ai/generate-vision-mission", response_model=VMGenerateResponse)
 async def generate_vm(request: VMGenerateRequest):
     try:
-        # 1. Generate Vision
+        # 1. Prepare Prompts
         vision_prompt = f"""
 You are an academic accreditation expert. Generate a Program Vision for:
 Program: {request.program_name}
@@ -81,9 +92,13 @@ Institute Vision: {request.institute_vision}
 Selected Focus Areas: {", ".join(request.vision_inputs)}
 Rules: 1–2 lines, Future-oriented, Professional tone. Return ONLY the vision statement.
         """
-        generated_vision = call_gemini_rest(vision_prompt)
         
-        # 2. Generate Mission
+        # Note: Mission prompt depends on vision, but we can generate them slightly differently 
+        # or use a default vision if we want full parallel. 
+        # For better quality, mission usually needs vision.
+        
+        generated_vision = await call_gemini_rest_async(vision_prompt)
+        
         mission_prompt = f"""
 You are an academic accreditation expert. Generate a Program Mission paragraph.
 Program: {request.program_name}
@@ -92,7 +107,8 @@ Program Vision: {generated_vision}
 Selected Focus Areas: {", ".join(request.mission_inputs)}
 Rules: 3–5 action sentences in one paragraph. Align with Vision. Return ONLY the mission.
         """
-        generated_mission = call_gemini_rest(mission_prompt)
+        
+        generated_mission = await call_gemini_rest_async(mission_prompt)
         
         return VMGenerateResponse(vision=generated_vision, mission=generated_mission)
         

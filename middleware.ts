@@ -108,25 +108,48 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Auto-Refresh Logic (Simplified for Edge)
+  // Auto-Refresh Logic
   if (!customUser && refreshToken) {
      try {
-        const refreshPayload = await verifyRefreshToken(refreshToken);
-        if (refreshPayload && refreshPayload.id) {
-            // Valid refresh token exists.
-            // In a real scenario, we would re-issue an access token here.
-            // For now, we allow the request to proceed if it's a PAGE request, 
-            // assumming the client will handle the actual token refresh via API if needed.
-            // BUT for API protection, we might want to be stricter.
-            // Let's assume successful refresh for now to avoid blocking legitimate users during this transition.
-             customUser = {
-                id: refreshPayload.id as string,
-                email: 'refreshed-user', // specific details might be missing
-                role: 'institution_admin', // Access assumed for valid refresh
-             };
+        // We call the refresh endpoint internally to get new tokens
+        const refreshUrl = new URL('/api/institution/auth/refresh', request.url);
+        const refreshRes = await fetch(refreshUrl, {
+            method: 'POST',
+            headers: {
+                'Cookie': `institution_refresh=${refreshToken}`
+            }
+        });
+
+        if (refreshRes.ok) {
+            // Refresh successful! Get the new tokens from cookies
+            const setCookieHeaders = refreshRes.headers.getSetCookie();
+            
+            // Apply these cookies to the current response
+            setCookieHeaders.forEach(cookie => {
+                response.headers.append('Set-Cookie', cookie);
+            });
+
+            // Re-verify the new access token to get user context for this request
+            // We need to parse the set-cookie to find the access token
+            const newToken = setCookieHeaders
+                .find(c => c.startsWith('institution_token='))
+                ?.split(';')[0]
+                .split('=')[1];
+
+            if (newToken) {
+                const payload = await verifyToken(newToken);
+                if (payload) {
+                    customUser = {
+                        id: payload.id as string,
+                        email: payload.email as string,
+                        role: payload.role as string | undefined,
+                        onboarding_status: payload.onboarding_status as string | undefined,
+                    };
+                }
+            }
         }
      } catch (e) {
-         // console.warn('Middleware: Refresh Token Invalid');
+         console.error('Middleware: Refresh failed:', e);
      }
   }
 

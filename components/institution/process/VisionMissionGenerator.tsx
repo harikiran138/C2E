@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, Sparkles, Save, Check, RefreshCw, Bookmark, BookmarkCheck } from 'lucide-react';
+import { AI_API_URL } from '@/lib/api';
 
 const VISION_PRIORITIES = [
   'Global Engineering Excellence',
@@ -156,8 +157,7 @@ export default function VisionMissionGenerator() {
 
     setGeneratingVision(true);
     try {
-      // NOTE: Using localhost:8001 as specified in the Python backend setup
-      const response = await fetch('http://localhost:8001/ai/generate-vision-mission', {
+      const response = await fetch(`${AI_API_URL}/ai/generate-vision-mission`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -175,7 +175,7 @@ export default function VisionMissionGenerator() {
         setProgramMission(data.mission); // Dependent generation happens in backend
         setIsAiGenerated(true);
       } else {
-        alert("Generation failed. Please ensure the AI backend is running on port 8001.");
+        alert(`Generation failed. Please ensure the AI backend is running at ${AI_API_URL}.`);
       }
     } catch (error) {
       console.error('Generation error:', error);
@@ -195,9 +195,7 @@ export default function VisionMissionGenerator() {
 
     setGeneratingMission(true);
     try {
-      // For mission only, we can reuse the same endpoint but maybe the backend should handle it
-      // Based on prompt, Mission depends on generated Vision
-      const response = await fetch('http://localhost:8001/ai/generate-vision-mission', {
+      const response = await fetch(`${AI_API_URL}/ai/generate-vision-mission`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
