@@ -41,12 +41,12 @@ export async function PUT(request: Request) {
         [
           vision || program_vision, 
           mission || program_mission, 
-          vision_priorities || vision_inputs_used, 
-          mission_priorities || mission_inputs_used,
+          vision_priorities, 
+          mission_priorities,
           program_vision,
           program_mission,
-          vision_inputs_used,
-          mission_inputs_used,
+          vision_inputs_used ? JSON.stringify(vision_inputs_used) : null,
+          mission_inputs_used ? JSON.stringify(mission_inputs_used) : null,
           generated_by_ai || false,
           program_id
         ]

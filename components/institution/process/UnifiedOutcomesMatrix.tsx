@@ -548,5 +548,4 @@ export default function UnifiedOutcomesMatrix() {
       <UnifiedOutcomesMatrixContent />
     </Suspense>
   );
-  );
 }

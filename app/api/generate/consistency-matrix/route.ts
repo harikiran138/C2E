@@ -11,8 +11,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missions and PEOs required' }, { status: 400 });
     }
 
-    // Mock Fallback
+    // Fallback/Safety Check
     if (!GEMINI_API_KEY) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.');
+        }
+        console.warn('GEMINI_API_KEY is missing. Using mock generation.');
         // Generate random correlation (1, 2, 3, -) for mock
         const options = ["1", "2", "3", "-"];
         const matrix = missions.map(() => peos.map(() => options[Math.floor(Math.random() * options.length)]));

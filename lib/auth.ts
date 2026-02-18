@@ -5,15 +5,25 @@ const alg = 'HS256';
 function getSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable is missing.');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL SECURITY ERROR: JWT_SECRET environment variable is missing.');
+    } else {
+      console.warn('WARNING: Using fallback JWT secret in development.');
+      return new TextEncoder().encode('dev-fallback-jwt-secret-stable-k3y');
+    }
   }
   return new TextEncoder().encode(secret);
 }
 
 function getRefreshSecret() {
-  const secret = process.env.REFRESH_TOKEN_SECRET;
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET;
   if (!secret) {
-    throw new Error('CRITICAL SECURITY ERROR: REFRESH_TOKEN_SECRET environment variable is missing.');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL SECURITY ERROR: JWT_REFRESH_SECRET environment variable is missing.');
+    } else {
+      console.warn('WARNING: Using fallback REFRESH_TOKEN_SECRET in development.');
+      return new TextEncoder().encode('dev-fallback-refresh-secret-stable-k3y');
+    }
   }
   return new TextEncoder().encode(secret);
 }

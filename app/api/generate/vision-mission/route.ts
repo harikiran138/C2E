@@ -11,8 +11,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Priorities are required' }, { status: 400 });
     }
 
-    // Fallback Mock Generation if no key
+    // Fallback/Safety Check
     if (!GEMINI_API_KEY) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.');
+        }
         console.warn('GEMINI_API_KEY is missing. Using mock generation.');
         const mockResults = Array.from({ length: count }).map((_, i) => {
              const p1 = priorities[i % priorities.length];
