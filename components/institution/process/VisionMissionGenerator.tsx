@@ -61,21 +61,14 @@ export default function VisionMissionGenerator() {
   const [newVisionPriority, setNewVisionPriority] = useState('');
   const [newMissionPriority, setNewMissionPriority] = useState('');
   
-  const [savedVisions, setSavedVisions] = useState<string[]>([]);
-  const [savedMissions, setSavedMissions] = useState<string[]>([]);
-  
-  const [visionCount, setVisionCount] = useState(3);
-  const [missionCount, setMissionCount] = useState(3);
-  
-  const [generatedVisions, setGeneratedVisions] = useState<string[]>([]);
-  const [generatedMissions, setGeneratedMissions] = useState<string[]>([]);
-  
-  const [selectedVision, setSelectedVision] = useState('');
-  const [selectedMission, setSelectedMission] = useState('');
+  // Final selections to be stored
+  const [programVision, setProgramVision] = useState('');
+  const [programMission, setProgramMission] = useState('');
   
   const [generatingVision, setGeneratingVision] = useState(false);
   const [generatingMission, setGeneratingMission] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isAiGenerated, setIsAiGenerated] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,22 +82,29 @@ export default function VisionMissionGenerator() {
           // Also try to find the current program if programId is present
           if (programId && instData.programs) {
              const currentProgram = instData.programs.find((p: any) => p.id === programId);
-             if (currentProgram) {
+              if (currentProgram) {
                 setProgram(currentProgram);
-                if (currentProgram.vision) setSelectedVision(currentProgram.vision);
-                if (currentProgram.mission) setSelectedMission(currentProgram.mission);
+                setProgramVision(currentProgram.program_vision || currentProgram.vision || '');
+                setProgramMission(currentProgram.program_mission || currentProgram.mission || '');
+                setIsAiGenerated(currentProgram.generated_by_ai || false);
                 
-                // Load saved priorities
-                if (currentProgram.vision_priorities && Array.isArray(currentProgram.vision_priorities)) {
+                // Load saved priorities from used inputs if available, else fallback to vision_priorities
+                if (currentProgram.vision_inputs_used) {
+                    setSelectedVisionPriorities(currentProgram.vision_inputs_used);
+                    const customV = currentProgram.vision_inputs_used.filter((p: string) => !VISION_PRIORITIES.includes(p));
+                    setCustomVisionPriorities(customV);
+                } else if (currentProgram.vision_priorities) {
                     setSelectedVisionPriorities(currentProgram.vision_priorities);
-                    // Add any that aren't in standard list to custom list
                     const customV = currentProgram.vision_priorities.filter((p: string) => !VISION_PRIORITIES.includes(p));
                     setCustomVisionPriorities(customV);
                 }
                 
-                if (currentProgram.mission_priorities && Array.isArray(currentProgram.mission_priorities)) {
+                if (currentProgram.mission_inputs_used) {
+                    setSelectedMissionPriorities(currentProgram.mission_inputs_used);
+                    const customM = currentProgram.mission_inputs_used.filter((p: string) => !MISSION_PRIORITIES.includes(p));
+                    setCustomMissionPriorities(customM);
+                } else if (currentProgram.mission_priorities) {
                     setSelectedMissionPriorities(currentProgram.mission_priorities);
-                    // Add any that aren't in standard list to custom list
                     const customM = currentProgram.mission_priorities.filter((p: string) => !MISSION_PRIORITIES.includes(p));
                     setCustomMissionPriorities(customM);
                 }
@@ -146,59 +146,78 @@ export default function VisionMissionGenerator() {
     }
   };
 
-  const toggleSavedOutput = (output: string, type: 'vision' | 'mission') => {
-    const isVision = type === 'vision';
-    const savedList = isVision ? savedVisions : savedMissions;
-    const setSavedList = isVision ? setSavedVisions : setSavedMissions;
-
-    if (savedList.includes(output)) {
-      setSavedList(savedList.filter(item => item !== output));
-    } else {
-      setSavedList([...savedList, output]);
-    }
-  };
-
-  const handleGenerate = async (type: 'vision' | 'mission') => {
-    if (!institution) return;
+  const handleGenerateVision = async () => {
+    if (!institution || !program) return;
     
-    const isVision = type === 'vision';
-    const setGenerating = isVision ? setGeneratingVision : setGeneratingMission;
-    const setGenerated = isVision ? setGeneratedVisions : setGeneratedMissions;
-    const priorities = isVision ? selectedVisionPriorities : selectedMissionPriorities;
-    const count = isVision ? visionCount : missionCount;
-    const sourceText = isVision ? institution.vision : institution.mission;
-
-    if (priorities.length === 0) {
-        alert(`Please select at least one priority for ${type}.`);
+    if (selectedVisionPriorities.length === 0) {
+        alert("Please select at least one vision priority.");
         return;
     }
 
-    setGenerating(true);
+    setGeneratingVision(true);
     try {
-      const response = await fetch('/api/generate/vision-mission', {
+      // NOTE: Using localhost:8001 as specified in the Python backend setup
+      const response = await fetch('http://localhost:8001/ai/generate-vision-mission', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type,
-          priorities,
-          count,
-          institutionContext: sourceText,
-          programName: program?.program_name || 'Engineering Program'
+          program_name: program.program_name,
+          institute_vision: institution.vision || '',
+          institute_mission: institution.mission || '',
+          vision_inputs: selectedVisionPriorities,
+          mission_inputs: selectedMissionPriorities
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setGenerated(data.results);
+        setProgramVision(data.vision);
+        setProgramMission(data.mission); // Dependent generation happens in backend
+        setIsAiGenerated(true);
       } else {
-        const err = await response.json();
-        alert(`Generation failed: ${err.error}`);
+        alert("Generation failed. Please ensure the AI backend is running on port 8001.");
       }
     } catch (error) {
       console.error('Generation error:', error);
-      alert('Failed to generate. Please try again.');
+      alert('Failed to connect to AI backend. Please ensure it is running.');
     } finally {
-      setGenerating(false);
+      setGeneratingVision(false);
+    }
+  };
+
+  const handleGenerateMissionOnly = async () => {
+    if (!institution || !program || !programVision) return;
+    
+    if (selectedMissionPriorities.length === 0) {
+        alert("Please select at least one mission priority.");
+        return;
+    }
+
+    setGeneratingMission(true);
+    try {
+      // For mission only, we can reuse the same endpoint but maybe the backend should handle it
+      // Based on prompt, Mission depends on generated Vision
+      const response = await fetch('http://localhost:8001/ai/generate-vision-mission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          program_name: program.program_name,
+          institute_vision: institution.vision || '',
+          institute_mission: institution.mission || '',
+          vision_inputs: selectedVisionPriorities,
+          mission_inputs: selectedMissionPriorities
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Only update mission if vision hasn't changed much or if we just want to refresh mission
+        setProgramMission(data.mission);
+      }
+    } catch (error) {
+      console.error('Mission generation error:', error);
+    } finally {
+      setGeneratingMission(false);
     }
   };
 
@@ -211,15 +230,16 @@ export default function VisionMissionGenerator() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 program_id: programId,
-                vision: selectedVision,
-                mission: selectedMission,
-                vision_priorities: selectedVisionPriorities,
-                mission_priorities: selectedMissionPriorities
+                program_vision: programVision,
+                program_mission: programMission,
+                vision_inputs_used: selectedVisionPriorities,
+                mission_inputs_used: selectedMissionPriorities,
+                generated_by_ai: isAiGenerated
             })
         });
         
         if (response.ok) {
-            alert('Vision, Mission, and Priorities saved successfully!');
+            alert('Vision, Mission, and Priorities saved successfully to the database!');
         } else {
             alert('Failed to save.');
         }
@@ -264,20 +284,10 @@ export default function VisionMissionGenerator() {
             <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="size-5 text-amber-500" /> Program Vision
             </h3>
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-500">Generate</span>
-                <select 
-                    value={visionCount}
-                    onChange={(e) => setVisionCount(Number(e.target.value))}
-                    className="rounded-lg border border-slate-200 text-sm py-1.5 px-3 font-medium cursor-pointer"
-                >
-                    {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-            </div>
         </div>
 
-            <div className="space-y-3">
-            <label className="text-sm font-semibold text-slate-700">Select Priorities</label>
+        <div className="space-y-3">
+            <label className="text-sm font-semibold text-slate-700">Select Focus Areas</label>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {VISION_PRIORITIES.map(item => (
                     <button
@@ -289,18 +299,18 @@ export default function VisionMissionGenerator() {
                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
                         }`}
                     >
-                        <div className={`shrink-0 size-4 rounded border-2 flex items-center justify-center ${
+                        <div className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${
                             selectedVisionPriorities.includes(item)
                             ? 'bg-purple-500 border-purple-500'
                             : 'border-slate-300'
                         }`}>
-                            {selectedVisionPriorities.includes(item) && <Check className="size-3 text-white" strokeWidth={3} />}
+                            {selectedVisionPriorities.includes(item) && <div className="size-1.5 rounded-full bg-white" />}
                         </div>
                         <span className="line-clamp-2">{item}</span>
                     </button>
                 ))}
 
-                {/* Custom Priorities with Delete Option */}
+                {/* Custom Vision Priorities */}
                 {customVisionPriorities.map(item => (
                      <div key={item} className="relative group">
                         <button
@@ -311,12 +321,12 @@ export default function VisionMissionGenerator() {
                                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
                             }`}
                         >
-                            <div className={`shrink-0 size-4 rounded border-2 flex items-center justify-center ${
+                            <div className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${
                                 selectedVisionPriorities.includes(item)
                                 ? 'bg-purple-500 border-purple-500'
                                 : 'border-slate-300'
                             }`}>
-                                {selectedVisionPriorities.includes(item) && <Check className="size-3 text-white" strokeWidth={3} />}
+                                {selectedVisionPriorities.includes(item) && <div className="size-1.5 rounded-full bg-white" />}
                             </div>
                             <span className="line-clamp-2 pr-6">{item}</span>
                         </button>
@@ -324,19 +334,15 @@ export default function VisionMissionGenerator() {
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setCustomVisionPriorities(prev => prev.filter(p => p !== item));
-                                if (selectedVisionPriorities.includes(item)) {
-                                    setSelectedVisionPriorities(prev => prev.filter(p => p !== item));
-                                }
+                                setSelectedVisionPriorities(prev => prev.filter(p => p !== item));
                             }}
                             className="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Remove custom priority"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                         </button>
                      </div>
                 ))}
                 
-                {/* Add Custom Priority Button */}
                 <div className="h-[52px] flex items-center gap-2">
                     <input
                         type="text"
@@ -358,91 +364,24 @@ export default function VisionMissionGenerator() {
         </div>
 
         <button
-            onClick={() => handleGenerate('vision')}
+            onClick={handleGenerateVision}
             disabled={generatingVision}
-            className="w-full py-3 rounded-xl bg-slate-100 text-slate-900 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-xl bg-amber-500 text-white font-bold text-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-200 active:scale-[0.98]"
         >
-            {generatingVision ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            {generatingVision ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />}
             Generate Draft Vision
         </button>
 
-        {generatedVisions.length > 0 && (
-            <div className="grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {generatedVisions.map((v, i) => (
-                    <div 
-                        key={i}
-                        className={`p-4 rounded-xl border transition-all hover:shadow-md ${
-                            selectedVision === v 
-                            ? 'border-purple-400 bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 ring-1 ring-purple-400'
-                            : 'border-slate-200 bg-white'
-                        }`}
-                    >
-                        <div className="flex items-start gap-3">
-                            <button
-                                onClick={() => setSelectedVision(v)}
-                                className="flex-1 flex items-start gap-3 text-left"
-                            >
-                                <div className={`mt-0.5 size-5 rounded-full border flex items-center justify-center shrink-0 ${
-                                    selectedVision === v ? 'border-purple-500 bg-purple-500 text-white' : 'border-slate-300'
-                                }`}>
-                                    {selectedVision === v && <Check className="size-3" />}
-                                </div>
-                                <p className="text-sm text-slate-700 leading-relaxed">{v}</p>
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleSavedOutput(v, 'vision');
-                                }}
-                                className={`shrink-0 p-2 rounded-lg transition-all ${
-                                    savedVisions.includes(v)
-                                    ? 'bg-amber-100 text-amber-600 hover:bg-amber-200'
-                                    : 'text-slate-400 hover:bg-slate-100 hover:text-amber-500'
-                                }`}
-                                title={savedVisions.includes(v) ? 'Saved' : 'Save for later'}
-                            >
-                                {savedVisions.includes(v) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        )}
-        
-        <div className="space-y-3">
-            {savedVisions.length > 0 && (
-                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-                    <label className="block text-xs font-bold uppercase tracking-widest text-amber-600 mb-3 flex items-center gap-2">
-                        <BookmarkCheck className="size-3" />
-                        Saved Visions ({savedVisions.length})
-                    </label>
-                    <div className="space-y-2">
-                        {savedVisions.map((sv, idx) => (
-                            <div key={idx} className="flex items-start gap-2 text-xs text-slate-700 bg-white p-2 rounded-lg">
-                                <span className="text-amber-600 font-bold shrink-0">{idx + 1}.</span>
-                                <p className="flex-1 leading-relaxed">{sv}</p>
-                                <button
-                                    onClick={() => setSelectedVision(sv)}
-                                    className="shrink-0 text-purple-600 hover:text-purple-700 font-semibold"
-                                >
-                                    Use
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-            
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Final Selected Vision</label>
-                <textarea 
-                    value={selectedVision}
-                    onChange={(e) => setSelectedVision(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
-                    rows={3}
-                    placeholder="Select a generated vision or type here..."
-                />
-            </div>
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Generated Program Vision</label>
+            <textarea 
+                value={programVision}
+                onChange={(e) => setProgramVision(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                rows={3}
+                placeholder="Vision will appear here..."
+            />
+            {isAiGenerated && <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider"><Sparkles className="size-3" /> Enhanced by AI</div>}
         </div>
       </div>
 
@@ -454,20 +393,10 @@ export default function VisionMissionGenerator() {
             <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="size-5 text-blue-500" /> Program Mission
             </h3>
-            <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-500">Generate</span>
-                <select 
-                    value={missionCount}
-                    onChange={(e) => setMissionCount(Number(e.target.value))}
-                    className="rounded-lg border border-slate-200 text-sm py-1.5 px-3 font-medium cursor-pointer"
-                >
-                    {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-            </div>
         </div>
 
         <div className="space-y-3">
-            <label className="text-sm font-semibold text-slate-700">Select Priorities</label>
+            <label className="text-sm font-semibold text-slate-700">Select Focus Areas</label>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {MISSION_PRIORITIES.map(item => (
                     <button
@@ -479,18 +408,18 @@ export default function VisionMissionGenerator() {
                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
                         }`}
                     >
-                        <div className={`shrink-0 size-4 rounded border-2 flex items-center justify-center ${
+                        <div className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${
                             selectedMissionPriorities.includes(item)
                             ? 'bg-blue-500 border-blue-500'
                             : 'border-slate-300'
                         }`}>
-                            {selectedMissionPriorities.includes(item) && <Check className="size-3 text-white" strokeWidth={3} />}
+                            {selectedMissionPriorities.includes(item) && <div className="size-1.5 rounded-full bg-white" />}
                         </div>
                         <span className="line-clamp-2">{item}</span>
                     </button>
                 ))}
 
-                {/* Custom Priorities with Delete */}
+                {/* Custom Mission Priorities */}
                 {customMissionPriorities.map(item => (
                      <div key={item} className="relative group">
                         <button
@@ -501,32 +430,28 @@ export default function VisionMissionGenerator() {
                                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
                             }`}
                         >
-                            <div className={`shrink-0 size-4 rounded border-2 flex items-center justify-center ${
+                            <div className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${
                                 selectedMissionPriorities.includes(item)
                                 ? 'bg-blue-500 border-blue-500'
                                 : 'border-slate-300'
                             }`}>
-                                {selectedMissionPriorities.includes(item) && <Check className="size-3 text-white" strokeWidth={3} />}
+                                {selectedMissionPriorities.includes(item) && <div className="size-1.5 rounded-full bg-white" />}
                             </div>
                             <span className="line-clamp-2 pr-6">{item}</span>
                         </button>
-                         <button
+                        <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setCustomMissionPriorities(prev => prev.filter(p => p !== item));
-                                if (selectedMissionPriorities.includes(item)) {
-                                    setSelectedMissionPriorities(prev => prev.filter(p => p !== item));
-                                }
+                                setSelectedMissionPriorities(prev => prev.filter(p => p !== item));
                             }}
                             className="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Remove custom priority"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                         </button>
                      </div>
                 ))}
                 
-                {/* Add Custom Priority Button */}
                 <div className="h-[52px] flex items-center gap-2">
                     <input
                         type="text"
@@ -539,7 +464,7 @@ export default function VisionMissionGenerator() {
                     <button
                         onClick={() => addCustomPriority('mission')}
                         disabled={!newMissionPriority.trim()}
-                        className="h-full aspect-square rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-xl font-bold transition-all"
+                        className="h-full aspect-square rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-30 flex items-center justify-center text-xl font-bold transition-all"
                     >
                         +
                     </button>
@@ -548,98 +473,31 @@ export default function VisionMissionGenerator() {
         </div>
 
         <button
-            onClick={() => handleGenerate('mission')}
-            disabled={generatingMission}
-            className="w-full py-3 rounded-xl bg-slate-100 text-slate-900 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+            onClick={handleGenerateMissionOnly}
+            disabled={generatingMission || !programVision}
+            className="w-full py-4 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
         >
-            {generatingMission ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            {generatingMission ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />}
             Generate Draft Mission
         </button>
 
-        {generatedMissions.length > 0 && (
-            <div className="grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {generatedMissions.map((m, i) => (
-                    <div 
-                        key={i}
-                        className={`p-4 rounded-xl border transition-all hover:shadow-md ${
-                            selectedMission === m 
-                            ? 'border-blue-400 bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 ring-1 ring-blue-400'
-                            : 'border-slate-200 bg-white'
-                        }`}
-                    >
-                        <div className="flex items-start gap-3">
-                            <button
-                                onClick={() => setSelectedMission(m)}
-                                className="flex-1 flex items-start gap-3 text-left"
-                            >
-                                <div className={`mt-0.5 size-5 rounded-full border flex items-center justify-center shrink-0 ${
-                                    selectedMission === m ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-300'
-                                }`}>
-                                    {selectedMission === m && <Check className="size-3" />}
-                                </div>
-                                <p className="text-sm text-slate-700 leading-relaxed">{m}</p>
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleSavedOutput(m, 'mission');
-                                }}
-                                className={`shrink-0 p-2 rounded-lg transition-all ${
-                                    savedMissions.includes(m)
-                                    ? 'bg-amber-100 text-amber-600 hover:bg-amber-200'
-                                    : 'text-slate-400 hover:bg-slate-100 hover:text-amber-500'
-                                }`}
-                                title={savedMissions.includes(m) ? 'Saved' : 'Save for later'}
-                            >
-                                {savedMissions.includes(m) ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        )}
-        
-        <div className="space-y-3">
-            {savedMissions.length > 0 && (
-                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-                    <label className="block text-xs font-bold uppercase tracking-widest text-amber-600 mb-3 flex items-center gap-2">
-                        <BookmarkCheck className="size-3" />
-                        Saved Missions ({savedMissions.length})
-                    </label>
-                    <div className="space-y-2">
-                        {savedMissions.map((sm, idx) => (
-                            <div key={idx} className="flex items-start gap-2 text-xs text-slate-700 bg-white p-2 rounded-lg">
-                                <span className="text-amber-600 font-bold shrink-0">{idx + 1}.</span>
-                                <p className="flex-1 leading-relaxed">{sm}</p>
-                                <button
-                                    onClick={() => setSelectedMission(sm)}
-                                    className="shrink-0 text-blue-600 hover:text-blue-700 font-semibold"
-                                >
-                                    Use
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-            
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Final Selected Mission</label>
-                <textarea 
-                    value={selectedMission}
-                    onChange={(e) => setSelectedMission(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
-                    rows={3}
-                    placeholder="Select a generated mission or type here..."
-                />
-            </div>
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Generated Program Mission</label>
+            <textarea 
+                value={programMission}
+                onChange={(e) => setProgramMission(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                rows={5}
+                placeholder="Mission paragraph will appear here..."
+            />
+             {isAiGenerated && <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider"><Sparkles className="size-3" /> Derived from Program Vision</div>}
         </div>
       </div>
 
       <div className="flex justify-end pt-6">
         <button 
             onClick={handleSave}
-            disabled={saving || (!selectedVision && !selectedMission)}
+            disabled={saving || (!programVision && !programMission)}
             className="flex items-center gap-2 rounded-xl bg-slate-900 px-8 py-4 text-sm font-bold text-white shadow-lg hover:bg-slate-800 disabled:opacity-50 transition-all active:scale-95"
         >
             {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}

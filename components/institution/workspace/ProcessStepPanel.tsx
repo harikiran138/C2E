@@ -10,6 +10,7 @@ import VisionMissionGenerator from '@/components/institution/process/VisionMissi
 import PeoGenerator from '@/components/institution/process/PeoGenerator';
 import ConsistencyMatrix from '@/components/institution/process/ConsistencyMatrix';
 import ProgramOutcomesForm from '@/components/institution/process/ProgramOutcomesForm';
+import UnifiedOutcomesMatrix from '@/components/institution/process/UnifiedOutcomesMatrix';
 import PsoGenerator from '@/components/institution/process/PsoGenerator';
 import AcademicCouncilForm from '@/components/institution/process/AcademicCouncilForm';
 import OBEFrameworkForm from '@/components/institution/process/OBEFrameworkForm';
@@ -142,7 +143,7 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
   }
 
   if (step.key === 'process-9') {
-    return <ProgramOutcomesForm />;
+    return <UnifiedOutcomesMatrix />;
   }
 
   if (step.key === 'process-10') {
