@@ -67,6 +67,11 @@ export default function VisionMissionGenerator() {
   const [programVision, setProgramVision] = useState('');
   const [programMission, setProgramMission] = useState('');
   
+  // Multi-option state
+  const [visionOptions, setVisionOptions] = useState<string[]>([]);
+  const [missionOptions, setMissionOptions] = useState<string[]>([]);
+  const [generateCount, setGenerateCount] = useState(3);
+
   const [generatingVision, setGeneratingVision] = useState(false);
   const [generatingMission, setGeneratingMission] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -89,6 +94,8 @@ export default function VisionMissionGenerator() {
                 setProgramVision(currentProgram.program_vision || currentProgram.vision || '');
                 setProgramMission(currentProgram.program_mission || currentProgram.mission || '');
                 setIsAiGenerated(currentProgram.generated_by_ai || false);
+                setVisionOptions(currentProgram.vision_options || []);
+                setMissionOptions(currentProgram.mission_options || []);
                 
                 // Load saved priorities from used inputs if available, else fallback to vision_priorities
                 if (currentProgram.vision_inputs_used) {
@@ -166,14 +173,23 @@ export default function VisionMissionGenerator() {
           institute_vision: institution.vision || '',
           institute_mission: institution.mission || '',
           vision_inputs: selectedVisionPriorities,
-          mission_inputs: selectedMissionPriorities
+          mission_inputs: selectedMissionPriorities,
+          count: generateCount
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setProgramVision(data.vision);
-        setProgramMission(data.mission); // Dependent generation happens in backend
+        const newVisions = data.visions || [data.vision];
+        const newMissions = data.missions || [data.mission];
+        
+        setVisionOptions(newVisions);
+        setMissionOptions(newMissions);
+        
+        // Auto-select first option if none selected
+        if (!programVision && newVisions.length > 0) setProgramVision(newVisions[0]);
+        if (!programMission && newMissions.length > 0) setProgramMission(newMissions[0]);
+        
         setIsAiGenerated(true);
       } else {
         alert(`Generation failed. Please ensure the AI backend is running at ${AI_API_URL}.`);
@@ -187,7 +203,7 @@ export default function VisionMissionGenerator() {
   };
 
   const handleGenerateMissionOnly = async () => {
-    if (!institution || !program || !programVision) return;
+    if (!institution || !program) return;
     
     if (selectedMissionPriorities.length === 0) {
         alert("Please select at least one mission priority.");
@@ -204,14 +220,18 @@ export default function VisionMissionGenerator() {
           institute_vision: institution.vision || '',
           institute_mission: institution.mission || '',
           vision_inputs: selectedVisionPriorities,
-          mission_inputs: selectedMissionPriorities
+          mission_inputs: selectedMissionPriorities,
+          count: generateCount
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Only update mission if vision hasn't changed much or if we just want to refresh mission
-        setProgramMission(data.mission);
+        const newMissions = data.missions || [data.mission];
+        setMissionOptions(newMissions);
+         // Auto-select first option if none selected
+        if (!programMission && newMissions.length > 0) setProgramMission(newMissions[0]);
+
       }
     } catch (error) {
       console.error('Mission generation error:', error);
@@ -233,7 +253,9 @@ export default function VisionMissionGenerator() {
                 program_mission: programMission,
                 vision_inputs_used: selectedVisionPriorities,
                 mission_inputs_used: selectedMissionPriorities,
-                generated_by_ai: isAiGenerated
+                generated_by_ai: isAiGenerated,
+                vision_options: visionOptions,
+                mission_options: missionOptions
             })
         });
         
@@ -249,6 +271,27 @@ export default function VisionMissionGenerator() {
     }
   };
 
+  const OptionCard = ({ text, isSelected, onSelect, onEdit }: { text: string, isSelected: boolean, onSelect: () => void, onEdit: (val: string) => void }) => (
+    <div className={`p-4 rounded-xl border transition-all ${isSelected ? 'bg-primary/5 border-primary shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+        <div className="flex gap-3">
+            <button 
+                onClick={onSelect}
+                className={`mt-1 size-5 rounded-full border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'border-primary bg-primary text-white' : 'border-slate-300 text-transparent hover:border-slate-400'}`}
+            >
+                <Check className="size-3" />
+            </button>
+            <div className="flex-1 space-y-2">
+                <textarea 
+                    value={text}
+                    onChange={(e) => onEdit(e.target.value)}
+                    className="w-full bg-transparent border-0 p-0 text-sm focus:ring-0 resize-none"
+                    rows={text.length > 100 ? 4 : 2}
+                />
+            </div>
+        </div>
+    </div>
+  );
+
   if (!programId) {
      return <div className="p-8 text-center text-slate-500">Please select a program first.</div>;
   }
@@ -256,9 +299,6 @@ export default function VisionMissionGenerator() {
   if (loading) {
     return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary size-8" /></div>;
   }
-
-  const allVisionPriorities = [...VISION_PRIORITIES, ...customVisionPriorities];
-  const allMissionPriorities = [...MISSION_PRIORITIES, ...customMissionPriorities];
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-20">
@@ -362,26 +402,53 @@ export default function VisionMissionGenerator() {
             </div>
         </div>
 
-        <button
-            onClick={handleGenerateVision}
-            disabled={generatingVision}
-            className="w-full py-4 rounded-xl bg-amber-500 text-white font-bold text-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-200 active:scale-[0.98]"
-        >
-            {generatingVision ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />}
-            Generate Draft Vision
-        </button>
-
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Generated Program Vision</label>
-            <textarea 
-                value={programVision}
-                onChange={(e) => setProgramVision(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
-                rows={3}
-                placeholder="Vision will appear here..."
-            />
-            {isAiGenerated && <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider"><Sparkles className="size-3" /> Enhanced by AI</div>}
+        <div className="flex gap-4 items-end">
+            <div className="w-48">
+                <label className="text-xs font-semibold text-slate-500 mb-1 block">Options to Generate</label>
+                <select 
+                    value={generateCount}
+                    onChange={(e) => setGenerateCount(Number(e.target.value))}
+                    className="w-full h-12 rounded-xl border border-slate-200 px-3 text-sm focus:ring-2 focus:ring-primary/10 transition-all font-medium"
+                >
+                    <option value={1}>1 Option</option>
+                    <option value={2}>2 Options</option>
+                    <option value={3}>3 Options</option>
+                    <option value={5}>5 Options</option>
+                </select>
+            </div>
+            <button
+                onClick={handleGenerateVision}
+                disabled={generatingVision}
+                className="flex-1 h-12 rounded-xl bg-amber-500 text-white font-bold text-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-200 active:scale-[0.98]"
+            >
+                {generatingVision ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />}
+                Generate Draft Variations
+            </button>
         </div>
+
+        {/* Vision Options List */}
+        {visionOptions.length > 0 && (
+            <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">Pick a Vision Statement</label>
+                <div className="space-y-3">
+                    {visionOptions.map((opt, idx) => (
+                        <OptionCard 
+                            key={idx}
+                            text={opt}
+                            isSelected={programVision === opt}
+                            onSelect={() => setProgramVision(opt)}
+                            onEdit={(newVal) => {
+                                const newOpts = [...visionOptions];
+                                newOpts[idx] = newVal;
+                                setVisionOptions(newOpts);
+                                if (programVision === opt) setProgramVision(newVal);
+                            }}
+                        />
+                    ))}
+                </div>
+                {isAiGenerated && <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider"><Sparkles className="size-3" /> Enhanced by AI</div>}
+            </div>
+        )}
       </div>
 
       <div className="h-px bg-slate-200" />
@@ -473,24 +540,36 @@ export default function VisionMissionGenerator() {
 
         <button
             onClick={handleGenerateMissionOnly}
-            disabled={generatingMission || !programVision}
+            disabled={generatingMission}
             className="w-full py-4 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
         >
             {generatingMission ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />}
-            Generate Draft Mission
+            Generate Draft Missions (Using same settings as above)
         </button>
 
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Generated Program Mission</label>
-            <textarea 
-                value={programMission}
-                onChange={(e) => setProgramMission(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
-                rows={5}
-                placeholder="Mission paragraph will appear here..."
-            />
-             {isAiGenerated && <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider"><Sparkles className="size-3" /> Derived from Program Vision</div>}
-        </div>
+        {/* Mission Options List */}
+        {missionOptions.length > 0 && (
+            <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">Pick a Mission Statement</label>
+                <div className="space-y-3">
+                    {missionOptions.map((opt, idx) => (
+                        <OptionCard 
+                            key={idx}
+                            text={opt}
+                            isSelected={programMission === opt}
+                            onSelect={() => setProgramMission(opt)}
+                            onEdit={(newVal) => {
+                                const newOpts = [...missionOptions];
+                                newOpts[idx] = newVal;
+                                setMissionOptions(newOpts);
+                                if (programMission === opt) setProgramMission(newVal);
+                            }}
+                        />
+                    ))}
+                </div>
+                {isAiGenerated && <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider"><Sparkles className="size-3" /> Derived from Program Vision</div>}
+            </div>
+        )}
       </div>
 
       <div className="flex justify-end pt-6">
@@ -500,7 +579,7 @@ export default function VisionMissionGenerator() {
             className="flex items-center gap-2 rounded-xl bg-slate-900 px-8 py-4 text-sm font-bold text-white shadow-lg hover:bg-slate-800 disabled:opacity-50 transition-all active:scale-95"
         >
             {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
-            Save Vision & Mission
+            Save Choices
         </button>
       </div>
 

@@ -11,6 +11,8 @@ export async function PUT(request: Request) {
       vision_inputs_used, 
       mission_inputs_used,
       generated_by_ai,
+      vision_options,
+      mission_options,
       // Keep support for legacy fields if they are sent
       vision,
       mission,
@@ -35,6 +37,8 @@ export async function PUT(request: Request) {
              vision_inputs_used = $7,
              mission_inputs_used = $8,
              generated_by_ai = $9,
+             vision_options = $11,
+             mission_options = $12,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $10
          RETURNING *`,
@@ -48,7 +52,9 @@ export async function PUT(request: Request) {
           vision_inputs_used ? JSON.stringify(vision_inputs_used) : null,
           mission_inputs_used ? JSON.stringify(mission_inputs_used) : null,
           generated_by_ai || false,
-          program_id
+          program_id,
+          vision_options ? JSON.stringify(vision_options) : '[]',
+          mission_options ? JSON.stringify(mission_options) : '[]'
         ]
       );
 
