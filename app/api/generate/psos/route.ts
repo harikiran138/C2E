@@ -7,11 +7,15 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     console.log('PSO Request Body:', JSON.stringify(body));
-    const { leadSociety, count, programName } = body;
+    const { selected_societies, number_of_psos, program_name } = body;
 
-    if (!leadSociety) {
-      console.warn('PSO Request missing leadSociety');
-      return NextResponse.json({ error: 'Lead Society is required' }, { status: 400 });
+    // Validate inputs
+    if (!selected_societies || (!selected_societies.lead?.length && !selected_societies.co_lead?.length && !selected_societies.cooperating?.length)) {
+      return NextResponse.json({ error: 'At least one society must be selected.' }, { status: 400 });
+    }
+
+    if (!number_of_psos || number_of_psos < 1 || number_of_psos > 20) {
+        return NextResponse.json({ error: 'Invalid number of PSOs (1-20).' }, { status: 400 });
     }
 
     // Fallback/Safety Check
@@ -20,24 +24,34 @@ export async function POST(request: Request) {
             throw new Error('CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.');
         }
         console.warn('GEMINI_API_KEY is missing. Using mock generation.');
-        const mockResults = Array.from({ length: count }).map((_, i) => {
-             return `PSO${i+1}: Graduates will be able to apply principles of ${programName} tailored to the standards of ${leadSociety}.`;
+        const mockResults = Array.from({ length: number_of_psos }).map((_, i) => {
+             return `PSO${i+1}: Graduates will be able to apply principles of ${program_name} tailored to the standards of ${selected_societies.lead?.[0] || 'Engineering Societies'}.`;
         });
         return NextResponse.json({ results: mockResults });
     }
 
     // Call Gemini API via Fetch
+    // Constructing a detailed prompt based on the specific requirements
     const prompt = `
       You are an expert academic curriculum designer.
-      Program Name: "${programName}".
-      Lead Professional Society: "${leadSociety}".
-      Task: Generate ${count} distinct Program Specific Outcomes (PSOs).
+      Program Name: "${program_name}".
+      
+      Selected Professional Societies:
+      - Lead Societies: ${selected_societies.lead?.join(', ') || 'None'}
+      - Co-Lead Societies: ${selected_societies.co_lead?.join(', ') || 'None'}
+      - Cooperating Societies: ${selected_societies.cooperating?.join(', ') || 'None'}
+      
+      Task: Generate ${number_of_psos} Program Specific Outcomes (PSOs) aligned with the selected professional societies.
       
       Constraints:
-      1. Each PSO should be specific to the discipline and align with the competencies defined by ${leadSociety}.
-      2. Professional, academic tone.
-      3. Output strictly as a JSON array of strings. Do not include markdown formatting or extra text.
-      Example: ["Graduates will...", "Graduates will..."]
+      1. Ensure discipline compliance and alignment with the competencies defined by the selected societies.
+      2. Use measurable action verbs (Bloom's Taxonomy / RBT-based).
+      3. Maintain a professional, academic tone.
+      4. Each PSO should be 2-3 lines long.
+      5. Output strictly as a JSON array of strings. Do not include markdown formatting, numbering in the string, or extra text.
+      
+      Example Output Format:
+      ["Apply advanced principles...", "Design and conduct experiments..."]
     `;
 
     const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {

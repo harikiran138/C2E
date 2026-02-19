@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
   FileText, 
   Upload, 
@@ -31,12 +32,13 @@ interface LibraryItem {
   created_at?: string;
 }
 
-export default function OBEFrameworkForm() {
+  export default function OBEFrameworkForm() {
+  const searchParams = useSearchParams();
+  const programId = searchParams.get('programId');
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [selectedProgramId, setSelectedProgramId] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -49,7 +51,7 @@ export default function OBEFrameworkForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
-  const fetchLibrary = async (programId: string) => {
+  const fetchLibrary = async () => {
     if (!programId) return;
     setLoading(true);
     try {
@@ -69,32 +71,11 @@ export default function OBEFrameworkForm() {
     }
   };
 
-  const fetchPrograms = async () => {
-    try {
-      const response = await fetch('/api/institution/details');
-      if (response.ok) {
-        const payload = await response.json();
-        if (Array.isArray(payload.programs)) {
-          setPrograms(payload.programs);
-          if (payload.programs.length > 0) {
-            setSelectedProgramId(payload.programs[0].id);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch programs", error);
-    }
-  };
-
   useEffect(() => {
-    fetchPrograms();
-  }, []);
-
-  useEffect(() => {
-    if (selectedProgramId) {
-      fetchLibrary(selectedProgramId);
+    if (programId) {
+      fetchLibrary();
     }
-  }, [selectedProgramId]);
+  }, [programId]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -137,7 +118,7 @@ export default function OBEFrameworkForm() {
     try {
       // 1. Upload to Supabase Storage
       const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${selectedProgramId}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const fileName = `${programId}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `library/${fileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -155,7 +136,7 @@ export default function OBEFrameworkForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          program_id: selectedProgramId,
+          program_id: programId,
           title: newTitle,
           description: newDescription,
           pdf_url: publicUrl,
@@ -168,7 +149,7 @@ export default function OBEFrameworkForm() {
         setNewDescription('');
         setSelectedFile(null);
         setShowAddForm(false);
-        fetchLibrary(selectedProgramId);
+        fetchLibrary();
       } else {
         throw new Error('Failed to save document info');
       }
@@ -199,7 +180,7 @@ export default function OBEFrameworkForm() {
       });
 
       if (response.ok) {
-        fetchLibrary(selectedProgramId);
+        fetchLibrary();
       }
     } catch (error) {
       console.error('Delete error:', error);
@@ -212,6 +193,18 @@ export default function OBEFrameworkForm() {
     item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (!programId) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center rounded-[2rem] border-2 border-dashed border-slate-200 bg-slate-50/50">
+        <div className="size-20 rounded-full bg-white flex items-center justify-center mb-6 shadow-sm ring-8 ring-slate-100/50">
+          <BookOpen className="size-10 text-slate-300" />
+        </div>
+        <h3 className="text-xl font-bold text-slate-900 tracking-tight">Program Not Selected</h3>
+        <p className="text-slate-500 max-w-sm mt-2 font-medium">Please select a program from the dashboard to view the OBE Framework.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-element">

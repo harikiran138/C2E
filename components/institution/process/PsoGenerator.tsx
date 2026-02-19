@@ -51,6 +51,12 @@ const COOPERATING_SOCIETIES = [
   'American Society of Civil Engineers'
 ];
 
+type SelectedSocieties = {
+  lead: string[];
+  coLead: string[];
+  cooperating: string[];
+};
+
 export default function PsoGenerator() {
   const searchParams = useSearchParams();
   const programId = searchParams.get('programId');
@@ -59,7 +65,13 @@ export default function PsoGenerator() {
   const [program, setProgram] = useState<any>(null);
   const [psos, setPsos] = useState<any[]>([]);
   
-  const [selectedLeadSociety, setSelectedLeadSociety] = useState('');
+  // State for matrix selection
+  const [selectedSocieties, setSelectedSocieties] = useState<SelectedSocieties>({
+      lead: [],
+      coLead: [],
+      cooperating: []
+  });
+  
   const [psoCount, setPsoCount] = useState(3);
   const [generatedPsos, setGeneratedPsos] = useState<string[]>([]);
   
@@ -79,7 +91,28 @@ export default function PsoGenerator() {
              if (currentProgram) {
                 setProgram(currentProgram);
                 if (currentProgram.lead_society) {
-                    setSelectedLeadSociety(currentProgram.lead_society);
+                    try {
+                        const parsed = JSON.parse(currentProgram.lead_society);
+                        // Validate structure
+                        if (parsed.lead && Array.isArray(parsed.lead)) {
+                             setSelectedSocieties(parsed);
+                        } else {
+                            // Handle old format (comma separated string)
+                            // This is a best-effort migration visual only; user must save to persist new format
+                             setSelectedSocieties({
+                                 lead: [currentProgram.lead_society], // Assign strictly to lead as catch-all
+                                 coLead: [],
+                                 cooperating: []
+                             });
+                        }
+                    } catch (e) {
+                        // Fallback for plain string
+                         setSelectedSocieties({
+                             lead: [currentProgram.lead_society],
+                             coLead: [],
+                             cooperating: []
+                         });
+                    }
                 }
              }
           }
@@ -104,8 +137,11 @@ export default function PsoGenerator() {
 
 
   const handleGenerate = async () => {
-    if (!selectedLeadSociety) {
-        alert('Please select a Lead Society.');
+    // Validation: At least one society must be selected across all categories
+    const hasSelection = selectedSocieties.lead.length > 0 || selectedSocieties.coLead.length > 0 || selectedSocieties.cooperating.length > 0;
+
+    if (!hasSelection) {
+        alert('Please select at least one professional society.');
         return;
     }
 
@@ -115,9 +151,13 @@ export default function PsoGenerator() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          leadSociety: selectedLeadSociety,
-          count: psoCount,
-          programName: program?.program_name || 'Engineering Program'
+          selected_societies: {
+              lead: selectedSocieties.lead,
+              co_lead: selectedSocieties.coLead,
+              cooperating: selectedSocieties.cooperating
+          },
+          number_of_psos: psoCount,
+          program_name: program?.program_name || 'Engineering Program'
         }),
       });
 
@@ -149,17 +189,28 @@ export default function PsoGenerator() {
       }
   };
 
+  const toggleSociety = (category: keyof SelectedSocieties, society: string) => {
+      setSelectedSocieties(prev => {
+          const currentList = prev[category];
+          const newList = currentList.includes(society)
+              ? currentList.filter(s => s !== society)
+              : [...currentList, society];
+          
+          return { ...prev, [category]: newList };
+      });
+  };
+
   const handleSaveAll = async () => {
     if (!programId) return;
     setSaving(true);
     try {
-        // Save Lead Society
+        // Save Lead Society as structured JSON string
         await fetch('/api/institution/program/lead-society', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 program_id: programId,
-                lead_society: selectedLeadSociety
+                lead_society: JSON.stringify(selectedSocieties)
             })
         });
 
@@ -204,65 +255,77 @@ export default function PsoGenerator() {
       {/* 1. Lead Society Selection */}
       <div className="space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
         <h3 className="text-lg font-bold text-slate-900">1. Select your Lead Society</h3>
+        <p className="text-sm text-slate-500 -mt-4">
+            Select relevant societies from the columns below. You can select multiple options.
+        </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* A. Lead Societies */}
             <div className="space-y-3">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-600">A. Lead Societies</h4>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-600 border-b pb-2">A. Lead Societies</h4>
+                <div className="space-y-1 bg-white rounded-lg border border-slate-200 p-2">
                     {LEAD_SOCIETIES.map(society => (
-                        <label key={society} className="flex items-start gap-2 cursor-pointer group">
-                             <input 
-                                type="radio" 
-                                name="leadSociety" 
-                                value={society} 
-                                checked={selectedLeadSociety === society}
-                                onChange={() => setSelectedLeadSociety(society)}
-                                className="mt-1 text-indigo-600 focus:ring-indigo-500 size-4"
-                             />
-                             <span className="text-xs text-slate-700 group-hover:text-indigo-700 leading-tight">{society}</span>
+                        <label key={society} className="flex items-start gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer group transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={selectedSocieties.lead.includes(society)}
+                                onChange={() => toggleSociety('lead', society)}
+                                className="mt-1 text-indigo-600 focus:ring-indigo-500 rounded border-slate-300 size-4 shrink-0"
+                            />
+                            <span className={`text-xs leading-tight transition-colors ${selectedSocieties.lead.includes(society) ? 'text-indigo-700 font-bold' : 'text-slate-600 group-hover:text-indigo-600'}`}>
+                                {society}
+                            </span>
                         </label>
                     ))}
+                </div>
+                <div className="text-xs text-slate-400 text-right px-1">
+                    {selectedSocieties.lead.length} selected
                 </div>
             </div>
 
             {/* B. Co-Lead Societies */}
             <div className="space-y-3">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-600">B. Co-Lead Societies</h4>
-                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-600 border-b pb-2">B. Co-Lead Societies</h4>
+                 <div className="space-y-1 bg-white rounded-lg border border-slate-200 p-2">
                     {CO_LEAD_SOCIETIES.map(society => (
-                        <label key={society} className="flex items-start gap-2 cursor-pointer group">
-                             <input 
-                                type="radio" 
-                                name="leadSociety" 
-                                value={society} 
-                                checked={selectedLeadSociety === society}
-                                onChange={() => setSelectedLeadSociety(society)}
-                                className="mt-1 text-indigo-600 focus:ring-indigo-500 size-4"
-                             />
-                             <span className="text-xs text-slate-700 group-hover:text-indigo-700 leading-tight">{society}</span>
+                        <label key={society} className="flex items-start gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer group transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={selectedSocieties.coLead.includes(society)}
+                                onChange={() => toggleSociety('coLead', society)}
+                                className="mt-1 text-indigo-600 focus:ring-indigo-500 rounded border-slate-300 size-4 shrink-0"
+                            />
+                            <span className={`text-xs leading-tight transition-colors ${selectedSocieties.coLead.includes(society) ? 'text-indigo-700 font-bold' : 'text-slate-600 group-hover:text-indigo-600'}`}>
+                                {society}
+                            </span>
                         </label>
                     ))}
+                </div>
+                <div className="text-xs text-slate-400 text-right px-1">
+                    {selectedSocieties.coLead.length} selected
                 </div>
             </div>
 
             {/* C. Cooperating Societies */}
             <div className="space-y-3">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-600">C. Cooperating Societies</h4>
-                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-600 border-b pb-2">C. Cooperating Societies</h4>
+                 <div className="space-y-1 bg-white rounded-lg border border-slate-200 p-2">
                     {COOPERATING_SOCIETIES.map(society => (
-                        <label key={society} className="flex items-start gap-2 cursor-pointer group">
-                             <input 
-                                type="radio" 
-                                name="leadSociety" 
-                                value={society} 
-                                checked={selectedLeadSociety === society}
-                                onChange={() => setSelectedLeadSociety(society)}
-                                className="mt-1 text-indigo-600 focus:ring-indigo-500 size-4"
-                             />
-                             <span className="text-xs text-slate-700 group-hover:text-indigo-700 leading-tight">{society}</span>
+                        <label key={society} className="flex items-start gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer group transition-colors">
+                            <input 
+                                type="checkbox" 
+                                checked={selectedSocieties.cooperating.includes(society)}
+                                onChange={() => toggleSociety('cooperating', society)}
+                                className="mt-1 text-indigo-600 focus:ring-indigo-500 rounded border-slate-300 size-4 shrink-0"
+                            />
+                            <span className={`text-xs leading-tight transition-colors ${selectedSocieties.cooperating.includes(society) ? 'text-indigo-700 font-bold' : 'text-slate-600 group-hover:text-indigo-600'}`}>
+                                {society}
+                            </span>
                         </label>
                     ))}
+                </div>
+                <div className="text-xs text-slate-400 text-right px-1">
+                    {selectedSocieties.cooperating.length} selected
                 </div>
             </div>
         </div>
