@@ -720,7 +720,17 @@ export default function InstitutionOnboarding() {
                                 placeholder="e.g. 60"
                                 className="w-full bg-transparent p-4 outline-none font-semibold text-slate-800" 
                                 value={newProgram.intake}
-                                onChange={e => setNewProgram({...newProgram, intake: parseInt(e.target.value) || 60})}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  if (val === '') {
+                                    setNewProgram({...newProgram, intake: ''});
+                                  } else {
+                                    const parsed = parseInt(val);
+                                    if (!isNaN(parsed)) {
+                                      setNewProgram({...newProgram, intake: parsed});
+                                    }
+                                  }
+                                }}
                               />
                             </GlassInputWrapper>
                           </div>

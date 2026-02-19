@@ -43,11 +43,12 @@ export async function POST(request: Request) {
       await client.query('DELETE FROM program_peos WHERE program_id = $1', [program_id]);
 
       if (peos.length > 0) {
-          const values = peos.map((p: any, i: number) => `('${program_id}', '${p.statement.replace(/'/g, "''")}', ${i + 1})`).join(',');
-          await client.query(`
-            INSERT INTO program_peos (program_id, peo_statement, peo_number)
-            VALUES ${values}
-          `);
+          for (let i = 0; i < peos.length; i++) {
+              await client.query(
+                  'INSERT INTO program_peos (program_id, peo_statement, peo_number) VALUES ($1, $2, $3)',
+                  [program_id, peos[i].statement, i + 1]
+              );
+          }
       }
 
       await client.query('COMMIT');

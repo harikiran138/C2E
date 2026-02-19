@@ -54,6 +54,9 @@ interface BoSMember {
   linkedin_id: string;
 }
 
+import { z } from "zod";
+import { memberSchema } from "@/lib/schemas";
+
 function BoSFormContent() {
   const searchParams = useSearchParams();
   const programId = searchParams.get('programId');
@@ -64,6 +67,7 @@ function BoSFormContent() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
 
   const [formData, setFormData] = useState({
     member_name: '',
@@ -101,6 +105,14 @@ function BoSFormContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!programId) return;
+
+    // Validate form data
+    const result = memberSchema.safeParse(formData);
+    if (!result.success) {
+      setErrors(result.error.flatten().fieldErrors);
+      return;
+    }
+    setErrors({}); // Clear errors if validation passes
 
     setSubmitting(true);
     try {
@@ -302,9 +314,13 @@ function BoSFormContent() {
                 required
                 value={formData.member_name}
                 onChange={(e) => setFormData({ ...formData, member_name: e.target.value })}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                className={cn(
+                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                  errors.member_name ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                )}
                 placeholder="Full name" 
               />
+              {errors.member_name && <p className="text-xs font-semibold text-red-500 mt-1">{errors.member_name[0]}</p>}
             </div>
 
             {/* Member ID Field */}
@@ -313,9 +329,13 @@ function BoSFormContent() {
               <input 
                 value={formData.member_id}
                 onChange={(e) => setFormData({ ...formData, member_id: e.target.value })}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                className={cn(
+                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                  errors.member_id ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                )}
                 placeholder="Unique ID" 
               />
+              {errors.member_id && <p className="text-xs font-semibold text-red-500 mt-1">{errors.member_id[0]}</p>}
             </div>
 
             {/* Category Field */}
@@ -338,7 +358,10 @@ function BoSFormContent() {
                     required
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none appearance-none cursor-pointer"
+                    className={cn(
+                      "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 focus:bg-white focus:ring-4 transition-all outline-none appearance-none cursor-pointer",
+                      errors.category ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                    )}
                 >
                     <option value="">Select Category</option>
                     {BOS_CATEGORIES.map((category) => (
@@ -349,6 +372,7 @@ function BoSFormContent() {
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
               </div>
+              {errors.category && <p className="text-xs font-semibold text-red-500 mt-1">{errors.category[0]}</p>}
             </div>
 
             {/* Organization Field */}
@@ -361,10 +385,14 @@ function BoSFormContent() {
                 <input 
                     value={formData.organization}
                     onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
-                    className="w-full h-11 pl-10 rounded-xl border border-slate-200 bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                    className={cn(
+                      "w-full h-11 pl-10 rounded-xl border bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                      errors.organization ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                    )}
                     placeholder="Current Organisation" 
                 />
               </div>
+              {errors.organization && <p className="text-xs font-semibold text-red-500 mt-1">{errors.organization[0]}</p>}
             </div>
 
             {/* Email Field */}
@@ -378,10 +406,14 @@ function BoSFormContent() {
                     type="email" 
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full h-11 pl-10 rounded-xl border border-slate-200 bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                    className={cn(
+                      "w-full h-11 pl-10 rounded-xl border bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                      errors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                    )}
                     placeholder="email@example.com" 
                 />
               </div>
+              {errors.email && <p className="text-xs font-semibold text-red-500 mt-1">{errors.email[0]}</p>}
             </div>
 
             {/* Mobile Field */}
@@ -394,10 +426,14 @@ function BoSFormContent() {
                 <input 
                     value={formData.mobile_number}
                     onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
-                    className="w-full h-11 pl-10 rounded-xl border border-slate-200 bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                    className={cn(
+                      "w-full h-11 pl-10 rounded-xl border bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                      errors.mobile_number ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                    )}
                     placeholder="+91 00000 00000" 
                 />
               </div>
+              {errors.mobile_number && <p className="text-xs font-semibold text-red-500 mt-1">{errors.mobile_number[0]}</p>}
             </div>
 
             {/* Specialisation */}
@@ -410,10 +446,14 @@ function BoSFormContent() {
                 <input 
                     value={formData.specialisation}
                     onChange={(e) => setFormData({ ...formData, specialisation: e.target.value })}
-                    className="w-full h-11 pl-10 rounded-xl border border-slate-200 bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                    className={cn(
+                      "w-full h-11 pl-10 rounded-xl border bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                      errors.specialisation ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                    )}
                     placeholder="Area of expertise" 
                 />
               </div>
+              {errors.specialisation && <p className="text-xs font-semibold text-red-500 mt-1">{errors.specialisation[0]}</p>}
             </div>
 
             {/* LinkedIn */}
@@ -426,10 +466,14 @@ function BoSFormContent() {
                 <input 
                     value={formData.linkedin_id}
                     onChange={(e) => setFormData({ ...formData, linkedin_id: e.target.value })}
-                    className="w-full h-11 pl-10 rounded-xl border border-slate-200 bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                    className={cn(
+                      "w-full h-11 pl-10 rounded-xl border bg-slate-50/50 pr-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                      errors.linkedin_id ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                    )}
                     placeholder="linkedin.com/in/username" 
                 />
               </div>
+              {errors.linkedin_id && <p className="text-xs font-semibold text-red-500 mt-1">{errors.linkedin_id[0]}</p>}
             </div>
 
             {/* Tenure Dates */}

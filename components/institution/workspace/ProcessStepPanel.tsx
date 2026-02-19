@@ -113,10 +113,8 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
   if (step.key === 'process-1') {
     return <OBEFrameworkForm />;
   }
-
-  if (step.key === 'process-2') {
-    return <ProgramCoordinatorForm />;
-  }
+  
+  // process-2 removed
 
   if (step.key === 'process-3') {
     return <ProgramAdvisoryCommitteeForm />;
@@ -133,10 +131,8 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
   if (step.key === 'process-6') {
     return <VisionMissionGenerator />;
   }
-
-  if (step.key === 'process-7') {
-    return <PeoGenerator />;
-  }
+  
+  // process-7 removed (merged into process-6)
 
   if (step.key === 'process-8') {
     return <ConsistencyMatrix />;
@@ -159,7 +155,7 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
   }
 
   // Restore SharedForm usage for steps that don't have a specific component yet.
-  if (step.kind === 'form' && !['council', 'process-2', 'process-3', 'process-4', 'process-5', 'process-6', 'process-7', 'process-9', 'process-10', 'process-14'].includes(step.key)) {
+  if (step.kind === 'form' && !['council', 'process-3', 'process-4', 'process-5', 'process-6', 'process-9', 'process-10', 'process-14'].includes(step.key)) {
      return <SharedForm step={step} />;
   }
   

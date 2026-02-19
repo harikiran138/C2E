@@ -98,22 +98,10 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
       color: 'amber',
       icon: 'UserPlus'
     },
-    'process-2': {
-      label: 'Assigned',
-      value: statsData?.stepStatus?.['process-2'] ? 'Yes' : 'No',
-      color: 'indigo',
-      icon: 'UserCog'
-    },
     'process-6': {
       label: 'Finalised',
       value: statsData?.stepStatus?.['process-6'] ? 'Yes' : 'No',
       color: 'emerald',
-      icon: 'Target'
-    },
-    'process-7': {
-      label: 'PEOs',
-      value: statsData?.peoCount || 0,
-      color: 'blue',
       icon: 'Target'
     },
     'process-9': {

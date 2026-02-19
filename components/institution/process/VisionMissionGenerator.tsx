@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, Sparkles, Save, Check, RefreshCw, Bookmark, BookmarkCheck } from 'lucide-react';
 import { AI_API_URL } from '@/lib/api';
+import PeoGenerator from '@/components/institution/process/PeoGenerator';
 
 const VISION_PRIORITIES = [
   'Global Engineering Excellence',
@@ -501,6 +502,19 @@ export default function VisionMissionGenerator() {
             {saving ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
             Save Vision & Mission
         </button>
+      </div>
+
+      <div className="h-px bg-slate-200 my-8" />
+      
+      {/* PEO SECTION - Merged from PeoGenerator */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="size-5 text-indigo-500" /> Program Educational Objectives (PEOs)
+            </h3>
+        </div>
+        {/* Render PeoGenerator with context hidden as it's already shown above */}
+        <PeoGenerator hideContext={true} isEmbedded={true} />
       </div>
 
     </div>

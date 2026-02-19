@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 export async function POST(request: Request) {
   try {
-    const { priorities, count, institutionContext, programName } = await request.json();
+    const body = await request.json();
+    console.log('PEO Request Body:', JSON.stringify(body));
+    const { priorities, count, institutionContext, programName } = body;
 
     if (!priorities || priorities.length === 0) {
+      console.warn('PEO Request missing priorities');
       return NextResponse.json({ error: 'Priorities are required' }, { status: 400 });
     }
 
@@ -48,6 +51,8 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
+        const errText = await response.text();
+        console.error('Gemini API Error details:', errText);
         throw new Error(`Gemini API Failed: ${response.statusText}`);
     }
 

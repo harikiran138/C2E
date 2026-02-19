@@ -16,6 +16,8 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { z } from "zod";
+import { peoSchema, dateRangeSchema } from "@/lib/schemas";
 
 // --- MASTER UI DESIGN TOKENS ---
 // Typography: System (Inter-like)
@@ -42,7 +44,12 @@ interface DateRange {
   end: string;
 }
 
-export default function PeoGenerator() {
+interface PeoGeneratorProps {
+  hideContext?: boolean;
+  isEmbedded?: boolean;
+}
+
+export default function PeoGenerator({ hideContext = false, isEmbedded = false }: PeoGeneratorProps) {
   const searchParams = useSearchParams();
   const programId = searchParams.get('programId');
 
@@ -58,6 +65,7 @@ export default function PeoGenerator() {
   
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Process Dates
   const [brainstormingDates, setBrainstormingDates] = useState<DateRange>({ start: '', end: '' });
@@ -176,6 +184,50 @@ export default function PeoGenerator() {
   const handleSaveAll = async () => {
     if (!programId) return;
     setSaving(true);
+    setErrors({});
+
+    // Validation
+    const newErrors: Record<string, string> = {};
+    let isValid = true;
+
+    // Validate Dates
+    const dateRanges = [
+        { name: 'brainstorming', data: brainstormingDates },
+        { name: 'feedback', data: feedbackDates },
+        { name: 'consolidation', data: consolidationDates }
+    ];
+
+    dateRanges.forEach(({ name, data }) => {
+        if (data.start || data.end) {
+             if (!data.start || !data.end) {
+                 isValid = false;
+                 newErrors[`${name}_dates`] = "Both start and end dates are required.";
+             } else {
+                const result = dateRangeSchema.safeParse({ startDate: data.start, endDate: data.end });
+                if (!result.success) {
+                    isValid = false;
+                    newErrors[`${name}_dates`] = result.error.issues[0]?.message || "Invalid date range";
+                }
+             }
+        }
+    });
+
+    // Validate PEOs
+    peos.forEach((peo) => {
+        const result = peoSchema.safeParse({ statement: peo.peo_statement });
+        if (!result.success) {
+            isValid = false;
+            newErrors[`peo_${peo.id}`] = result.error.issues[0]?.message || "Invalid PEO";
+        }
+    });
+
+    if (!isValid) {
+        setErrors(newErrors);
+        setSaving(false);
+        alert("Please fix validation errors before saving.");
+        return;
+    }
+
     try {
         // Save Dates
         await fetch('/api/institution/program/peo-dates', {
@@ -207,6 +259,9 @@ export default function PeoGenerator() {
         if (peoResponse.ok) {
             const peoData = await peoResponse.json();
             setPeos(peoData.data);
+            alert('PEOs and Timelines saved successfully!');
+        } else {
+            alert('PEOs saved, but failed to refresh list.');
         }
 
     } catch (error) {
@@ -278,6 +333,7 @@ export default function PeoGenerator() {
             <div className="lg:col-span-5 space-y-8">
                 
                 {/* Institutional Context */}
+                {!hideContext && (
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-slate-100 rounded-lg">
@@ -301,6 +357,7 @@ export default function PeoGenerator() {
                         </div>
                     </div>
                 </div>
+                )}
 
                 {/* AI Generator */}
                 <div id="ai-generator" className="bg-white rounded-2xl p-6 border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] relative overflow-hidden">
@@ -406,27 +463,30 @@ export default function PeoGenerator() {
                                <div className="size-1.5 rounded-full bg-slate-300" /> Brainstorming
                            </label>
                            <div className="space-y-2">
-                               <input type="date" value={brainstormingDates.start} onChange={e => setBrainstormingDates({...brainstormingDates, start: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
-                               <input type="date" value={brainstormingDates.end} onChange={e => setBrainstormingDates({...brainstormingDates, end: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
+                               <input type="date" value={brainstormingDates.start} onChange={e => setBrainstormingDates({...brainstormingDates, start: e.target.value})} className={`w-full h-9 px-3 rounded-lg border text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600 ${errors.brainstorming_dates ? 'border-red-500' : 'border-slate-200'}`} />
+                               <input type="date" value={brainstormingDates.end} onChange={e => setBrainstormingDates({...brainstormingDates, end: e.target.value})} className={`w-full h-9 px-3 rounded-lg border text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600 ${errors.brainstorming_dates ? 'border-red-500' : 'border-slate-200'}`} />
                            </div>
+                           {errors.brainstorming_dates && <p className="text-red-500 text-[10px] mt-1">{errors.brainstorming_dates}</p>}
                        </div>
                        <div className="space-y-2">
                            <label className="text-xs font-semibold text-slate-600 flex items-center gap-2">
                                <div className="size-1.5 rounded-full bg-slate-300" /> Feedback
                            </label>
                            <div className="space-y-2">
-                               <input type="date" value={feedbackDates.start} onChange={e => setFeedbackDates({...feedbackDates, start: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
-                               <input type="date" value={feedbackDates.end} onChange={e => setFeedbackDates({...feedbackDates, end: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
+                               <input type="date" value={feedbackDates.start} onChange={e => setFeedbackDates({...feedbackDates, start: e.target.value})} className={`w-full h-9 px-3 rounded-lg border text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600 ${errors.feedback_dates ? 'border-red-500' : 'border-slate-200'}`} />
+                               <input type="date" value={feedbackDates.end} onChange={e => setFeedbackDates({...feedbackDates, end: e.target.value})} className={`w-full h-9 px-3 rounded-lg border text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600 ${errors.feedback_dates ? 'border-red-500' : 'border-slate-200'}`} />
                            </div>
+                           {errors.feedback_dates && <p className="text-red-500 text-[10px] mt-1">{errors.feedback_dates}</p>}
                        </div>
                        <div className="space-y-2">
                            <label className="text-xs font-semibold text-slate-600 flex items-center gap-2">
                                <div className="size-1.5 rounded-full bg-slate-300" /> Consolidation
                            </label>
                            <div className="space-y-2">
-                               <input type="date" value={consolidationDates.start} onChange={e => setConsolidationDates({...consolidationDates, start: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
-                               <input type="date" value={consolidationDates.end} onChange={e => setConsolidationDates({...consolidationDates, end: e.target.value})} className="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600" />
+                               <input type="date" value={consolidationDates.start} onChange={e => setConsolidationDates({...consolidationDates, start: e.target.value})} className={`w-full h-9 px-3 rounded-lg border text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600 ${errors.consolidation_dates ? 'border-red-500' : 'border-slate-200'}`} />
+                               <input type="date" value={consolidationDates.end} onChange={e => setConsolidationDates({...consolidationDates, end: e.target.value})} className={`w-full h-9 px-3 rounded-lg border text-xs font-medium focus:ring-2 focus:ring-teal-500/20 outline-none text-slate-600 ${errors.consolidation_dates ? 'border-red-500' : 'border-slate-200'}`} />
                            </div>
+                           {errors.consolidation_dates && <p className="text-red-500 text-[10px] mt-1">{errors.consolidation_dates}</p>}
                        </div>
                     </div>
                 </div>
@@ -464,9 +524,10 @@ export default function PeoGenerator() {
                                                 <textarea 
                                                     value={peo.peo_statement}
                                                     onChange={(e) => handleUpdatePeo(peo.id, e.target.value)}
-                                                    className="w-full min-h-[80px] text-base text-slate-800 font-medium bg-transparent border-none p-0 focus:ring-0 resize-none placeholder:text-slate-300"
+                                                    className={`w-full min-h-[80px] text-base text-slate-800 font-medium bg-transparent p-2 focus:ring-0 resize-none placeholder:text-slate-300 ${errors[`peo_${peo.id}`] ? 'border border-red-500 rounded bg-red-50/10' : 'border-none'}`}
                                                     placeholder="Enter PEO statement..."
                                                 />
+                                                {errors[`peo_${peo.id}`] && <p className="text-red-500 text-xs mt-1">{errors[`peo_${peo.id}`]}</p>}
                                             </div>
 
                                             <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

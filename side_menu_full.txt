@@ -1,0 +1,470 @@
+Once you finish institutional entries, this new frame should open indicating the
+College name on the left top of the frame
+
+Side Menu
+
+1. Constitute Academic Council [Form should open]
+
+Process
+
+1. Tutor (Definitions & Protocols of OBE)
+2. Select Program of Study [Drop down menu]
+3. Constitute Program Advisory Committee (PAC) [Form should open]
+4. Constitute Board of Studies (BoS)
+5. Add Representative Stakeholders [Form should open]
+6. Formulate Vision, Mission, & PEOs [Form should open]. This is AI driven
+7. Generate Consistency Matrix of Mission & PEOs
+8. Generate Program Outcomes [Form should open]
+9. Formulate Program Specific Outcomes [Form should open]. This is AI driven
+10. Disseminate Vision, Mission & PEOs
+11. Generate Curriculum Structure [Form should open]
+12. Identify OBE aligned Courses [Form should open
+13. Generate Course Outcomes (Base RBT) [Form should open]
+14. Develop Curriculum [Table should open or Excel file should open on the right side to fill our table in
+    prescribed format with the details from Excel sheet]
+15. Float Feedback on Curriculum [Form should open on right side]
+16. Intimate BoS & ACM
+17. Finalise Curriculum
+
+
+Side Menu: Constitute Academic Council (Form Requirements)
+
+1.  Name of the Member (Text field)
+2.  Member ID
+3.  Organisation (Text Field)
+4.  Email ID (Text field or any email field)
+5.  Mobile Number
+6.  Specialisation
+7.  Category (Drop Down Menu) with following items [The Principal (Chairman), Head of the Department,
+    Senior Teachers, Governing Body Nominee, University Nominee, UGC Nominee, Member Secretary]
+8. Tenure Starting Date
+9. Tenure Ending Date
+10. Communicate
+11. LinkedIn ID
+12. Save (Button)
+13. Edit (Button)
+14. Print PDF (Button)
+
+Side Menu: Select Program of Study (Form Requirements)
+
+1. Name of the Program (Drop down Menu) - Need to float from institutional details
+Side Menu: Constitute Program Advisory Committee (Form Requirements)
+
+1.  Name of the Member (Text field)
+2.  Member ID
+3.  Organisation (Text Field)
+4.  Email ID (Text field or any email field)
+5.  Mobile Number
+6.  Specialisation
+7.  Category (Drop Down Menu) with following items [Senior Industry Expert (Chairman), Industry Members,
+    Professional Body Members, Alumni, Academia, Seniors Internal Faculty, Head of the Department,
+    Student Representative]
+8. Tenure Starting Date
+9. Tenure Ending Date
+10. Communicate
+11. LinkedIn ID
+12. Save (Button)
+13. Edit (Button)
+14. Print PDF (Button)
+
+Side Menu: Board of Studies (BoS) (Form Requirements)
+
+1.  Name of the Member (Text field)
+2.  Member ID
+3.  Organisation (Text Field)
+4.  Email ID (Text field or any email field)
+5.  Mobile Number
+6.  Specialisation
+7.  Category (Drop Down Menu) with following items [The Head of the Department (Chairman), Program
+    Coordinator, Program Teachers, Academic Council Nominee, Nominee of the VC (Affiliating University),
+    Industry/Corporate, Alumni, UGC Nominee, Member Secretary]
+8. Tenure Starting Date
+9. Tenure Ending Date
+10. Communicate
+11. LinkedIn ID
+12. Save (Button)
+13. Edit (Button)
+14. Print PDF (Button)
+
+Side Menu: Add Representative Stakeholders (Form Requirements)
+
+1. Name of the Member (Text field)
+2. Member ID
+3. Organisation (Text Field)
+4. Email ID (Text field or any email field)
+5. Mobile Number
+6. Specialisation
+7. Category (Drop Down Menu) with following items [Academia, Industry, Corporate, Potential Employer,
+   Professional Body. Research organisation, Alumni, Senior Students, Parents, Management]
+8. Communicate
+9. LinkedIn ID
+10. Save (Button)
+11. Edit (Button)
+12. Print PDF (Button)
+
+Side Menu: Formulate Vision, Mission, & PEOs [Form should open]. This is AI driven
+(MOST IMPORTANT AI DRIVEN)
+1. Institute Vision (Display)
+2. Institute Mission (Display)
+3. Select Priorities (Radio Button)
+
+    Vision
+
+    • Global Engineering Excellence, Future
+    • Global engineering excellence
+    • Future-ready engineers
+    • Innovation-driven education
+    • Technology with purpose
+    • Engineering for societal impact
+    • Internationally benchmarked
+    • Outcome-oriented education
+    • Professional engineering standards
+    • Globally competitive graduates
+    • Ethics and integrity
+    • Sustainable development
+    • Human-centric engineering
+    • Responsible innovation
+
+    Mission
+
+    • Outcome Based Education
+    • Experiential learning
+    • Strong theoretical foundation
+    • Practice-oriented curriculum
+    • Continuous academic improvement
+    • Industry-aligned curriculum
+    • Hands-on laboratories
+    • Internship-embedded learning
+    • Professional skill development
+    • Employability enhancement
+    • Research-led teaching
+    • Innovation and entrepreneurship
+    • Problem-based learning
+    • Interdisciplinary approach
+    • Critical thinking
+    • Problem solving
+    • Teamwork and leadership
+    • Effective communication
+    • Ethical engineering practice
+    • Sustainability consciousness
+    • Social responsibility
+    • Lifelong learning mindset
+
+    PEOs
+
+    3.1. Institute Vision
+    3.2. Institute Mission
+    3.3. National Priorities
+    3.4. Regional Priorities
+    3.5. Local Priorities
+    3.6. 21st Century Skills
+    3.7. Sustainable Development Goals (SDGs)
+    3.8. Entrepreneurship
+    3.9. Professional Practice
+    3.10. Higher Education and Growth
+    3.11. Leadership and Teamwork
+    3.12. Ethics and Society
+    3.13. Adaptability
+
+4. No. of Vision Statements to generated (Drop down Menu - Upto 10)
+5. No. of Mission Statements to generated (Drop down Menu - Upto 10)
+6. No. of PEOs to generated (Drop down Menu - Upto 20)
+7. Generate Draft Vision (Button)
+8. Generate Draft Mission (Button)
+9. Generate Draft PEOs (Button)
+10. Initiate Internal Virtual Brainstorming
+
+    10.1.Start Date
+    10.2.End Date
+
+11. Finalise Draft Version #1 of Vision, Mission and PEOs (Button)
+12. Seek Feedback on Vision, Mission and PEOs from Stakeholders
+
+    12.1. Start Date
+    12.2. End Date
+    12.3. Seek
+
+13. Consolidate Feedback on Statement Formulation
+14. Initiate Internal Virtual Brain Storming
+
+    14.1. Start Date
+    14.2. End Date
+    14.3. Seek
+
+15. Finalise Draft Version #2 (Buttun)
+Side Menu: Generate Consistency Matrix of Mission & PEOs [Table should open]. This is AI driven
+(Most Important) AI driven response needed to fill the following
+responses automatically once we click, generate Consistency
+Matrix. 1 for low, 2 medium, 3 high, ‘-‘ for no correlation
+
+                            Mission (1)                Mission…                   Mission (n)
+
+PEO (1)
+
+.
+
+.
+
+PEO (n)
+
+
+
+Generate Program Outcomes [Form should open]
+
+1. Tier I (Include SDGs and WK) (Radio Button)
+2. Tier II (Radio Button)
+
+Once we click Option 1, the following images should be loaded as enclosed in
+WhatsApp. Following the three images, the following text shall be loaded.
+
+Image #1
+
+Image #2
+
+Image #3
+PO1 – Engineering Knowledge: Apply the knowledge of mathematics, science, engineering fundamentals,
+and an engineering specialization to the solution of complex engineering problems.
+
+PO2 – Problem Analysis: Identify, formulate, review research literature, and analyze complex engineering
+problems reaching substantiated conclusions using first principles of mathematics, natural sciences and
+engineering sciences.
+
+PO3 – Design/Development of Solutions: Design solutions for complex engineering problems and design
+system components or processes that meet specified needs with appropriate societal, health, safety, cultural,
+and environmental considerations.
+
+PO4 – Conduct Investigations of Complex Problems: Use research-based knowledge and research
+methods including design of experiments, analysis & interpretation of data, and synthesis to arrive at valid
+conclusions.
+
+PO5 – Engineering Tool Usage: Create, select, and apply appropriate techniques, resources, and modern
+engineering and IT tools (including prediction and modelling) to complex engineering activities with an
+understanding of limitations.
+PO6 – The Engineer and The World: Analyze and evaluate societal and environmental aspects while solving
+complex engineering problems for its impact on sustainability, economy, health, safety, legal framework,
+culture, and environment.
+
+PO7 – Ethics: Apply ethical principles and commit to professional ethics, human values, diversity and
+inclusion; adhere to national & international laws.
+
+PO8 – Individual and Collaborative Team Work: Function effectively as an individual, and as a member or
+leader in diverse teams and multidisciplinary settings, with focus on inclusivity.
+
+PO9 – Communication: Communicate effectively on complex engineering activities with the engineering
+community and society at large — including comprehension and written reports, presentations, and clear
+instructions.
+
+PO10 – Project Management and Finance: Demonstrate knowledge and understanding of engineering and
+management principles and apply these to one’s own work as a member and leader in a team to manage
+projects in multidisciplinary environments.
+
+PO11 – Life-Long Learning: Recognize the need for, and ability to engage in, independent and lifelong
+learning in the context of technological change, adaptability and continued relevance
+
+
+
+If, Option 2 is selected
+
+PO1 – Engineering Knowledge: Apply the knowledge of mathematics, science, engineering fundamentals,
+and an engineering specialization to the solution of complex engineering problems.
+
+PO2 – Problem Analysis: Identify, formulate, review research literature, and analyze complex engineering
+problems reaching substantiated conclusions using first principles of mathematics, natural sciences, and
+engineering sciences.
+
+PO3 – Design / Development of Solutions: Design solutions for complex engineering problems and design
+system components or processes that meet specified needs with appropriate consideration for public health
+and safety, cultural, societal, and environmental considerations.
+
+PO4 – Conduct Investigations of Complex Problems: Use research-based knowledge and research
+methods including design of experiments, analysis and interpretation of data, and synthesis of information to
+provide valid conclusions.
+
+PO5 – Modern Tool Usage: Create, select, and apply appropriate techniques, resources, and modern
+engineering and IT tools (including prediction and modeling) to complex engineering activities, with an
+understanding of the limitations.
+
+PO6 – The Engineer and Society: Apply reasoning informed by contextual knowledge to assess societal,
+health, safety, legal, and cultural issues and the consequent responsibilities relevant to professional
+engineering practice.
+
+PO7 – Environment and Sustainability: Understand the impact of professional engineering solutions in
+societal and environmental contexts, and demonstrate the knowledge of, and need for, sustainable
+development.
+
+PO8 – Ethics: Apply ethical principles and commit to professional ethics and responsibilities and norms of
+engineering practice.
+PO9 – Individual and Team Work: Function effectively as an individual, and as a member or leader in diverse
+teams, and in multidisciplinary settings.
+
+PO10 – Communication: Communicate effectively on complex engineering activities with the engineering
+community and with society at large, such as being able to comprehend and write effective reports and design
+documentation, make effective presentations, and give and receive clear instructions.
+
+PO11 – Project Management and Finance: Demonstrate knowledge and understanding of engineering and
+management principles and apply these to one’s own work, as a member and leader in a team, to manage
+projects and in multidisciplinary environments.
+
+PO12 – Life-Long Learning: Recognize the need for, and have the preparation and ability to engage in
+independent and life-long learning in the broadest context of technological change.
+
+
+
+Formulate Program Specific Outcomes [Form should open]. This is AI driven
+
+1. Select your Lead Society (Radio Button)
+
+A. Lead Societies (Primary discipline owners)
+  •     American Institute of Aeronautics and Astronautics
+  •     American Society of Agricultural and Biological Engineers
+  •     American Society of Civil Engineers
+  •     American Institute of Chemical Engineers
+  •     Biomedical Engineering Society
+  •     Institute of Electrical and Electronics Engineers
+  •     American Society for Engineering Education
+  •     Institute of Industrial and Systems Engineers
+  •     American Society of Mechanical Engineers
+  •     American Academy of Environmental Engineers and Scientists
+  •     Society for Fire Protection Engineers
+  •     Society for Mining, Metallurgy, and Exploration
+  •     Society of Manufacturing Engineers
+  •     The Minerals, Metals & Materials Society
+  •     American Ceramic Society
+  •     Society of Naval Architects and Marine Engineers
+  •     American Nuclear Society
+  •     Society of Petroleum Engineers
+  •     CSAB
+  •     National Society of Professional Surveyors
+
+B. Co-Lead Societies (Joint discipline ownership)
+  •     Institute of Electrical and Electronics Engineers
+  •     CSAB
+  •     International Council on Systems Engineering
+  •     American Society of Mechanical Engineers
+  •     American Academy of Environmental Engineers and Scientists
+   •      American Society of Agricultural and Biological Engineers
+   •      American Society of Civil Engineers
+   •      SAE International
+
+C. Cooperating Societies (Supporting / interdisciplinary role)
+   •      Institute of Electrical and Electronics Engineers
+   •      CSAB
+   •      International Society of Automation
+   •      SAE International
+   •      American Society of Heating, Refrigerating and Air-Conditioning Engineers
+   •      American Society of Mechanical Engineers
+   •      American Institute of Chemical Engineers
+   •      American Ceramic Society
+   •      The Minerals, Metals & Materials Society
+   •      American Society of Civil Engineers
+
+2. No. of PSOs need to be generated (Text field)
+3. Generate
+4. Regenerate
+
+
+************ ************ ************ ************ ************ ************ ************ ************ ************ ***********
+
+Side Menu: Generate Curriculum Structure [Form should open for the following data]
+
+          Curriculum Structure, Learning Hours & Credits (This table should open).
+
+                                         Typical Credit
+                                          Range (%)        Your        Number of Courses    Suggested Learning Hours & Credit
+ Category                                                 Design
+                                         Min     Max        %
+                                                                   T      P     TU     LL   CI    T     LI   TW/D   Total   Credit
+
+ Basic Science                     BS    20       25                                        45    15
+
+ Engineering Science               ES    15       20
+
+ Humanities & Social Science       HSS   10       15
+
+ Professional Core                 PC    25       30
+
+ Professional Elective             PE    10       15
+ Open Electives (Inter-
+ departmental)
+                                   OE    10       15
+
+ Audit / Mandatory Courses         MC     0        0
+
+ Ability Enhancement Courses       AE     5        6
+
+ Skill Enhancement Courses         SE     5        6
+
+ Projects, Internships & Seminar   PR     8       10
+
+                                                            0
+Select the type of Elective Category (Conventional): [Drop down Menu….]
+
+       [
+       None
+       BS
+       ES
+       HSS
+       PC
+       OE
+       MC
+       AE
+       SE
+       ]
+
+Select the type of Trans-Disciplinary Electives: [Drop down Menu]
+
+       [
+       None
+       Technology & Management
+       Technology & Economics
+       Technology & Public Policy
+       Technology, Society & Ethics
+       Technology & Design
+       Technology & Creativity (STEAM)
+       Technology & Sustainability
+       Technology & Environment
+       Technology & Health Sciences
+       Technology & Life Sciences
+       Technology & Law & Governance
+       Technology & Data & Analytics
+       Technology & Artificial Intelligence (Cross-Domain)
+       Technology & Human Behaviour
+       Technology & Indian Knowledge Systems
+       Technology & Social Impact
+       Technology & Entrepreneurship & Innovation
+       Technology & Smart Infrastructure & Urban Systems
+       Technology & Education & Learning Sciences
+       Technology & Media, Communication & Storytelling
+       ]
+Select the Semester & Category of Courses
+
+          Total number of Credits: (Text field). Need whole number validation
+
+          Table should open in the following format.
+
+
+
+              No. of
+ Semester                                              Number of Courses
+              Credits
+
+                            BS      ES    HSS     PC      OE     MC        AE   SE   INT   PRO   OTHERS
+
+              Text field
+     I        (Number
+              Validation)
+
+    II
+
+    III
+
+    IV
+
+    V
+
+    VI
+
+   VII
+
+   VIII
+

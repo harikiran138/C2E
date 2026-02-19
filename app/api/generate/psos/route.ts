@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 export async function POST(request: Request) {
   try {
-    const { leadSociety, count, programName } = await request.json();
+    const body = await request.json();
+    console.log('PSO Request Body:', JSON.stringify(body));
+    const { leadSociety, count, programName } = body;
 
     if (!leadSociety) {
+      console.warn('PSO Request missing leadSociety');
       return NextResponse.json({ error: 'Lead Society is required' }, { status: 400 });
     }
 
@@ -46,6 +49,8 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
+        const errText = await response.text();
+        console.error('Gemini API Error details:', errText);
         throw new Error(`Gemini API Failed: ${response.statusText}`);
     }
 

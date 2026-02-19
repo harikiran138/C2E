@@ -25,6 +25,8 @@ import {
   Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { memberSchema } from '@/lib/schemas';
+import { z } from "zod";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -64,6 +66,7 @@ function PACFormContent() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     member_name: '',
@@ -103,6 +106,24 @@ function PACFormContent() {
     if (!programId) return;
 
     setSubmitting(true);
+    setErrors({});
+
+    const result = memberSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors = result.error.flatten().fieldErrors;
+      const newErrors: Record<string, string> = {};
+      for (const key in fieldErrors) {
+        // @ts-ignore
+        if (fieldErrors[key] && fieldErrors[key].length > 0) {
+           // @ts-ignore
+          newErrors[key] = fieldErrors[key][0];
+        }
+      }
+      setErrors(newErrors);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/institution/pac', {
         method: editingId ? 'PUT' : 'POST',
@@ -314,9 +335,13 @@ function PACFormContent() {
                 required
                 value={formData.member_name}
                 onChange={(e) => setFormData({ ...formData, member_name: e.target.value })}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                className={cn(
+                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none",
+                  errors.member_name ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-indigo-500"
+                )}
                 placeholder="Full name" 
               />
+              {errors.member_name && <p className="text-red-500 text-xs mt-1 font-medium">{errors.member_name}</p>}
             </div>
 
             {/* Member ID Field */}
@@ -350,7 +375,10 @@ function PACFormContent() {
                     required
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none appearance-none cursor-pointer"
+                    className={cn(
+                        "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none appearance-none cursor-pointer",
+                        errors.category ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-indigo-500"
+                    )}
                 >
                     <option value="">Select Category</option>
                     {PAC_CATEGORIES.map((category) => (
@@ -361,6 +389,7 @@ function PACFormContent() {
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
               </div>
+              {errors.category && <p className="text-red-500 text-xs mt-1 font-medium">{errors.category}</p>}
             </div>
 
             {/* Organisation Field */}
@@ -369,9 +398,13 @@ function PACFormContent() {
               <input 
                 value={formData.organization}
                 onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                className={cn(
+                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none",
+                  errors.organization ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-indigo-500"
+                )}
                 placeholder="Current Organisation" 
               />
+              {errors.organization && <p className="text-red-500 text-xs mt-1 font-medium">{errors.organization}</p>}
             </div>
 
             {/* Email Field */}
@@ -381,9 +414,13 @@ function PACFormContent() {
                 type="email" 
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                className={cn(
+                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none",
+                  errors.email ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-indigo-500"
+                )}
                 placeholder="email@example.com" 
               />
+              {errors.email && <p className="text-red-500 text-xs mt-1 font-medium">{errors.email}</p>}
             </div>
 
             {/* Mobile Field */}
@@ -392,9 +429,13 @@ function PACFormContent() {
               <input 
                 value={formData.mobile_number}
                 onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none" 
+                className={cn(
+                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none",
+                  errors.mobile_number ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-indigo-500"
+                )}
                 placeholder="+91 00000 00000" 
               />
+              {errors.mobile_number && <p className="text-red-500 text-xs mt-1 font-medium">{errors.mobile_number}</p>}
             </div>
 
             {/* Specialisation Field */}

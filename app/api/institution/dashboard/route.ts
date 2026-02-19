@@ -88,13 +88,12 @@ export async function GET(request: Request) {
             peoCount = parseInt(peoRes.rows[0]?.count || '0');
             poCount = parseInt(poRes.rows[0]?.count || '0');
             psoCount = parseInt(psoRes.rows[0]?.count || '0');
-
-            stepStatus['process-2'] = parseInt(coordRes.rows[0]?.count) > 0;
+            // process-2 (Coordinator) and process-7 (PEOs standalone) removed from steps
             stepStatus['process-3'] = pacCount > 0;
             stepStatus['process-4'] = bosCount > 0;
             stepStatus['process-5'] = stakeholdersCount > 0;
-            stepStatus['process-6'] = vmpRes.rows[0]?.finalized;
-            stepStatus['process-7'] = peoCount > 0;
+            stepStatus['process-6'] = vmpRes.rows[0]?.finalized; 
+            // process-6 now covers Vision, Mission & PEOs
             stepStatus['process-9'] = poCount > 0;
             stepStatus['process-10'] = psoCount > 0;
 
