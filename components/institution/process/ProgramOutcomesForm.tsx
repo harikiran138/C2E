@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2, Save, CheckCircle } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2, Save } from 'lucide-react';
 
 const TIER_1_POS = [
   { code: 'PO1', title: 'Engineering Knowledge', description: 'Apply the knowledge of mathematics, science, engineering fundamentals, and an engineering specialization to the solution of complex engineering problems.' },
@@ -142,6 +143,23 @@ export default function ProgramOutcomesForm() {
 
             {tier && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {tier === 'TIER_1' && (
+                        <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5">
+                            <h4 className="text-sm font-semibold text-slate-700">Tier I Reference Context</h4>
+                            <div className="grid grid-cols-1 gap-6">
+                                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                    <Image src="/assets/po/image1.png" alt="Tier I context image 1" fill className="object-contain" />
+                                </div>
+                                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                    <Image src="/assets/po/image2.png" alt="Tier I context image 2" fill className="object-contain" />
+                                </div>
+                                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                    <Image src="/assets/po/image3.png" alt="Tier I context image 3" fill className="object-contain" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                      <div className="flex items-center justify-between">
                         <h3 className="text-xl font-bold text-slate-900">Program Outcomes ({tier === 'TIER_1' ? 'Tier I' : 'Tier II'})</h3>
                         <button 

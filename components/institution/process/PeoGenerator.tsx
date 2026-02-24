@@ -30,18 +30,28 @@ const PEO_PRIORITIES = [
   'Regional Priorities',
   'Local Priorities',
   '21st Century Skills',
-  'Sustainable Development Goals',
+  'Sustainable Development Goals (SDGs)',
   'Entrepreneurship',
   'Professional Practice',
-  'Higher Education',
-  'Leadership',
-  'Ethics & Society',
+  'Higher Education and Growth',
+  'Leadership and Teamwork',
+  'Ethics and Society',
   'Adaptability'
 ];
 
 interface DateRange {
   start: string;
   end: string;
+}
+
+interface SmartAbetQuality {
+  score: number;
+  specific: boolean;
+  measurable: boolean;
+  attainable: boolean;
+  relevant: boolean;
+  timeBound: boolean;
+  abetStyle: boolean;
 }
 
 interface PeoGeneratorProps {
@@ -62,6 +72,7 @@ export default function PeoGenerator({ hideContext = false, isEmbedded = false }
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
   const [peoCount, setPeoCount] = useState(4);
   const [generatedPeos, setGeneratedPeos] = useState<string[]>([]);
+  const [generatedPeoQuality, setGeneratedPeoQuality] = useState<SmartAbetQuality[]>([]);
   
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -144,25 +155,39 @@ export default function PeoGenerator({ hideContext = false, isEmbedded = false }
         body: JSON.stringify({
           priorities: selectedPriorities,
           count: peoCount,
-          institutionContext: `Vision: ${institution?.vision}. Mission: ${institution?.mission}`,
+          institutionContext: [
+            `Institute Vision: ${institution?.vision || 'Not specified'}.`,
+            `Institute Mission: ${institution?.mission || 'Not specified'}.`,
+            `Program Vision: ${program?.program_vision || program?.vision || 'Not specified'}.`,
+            `Program Mission: ${program?.program_mission || program?.mission || 'Not specified'}.`
+          ].join(' '),
           programName: program?.program_name || 'Engineering Program'
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setGeneratedPeos(data.results);
+        const peoResults = Array.isArray(data.results) ? data.results as string[] : [];
+        const qualityResults = Array.isArray(data.quality) ? data.quality as SmartAbetQuality[] : [];
+        setGeneratedPeos(peoResults);
+        setGeneratedPeoQuality(qualityResults);
+      } else {
+        setGeneratedPeos([]);
+        setGeneratedPeoQuality([]);
       }
     } catch (error) {
       console.error('Generation error:', error);
+      setGeneratedPeos([]);
+      setGeneratedPeoQuality([]);
     } finally {
       setGenerating(false);
     }
   };
 
-  const handleAddPeo = (statement: string) => {
+  const handleAddPeo = (statement: string, index: number) => {
       setPeos([...peos, { id: `temp-${Date.now()}`, peo_statement: statement, peo_number: peos.length + 1 }]);
-      setGeneratedPeos(generatedPeos.filter(p => p !== statement)); // Remove from suggestions
+      setGeneratedPeos((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
+      setGeneratedPeoQuality((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
   };
 
   const handleDeletePeo = async (id: string) => {
@@ -394,13 +419,17 @@ export default function PeoGenerator({ hideContext = false, isEmbedded = false }
 
                         <div className="flex items-end gap-3 pt-2">
                             <div className="flex-1">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">Quantity</label>
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">No. of PEOs to be generated</label>
                                 <select 
                                     value={peoCount}
                                     onChange={(e) => setPeoCount(Number(e.target.value))}
                                     className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold px-3 focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                 >
-                                    {[3,4,5,6].map(n => <option key={n} value={n}>{n} Outcomes</option>)}
+                                    {Array.from({ length: 20 }, (_, idx) => idx + 1).map((n) => (
+                                      <option key={n} value={n}>
+                                        {n} PEO{n === 1 ? '' : 's'}
+                                      </option>
+                                    ))}
                                 </select>
                             </div>
                             <button
@@ -427,9 +456,34 @@ export default function PeoGenerator({ hideContext = false, isEmbedded = false }
                                     <div 
                                         key={i} 
                                         className="group p-3 rounded-xl bg-indigo-50/50 border border-indigo-100 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all relative"
-                                        onClick={() => handleAddPeo(peo)}
+                                        onClick={() => handleAddPeo(peo, i)}
                                     >
                                         <p className="text-sm text-slate-700 font-medium pr-8">{peo}</p>
+                                        {generatedPeoQuality[i] && (
+                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                                <span className="rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                                                    SMART/ABET {generatedPeoQuality[i].score}/6
+                                                </span>
+                                                {[
+                                                    { label: 'S', ok: generatedPeoQuality[i].specific, title: 'Specific' },
+                                                    { label: 'M', ok: generatedPeoQuality[i].measurable, title: 'Measurable' },
+                                                    { label: 'A', ok: generatedPeoQuality[i].attainable, title: 'Attainable' },
+                                                    { label: 'R', ok: generatedPeoQuality[i].relevant, title: 'Relevant' },
+                                                    { label: 'T', ok: generatedPeoQuality[i].timeBound, title: 'Time-Bound' },
+                                                    { label: 'ABET', ok: generatedPeoQuality[i].abetStyle, title: 'ABET Style' },
+                                                ].map((item) => (
+                                                    <span
+                                                        key={`${item.title}-${i}`}
+                                                        title={item.title}
+                                                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                                                            item.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                                        }`}
+                                                    >
+                                                        {item.label}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                         <div className="absolute right-2 top-2 p-1.5 bg-white text-indigo-600 rounded-lg opacity-0 group-hover:opacity-100 shadow-sm transition-opacity">
                                             <Plus className="size-3.5" />
                                         </div>

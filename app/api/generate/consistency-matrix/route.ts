@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 export async function POST(request: Request) {
   try {
@@ -13,14 +13,14 @@ export async function POST(request: Request) {
 
     // Fallback/Safety Check
     if (!GEMINI_API_KEY) {
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.');
-        }
-        console.warn('GEMINI_API_KEY is missing. Using mock generation.');
-        // Generate random correlation (1, 2, 3, -) for mock
-        const options = ["1", "2", "3", "-"];
-        const matrix = missions.map(() => peos.map(() => options[Math.floor(Math.random() * options.length)]));
-        return NextResponse.json({ matrix });
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.');
+      }
+      console.warn('GEMINI_API_KEY is missing. Using mock generation.');
+      // Generate random correlation (1, 2, 3, -) for mock
+      const options = ["1", "2", "3", "-"];
+      const matrix = missions.map(() => peos.map(() => options[Math.floor(Math.random() * options.length)]));
+      return NextResponse.json({ matrix });
     }
 
     const prompt = `
@@ -28,10 +28,10 @@ export async function POST(request: Request) {
       Task: Create a Consistency Matrix mapping Mission Statements to Program Educational Objectives (PEOs).
       
       Mission Statements:
-      ${missions.map((m: string, i: number) => `${i+1}. ${m}`).join('\n')}
+      ${missions.map((m: string, i: number) => `${i + 1}. ${m}`).join('\n')}
       
       PEOs:
-      ${peos.map((p: string, i: number) => `${i+1}. ${p}`).join('\n')}
+      ${peos.map((p: string, i: number) => `${i + 1}. ${p}`).join('\n')}
       
       Correlation Scale:
       1 = Low
@@ -53,12 +53,12 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-        throw new Error(`Gemini API Failed: ${response.statusText}`);
+      throw new Error(`Gemini API Failed: ${response.statusText}`);
     }
 
     const data = await response.json();
     const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+
     let cleanedText = generatedText.replace(/```json/g, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanedText);
 
