@@ -122,6 +122,8 @@ function ensureSentence(text: string) {
     return trimmed.length > 0 ? `${trimmed}.` : trimmed;
 }
 
+
+
 function enforceVisionQuality(rawStatement: string, focusAreas: string[]) {
     let statement = normalizeWhitespace(stripOptionPrefix(rawStatement));
     statement = statement.replace(/\bexcellence in\b/gi, 'leadership in');
@@ -145,10 +147,6 @@ function enforceVisionQuality(rawStatement: string, focusAreas: string[]) {
     const words = statement.split(/\s+/);
     if (words.length > 36) {
         statement = words.slice(0, 36).join(' ');
-    }
-
-    if (words.length < 12 && focusAreas.length > 0) {
-        statement = `${statement.replace(/[.?!]+$/, '')} with emphasis on ${focusAreas.slice(0, 2).join(' and ').toLowerCase()}`;
     }
 
     statement = statement
@@ -412,22 +410,24 @@ ${vision_instructions ? `Custom User Instructions: ${vision_instructions}` : ''}
 ${excludedVisions.length > 0 ? `Avoid repeating any of these existing vision statements: ${excludedVisions.join(' || ')}` : ''}
 Rules: 
 1. Each statement must be 1-2 lines, Future-oriented, Professional tone.
-2. Return strictly a JSON ARRAY of strings, e.g. ["Vision 1", "Vision 2"].
-3. No markdown, no "json" tags, just the raw array.
+2. Every statement must explicitly reflect all selected focus areas.
+3. Keep statements broad, realistic, and aligned to academic vision definition.
+4. Return strictly a JSON ARRAY of strings, e.g. ["Vision 1", "Vision 2"].
+5. No markdown, no "json" tags, just the raw array.
         `;
             const visionRaw = await callGemini(visionPrompt);
             visionOptions = parseOptions(visionRaw)
                 .map((item) => enforceVisionQuality(removeAbsoluteClaims(item), vision_inputs || []))
                 .filter(Boolean);
-                visionOptions = fillToTargetCount(
-                    visionOptions,
-                    visionCount,
-                    (idx) => enforceVisionQuality(
-                        buildVisionFallbackStatement(program_name, vision_inputs || [], idx),
-                        vision_inputs || []
-                    ),
-                    excludedVisions
-                );
+            visionOptions = fillToTargetCount(
+                visionOptions,
+                visionCount,
+                (idx) => enforceVisionQuality(
+                    buildVisionFallbackStatement(program_name, vision_inputs || [], idx),
+                    vision_inputs || []
+                ),
+                excludedVisions
+            );
         }
 
         if (shouldGenerateMission) {
@@ -444,22 +444,23 @@ Rules:
 1. Each mission must be a single paragraph with 3-5 action sentences.
 2. Mission statements must be implementable and aligned to the selected program vision.
 3. Avoid highly narrow or overly ambitious phrasing that cannot be assessed in curriculum processes.
-4. Return strictly a JSON ARRAY of strings.
-5. No markdown, no "json" tags.
+4. Every mission paragraph must explicitly reflect all selected focus areas.
+5. Return strictly a JSON ARRAY of strings.
+6. No markdown, no "json" tags.
         `;
             const missionRaw = await callGemini(missionPrompt);
             missionOptions = parseOptions(missionRaw)
                 .map((item) => enforceMissionQuality(removeAbsoluteClaims(item), mission_inputs || []))
                 .filter(Boolean);
-                missionOptions = fillToTargetCount(
-                    missionOptions,
-                    missionCount,
-                    (idx) => enforceMissionQuality(
-                        buildMissionFallbackStatement(program_name, mission_inputs || [], idx),
-                        mission_inputs || []
-                    ),
-                    excludedMissions
-                );
+            missionOptions = fillToTargetCount(
+                missionOptions,
+                missionCount,
+                (idx) => enforceMissionQuality(
+                    buildMissionFallbackStatement(program_name, mission_inputs || [], idx),
+                    mission_inputs || []
+                ),
+                excludedMissions
+            );
         }
 
         return NextResponse.json({
