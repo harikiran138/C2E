@@ -117,6 +117,10 @@ function ensureSentence(text: string) {
 
 function enforceVisionQuality(rawStatement: string, focusAreas: string[]) {
     let statement = normalizeWhitespace(stripOptionPrefix(rawStatement));
+    statement = statement.replace(/\bexcellence in\b/gi, 'leadership in');
+    statement = statement.replace(/\bexcellence\b/gi, 'leadership');
+    statement = statement.replace(/\bexcel in\b/gi, 'advance in');
+    statement = statement.replace(/\bexcel\b/gi, 'advance');
     statement = statement.replace(/\bwill excel\b/gi, 'will advance');
     statement = statement.replace(/\ball graduates\b/gi, 'graduates');
     statement = statement.replace(/\bevery graduate\b/gi, 'graduates');
@@ -140,6 +144,12 @@ function enforceVisionQuality(rawStatement: string, focusAreas: string[]) {
         statement = `${statement.replace(/[.?!]+$/, '')} with emphasis on ${focusAreas.slice(0, 2).join(' and ').toLowerCase()}`;
     }
 
+    statement = statement
+        .replace(/\bexcellence in\b/gi, 'leadership in')
+        .replace(/\bexcellence\b/gi, 'leadership')
+        .replace(/\bexcel in\b/gi, 'advance in')
+        .replace(/\bexcel\b/gi, 'advance');
+
     return ensureSentence(statement);
 }
 
@@ -147,9 +157,14 @@ function buildMissionSupportSentences(focusAreas: string[]) {
     const focusPhrase = focusAreas.length
         ? focusAreas.slice(0, 2).join(' and ').toLowerCase()
         : 'outcome-based education and professional practice';
+    const sanitizedFocusPhrase = focusPhrase
+        .replace(/\bexcellence in\b/gi, 'professional growth in')
+        .replace(/\bexcellence\b/gi, 'professional growth')
+        .replace(/\bexcel in\b/gi, 'progress in')
+        .replace(/\bexcel\b/gi, 'progress');
 
     return [
-        `Deliver a curriculum anchored in ${focusPhrase} through continuous academic improvement.`,
+        `Deliver a curriculum anchored in ${sanitizedFocusPhrase} through continuous academic improvement.`,
         'Strengthen industry collaboration, ethical engineering practice, and sustainability-oriented problem solving.',
         'Promote innovation, communication, teamwork, and lifelong learning for long-term professional growth.',
     ];
@@ -157,6 +172,10 @@ function buildMissionSupportSentences(focusAreas: string[]) {
 
 function enforceMissionQuality(rawStatement: string, focusAreas: string[]) {
     let statement = normalizeWhitespace(stripOptionPrefix(rawStatement));
+    statement = statement.replace(/\bexcellence in\b/gi, 'professional growth in');
+    statement = statement.replace(/\bexcellence\b/gi, 'professional growth');
+    statement = statement.replace(/\bexcel in\b/gi, 'progress in');
+    statement = statement.replace(/\bexcel\b/gi, 'progress');
     statement = statement.replace(/\bwill excel\b/gi, 'will progress');
     statement = statement.replace(/\ball graduates\b/gi, 'graduates');
     statement = statement.replace(/\bevery graduate\b/gi, 'graduates');
