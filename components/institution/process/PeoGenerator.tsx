@@ -44,19 +44,55 @@ interface DateRange {
   end: string;
 }
 
+interface QualityCriterion {
+  key: string;
+  label: string;
+  passed: boolean;
+  guidance?: string;
+}
+
 interface SmartAbetQuality {
   score: number;
+  maxScore?: number;
+  percentage?: number;
+  rating?: string;
   specific: boolean;
   measurable: boolean;
   attainable: boolean;
   relevant: boolean;
   timeBound: boolean;
   abetStyle: boolean;
+  missionAligned?: boolean;
+  criteria?: QualityCriterion[];
+  gaps?: string[];
 }
 
 interface PeoGeneratorProps {
   hideContext?: boolean;
   isEmbedded?: boolean;
+}
+
+function resolveQualityRating(percentage: number) {
+  if (percentage >= 86) return 'Strong';
+  if (percentage >= 71) return 'Good';
+  if (percentage >= 56) return 'Developing';
+  return 'Needs improvement';
+}
+
+function getOrderedCriteria(quality: SmartAbetQuality): QualityCriterion[] {
+  if (Array.isArray(quality.criteria) && quality.criteria.length > 0) {
+    return quality.criteria;
+  }
+
+  return [
+    { key: 'specific', label: 'Specific', passed: quality.specific },
+    { key: 'measurable', label: 'Measurable', passed: quality.measurable },
+    { key: 'attainable', label: 'Attainable', passed: quality.attainable },
+    { key: 'relevant', label: 'Relevant', passed: quality.relevant },
+    { key: 'timeBound', label: 'Time-Bound', passed: quality.timeBound },
+    { key: 'abetStyle', label: 'ABET Style', passed: quality.abetStyle },
+    { key: 'missionAligned', label: 'Mission Aligned', passed: Boolean(quality.missionAligned) },
+  ];
 }
 
 export default function PeoGenerator({ hideContext = false, isEmbedded = false }: PeoGeneratorProps) {
@@ -452,43 +488,64 @@ export default function PeoGenerator({ hideContext = false, isEmbedded = false }
                                 className="mt-6 pt-6 border-t border-slate-100 space-y-3"
                             >
                                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Suggestions</h3>
-                                {generatedPeos.map((peo, i) => (
-                                    <div 
-                                        key={i} 
-                                        className="group p-3 rounded-xl bg-indigo-50/50 border border-indigo-100 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all relative"
-                                        onClick={() => handleAddPeo(peo, i)}
-                                    >
-                                        <p className="text-sm text-slate-700 font-medium pr-8">{peo}</p>
-                                        {generatedPeoQuality[i] && (
-                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                                <span className="rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-bold text-indigo-700">
-                                                    SMART/ABET {generatedPeoQuality[i].score}/6
-                                                </span>
-                                                {[
-                                                    { label: 'S', ok: generatedPeoQuality[i].specific, title: 'Specific' },
-                                                    { label: 'M', ok: generatedPeoQuality[i].measurable, title: 'Measurable' },
-                                                    { label: 'A', ok: generatedPeoQuality[i].attainable, title: 'Attainable' },
-                                                    { label: 'R', ok: generatedPeoQuality[i].relevant, title: 'Relevant' },
-                                                    { label: 'T', ok: generatedPeoQuality[i].timeBound, title: 'Time-Bound' },
-                                                    { label: 'ABET', ok: generatedPeoQuality[i].abetStyle, title: 'ABET Style' },
-                                                ].map((item) => (
-                                                    <span
-                                                        key={`${item.title}-${i}`}
-                                                        title={item.title}
-                                                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                                                            item.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                                                        }`}
-                                                    >
-                                                        {item.label}
+                                {generatedPeos.map((peo, i) => {
+                                    const quality = generatedPeoQuality[i];
+                                    const criteria = quality ? getOrderedCriteria(quality) : [];
+                                    const maxScore = (quality?.maxScore ?? criteria.length) || 7;
+                                    const percentage = typeof quality?.percentage === 'number'
+                                      ? quality.percentage
+                                      : Math.round(((quality?.score || 0) / maxScore) * 100);
+                                    const rating = quality?.rating || resolveQualityRating(percentage);
+
+                                    return (
+                                        <div 
+                                            key={i} 
+                                            className="group p-3 rounded-xl bg-indigo-50/50 border border-indigo-100 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all relative"
+                                            onClick={() => handleAddPeo(peo, i)}
+                                        >
+                                            <div className="mb-1 flex items-start justify-between gap-2 pr-8">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Draft {i + 1}</span>
+                                                {quality && (
+                                                    <span className="rounded-full border border-indigo-200 bg-white px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                                                        {quality.score}/{maxScore} • {rating}
                                                     </span>
-                                                ))}
+                                                )}
                                             </div>
-                                        )}
-                                        <div className="absolute right-2 top-2 p-1.5 bg-white text-indigo-600 rounded-lg opacity-0 group-hover:opacity-100 shadow-sm transition-opacity">
-                                            <Plus className="size-3.5" />
+                                            <p className="text-sm text-slate-700 font-medium pr-8">{peo}</p>
+                                            {quality && (
+                                                <div className="mt-3 rounded-lg border border-indigo-100 bg-white px-2.5 py-2 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">SMART + ABET Parameter Score</span>
+                                                        <span className="text-[11px] font-extrabold text-indigo-700">{percentage}%</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        {criteria.map((criterion) => (
+                                                            <div
+                                                                key={`${criterion.key}-${i}`}
+                                                                className={`rounded-md px-2 py-1 text-[10px] font-semibold border ${
+                                                                    criterion.passed
+                                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                        : 'border-amber-200 bg-amber-50 text-amber-700'
+                                                                }`}
+                                                                title={criterion.guidance || criterion.label}
+                                                            >
+                                                                {criterion.passed ? 'OK' : 'FIX'} {criterion.label}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    {Array.isArray(quality.gaps) && quality.gaps.length > 0 && (
+                                                        <p className="text-[10px] font-medium text-amber-700">
+                                                            Improve: {quality.gaps.join(', ')}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <div className="absolute right-2 top-2 p-1.5 bg-white text-indigo-600 rounded-lg opacity-0 group-hover:opacity-100 shadow-sm transition-opacity">
+                                                <Plus className="size-3.5" />
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </motion.div>
                         )}
                     </AnimatePresence>

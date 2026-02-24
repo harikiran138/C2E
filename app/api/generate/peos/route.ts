@@ -34,6 +34,14 @@ const RELEVANCE_CUES = [
   'societal',
   'community',
 ];
+const MISSION_ALIGNMENT_CUES = [
+  'mission',
+  'institutional',
+  'program priorities',
+  'department priorities',
+  'constituency',
+  'community needs',
+];
 
 function normalizeCount(value: unknown, fallback = 4) {
   const parsed = Number(value);
@@ -133,9 +141,13 @@ function enforcePeoQuality(rawStatement: string, priority: string, programName: 
     statement = `${statement.replace(/[.?!]+$/, '')} through ethical, sustainable, and industry-relevant engineering practice`;
   }
 
+  if (!containsAny(statement, MISSION_ALIGNMENT_CUES)) {
+    statement = `${statement.replace(/[.?!]+$/, '')} in alignment with program and institutional mission priorities`;
+  }
+
   const words = statement.split(/\s+/);
-  if (words.length > 52) {
-    statement = words.slice(0, 52).join(' ');
+  if (words.length > 62) {
+    statement = words.slice(0, 62).join(' ');
   }
 
   if (words.length < 18) {
@@ -148,15 +160,67 @@ function enforcePeoQuality(rawStatement: string, priority: string, programName: 
 function scoreSmartAbet(statement: string) {
   const lower = statement.toLowerCase();
 
-  const specific = lower.length >= 80;
+  const specific = lower.length >= 90;
   const measurable = containsAny(lower, MEASURABLE_CUES);
   const attainable = !containsAny(lower, ABSOLUTE_TERMS);
   const relevant = containsAny(lower, RELEVANCE_CUES);
   const timeBound = lower.startsWith(PEO_TIME_HORIZON_LOWER);
   const abetStyle = !containsAny(lower, OUTCOME_STYLE_TERMS);
+  const missionAligned = containsAny(lower, MISSION_ALIGNMENT_CUES);
 
-  const score = [specific, measurable, attainable, relevant, timeBound, abetStyle].filter(Boolean).length;
-  return { score, specific, measurable, attainable, relevant, timeBound, abetStyle };
+  const criteria = [
+    { key: 'specific', label: 'Specific', passed: specific, guidance: 'State clear professional attainment focus.' },
+    { key: 'measurable', label: 'Measurable', passed: measurable, guidance: 'Use language that can be assessed indirectly.' },
+    { key: 'attainable', label: 'Attainable', passed: attainable, guidance: 'Avoid absolute or unrealistic guarantees.' },
+    { key: 'relevant', label: 'Relevant', passed: relevant, guidance: 'Reflect discipline and professional context.' },
+    { key: 'timeBound', label: 'Time-Bound', passed: timeBound, guidance: `Use "${PEO_TIME_HORIZON}" framing.` },
+    { key: 'abetStyle', label: 'ABET Style', passed: abetStyle, guidance: 'Avoid student-outcome phrasing at graduation.' },
+    { key: 'missionAligned', label: 'Mission Aligned', passed: missionAligned, guidance: 'Explicitly align with program/institution mission.' },
+  ];
+
+  const score = criteria.filter((item) => item.passed).length;
+  const maxScore = criteria.length;
+  const percentage = Math.round((score / maxScore) * 100);
+  const rating = percentage >= 86
+    ? 'Strong'
+    : percentage >= 71
+      ? 'Good'
+      : percentage >= 56
+        ? 'Developing'
+        : 'Needs improvement';
+  const gaps = criteria.filter((item) => !item.passed).map((item) => item.label);
+
+  return {
+    score,
+    maxScore,
+    percentage,
+    rating,
+    specific,
+    measurable,
+    attainable,
+    relevant,
+    timeBound,
+    abetStyle,
+    missionAligned,
+    criteria,
+    gaps,
+  };
+}
+
+function rankPeoStatements(statements: string[]) {
+  const ranked = statements.map((statement) => ({
+    statement,
+    quality: scoreSmartAbet(statement),
+  }));
+
+  ranked.sort((a, b) => {
+    if (b.quality.score !== a.quality.score) {
+      return b.quality.score - a.quality.score;
+    }
+    return (b.quality.percentage ?? 0) - (a.quality.percentage ?? 0);
+  });
+
+  return ranked;
 }
 
 export async function POST(request: Request) {
@@ -181,9 +245,10 @@ export async function POST(request: Request) {
         const p1 = String(priorities[i % priorities.length] || 'professional practice');
         return buildFallbackPeo(p1, String(programName || 'engineering'));
       });
+      const rankedMockResults = rankPeoStatements(mockResults);
       return NextResponse.json({
-        results: mockResults,
-        quality: mockResults.map((statement) => scoreSmartAbet(statement))
+        results: rankedMockResults.map((item) => item.statement),
+        quality: rankedMockResults.map((item) => item.quality)
       });
     }
 
@@ -275,9 +340,11 @@ export async function POST(request: Request) {
       if (fallbackIndex > normalizedCount * 3) break;
     }
 
+    const rankedResults = rankPeoStatements(refined);
+
     return NextResponse.json({
-      results: refined,
-      quality: refined.map((statement) => scoreSmartAbet(statement))
+      results: rankedResults.map((item) => item.statement),
+      quality: rankedResults.map((item) => item.quality)
     });
 
   } catch (error: any) {
