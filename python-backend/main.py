@@ -97,26 +97,88 @@ async def generate_vm(request: VMGenerateRequest):
         missions = []
 
         if request.mode in ['vision', 'both']:
+            VISION_FORBIDDEN = [
+                "cultivate", "develop", "provide", "deliver",
+                "train", "prepare", "nurture", "empower",
+                "implement", "teach"
+            ]
+            
             vision_prompt = f"""
-You are an academic accreditation expert. Generate exactly {request.vision_count} distinct Program Vision statement(s).
+You are generating a PROGRAM VISION statement for an engineering institution.
+
+STRICT RULES:
+
+1. Vision must represent a 10–15 year long-term institutional aspiration.
+2. Vision must describe WHERE the program will stand in the future — not HOW it will educate students.
+3. Do NOT use operational or educational verbs such as:
+   cultivate, develop, provide, deliver, train, prepare, nurture, empower, implement, teach.
+4. Vision must reflect institutional positioning such as:
+   recognition, leadership, distinction, excellence, global standing, advancement.
+5. All selected themes must be covered collectively across the generated statements.
+6. Maintain professional accreditation tone (ABET/NBA compatible).
+7. No exaggerated claims such as:
+   guarantee, best in all, world-class in everything.
+8. Length: 18–25 words.
+9. Avoid repeating identical sentence structure across outputs.
+10. Vision must NOT describe curriculum or teaching process. That belongs to Mission.
+
+Before generating, internally:
+- Abstract selected themes into long-term institutional positioning.
+- Convert educational themes into future impact language.
+- Ensure no operational drift.
+
 Program: {request.program_name}
 Institute Vision: {request.institute_vision}
 Selected Focus Areas: {", ".join(request.vision_inputs)}
-Rules: 1–2 lines per statement, Future-oriented, Professional tone.
-Output must be a plain JSON array of strings containing ONLY the statements. Example: ["Vision 1", "Vision 2"]
-            """
-            vision_text = await call_gemini_rest_async(vision_prompt)
-            print(f"DEBUG: Gemini Vision Raw Response -> {vision_text}")
-            try:
-                import re
-                match = re.search(r'\[.*\]', vision_text, re.DOTALL)
-                if match:
-                    visions = json.loads(match.group(0))
-                else:
-                    raise Exception("No JSON array found")
-            except Exception as e:
-                print(f"DEBUG: Vision Parse Error -> {str(e)}")
-                visions = [vision_text.replace('```json', '').replace('```', '').strip()]
+
+Generate exactly {request.vision_count} distinct Vision statements.
+Vision must begin with one of:
+- To be recognized as
+- To achieve distinction in
+- To attain global leadership in
+- To advance as a leading
+- To be a nationally and internationally respected
+
+Output must be a plain JSON array of strings containing ONLY the final statements. Example: ["Vision 1", "Vision 2"]
+"""
+            max_retries = 3
+            for attempt in range(max_retries):
+                # We append a random-ish nonce or attempt count to bypass exact cache matches on retry, if needed
+                # For simplicity, we just clear cache if it fails
+                current_prompt = vision_prompt if attempt == 0 else vision_prompt + f"\n\nAttempt: {attempt+1}. STRICTLY avoid operational verbs."
+                
+                vision_text = await call_gemini_rest_async(current_prompt)
+                print(f"DEBUG: Gemini Vision Raw Response (Attempt {attempt+1}) -> {vision_text}")
+                
+                try:
+                    import re
+                    match = re.search(r'\[.*\]', vision_text, re.DOTALL)
+                    if match:
+                        parsed_visions = json.loads(match.group(0))
+                    else:
+                        raise Exception("No JSON array found")
+                except Exception as e:
+                    print(f"DEBUG: Vision Parse Error -> {str(e)}")
+                    # Fallback parsing
+                    parsed_visions = [vision_text.replace('```json', '').replace('```', '').strip()]
+                
+                # Check for forbidden verbs
+                has_forbidden = False
+                for v in parsed_visions:
+                    lower_v = v.lower()
+                    if any(verb in lower_v for verb in VISION_FORBIDDEN):
+                        has_forbidden = True
+                        print(f"DEBUG: Forbidden verb detected in vision: {v}")
+                        break
+                
+                if has_forbidden and attempt < max_retries - 1:
+                    print(f"DEBUG: Retrying vision generation due to forbidden verbs...")
+                    if current_prompt in ai_cache:
+                        del ai_cache[current_prompt]
+                    continue
+                
+                visions = parsed_visions
+                break
 
         if request.mode in ['mission', 'both']:
             v_context = request.selected_program_vision if request.selected_program_vision else (visions[0] if visions else "")

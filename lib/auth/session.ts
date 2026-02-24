@@ -1,53 +1,43 @@
-import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-
-const SECRET_KEY = process.env.JWT_SECRET_KEY || 'default_secret_key_please_change_in_production';
-const key = new TextEncoder().encode(SECRET_KEY);
-
-export type ProgramSessionPayload = {
-    program_id: string;      // The UUID of the program from DB
-    institution_id: string;  // The UUID of the institution
-    program_code: string;    // The text code like 'CS101'
-    program_name: string;    // E.g. 'Computer Science'
-};
-
-const SESSION_EXPIRATION = '7d'; // 7 days
-const SESSION_COOKIE_NAME = 'c2e_program_session';
+import {
+  ProgramSessionPayload,
+  PROGRAM_SESSION_COOKIE_NAME,
+  PROGRAM_SESSION_TTL_DAYS,
+  signProgramSessionToken,
+  verifyProgramSessionToken,
+} from '@/lib/auth/program-jwt';
 
 /**
  * Create a JWT containing the program session payload.
  */
 export async function encrypt(payload: ProgramSessionPayload) {
-    return new SignJWT(payload)
-        .setProtectedHeader({ alg: 'HS256' })
-        .setIssuedAt()
-        .setExpirationTime(SESSION_EXPIRATION)
-        .sign(key);
+    return signProgramSessionToken(payload);
 }
 
 /**
  * Decode and verify the JWT.
  */
 export async function decrypt(input: string): Promise<ProgramSessionPayload> {
-    const { payload } = await jwtVerify(input, key, {
-        algorithms: ['HS256'],
-    });
-    return payload as ProgramSessionPayload;
+    const payload = await verifyProgramSessionToken(input);
+    if (!payload) {
+        throw new Error('Invalid program session token');
+    }
+    return payload;
 }
 
 /**
  * Set the session cookie.
  */
 export async function createSession(payload: ProgramSessionPayload) {
-    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expires = new Date(Date.now() + PROGRAM_SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
     const session = await encrypt(payload);
 
     const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, session, {
+    cookieStore.set(PROGRAM_SESSION_COOKIE_NAME, session, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         expires: expires,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
     });
 }
@@ -57,7 +47,7 @@ export async function createSession(payload: ProgramSessionPayload) {
  */
 export async function getSession(): Promise<ProgramSessionPayload | null> {
     const cookieStore = await cookies();
-    const session = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const session = cookieStore.get(PROGRAM_SESSION_COOKIE_NAME)?.value;
     if (!session) return null;
     try {
         return await decrypt(session);
@@ -71,5 +61,5 @@ export async function getSession(): Promise<ProgramSessionPayload | null> {
  */
 export async function deleteSession() {
     const cookieStore = await cookies();
-    cookieStore.delete(SESSION_COOKIE_NAME);
+    cookieStore.delete(PROGRAM_SESSION_COOKIE_NAME);
 }

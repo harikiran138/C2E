@@ -1,7 +1,10 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { verifyToken, verifyRefreshToken } from './lib/auth';
+import { verifyToken } from './lib/auth';
 import { checkRateLimit } from './lib/rate-limit';
+import {
+  PROGRAM_SESSION_COOKIE_NAME,
+  verifyProgramSessionToken,
+} from './lib/auth/program-jwt';
 
 // Define public paths that do not require authentication
 const PUBLIC_PATHS = [
@@ -10,9 +13,27 @@ const PUBLIC_PATHS = [
   '/api/institution/register',
   '/api/institution/login',
   '/api/institution/auth/refresh',
-  '/',
   '/program-login',
   '/api/auth/program-login',
+  '/api/auth/program-logout',
+];
+
+const PROGRAM_API_PREFIXES = [
+  '/api/institution/details',
+  '/api/institution/pac',
+  '/api/institution/bos',
+  '/api/institution/stakeholders',
+  '/api/institution/peos',
+  '/api/institution/psos',
+  '/api/institution/program-outcomes',
+  '/api/institution/program/update-vm',
+  '/api/institution/program/consistency-matrix',
+  '/api/institution/program/lead-society',
+  '/api/institution/program/peo-dates',
+  '/api/institution/obe-framework',
+  '/api/curriculum/structure',
+  '/api/ai/',
+  '/api/generate/',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -24,6 +45,10 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
+  const isApiRoute = pathname.startsWith('/api');
+  const isLegacyProgramPage = pathname.startsWith('/dashboard/');
+  const isProgramPage = pathname.startsWith('/program/') || isLegacyProgramPage;
+  const isProgramApiRoute = PROGRAM_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   // [SECURITY] Rate Limiting (Basic)
   // Limit sensitive routes more strictly
@@ -32,7 +57,7 @@ export async function middleware(request: NextRequest) {
     ? { limit: 10, windowMs: 60 * 1000 } // 10 reqs/min for auth
     : { limit: 100, windowMs: 60 * 1000 }; // 100 reqs/min general
 
-  if (pathname.startsWith('/api')) {
+  if (isApiRoute) {
     const allowed = checkRateLimit({ ip: String(ip), ...limitInfo });
     if (!allowed) {
       return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
@@ -41,7 +66,7 @@ export async function middleware(request: NextRequest) {
 
   // [SECURITY] Strict Origin Check (CSRF for API mutations)
   // Ensure POST/PUT/DELETE requests come from our own origin
-  if (pathname.startsWith('/api') && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
+  if (isApiRoute && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
     const origin = request.headers.get('origin');
     const host = request.headers.get('host'); // e.g. localhost:3000
     // In production, host might not include protocol, origin does (https://...)
@@ -79,7 +104,8 @@ export async function middleware(request: NextRequest) {
 
   // Skip auth check for public paths and static assets
   if (
-    PUBLIC_PATHS.some(path => pathname.startsWith(path)) ||
+    pathname === '/' ||
+    PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`)) ||
     pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js)$/) ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/public')
@@ -155,25 +181,60 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const isApiRoute = pathname.startsWith('/api');
+  const programSessionToken = request.cookies.get(PROGRAM_SESSION_COOKIE_NAME)?.value;
+  const programSession = programSessionToken
+    ? await verifyProgramSessionToken(programSessionToken)
+    : null;
 
-  if (!customUser) {
-    // If the user is trying to access a program dashboard, we check for program session instead
-    if (pathname.startsWith('/dashboard')) {
-      const programSession = request.cookies.get('c2e_program_session')?.value;
-      if (!programSession) {
-        const loginUrl = new URL('/program-login', request.url);
-        loginUrl.searchParams.set('redirect', pathname);
-        return NextResponse.redirect(loginUrl);
-      }
-      // Ideally we would verify the JWT here, but since jose is async and middleware runs on edge,
-      // we can just check existence, or do a lightweight verify. The actual page/API will verify thoroughly.
-      // We will just let it pass to the router if the cookie exists.
-      return response;
+  if (programSessionToken && !programSession) {
+    response.cookies.set(PROGRAM_SESSION_COOKIE_NAME, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 0,
+    });
+  }
+
+  if (isLegacyProgramPage && programSession) {
+    const segments = pathname.split('/').filter(Boolean);
+    const legacySection = segments[2];
+    const targetProgramId =
+      segments[1] && segments[1] === programSession.programId
+        ? segments[1]
+        : programSession.programId;
+    const normalizedTarget = legacySection
+      ? `/program/${targetProgramId}/${legacySection}`
+      : `/program/${targetProgramId}/dashboard`;
+    if (pathname !== normalizedTarget) {
+      return NextResponse.redirect(new URL(normalizedTarget, request.url));
+    }
+  }
+
+  if (isProgramPage) {
+    if (!programSession) {
+      const loginUrl = new URL('/program-login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
     }
 
+    if (pathname.startsWith('/program/')) {
+      const segments = pathname.split('/').filter(Boolean);
+      const requestedProgramId = segments[1];
+      if (requestedProgramId && requestedProgramId !== programSession.programId) {
+        return NextResponse.redirect(new URL(`/program/${programSession.programId}/dashboard`, request.url));
+      }
+    }
+
+    return response;
+  }
+
+  if (!customUser) {
     // [BLOCK] Unauthenticated Access
     if (isApiRoute) {
+      if (programSession && isProgramApiRoute) {
+        return response;
+      }
       return NextResponse.json({ error: 'Unauthorized: Missing or invalid token' }, { status: 401 });
     } else {
       // Redirect to login for pages

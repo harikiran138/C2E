@@ -1,34 +1,46 @@
 import pool from '@/lib/postgres';
 import { NextResponse } from 'next/server';
+import {
+  forbiddenProgramResponse,
+  getAccessContext,
+  hasProgramAccess,
+  unauthorizedResponse,
+} from '@/lib/auth/request-access';
 
 export async function PUT(request: Request) {
   try {
+    const context = await getAccessContext(request);
+    if (!context) return unauthorizedResponse();
+
     const body = await request.json();
-    const { 
-      program_id, 
-      program_vision, 
-      program_mission, 
-      vision_inputs_used, 
+    const {
+      program_id,
+      program_vision,
+      program_mission,
+      vision_inputs_used,
       mission_inputs_used,
       generated_by_ai,
       vision_options,
       mission_options,
-      // Keep support for legacy fields if they are sent
       vision,
       mission,
       vision_priorities,
-      mission_priorities
+      mission_priorities,
     } = body;
 
-    if (!program_id) {
+    const programId = String(program_id || '');
+    if (!programId) {
       return NextResponse.json({ error: 'Program ID is required' }, { status: 400 });
     }
+
+    const canAccess = await hasProgramAccess(context, programId);
+    if (!canAccess) return forbiddenProgramResponse();
 
     const client = await pool.connect();
     try {
       const result = await client.query(
-        `UPDATE programs 
-         SET vision = $1, 
+        `UPDATE programs
+         SET vision = $1,
              mission = $2,
              vision_priorities = $3,
              mission_priorities = $4,
@@ -43,18 +55,18 @@ export async function PUT(request: Request) {
          WHERE id = $10
          RETURNING *`,
         [
-          vision || program_vision, 
-          mission || program_mission, 
-          vision_priorities, 
+          vision || program_vision,
+          mission || program_mission,
+          vision_priorities,
           mission_priorities,
           program_vision,
           program_mission,
           vision_inputs_used ? JSON.stringify(vision_inputs_used) : null,
           mission_inputs_used ? JSON.stringify(mission_inputs_used) : null,
           generated_by_ai || false,
-          program_id,
+          programId,
           vision_options ? JSON.stringify(vision_options) : '[]',
-          mission_options ? JSON.stringify(mission_options) : '[]'
+          mission_options ? JSON.stringify(mission_options) : '[]',
         ]
       );
 

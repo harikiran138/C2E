@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useActiveProgramId } from '@/components/program/useActiveProgramId';
 import { Loader2, Sparkles, Save, RefreshCw, Trash2, CheckCircle2 } from 'lucide-react';
 
 const LEAD_SOCIETIES = [
@@ -58,8 +58,7 @@ type SelectedSocieties = {
 };
 
 export default function PsoGenerator() {
-  const searchParams = useSearchParams();
-  const programId = searchParams.get('programId');
+  const programId = useActiveProgramId();
 
   const [loading, setLoading] = useState(true);
   const [program, setProgram] = useState<any>(null);

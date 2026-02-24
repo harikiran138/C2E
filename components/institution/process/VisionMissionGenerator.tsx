@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useActiveProgramId } from '@/components/program/useActiveProgramId';
 import { Loader2, Sparkles, Save, Check, RefreshCw } from 'lucide-react';
 import { AI_API_URL } from '@/lib/api';
 import PeoGenerator from '@/components/institution/process/PeoGenerator';
@@ -85,8 +85,7 @@ function buildVisionMissionPairs(visions: string[], missions: string[]): VisionM
 }
 
 export default function VisionMissionGenerator() {
-    const searchParams = useSearchParams();
-    const programId = searchParams.get('programId');
+    const programId = useActiveProgramId();
 
     const [loading, setLoading] = useState(true);
     const [institution, setInstitution] = useState<any>(null);

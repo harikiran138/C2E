@@ -1,26 +1,42 @@
 import pool from '@/lib/postgres';
 import { NextResponse } from 'next/server';
+import {
+  forbiddenProgramResponse,
+  getAccessContext,
+  hasProgramAccess,
+  unauthorizedResponse,
+} from '@/lib/auth/request-access';
 
 export async function PUT(request: Request) {
   try {
+    const context = await getAccessContext(request);
+    if (!context) return unauthorizedResponse();
+
     const body = await request.json();
-    const { 
-        program_id, 
-        peo_brainstorming_start_date, peo_brainstorming_end_date,
-        peo_feedback_start_date, peo_feedback_end_date,
-        peo_consolidation_start_date, peo_consolidation_end_date,
-        peo_draft_version
+    const {
+      program_id,
+      peo_brainstorming_start_date,
+      peo_brainstorming_end_date,
+      peo_feedback_start_date,
+      peo_feedback_end_date,
+      peo_consolidation_start_date,
+      peo_consolidation_end_date,
+      peo_draft_version,
     } = body;
 
-    if (!program_id) {
+    const programId = String(program_id || '');
+    if (!programId) {
       return NextResponse.json({ error: 'Program ID is required' }, { status: 400 });
     }
+
+    const canAccess = await hasProgramAccess(context, programId);
+    if (!canAccess) return forbiddenProgramResponse();
 
     const client = await pool.connect();
     try {
       await client.query(
-        `UPDATE programs 
-         SET peo_brainstorming_start_date = $1, 
+        `UPDATE programs
+         SET peo_brainstorming_start_date = $1,
              peo_brainstorming_end_date = $2,
              peo_feedback_start_date = $3,
              peo_feedback_end_date = $4,
@@ -30,11 +46,14 @@ export async function PUT(request: Request) {
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $8`,
         [
-            peo_brainstorming_start_date, peo_brainstorming_end_date,
-            peo_feedback_start_date, peo_feedback_end_date,
-            peo_consolidation_start_date, peo_consolidation_end_date,
-            peo_draft_version,
-            program_id
+          peo_brainstorming_start_date,
+          peo_brainstorming_end_date,
+          peo_feedback_start_date,
+          peo_feedback_end_date,
+          peo_consolidation_start_date,
+          peo_consolidation_end_date,
+          peo_draft_version,
+          programId,
         ]
       );
 

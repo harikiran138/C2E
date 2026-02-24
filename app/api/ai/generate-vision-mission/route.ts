@@ -109,8 +109,42 @@ interface CoupledMissionGenerationResult extends GenerationResult {
   hints: CoupledMissionHint[];
 }
 
+interface StrategicValidationScores {
+  vision_quality: number;
+  mission_quality: number;
+  alignment_strength: number;
+  measurability_potential: number;
+  overall_strategic_soundness: number;
+}
+
+interface StrategicValidationItem {
+  index: number;
+  vision: string;
+  mission: string;
+  scores: StrategicValidationScores;
+  long_term_issues: string[];
+  alignment_gaps: string[];
+  kpi_categories: string[];
+  realism_flags: string[];
+  accreditation_flags: string[];
+  flow_flags: string[];
+  identified_weaknesses: string[];
+  rewrite_suggestions: string[];
+  final_verdict: string;
+}
+
+interface StrategicValidationSummary {
+  validator: 'SLCA';
+  approval_threshold: number;
+  overall_average: number;
+  approved: boolean;
+  items: StrategicValidationItem[];
+  source: 'ai' | 'fallback';
+}
+
 const MAX_COUNT = 10;
 const MAX_REGEN_ATTEMPTS = 3;
+const STRATEGIC_APPROVAL_THRESHOLD = 85;
 
 const CATEGORY_LABELS: Record<ThemeCategory, string> = {
   global_positioning: 'Global Positioning',
@@ -156,6 +190,33 @@ const DEFAULT_MISSION_INPUT_BY_CATEGORY: Record<ThemeCategory, string> = {
   educational_philosophy: 'Outcome Based Education',
   custom: 'Continuous academic improvement',
 };
+
+const KPI_CATEGORY_SIGNALS: Array<{ category: string; terms: string[] }> = [
+  {
+    category: 'Curriculum and Learning Quality',
+    terms: ['curriculum', 'learning', 'outcome', 'assessment', 'pedagogy', 'teaching'],
+  },
+  {
+    category: 'Research and Innovation',
+    terms: ['research', 'innovation', 'technology', 'laboratory', 'entrepreneurship'],
+  },
+  {
+    category: 'Industry and Employability',
+    terms: ['industry', 'internship', 'employability', 'professional', 'career'],
+  },
+  {
+    category: 'Ethics and Professional Responsibility',
+    terms: ['ethical', 'integrity', 'responsibility', 'professional standards'],
+  },
+  {
+    category: 'Sustainability and Societal Impact',
+    terms: ['sustainable', 'societal', 'community', 'public', 'social', 'environment'],
+  },
+  {
+    category: 'Global and Benchmarking',
+    terms: ['global', 'international', 'benchmark', 'competitive', 'external standards'],
+  },
+];
 
 const ABSOLUTE_TERMS = ['all graduates', 'every graduate', 'always', 'guarantee', '100%'];
 const OUTCOME_STYLE_TERMS = [
@@ -518,6 +579,54 @@ function dedupeStatements(statements: string[]) {
   }
 
   return unique;
+}
+
+function clampScore(value: unknown, fallback = 0) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(num)));
+}
+
+function normalizeStringList(value: unknown, max = 8) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => normalizeWhitespace(String(item)))
+    .filter(Boolean)
+    .slice(0, max);
+}
+
+function parseJsonResponse(rawText: string): any | null {
+  const cleaned = rawText.replace(/```json/gi, '```').replace(/```/g, '').trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Try extracting the largest JSON-like block.
+  }
+
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    const candidate = cleaned.slice(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Continue to array extraction.
+    }
+  }
+
+  const firstBracket = cleaned.indexOf('[');
+  const lastBracket = cleaned.lastIndexOf(']');
+  if (firstBracket >= 0 && lastBracket > firstBracket) {
+    const candidate = cleaned.slice(firstBracket, lastBracket + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 function parseOptions(rawText: string): string[] {
@@ -1270,6 +1379,393 @@ function validateVisionMissionAlignment(params: {
   } satisfies PairAlignmentResult;
 }
 
+function keywordOverlapRatio(source: string, target: string) {
+  const sourceKeywords = new Set(extractKeywords(source).filter((word) => word.length >= 5));
+  const targetKeywords = new Set(extractKeywords(target).filter((word) => word.length >= 5));
+
+  if (sourceKeywords.size === 0 || targetKeywords.size === 0) {
+    return 0;
+  }
+
+  const intersection = [...sourceKeywords].filter((keyword) => targetKeywords.has(keyword)).length;
+  const union = new Set([...sourceKeywords, ...targetKeywords]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+
+function detectKpiCategories(vision: string, mission: string) {
+  const corpus = `${vision} ${mission}`.toLowerCase();
+  const categories = KPI_CATEGORY_SIGNALS
+    .filter((signal) => signal.terms.some((term) => corpus.includes(term.toLowerCase())))
+    .map((signal) => signal.category);
+
+  return categories.length > 0 ? categories : ['Curriculum and Learning Quality'];
+}
+
+function buildStrategicValidationPrompt(params: {
+  programName: string;
+  instituteVision: string;
+  instituteMission: string;
+  pairs: VisionMissionPair[];
+  approvalThreshold: number;
+}) {
+  const { programName, instituteVision, instituteMission, pairs, approvalThreshold } = params;
+
+  const pairPayload = pairs.map((pair, index) => ({
+    index: index + 1,
+    vision: pair.vision,
+    mission: pair.mission,
+  }));
+
+  return `
+You are a Strategic Accreditation Evaluator.
+
+Evaluate each Vision and Mission pair logically and structurally for the program "${programName}".
+Institute Vision Context: ${instituteVision || 'Not specified'}
+Institute Mission Context: ${instituteMission || 'Not specified'}
+
+Pairs:
+${JSON.stringify(pairPayload, null, 2)}
+
+Framework:
+1. Long-Term Validity Check (Vision): 10-15 year aspiration, broadness, realism, and long-horizon wording.
+2. Strategic Alignment Check: whether Mission explains HOW Vision will be achieved; map Vision intent to Mission pillars.
+3. Measurability Logic: identify feasible KPI categories for major Vision/Mission clauses.
+4. Feasibility and Realism: flag exaggerated or absolute commitments.
+5. Accreditation Compatibility (ABET/NBA style): strategic tone, no classroom-level operational verbs, no vague-only language.
+6. Redundancy and Logical Flow: detect direct repetition and weak progression from Vision to Mission.
+7. Scoring (0-100): vision_quality, mission_quality, alignment_strength, measurability_potential, overall_strategic_soundness.
+
+Output requirements:
+- Return STRICT JSON only.
+- Return one item per pair in the same order.
+- Use this schema:
+{
+  "items": [
+    {
+      "index": 1,
+      "scores": {
+        "vision_quality": 0,
+        "mission_quality": 0,
+        "alignment_strength": 0,
+        "measurability_potential": 0,
+        "overall_strategic_soundness": 0
+      },
+      "long_term_issues": [],
+      "alignment_gaps": [],
+      "kpi_categories": [],
+      "realism_flags": [],
+      "accreditation_flags": [],
+      "flow_flags": [],
+      "identified_weaknesses": [],
+      "rewrite_suggestions": [],
+      "final_verdict": ""
+    }
+  ],
+  "overall_average": 0,
+  "approved": false
+}
+
+Rules:
+- Be strict and analytical.
+- Do not rewrite unless weaknesses are found.
+- Set "approved" true only if overall_average >= ${approvalThreshold} and no critical gaps.
+`;
+}
+
+function buildFallbackStrategicValidation(params: {
+  pairs: VisionMissionPair[];
+  approvalThreshold: number;
+  alignmentResult?: PairAlignmentResult | null;
+}): StrategicValidationSummary {
+  const { pairs, approvalThreshold, alignmentResult } = params;
+
+  const items: StrategicValidationItem[] = pairs.map((pair, idx) => {
+    const vision = normalizeWhitespace(pair.vision);
+    const mission = normalizeWhitespace(pair.mission);
+
+    const visionIssues: string[] = [];
+    const missionIssues: string[] = [];
+    const realismFlags: string[] = [];
+    const accreditationFlags: string[] = [];
+    const flowFlags: string[] = [];
+    const alignmentDetail = alignmentResult?.details[idx];
+
+    const visionWordCount = vision.replace(/[.?!]+$/, '').split(/\s+/).filter(Boolean).length;
+    if (visionWordCount < 15 || visionWordCount > 25) {
+      visionIssues.push('Vision length is outside the preferred 15-25 word window.');
+    }
+
+    const visionCompliance = hasComplianceViolation(vision, 'vision');
+    const missionCompliance = hasComplianceViolation(mission, 'mission');
+
+    visionIssues.push(
+      ...visionCompliance
+        .filter((issue) => issue.includes('measurable/operational verb') || issue.includes('immediate-outcome'))
+        .map((issue) => `Vision ${issue}.`)
+    );
+    missionIssues.push(
+      ...missionCompliance
+        .filter((issue) => issue.includes('immediate-outcome'))
+        .map((issue) => `Mission ${issue}.`)
+    );
+
+    const combinedLower = `${vision} ${mission}`.toLowerCase();
+    for (const restricted of [...ABSOLUTE_TERMS, ...FORBIDDEN_TERMS]) {
+      if (combinedLower.includes(restricted)) {
+        realismFlags.push(`Contains unrealistic or absolute wording: "${restricted}".`);
+      }
+    }
+
+    for (const verb of VISION_MEASURABLE_VERBS) {
+      if (mission.toLowerCase().includes(verb)) {
+        accreditationFlags.push(`Mission uses classroom-level operational verb "${verb}".`);
+      }
+    }
+
+    const overlap = keywordOverlapRatio(vision, mission);
+    if (overlap > 0.78) {
+      flowFlags.push('Mission repeats Vision wording too closely.');
+    }
+    if (overlap < 0.15) {
+      flowFlags.push('Mission has weak lexical continuity with the Vision intent.');
+    }
+
+    const alignmentGaps: string[] = [];
+    if (alignmentDetail?.missingCategories?.length) {
+      alignmentGaps.push(
+        `Missing category alignment: ${alignmentDetail.missingCategories.join(', ')}.`
+      );
+    }
+    if (alignmentDetail?.missingOperationalPillars?.length) {
+      alignmentGaps.push(
+        `Missing operational pillars: ${alignmentDetail.missingOperationalPillars.join(', ')}.`
+      );
+    }
+
+    const kpiCategories = detectKpiCategories(vision, mission);
+
+    const visionQuality = clampScore(100 - visionIssues.length * 12 - visionCompliance.length * 8, 72);
+    const missionQuality = clampScore(
+      100 - missionIssues.length * 10 - missionCompliance.length * 8 - accreditationFlags.length * 10,
+      72
+    );
+    const alignmentStrength = clampScore(
+      alignmentDetail?.score ?? Math.round(60 + overlap * 40 - alignmentGaps.length * 12),
+      70
+    );
+    const measurabilityPotential = clampScore(
+      52 + kpiCategories.length * 9 - alignmentGaps.length * 8 - realismFlags.length * 6,
+      68
+    );
+    const overall = clampScore(
+      (visionQuality + missionQuality + alignmentStrength + measurabilityPotential) / 4,
+      70
+    );
+
+    const identifiedWeaknesses = uniq([
+      ...visionIssues,
+      ...alignmentGaps,
+      ...realismFlags,
+      ...accreditationFlags,
+      ...flowFlags,
+    ]).slice(0, 10);
+
+    const rewriteSuggestions: string[] = [];
+    if (visionIssues.length > 0) {
+      rewriteSuggestions.push(
+        'Use long-horizon aspirational language in Vision and avoid short-term operational verbs.'
+      );
+    }
+    if (alignmentGaps.length > 0) {
+      rewriteSuggestions.push(
+        'Convert each missing Vision theme into explicit Mission action pillars (curriculum, research, collaboration, ethics, sustainability).'
+      );
+    }
+    if (realismFlags.length > 0) {
+      rewriteSuggestions.push('Replace absolute promises with attainable and assessable institutional commitments.');
+    }
+    if (flowFlags.length > 0) {
+      rewriteSuggestions.push('Improve progression: Vision states destination, Mission states operational pathway.');
+    }
+
+    const verdict =
+      overall >= approvalThreshold && identifiedWeaknesses.length === 0
+        ? 'Approved for strategic use.'
+        : overall >= approvalThreshold
+        ? 'Conditionally acceptable with minor refinements.'
+        : 'Needs refinement before approval.';
+
+    return {
+      index: idx + 1,
+      vision,
+      mission,
+      scores: {
+        vision_quality: visionQuality,
+        mission_quality: missionQuality,
+        alignment_strength: alignmentStrength,
+        measurability_potential: measurabilityPotential,
+        overall_strategic_soundness: overall,
+      },
+      long_term_issues: visionIssues,
+      alignment_gaps: alignmentGaps,
+      kpi_categories: kpiCategories,
+      realism_flags: realismFlags,
+      accreditation_flags: accreditationFlags,
+      flow_flags: flowFlags,
+      identified_weaknesses: identifiedWeaknesses,
+      rewrite_suggestions: rewriteSuggestions,
+      final_verdict: verdict,
+    };
+  });
+
+  const overallAverage =
+    items.length === 0
+      ? 0
+      : clampScore(items.reduce((sum, item) => sum + item.scores.overall_strategic_soundness, 0) / items.length);
+
+  const approved =
+    items.length > 0 &&
+    overallAverage >= approvalThreshold &&
+    items.every((item) => item.scores.overall_strategic_soundness >= approvalThreshold);
+
+  return {
+    validator: 'SLCA',
+    approval_threshold: approvalThreshold,
+    overall_average: overallAverage,
+    approved,
+    items,
+    source: 'fallback',
+  };
+}
+
+function normalizeAiStrategicValidation(params: {
+  parsed: any;
+  pairs: VisionMissionPair[];
+  approvalThreshold: number;
+  fallback: StrategicValidationSummary;
+}): StrategicValidationSummary {
+  const { parsed, pairs, approvalThreshold, fallback } = params;
+  const rawItems: any[] = Array.isArray(parsed?.items)
+    ? parsed.items
+    : Array.isArray(parsed)
+    ? parsed
+    : [];
+
+  const items: StrategicValidationItem[] = pairs.map((pair, idx) => {
+    const fallbackItem = fallback.items[idx];
+    const candidate =
+      rawItems.find((item) => Number(item?.index) === idx + 1 || Number(item?.index) === idx) || rawItems[idx];
+
+    if (!candidate || typeof candidate !== 'object') {
+      return fallbackItem;
+    }
+
+    const candidateScores = candidate.scores || candidate;
+    const scores: StrategicValidationScores = {
+      vision_quality: clampScore(candidateScores.vision_quality, fallbackItem.scores.vision_quality),
+      mission_quality: clampScore(candidateScores.mission_quality, fallbackItem.scores.mission_quality),
+      alignment_strength: clampScore(candidateScores.alignment_strength, fallbackItem.scores.alignment_strength),
+      measurability_potential: clampScore(
+        candidateScores.measurability_potential,
+        fallbackItem.scores.measurability_potential
+      ),
+      overall_strategic_soundness: clampScore(
+        candidateScores.overall_strategic_soundness,
+        fallbackItem.scores.overall_strategic_soundness
+      ),
+    };
+
+    return {
+      index: idx + 1,
+      vision: normalizeWhitespace(String(candidate.vision || pair.vision)),
+      mission: normalizeWhitespace(String(candidate.mission || pair.mission)),
+      scores,
+      long_term_issues: normalizeStringList(candidate.long_term_issues),
+      alignment_gaps: normalizeStringList(candidate.alignment_gaps),
+      kpi_categories: normalizeStringList(candidate.kpi_categories),
+      realism_flags: normalizeStringList(candidate.realism_flags),
+      accreditation_flags: normalizeStringList(candidate.accreditation_flags),
+      flow_flags: normalizeStringList(candidate.flow_flags),
+      identified_weaknesses: normalizeStringList(candidate.identified_weaknesses, 12),
+      rewrite_suggestions: normalizeStringList(candidate.rewrite_suggestions, 8),
+      final_verdict: normalizeWhitespace(String(candidate.final_verdict || fallbackItem.final_verdict)),
+    };
+  });
+
+  const computedAverage =
+    items.length === 0
+      ? 0
+      : clampScore(items.reduce((sum, item) => sum + item.scores.overall_strategic_soundness, 0) / items.length);
+
+  const overallAverage = clampScore(parsed?.overall_average, computedAverage);
+  const approvedFromItems =
+    items.length > 0 &&
+    overallAverage >= approvalThreshold &&
+    items.every((item) => item.scores.overall_strategic_soundness >= approvalThreshold);
+  const approved =
+    typeof parsed?.approved === 'boolean' ? parsed.approved && approvedFromItems : approvedFromItems;
+
+  return {
+    validator: 'SLCA',
+    approval_threshold: approvalThreshold,
+    overall_average: overallAverage,
+    approved,
+    items,
+    source: 'ai',
+  };
+}
+
+async function evaluateStrategicValidation(params: {
+  programName: string;
+  instituteVision: string;
+  instituteMission: string;
+  pairs: VisionMissionPair[];
+  approvalThreshold: number;
+  alignmentResult?: PairAlignmentResult | null;
+}): Promise<StrategicValidationSummary | null> {
+  const {
+    programName,
+    instituteVision,
+    instituteMission,
+    pairs,
+    approvalThreshold,
+    alignmentResult,
+  } = params;
+
+  if (pairs.length === 0) {
+    return null;
+  }
+
+  const fallback = buildFallbackStrategicValidation({
+    pairs,
+    approvalThreshold,
+    alignmentResult,
+  });
+
+  try {
+    const prompt = buildStrategicValidationPrompt({
+      programName,
+      instituteVision,
+      instituteMission,
+      pairs,
+      approvalThreshold,
+    });
+    const raw = await callGemini(prompt);
+    const parsed = parseJsonResponse(raw);
+    if (!parsed) {
+      return fallback;
+    }
+    return normalizeAiStrategicValidation({
+      parsed,
+      pairs,
+      approvalThreshold,
+      fallback,
+    });
+  } catch {
+    return fallback;
+  }
+}
+
 function calculateCoverage(
   statements: string[],
   semanticOptions: SemanticOption[],
@@ -1947,6 +2443,7 @@ async function generateCoupledMissionsWithValidation(params: {
 
 export async function POST(request: Request) {
   let fallbackProgramName = 'this program';
+  let fallbackSelectedProgramVision = '';
   let fallbackMode: GenerationMode = 'both';
   let fallbackVisionCount = 1;
   let fallbackMissionCount = 1;
@@ -2020,6 +2517,7 @@ export async function POST(request: Request) {
     const missionPlan = buildDistributionPlan(missionClusters, missionCount);
 
     fallbackProgramName = String(program_name);
+    fallbackSelectedProgramVision = String(selected_program_vision || '');
     fallbackMode = generationMode;
     fallbackVisionCount = visionCount;
     fallbackMissionCount = missionCount;
@@ -2120,12 +2618,46 @@ export async function POST(request: Request) {
       missionResult && 'alignment' in missionResult ? missionResult.alignment : null;
     const missionHints = missionResult && 'hints' in missionResult ? missionResult.hints : null;
 
+    const validationPairs: VisionMissionPair[] =
+      pairs.length > 0
+        ? pairs
+        : shouldGenerateMission && missions.length > 0 && !shouldGenerateVision
+        ? missions.map((mission) => ({
+            vision: String(selected_program_vision || ''),
+            mission,
+          }))
+        : [];
+
+    const validationVisionList = validationPairs.map((pair) => pair.vision);
+    const validationMissionList = validationPairs.map((pair) => pair.mission);
+    const validationHints = missionHints || buildCoupledMissionHints(validationVisionList, visionClusters, missionClusters);
+    const validationAlignment =
+      missionAlignment ||
+      (validationPairs.length > 0
+        ? validateVisionMissionAlignment({
+            visions: validationVisionList,
+            missions: validationMissionList,
+            hints: validationHints,
+            missionClusters: missionClusters.length > 0 ? missionClusters : visionClusters,
+          })
+        : null);
+
+    const strategicValidation = await evaluateStrategicValidation({
+      programName: String(program_name),
+      instituteVision: String(institute_vision || ''),
+      instituteMission: String(institute_mission || ''),
+      pairs: validationPairs,
+      approvalThreshold: STRATEGIC_APPROVAL_THRESHOLD,
+      alignmentResult: validationAlignment,
+    });
+
     return NextResponse.json({
       vision: visions[0] || null,
       mission: missions[0] || null,
       visions,
       missions,
       pairs,
+      approval_status: strategicValidation?.approved ?? null,
       generation_details: {
         vision: visionResult
           ? {
@@ -2141,10 +2673,11 @@ export async function POST(request: Request) {
               validation: missionResult.validation,
               semantic_clusters: missionClusters,
               distribution_plan: missionPlan,
-              alignment_validation: missionAlignment,
-              coupled_hints: missionHints,
+              alignment_validation: validationAlignment,
+              coupled_hints: validationHints,
             }
           : null,
+        strategic_validation: strategicValidation,
       },
     });
   } catch (error: any) {
@@ -2225,6 +2758,22 @@ export async function POST(request: Request) {
           missionClusters: fallbackMissionReferenceClusters,
         })
       : null;
+    const fallbackValidationPairs: VisionMissionPair[] =
+      fallbackPairs.length > 0
+        ? fallbackPairs
+        : shouldGenerateMission && !shouldGenerateVision
+        ? fallbackMissions.map((mission) => ({
+            vision: fallbackSelectedProgramVision || fallbackVisions[0] || '',
+            mission,
+          }))
+        : [];
+    const fallbackStrategicValidation = fallbackValidationPairs.length
+      ? buildFallbackStrategicValidation({
+          pairs: fallbackValidationPairs,
+          approvalThreshold: STRATEGIC_APPROVAL_THRESHOLD,
+          alignmentResult: fallbackAlignment,
+        })
+      : null;
 
     return NextResponse.json({
       vision: fallbackVisions[0] || null,
@@ -2232,6 +2781,7 @@ export async function POST(request: Request) {
       visions: fallbackVisions,
       missions: fallbackMissions,
       pairs: fallbackPairs,
+      approval_status: fallbackStrategicValidation?.approved ?? null,
       error: error.message,
       is_fallback: true,
       generation_details: {
@@ -2249,6 +2799,7 @@ export async function POST(request: Request) {
               coupled_hints: fallbackCoupledHints,
             }
           : null,
+        strategic_validation: fallbackStrategicValidation,
       },
     });
   }

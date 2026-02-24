@@ -2,13 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import { PROCESS_MENU_STEPS } from '@/lib/institution/process';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as Icons from 'lucide-react';
-import { LogOut, Menu, X, LayoutDashboard, ChevronRight, Sparkles } from 'lucide-react';
+import { LogOut, Menu, X, LayoutDashboard, BookOpen, Shield, Gavel, Users, Grid2X2, FileText } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface ProgramWorkspaceProps {
@@ -19,6 +17,26 @@ interface ProgramWorkspaceProps {
     headerContent?: React.ReactNode;
 }
 
+const PROGRAM_NAV_ITEMS = [
+    { key: 'dashboard', label: 'Program Dashboard', icon: <LayoutDashboard className="size-4" /> },
+    { key: 'tutor', label: 'Tutor Definitions', icon: <BookOpen className="size-4" /> },
+    { key: 'committee', label: 'Committee', icon: <Shield className="size-4" /> },
+    { key: 'bos', label: 'BoS', icon: <Gavel className="size-4" /> },
+    { key: 'stakeholders', label: 'Stakeholders', icon: <Users className="size-4" /> },
+    { key: 'obe', label: 'OBE Mapping', icon: <Grid2X2 className="size-4" /> },
+    { key: 'reports', label: 'Reports', icon: <FileText className="size-4" /> },
+];
+
+const SECTION_META: Record<string, { title: string; subtitle: string }> = {
+    dashboard: { title: 'Program Dashboard', subtitle: 'Track progress and execute program-level workflows.' },
+    tutor: { title: 'Tutor Definitions', subtitle: 'Define OBE protocols and reference framework resources.' },
+    committee: { title: 'Committee', subtitle: 'Manage Program Advisory Committee composition and records.' },
+    bos: { title: 'Board of Studies', subtitle: 'Maintain BoS constitution and member details.' },
+    stakeholders: { title: 'Stakeholders', subtitle: 'Add and maintain representative stakeholder records.' },
+    obe: { title: 'OBE Mapping', subtitle: 'Configure Vision, Mission, PEO, PO, and consistency mappings.' },
+    reports: { title: 'Reports', subtitle: 'Generate program-level review and compliance reports.' },
+};
+
 export default function ProgramWorkspace({
     programId,
     programName,
@@ -26,17 +44,16 @@ export default function ProgramWorkspace({
     children,
     headerContent,
 }: ProgramWorkspaceProps) {
-    const router = useRouter();
     const pathname = usePathname();
 
-    // Extract step key from URL (e.g. /dashboard/123/process-1 -> process-1)
     const segments = pathname.split('/');
-    const activeStepKey = segments.length > 3 ? segments[3] : 'dashboard';
-
-    // Find the current step to get title/subtitle
-    const currentStep = PROCESS_MENU_STEPS.find(s => s.key === activeStepKey);
-    const title = activeStepKey === 'dashboard' ? 'Dashboard' : (currentStep?.title || 'Unknown Step');
-    const subtitle = currentStep?.description || '';
+    const activeSectionKey = segments.length > 3 ? segments[3] : 'dashboard';
+    const sectionMeta = SECTION_META[activeSectionKey] || {
+        title: 'Program Module',
+        subtitle: 'Manage program execution tasks.',
+    };
+    const title = sectionMeta.title;
+    const subtitle = sectionMeta.subtitle;
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const desktopSidebarRef = useRef<HTMLDivElement>(null);
@@ -64,9 +81,7 @@ export default function ProgramWorkspace({
 
     const handleLogout = async () => {
         try {
-            // Delete the session cookie by calling a new logout API (or just clearing it)
-            // For now, let's just clear the cookie manually or we can create an API route.
-            document.cookie = 'c2e_program_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            await fetch('/api/auth/program-logout', { method: 'POST' });
             window.location.href = '/program-login';
         } catch (error) {
             console.error('Logout error:', error);
@@ -74,9 +89,8 @@ export default function ProgramWorkspace({
         }
     };
 
-    const buildHref = (stepKey: string) => {
-        if (stepKey === 'dashboard') return `/dashboard/${programId}?programId=${programId}`;
-        return `/dashboard/${programId}/${stepKey}?programId=${programId}`;
+    const buildHref = (sectionKey: string) => {
+        return `/program/${programId}/${sectionKey}`;
     };
 
     return (
@@ -109,7 +123,7 @@ export default function ProgramWorkspace({
                                     </button>
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-4 overscroll-y-contain scroll-smooth scrollbar-hide pb-20">
-                                    <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} onClose={() => setIsSidebarOpen(false)} />
+                                    <SidebarContent activeSectionKey={activeSectionKey} buildHref={buildHref} onClose={() => setIsSidebarOpen(false)} />
                                 </div>
                             </div>
                         </motion.aside>
@@ -138,7 +152,7 @@ export default function ProgramWorkspace({
                             onScroll={handleSidebarScroll}
                             className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-3 py-2 pb-24 space-y-2 custom-scrollbar"
                         >
-                            <SidebarContent activeStepKey={activeStepKey} buildHref={buildHref} />
+                            <SidebarContent activeSectionKey={activeSectionKey} buildHref={buildHref} />
                         </div>
                     </div>
                 </aside>
@@ -191,7 +205,7 @@ export default function ProgramWorkspace({
 
                         <AnimatePresence mode="wait">
                             <motion.div
-                                key={activeStepKey || 'dashboard'}
+                                key={activeSectionKey || 'dashboard'}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
@@ -208,45 +222,30 @@ export default function ProgramWorkspace({
     );
 }
 
-function SidebarContent({ activeStepKey, buildHref, onClose }: any) {
+function SidebarContent({ activeSectionKey, buildHref, onClose }: any) {
     return (
         <div className="flex flex-col gap-6 py-4">
             <div className="rounded-[32px] p-4 border backdrop-blur-md space-y-1.5 shadow-sm transition-all duration-500 bg-purple-400/[0.06] border-purple-200/40 text-purple-900">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] px-4 mb-4 text-purple-500">Program Execution</p>
                 <div className="space-y-1">
-                    <SidebarNavItem
-                        href={buildHref('dashboard')}
-                        active={!activeStepKey || activeStepKey === 'dashboard'}
-                        onClick={onClose}
-                        icon={<LayoutDashboard className="size-4" />}
-                    >
-                        Program Dashboard
-                    </SidebarNavItem>
-
-                    {PROCESS_MENU_STEPS.map((step) => {
-                        const active = activeStepKey === step.key;
-                        const Icon = (Icons as any)[step.icon || 'Circle'] || ChevronRight;
-
-                        return (
-                            <SidebarNavItem
-                                key={step.key}
-                                href={buildHref(step.key)}
-                                active={active}
-                                onClick={onClose}
-                                icon={<Icon className="size-4" />}
-                                aiDriven={step.aiDriven}
-                            >
-                                {step.title}
-                            </SidebarNavItem>
-                        );
-                    })}
+                    {PROGRAM_NAV_ITEMS.map((item) => (
+                        <SidebarNavItem
+                            key={item.key}
+                            href={buildHref(item.key)}
+                            active={activeSectionKey === item.key}
+                            onClick={onClose}
+                            icon={item.icon}
+                        >
+                            {item.label}
+                        </SidebarNavItem>
+                    ))}
                 </div>
             </div>
         </div>
     );
 }
 
-function SidebarNavItem({ href, active, children, onClick, icon, aiDriven, className }: any) {
+function SidebarNavItem({ href, active, children, onClick, icon, className }: any) {
     return (
         <Link
             href={href}
@@ -256,7 +255,6 @@ function SidebarNavItem({ href, active, children, onClick, icon, aiDriven, class
                 active
                     ? "bg-white shadow-xl shadow-slate-200/50 text-slate-900 border border-slate-100 ring-1 ring-slate-900/5"
                     : "text-slate-500 hover:bg-white/60 hover:text-slate-900 hover:shadow-md",
-                aiDriven && !active && "border border-dashed border-purple-200/50 bg-purple-50/10",
                 className
             )}
         >
@@ -276,14 +274,6 @@ function SidebarNavItem({ href, active, children, onClick, icon, aiDriven, class
             </div>
             <div className="flex flex-col gap-0.5 min-w-0 pt-0.5 flex-1">
                 <span className="leading-tight truncate">{children}</span>
-                {aiDriven && (
-                    <div className="flex items-center gap-1 mt-1">
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-50 border border-purple-100">
-                            <Sparkles className="size-2 text-purple-500" />
-                            <span className="text-[8px] font-black uppercase tracking-widest text-purple-400">AI Powered</span>
-                        </div>
-                    </div>
-                )}
             </div>
         </Link>
     );

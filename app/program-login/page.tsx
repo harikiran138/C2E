@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ProgramLogin() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -15,6 +15,13 @@ export default function ProgramLogin() {
         program_code: '',
         password: '',
     });
+
+    useEffect(() => {
+        const programCodeFromUrl = searchParams.get('programCode');
+        if (programCodeFromUrl) {
+            setFormData((prev) => ({ ...prev, program_code: programCodeFromUrl }));
+        }
+    }, [searchParams]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -38,8 +45,10 @@ export default function ProgramLogin() {
                 throw new Error(data.error || 'Login failed');
             }
 
-            // Redirect to the dashboard using the program's ID
-            router.push(`/dashboard/${data.program.id}`);
+            const redirect = searchParams.get('redirect');
+            const safeRedirect =
+                redirect && redirect.startsWith(`/program/${data.program.id}/`) ? redirect : null;
+            router.push(safeRedirect || `/program/${data.program.id}/dashboard`);
             router.refresh();
         } catch (err: any) {
             setError(err.message);
@@ -140,7 +149,7 @@ export default function ProgramLogin() {
 
                     <div className="mt-6 flex items-center justify-between">
                         <div className="text-sm">
-                            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+                            <Link href="/institution/login" className="font-medium text-blue-600 hover:text-blue-500">
                                 Are you an institution? Admin Login
                             </Link>
                         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useActiveProgramId } from '@/components/program/useActiveProgramId';
 import Image from 'next/image';
 import { Loader2, Save } from 'lucide-react';
 
@@ -35,8 +35,7 @@ const TIER_2_POS = [
 ];
 
 export default function ProgramOutcomesForm() {
-    const searchParams = useSearchParams();
-    const programId = searchParams.get('programId');
+    const programId = useActiveProgramId();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

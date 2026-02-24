@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useActiveProgramId } from '@/components/program/useActiveProgramId';
 import { 
   Edit2, 
   Lock, 
@@ -57,8 +57,7 @@ interface PACMember {
 }
 
 function PACFormContent() {
-  const searchParams = useSearchParams();
-  const programId = searchParams.get('programId');
+  const programId = useActiveProgramId();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

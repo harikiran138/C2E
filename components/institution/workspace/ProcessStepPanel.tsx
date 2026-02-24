@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useActiveProgramId } from '@/components/program/useActiveProgramId';
 import { ProcessStep } from '@/lib/institution/process';
 import ProgramAdvisoryCommitteeForm from '@/components/institution/process/ProgramAdvisoryCommitteeForm';
 import BoardOfStudiesForm from '@/components/institution/process/BoardOfStudiesForm';
@@ -71,8 +71,7 @@ function CurriculumStructurePanel() {
   const [totalCreditsError, setTotalCreditsError] = useState('');
   const [semesterCategories, setSemesterCategories] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const searchParams = useSearchParams();
-  const programId = searchParams.get('programId');
+  const programId = useActiveProgramId();
 
   useEffect(() => {
     // Initialize default structures
