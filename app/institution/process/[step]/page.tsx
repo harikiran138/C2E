@@ -20,7 +20,7 @@ export default async function ProcessPage({ params }: ProcessPageProps) {
   return (
     <InstitutionWorkspace
       activeStepKey={processStep.key}
-      title={processStep.section === 'process' ? `Process ${processStep.processNumber}: ${processStep.title}` : processStep.title}
+      title={processStep.title}
       subtitle={processStep.description || ''}
     >
       <ProcessStepPanel step={processStep} />

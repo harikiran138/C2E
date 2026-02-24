@@ -67,6 +67,13 @@ function clampCount(value: unknown, fallback: number, min: number, max: number) 
     return Math.min(max, Math.max(min, Math.floor(parsed)));
 }
 
+function normalizeStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map((item) => normalizeWhitespace(String(item)))
+        .filter(Boolean);
+}
+
 function parseOptions(rawText: string): string[] {
     const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
@@ -236,16 +243,27 @@ function statementKey(statement: string) {
 function fillToTargetCount(
     statements: string[],
     targetCount: number,
-    fallbackFactory: (index: number) => string
+    fallbackFactory: (index: number) => string,
+    excludedStatements: string[] = []
 ) {
-    const unique = dedupeStatements(statements).slice(0, targetCount);
-    const seen = new Set(unique.map((item) => statementKey(item)));
+    const excludedKeys = new Set(excludedStatements.map((item) => statementKey(item)));
+    const unique: string[] = [];
+    const seen = new Set<string>();
+
+    for (const statement of dedupeStatements(statements)) {
+        const key = statementKey(statement);
+        if (!excludedKeys.has(key) && !seen.has(key)) {
+            seen.add(key);
+            unique.push(statement);
+        }
+        if (unique.length >= targetCount) break;
+    }
 
     let fallbackIndex = 0;
-    while (unique.length < targetCount && fallbackIndex < targetCount * 8) {
+    while (unique.length < targetCount && fallbackIndex < targetCount * 20) {
         const candidate = normalizeWhitespace(fallbackFactory(fallbackIndex));
         const key = statementKey(candidate);
-        if (candidate && !seen.has(key)) {
+        if (candidate && !seen.has(key) && !excludedKeys.has(key)) {
             seen.add(key);
             unique.push(candidate);
         }
@@ -257,15 +275,36 @@ function fillToTargetCount(
 
 function buildVisionFallbackStatement(programName: string, focusAreas: string[], index: number) {
     const focus = focusAreas.length > 0 ? focusAreas[index % focusAreas.length].toLowerCase() : 'innovation and ethical engineering';
-    const variants = [
-        `To be a leading ${programName} program recognized for ${focus} and societal impact.`,
-        `To be a future-oriented ${programName} program that advances sustainable engineering practice and professional integrity.`,
-        `To be a globally relevant ${programName} program that nurtures responsible innovation and lifelong learning.`,
-        `To be a progressive ${programName} program that prepares graduates for meaningful contributions to industry and community.`,
-        `To be a trusted ${programName} program fostering interdisciplinary thinking, ethics, and technology for public good.`,
+    const openings = [
+        `To be a leading ${programName} program recognized for ${focus}`,
+        `To be a future-oriented ${programName} program advancing ${focus}`,
+        `To be a globally relevant ${programName} program integrating ${focus}`,
+        `To be a progressive ${programName} program strengthening ${focus}`,
+        `To be a trusted ${programName} program guided by ${focus}`,
+        `To be a benchmarked ${programName} program transforming ${focus}`,
+        `To be a resilient ${programName} program centered on ${focus}`,
+        `To be an impact-driven ${programName} program accelerating ${focus}`,
+        `To be a practice-oriented ${programName} program maturing ${focus}`,
+        `To be a socially responsive ${programName} program expanding ${focus}`,
+        `To be a contemporary ${programName} program elevating ${focus}`,
     ];
+    const endings = [
+        'and societal impact.',
+        'with strong professional integrity.',
+        'through sustainable engineering practice.',
+        'for industry and community development.',
+        'with responsible innovation and ethics.',
+        'through interdisciplinary learning and public good.',
+        'with global professional relevance.',
+        'through inclusive and human-centric engineering.',
+        'with strong academic and industry linkage.',
+        'for long-term regional and national development.',
+        'through collaborative and evidence-based innovation.',
+    ];
+    const opening = openings[index % openings.length];
+    const ending = endings[Math.floor(index / openings.length) % endings.length];
 
-    return variants[index % variants.length];
+    return `${opening} ${ending}`;
 }
 
 function buildMissionFallbackStatement(programName: string, focusAreas: string[], index: number) {
@@ -276,12 +315,29 @@ function buildMissionFallbackStatement(programName: string, focusAreas: string[]
         `Implement an industry-connected ${programName} curriculum that translates ${focus} into professional competence.`,
         `Strengthen ${programName} training through experiential learning and systematic integration of ${focus}.`,
         `Enable high-quality ${programName} education through evidence-based teaching, ${focus}, and curriculum refinement.`,
+        `Advance ${programName} education through structured learning pathways aligned with ${focus}.`,
+        `Develop a professional ${programName} learning ecosystem that operationalizes ${focus} in curriculum practice.`,
+        `Design a responsive ${programName} curriculum where ${focus} is integrated with practical and analytical learning.`,
+        `Facilitate outcome-oriented ${programName} education by embedding ${focus} across theory, practice, and assessment.`,
+        `Build an adaptive ${programName} academic model that strengthens ${focus} through continuous faculty and curriculum development.`,
+    ];
+    const closingVariants = [
+        'Promote innovation, communication, teamwork, and lifelong learning for long-term professional growth.',
+        'Promote innovation, leadership, teamwork, and continuous professional development for graduates.',
+        'Promote communication, ethical responsibility, and lifelong learning for sustained career progression.',
+        'Promote interdisciplinary thinking, professional ethics, and lifelong learning for societal contribution.',
+        'Promote collaborative problem solving, professionalism, and lifelong learning for evolving industry needs.',
+        'Promote critical thinking, professional ethics, and lifelong learning for responsible career advancement.',
+        'Promote leadership, communication, and continuous learning for effective multidisciplinary practice.',
+        'Promote socially responsible innovation, teamwork, and lifelong learning for sustained employability.',
+        'Promote ethical decision making, systems thinking, and lifelong learning for community-centered impact.',
+        'Promote adaptability, professional integrity, and lifelong learning for future-ready engineering roles.',
     ];
 
     return [
         openingVariants[index % openingVariants.length],
         'Strengthen industry collaboration, ethical engineering practice, and sustainability-oriented problem solving.',
-        'Promote innovation, communication, teamwork, and lifelong learning for long-term professional growth.',
+        closingVariants[Math.floor(index / openingVariants.length) % closingVariants.length],
     ].join(' ');
 }
 
@@ -289,6 +345,8 @@ export async function POST(request: Request) {
     let fallbackProgramName = 'this program';
     let fallbackVisionInputs: string[] = [];
     let fallbackMissionInputs: string[] = [];
+    let fallbackExcludedVisions: string[] = [];
+    let fallbackExcludedMissions: string[] = [];
     let fallbackVisionCount = 1;
     let fallbackMissionCount = 1;
     let fallbackMode: GenerationMode = 'both';
@@ -307,7 +365,9 @@ export async function POST(request: Request) {
             vision_count,
             mission_count,
             mode,
-            selected_program_vision
+            selected_program_vision,
+            exclude_visions,
+            exclude_missions
         } = body;
 
         if (!program_name) {
@@ -321,9 +381,13 @@ export async function POST(request: Request) {
 
         const visionCount = clampCount(vision_count ?? count, 1, 1, 10);
         const missionCount = clampCount(mission_count ?? count, 1, 1, 10);
+        const excludedVisions = normalizeStringArray(exclude_visions);
+        const excludedMissions = normalizeStringArray(exclude_missions);
         fallbackProgramName = program_name;
         fallbackVisionInputs = Array.isArray(vision_inputs) ? vision_inputs : [];
         fallbackMissionInputs = Array.isArray(mission_inputs) ? mission_inputs : [];
+        fallbackExcludedVisions = excludedVisions;
+        fallbackExcludedMissions = excludedMissions;
         fallbackVisionCount = visionCount;
         fallbackMissionCount = missionCount;
         fallbackMode = generationMode;
@@ -345,6 +409,7 @@ Program: ${program_name}
 Institute Vision: ${institute_vision || 'Not specified'}
 Selected Focus Areas: ${(vision_inputs || []).join(', ')}
 ${vision_instructions ? `Custom User Instructions: ${vision_instructions}` : ''}
+${excludedVisions.length > 0 ? `Avoid repeating any of these existing vision statements: ${excludedVisions.join(' || ')}` : ''}
 Rules: 
 1. Each statement must be 1-2 lines, Future-oriented, Professional tone.
 2. Return strictly a JSON ARRAY of strings, e.g. ["Vision 1", "Vision 2"].
@@ -354,14 +419,15 @@ Rules:
             visionOptions = parseOptions(visionRaw)
                 .map((item) => enforceVisionQuality(removeAbsoluteClaims(item), vision_inputs || []))
                 .filter(Boolean);
-            visionOptions = fillToTargetCount(
-                visionOptions,
-                visionCount,
-                (idx) => enforceVisionQuality(
-                    buildVisionFallbackStatement(program_name, vision_inputs || [], idx),
-                    vision_inputs || []
-                )
-            );
+                visionOptions = fillToTargetCount(
+                    visionOptions,
+                    visionCount,
+                    (idx) => enforceVisionQuality(
+                        buildVisionFallbackStatement(program_name, vision_inputs || [], idx),
+                        vision_inputs || []
+                    ),
+                    excludedVisions
+                );
         }
 
         if (shouldGenerateMission) {
@@ -373,6 +439,7 @@ Selected Program Vision: ${visionAnchor}
 Institute Mission: ${institute_mission || 'Not specified'}
 Selected Focus Areas: ${(mission_inputs || []).join(', ')}
 ${mission_instructions ? `Custom User Instructions: ${mission_instructions}` : ''}
+${excludedMissions.length > 0 ? `Avoid repeating any of these existing mission statements: ${excludedMissions.join(' || ')}` : ''}
 Rules: 
 1. Each mission must be a single paragraph with 3-5 action sentences.
 2. Mission statements must be implementable and aligned to the selected program vision.
@@ -384,14 +451,15 @@ Rules:
             missionOptions = parseOptions(missionRaw)
                 .map((item) => enforceMissionQuality(removeAbsoluteClaims(item), mission_inputs || []))
                 .filter(Boolean);
-            missionOptions = fillToTargetCount(
-                missionOptions,
-                missionCount,
-                (idx) => enforceMissionQuality(
-                    buildMissionFallbackStatement(program_name, mission_inputs || [], idx),
-                    mission_inputs || []
-                )
-            );
+                missionOptions = fillToTargetCount(
+                    missionOptions,
+                    missionCount,
+                    (idx) => enforceMissionQuality(
+                        buildMissionFallbackStatement(program_name, mission_inputs || [], idx),
+                        mission_inputs || []
+                    ),
+                    excludedMissions
+                );
         }
 
         return NextResponse.json({
@@ -413,7 +481,8 @@ Rules:
                 (idx) => enforceVisionQuality(
                     buildVisionFallbackStatement(fallbackProgramName, fallbackVisionInputs, idx),
                     fallbackVisionInputs
-                )
+                ),
+                fallbackExcludedVisions
             )
             : [];
 
@@ -424,7 +493,8 @@ Rules:
                 (idx) => enforceMissionQuality(
                     buildMissionFallbackStatement(fallbackProgramName, fallbackMissionInputs, idx),
                     fallbackMissionInputs
-                )
+                ),
+                fallbackExcludedMissions
             )
             : [];
 

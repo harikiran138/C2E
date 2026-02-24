@@ -47,6 +47,23 @@ const MISSION_PRIORITIES = [
     'Lifelong learning mindset'
 ];
 
+function mergeUniqueStatements(existing: string[], incoming: string[]) {
+    const seen = new Set<string>();
+    const merged: string[] = [];
+
+    for (const item of [...existing, ...incoming]) {
+        const normalized = String(item || '').replace(/\s+/g, ' ').trim();
+        if (!normalized) continue;
+        const key = normalized.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(normalized);
+        }
+    }
+
+    return merged;
+}
+
 export default function VisionMissionGenerator() {
     const searchParams = useSearchParams();
     const programId = searchParams.get('programId');
@@ -70,6 +87,8 @@ export default function VisionMissionGenerator() {
     // Multi-option state
     const [visionOptions, setVisionOptions] = useState<string[]>([]);
     const [missionOptions, setMissionOptions] = useState<string[]>([]);
+    const [visionGenerationHistory, setVisionGenerationHistory] = useState<string[]>([]);
+    const [missionGenerationHistory, setMissionGenerationHistory] = useState<string[]>([]);
     const [visionGenerateCount, setVisionGenerateCount] = useState(3);
     const [missionGenerateCount, setMissionGenerateCount] = useState(3);
 
@@ -100,6 +119,8 @@ export default function VisionMissionGenerator() {
                             const loadedMissionOptions = Array.isArray(currentProgram.mission_options) ? currentProgram.mission_options : [];
                             setVisionOptions(loadedVisionOptions);
                             setMissionOptions(loadedMissionOptions);
+                            setVisionGenerationHistory(loadedVisionOptions);
+                            setMissionGenerationHistory(loadedMissionOptions);
 
                             // Load saved priorities from used inputs if available, else fallback to vision_priorities
                             if (currentProgram.vision_inputs_used) {
@@ -169,6 +190,7 @@ export default function VisionMissionGenerator() {
 
         setGeneratingVision(true);
         try {
+            const excludedVisions = mergeUniqueStatements(visionGenerationHistory, visionOptions);
             const response = await fetch(`${AI_API_URL}/ai/generate-vision-mission`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -179,7 +201,8 @@ export default function VisionMissionGenerator() {
                     institute_mission: institution.mission || '',
                     vision_inputs: selectedVisionPriorities,
                     mission_inputs: selectedMissionPriorities,
-                    vision_count: visionGenerateCount
+                    vision_count: visionGenerateCount,
+                    exclude_visions: excludedVisions
                 }),
             });
 
@@ -188,6 +211,7 @@ export default function VisionMissionGenerator() {
                 // Fallback to reading the visions array we specifically requested
                 const newVisions = data.visions && data.visions.length > 0 ? data.visions : (data.vision ? [data.vision] : []);
                 setVisionOptions(newVisions);
+                setVisionGenerationHistory((previous) => mergeUniqueStatements(previous, newVisions));
 
                 // Auto-select first option if none selected
                 if (!programVision && newVisions.length > 0) setProgramVision(newVisions[0]);
@@ -219,6 +243,7 @@ export default function VisionMissionGenerator() {
 
         setGeneratingMission(true);
         try {
+            const excludedMissions = mergeUniqueStatements(missionGenerationHistory, missionOptions);
             const response = await fetch(`${AI_API_URL}/ai/generate-vision-mission`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -230,7 +255,8 @@ export default function VisionMissionGenerator() {
                     selected_program_vision: programVision || visionOptions[0] || '',
                     vision_inputs: selectedVisionPriorities,
                     mission_inputs: selectedMissionPriorities,
-                    mission_count: missionGenerateCount
+                    mission_count: missionGenerateCount,
+                    exclude_missions: excludedMissions
                 }),
             });
 
@@ -238,6 +264,7 @@ export default function VisionMissionGenerator() {
                 const data = await response.json();
                 const newMissions = data.missions && data.missions.length > 0 ? data.missions : (data.mission ? [data.mission] : []);
                 setMissionOptions(newMissions);
+                setMissionGenerationHistory((previous) => mergeUniqueStatements(previous, newMissions));
                 // Auto-select first option if none selected
                 if (!programMission && newMissions.length > 0) setProgramMission(newMissions[0]);
 
