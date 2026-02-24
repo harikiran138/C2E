@@ -1806,6 +1806,145 @@ async function generateWithValidation(params: {
   };
 }
 
+async function generateCoupledMissionsWithValidation(params: {
+  programName: string;
+  instituteMission: string;
+  visions: string[];
+  semanticOptions: SemanticOption[];
+  missionClusters: ThemeCluster[];
+  missionDistributionPlan: DistributionSlot[];
+  visionClusters: ThemeCluster[];
+  excludedStatements: string[];
+  customInstructions?: string;
+}): Promise<CoupledMissionGenerationResult> {
+  const {
+    programName,
+    instituteMission,
+    visions,
+    semanticOptions,
+    missionClusters,
+    missionDistributionPlan,
+    visionClusters,
+    excludedStatements,
+    customInstructions,
+  } = params;
+
+  const hints = buildCoupledMissionHints(visions, visionClusters, missionClusters);
+  const referenceClusters = missionClusters.length > 0 ? missionClusters : visionClusters;
+  let feedback: string[] = [];
+
+  for (let attempt = 1; attempt <= MAX_REGEN_ATTEMPTS; attempt += 1) {
+    const prompt = buildCoupledMissionPrompt({
+      programName,
+      instituteMission,
+      semanticOptions,
+      clusters: missionClusters,
+      distributionPlan: missionDistributionPlan,
+      visions,
+      hints,
+      customInstructions,
+      excludedStatements,
+      feedback,
+    });
+
+    const raw = await callGemini(prompt);
+    const parsed = parseOptions(raw);
+    const normalized = parsed.map((statement) => normalizeMissionStatement(statement, referenceClusters));
+
+    const filled = fillToTargetCount(
+      dedupeStatements(normalized),
+      visions.length,
+      (index) =>
+        normalizeMissionStatement(
+          buildCoupledMissionFallbackStatement(
+            programName,
+            hints[index % hints.length] || {
+              index,
+              vision: visions[index % visions.length] || '',
+              dominantCategories: ['custom'],
+              focusKeywords: [],
+              requiredPillars: CATEGORY_OPERATIONAL_PILLARS.custom,
+            },
+            index
+          ),
+          referenceClusters
+        ),
+      excludedStatements
+    );
+
+    const validation = validateStatements(
+      'mission',
+      filled,
+      semanticOptions,
+      missionClusters,
+      missionDistributionPlan,
+      excludedStatements
+    );
+    const alignment = validateVisionMissionAlignment({
+      visions,
+      missions: filled,
+      hints,
+      missionClusters: referenceClusters,
+    });
+
+    if (validation.pass && alignment.pass) {
+      return {
+        statements: filled,
+        validation,
+        attempts: attempt,
+        alignment,
+        hints,
+      };
+    }
+
+    feedback = [...validation.violations, ...alignment.violations].slice(0, 8);
+  }
+
+  const fallbackStatements = fillToTargetCount(
+    [],
+    visions.length,
+    (index) =>
+      normalizeMissionStatement(
+        buildCoupledMissionFallbackStatement(
+          programName,
+          hints[index % hints.length] || {
+            index,
+            vision: visions[index % visions.length] || '',
+            dominantCategories: ['custom'],
+            focusKeywords: [],
+            requiredPillars: CATEGORY_OPERATIONAL_PILLARS.custom,
+          },
+          index
+        ),
+        referenceClusters
+      ),
+    excludedStatements
+  );
+
+  const validation = validateStatements(
+    'mission',
+    fallbackStatements,
+    semanticOptions,
+    missionClusters,
+    missionDistributionPlan,
+    excludedStatements
+  );
+  const alignment = validateVisionMissionAlignment({
+    visions,
+    missions: fallbackStatements,
+    hints,
+    missionClusters: referenceClusters,
+  });
+
+  return {
+    statements: fallbackStatements,
+    validation,
+    attempts: MAX_REGEN_ATTEMPTS,
+    alignment,
+    hints,
+  };
+}
+
 export async function POST(request: Request) {
   let fallbackProgramName = 'this program';
   let fallbackMode: GenerationMode = 'both';
@@ -1850,16 +1989,18 @@ export async function POST(request: Request) {
 
     const shouldGenerateVision = generationMode === 'vision' || generationMode === 'both';
     const shouldGenerateMission = generationMode === 'mission' || generationMode === 'both';
+    const coupledGeneration = shouldGenerateVision && shouldGenerateMission;
 
     const visionCount = clampCount(vision_count ?? count, 1, 1, MAX_COUNT);
-    const missionCount = clampCount(mission_count ?? count, 1, 1, MAX_COUNT);
+    const requestedMissionCount = clampCount(mission_count ?? count, 1, 1, MAX_COUNT);
+    const missionCount = coupledGeneration ? visionCount : requestedMissionCount;
 
     const selectedVisionInputs = normalizeStringArray(vision_inputs);
     const selectedMissionInputs = normalizeStringArray(mission_inputs);
     const excludedVisions = normalizeStringArray(exclude_visions);
     const excludedMissions = normalizeStringArray(exclude_missions);
 
-    if (shouldGenerateMission && !selected_program_vision) {
+    if (shouldGenerateMission && !shouldGenerateVision && !selected_program_vision) {
       return NextResponse.json(
         { error: 'Program vision is required before generating mission statements.' },
         { status: 400 }
@@ -1867,9 +2008,12 @@ export async function POST(request: Request) {
     }
 
     const visionSemantic = buildSemanticObjects(selectedVisionInputs, 'vision');
-    const missionSemantic = buildSemanticObjects(selectedMissionInputs, 'mission');
-
     const visionClusters = buildThemeClusters(visionSemantic);
+
+    const missionInputsForGeneration = coupledGeneration
+      ? resolveMissionInputsForGeneration(selectedMissionInputs, visionClusters)
+      : selectedMissionInputs;
+    const missionSemantic = buildSemanticObjects(missionInputsForGeneration, 'mission');
     const missionClusters = buildThemeClusters(missionSemantic);
 
     const visionPlan = buildDistributionPlan(visionClusters, visionCount);
@@ -1889,7 +2033,7 @@ export async function POST(request: Request) {
     fallbackExcludedMissions = excludedMissions;
 
     let visionResult: GenerationResult | null = null;
-    let missionResult: GenerationResult | null = null;
+    let missionResult: GenerationResult | CoupledMissionGenerationResult | null = null;
 
     if (shouldGenerateVision) {
       visionResult = await generateWithValidation({
@@ -1921,43 +2065,67 @@ export async function POST(request: Request) {
     }
 
     if (shouldGenerateMission) {
-      missionResult = await generateWithValidation({
-        kind: 'mission',
-        count: missionCount,
-        semanticOptions: missionSemantic,
-        clusters: missionClusters,
-        distributionPlan: missionPlan,
-        excludedStatements: excludedMissions,
-        promptFactory: (feedback) =>
-          buildMissionPrompt({
-            programName: String(program_name),
-            selectedProgramVision: String(selected_program_vision || ''),
-            instituteMission: String(institute_mission || ''),
-            semanticOptions: missionSemantic,
-            clusters: missionClusters,
-            distributionPlan: missionPlan,
-            count: missionCount,
-            customInstructions: String(mission_instructions || ''),
-            excludedStatements: excludedMissions,
-            feedback,
-          }),
-        fallbackFactory: (index) =>
-          buildMissionFallbackStatement(String(program_name), missionPlan[index % missionPlan.length] || {
-            index,
-            categories: ['custom'],
-            emphasisLabels: [],
-          }, index),
-      });
+      if (coupledGeneration) {
+        const visionsForMission = visionResult?.statements || [];
+        if (visionsForMission.length === 0) {
+          throw new Error('Failed to generate vision statements required for coupled mission generation.');
+        }
+
+        missionResult = await generateCoupledMissionsWithValidation({
+          programName: String(program_name),
+          instituteMission: String(institute_mission || ''),
+          visions: visionsForMission,
+          semanticOptions: missionSemantic,
+          missionClusters,
+          missionDistributionPlan: missionPlan,
+          visionClusters,
+          excludedStatements: excludedMissions,
+          customInstructions: String(mission_instructions || ''),
+        });
+      } else {
+        missionResult = await generateWithValidation({
+          kind: 'mission',
+          count: missionCount,
+          semanticOptions: missionSemantic,
+          clusters: missionClusters,
+          distributionPlan: missionPlan,
+          excludedStatements: excludedMissions,
+          promptFactory: (feedback) =>
+            buildMissionPrompt({
+              programName: String(program_name),
+              selectedProgramVision: String(selected_program_vision || ''),
+              instituteMission: String(institute_mission || ''),
+              semanticOptions: missionSemantic,
+              clusters: missionClusters,
+              distributionPlan: missionPlan,
+              count: missionCount,
+              customInstructions: String(mission_instructions || ''),
+              excludedStatements: excludedMissions,
+              feedback,
+            }),
+          fallbackFactory: (index) =>
+            buildMissionFallbackStatement(String(program_name), missionPlan[index % missionPlan.length] || {
+              index,
+              categories: ['custom'],
+              emphasisLabels: [],
+            }, index),
+        });
+      }
     }
 
     const visions = visionResult?.statements || [];
     const missions = missionResult?.statements || [];
+    const pairs = coupledGeneration ? buildVisionMissionPairs(visions, missions) : [];
+    const missionAlignment =
+      missionResult && 'alignment' in missionResult ? missionResult.alignment : null;
+    const missionHints = missionResult && 'hints' in missionResult ? missionResult.hints : null;
 
     return NextResponse.json({
       vision: visions[0] || null,
       mission: missions[0] || null,
       visions,
       missions,
+      pairs,
       generation_details: {
         vision: visionResult
           ? {
@@ -1973,6 +2141,8 @@ export async function POST(request: Request) {
               validation: missionResult.validation,
               semantic_clusters: missionClusters,
               distribution_plan: missionPlan,
+              alignment_validation: missionAlignment,
+              coupled_hints: missionHints,
             }
           : null,
       },
@@ -2004,32 +2174,64 @@ export async function POST(request: Request) {
         )
       : [];
 
+    const isFallbackCoupled = shouldGenerateVision && shouldGenerateMission;
+    const fallbackCoupledHints = isFallbackCoupled
+      ? buildCoupledMissionHints(fallbackVisions, fallbackVisionClusters, fallbackMissionClusters)
+      : [];
+    const fallbackMissionReferenceClusters =
+      fallbackMissionClusters.length > 0 ? fallbackMissionClusters : fallbackVisionClusters;
+
     const fallbackMissions = shouldGenerateMission
       ? fillToTargetCount(
           [],
-          fallbackMissionCount,
+          isFallbackCoupled ? fallbackVisions.length : fallbackMissionCount,
           (index) =>
             normalizeMissionStatement(
-              buildMissionFallbackStatement(
-                fallbackProgramName,
-                fallbackMissionPlan[index % fallbackMissionPlan.length] || {
-                  index,
-                  categories: ['custom'],
-                  emphasisLabels: [],
-                },
-                index
-              ),
-              fallbackMissionClusters
+              isFallbackCoupled
+                ? buildCoupledMissionFallbackStatement(
+                    fallbackProgramName,
+                    fallbackCoupledHints[index % fallbackCoupledHints.length] || {
+                      index,
+                      vision: fallbackVisions[index % fallbackVisions.length] || '',
+                      dominantCategories: ['custom'],
+                      focusKeywords: [],
+                      requiredPillars: CATEGORY_OPERATIONAL_PILLARS.custom,
+                    },
+                    index
+                  )
+                : buildMissionFallbackStatement(
+                    fallbackProgramName,
+                    fallbackMissionPlan[index % fallbackMissionPlan.length] || {
+                      index,
+                      categories: ['custom'],
+                      emphasisLabels: [],
+                    },
+                    index
+                  ),
+              fallbackMissionReferenceClusters
             ),
           fallbackExcludedMissions
         )
       : [];
+
+    const fallbackPairs = isFallbackCoupled
+      ? buildVisionMissionPairs(fallbackVisions, fallbackMissions)
+      : [];
+    const fallbackAlignment = fallbackPairs.length
+      ? validateVisionMissionAlignment({
+          visions: fallbackVisions,
+          missions: fallbackMissions,
+          hints: fallbackCoupledHints,
+          missionClusters: fallbackMissionReferenceClusters,
+        })
+      : null;
 
     return NextResponse.json({
       vision: fallbackVisions[0] || null,
       mission: fallbackMissions[0] || null,
       visions: fallbackVisions,
       missions: fallbackMissions,
+      pairs: fallbackPairs,
       error: error.message,
       is_fallback: true,
       generation_details: {
@@ -2043,6 +2245,8 @@ export async function POST(request: Request) {
           ? {
               semantic_count: fallbackMissionSemantic.length,
               cluster_count: fallbackMissionClusters.length,
+              alignment_validation: fallbackAlignment,
+              coupled_hints: fallbackCoupledHints,
             }
           : null,
       },

@@ -10,7 +10,9 @@ const PUBLIC_PATHS = [
   '/api/institution/register',
   '/api/institution/login',
   '/api/institution/auth/refresh',
-  '/', 
+  '/',
+  '/program-login',
+  '/api/auth/program-login',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -26,29 +28,29 @@ export async function middleware(request: NextRequest) {
   // [SECURITY] Rate Limiting (Basic)
   // Limit sensitive routes more strictly
   const isAuthRoute = pathname.includes('/login') || pathname.includes('/register');
-  const limitInfo = isAuthRoute 
-      ? { limit: 10, windowMs: 60 * 1000 } // 10 reqs/min for auth
-      : { limit: 100, windowMs: 60 * 1000 }; // 100 reqs/min general
+  const limitInfo = isAuthRoute
+    ? { limit: 10, windowMs: 60 * 1000 } // 10 reqs/min for auth
+    : { limit: 100, windowMs: 60 * 1000 }; // 100 reqs/min general
 
   if (pathname.startsWith('/api')) {
-      const allowed = checkRateLimit({ ip: String(ip), ...limitInfo });
-      if (!allowed) {
-          return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
-      }
+    const allowed = checkRateLimit({ ip: String(ip), ...limitInfo });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+    }
   }
 
   // [SECURITY] Strict Origin Check (CSRF for API mutations)
   // Ensure POST/PUT/DELETE requests come from our own origin
   if (pathname.startsWith('/api') && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
-      const origin = request.headers.get('origin');
-      const host = request.headers.get('host'); // e.g. localhost:3000
-      // In production, host might not include protocol, origin does (https://...)
-      // Simple check: Origin must contain Host
-      if (origin && host && !origin.includes(host)) {
-           // Allow if allowed origin (e.g. from env)
-           // For now, strict block
-           return NextResponse.json({ error: 'CSRF Forbidden: Origin mismatch' }, { status: 403 });
-      }
+    const origin = request.headers.get('origin');
+    const host = request.headers.get('host'); // e.g. localhost:3000
+    // In production, host might not include protocol, origin does (https://...)
+    // Simple check: Origin must contain Host
+    if (origin && host && !origin.includes(host)) {
+      // Allow if allowed origin (e.g. from env)
+      // For now, strict block
+      return NextResponse.json({ error: 'CSRF Forbidden: Origin mismatch' }, { status: 403 });
+    }
   }
 
   // [SECURITY] Add Security Headers (Helmet-equivalent for Edge)
@@ -79,7 +81,7 @@ export async function middleware(request: NextRequest) {
   if (
     PUBLIC_PATHS.some(path => pathname.startsWith(path)) ||
     pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js)$/) ||
-    pathname.startsWith('/_next') || 
+    pathname.startsWith('/_next') ||
     pathname.startsWith('/public')
   ) {
     return response;
@@ -87,109 +89,123 @@ export async function middleware(request: NextRequest) {
 
   // [AUTH] Custom Session Check & Token Refresh
   let customUser: { id: string; email: string; role?: string; onboarding_status?: string } | null = null;
-  
+
   const institutionToken = request.cookies.get('institution_token')?.value;
   const refreshToken = request.cookies.get('institution_refresh')?.value;
-  
+
   if (institutionToken) {
     try {
-        const payload = await verifyToken(institutionToken);
-        if (payload) {
-          customUser = {
-            id: payload.id as string,
-            email: payload.email as string,
-            role: payload.role as string | undefined,
-            onboarding_status: payload.onboarding_status as string | undefined,
-          };
-          // console.log('Middleware: Access Token Valid:', customUser.email);
-        }
+      const payload = await verifyToken(institutionToken);
+      if (payload) {
+        customUser = {
+          id: payload.id as string,
+          email: payload.email as string,
+          role: payload.role as string | undefined,
+          onboarding_status: payload.onboarding_status as string | undefined,
+        };
+        // console.log('Middleware: Access Token Valid:', customUser.email);
+      }
     } catch (e) {
-        // console.log('Middleware: Access Token Invalid/Expired');
+      // console.log('Middleware: Access Token Invalid/Expired');
     }
   }
 
   // Auto-Refresh Logic
   if (!customUser && refreshToken) {
-     try {
-        // We call the refresh endpoint internally to get new tokens
-        const refreshUrl = new URL('/api/institution/auth/refresh', request.url);
-        const refreshRes = await fetch(refreshUrl, {
-            method: 'POST',
-            headers: {
-                'Cookie': `institution_refresh=${refreshToken}`
-            }
+    try {
+      // We call the refresh endpoint internally to get new tokens
+      const refreshUrl = new URL('/api/institution/auth/refresh', request.url);
+      const refreshRes = await fetch(refreshUrl, {
+        method: 'POST',
+        headers: {
+          'Cookie': `institution_refresh=${refreshToken}`
+        }
+      });
+
+      if (refreshRes.ok) {
+        // Refresh successful! Get the new tokens from cookies
+        const setCookieHeaders = refreshRes.headers.getSetCookie();
+
+        // Apply these cookies to the current response
+        setCookieHeaders.forEach(cookie => {
+          response.headers.append('Set-Cookie', cookie);
         });
 
-        if (refreshRes.ok) {
-            // Refresh successful! Get the new tokens from cookies
-            const setCookieHeaders = refreshRes.headers.getSetCookie();
-            
-            // Apply these cookies to the current response
-            setCookieHeaders.forEach(cookie => {
-                response.headers.append('Set-Cookie', cookie);
-            });
+        // Re-verify the new access token to get user context for this request
+        // We need to parse the set-cookie to find the access token
+        const newToken = setCookieHeaders
+          .find(c => c.startsWith('institution_token='))
+          ?.split(';')[0]
+          .split('=')[1];
 
-            // Re-verify the new access token to get user context for this request
-            // We need to parse the set-cookie to find the access token
-            const newToken = setCookieHeaders
-                .find(c => c.startsWith('institution_token='))
-                ?.split(';')[0]
-                .split('=')[1];
-
-            if (newToken) {
-                const payload = await verifyToken(newToken);
-                if (payload) {
-                    customUser = {
-                        id: payload.id as string,
-                        email: payload.email as string,
-                        role: payload.role as string | undefined,
-                        onboarding_status: payload.onboarding_status as string | undefined,
-                    };
-                }
-            }
+        if (newToken) {
+          const payload = await verifyToken(newToken);
+          if (payload) {
+            customUser = {
+              id: payload.id as string,
+              email: payload.email as string,
+              role: payload.role as string | undefined,
+              onboarding_status: payload.onboarding_status as string | undefined,
+            };
+          }
         }
-     } catch (e) {
-         console.error('Middleware: Refresh failed:', e);
-     }
+      }
+    } catch (e) {
+      console.error('Middleware: Refresh failed:', e);
+    }
   }
 
   const isApiRoute = pathname.startsWith('/api');
 
   if (!customUser) {
+    // If the user is trying to access a program dashboard, we check for program session instead
+    if (pathname.startsWith('/dashboard')) {
+      const programSession = request.cookies.get('c2e_program_session')?.value;
+      if (!programSession) {
+        const loginUrl = new URL('/program-login', request.url);
+        loginUrl.searchParams.set('redirect', pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+      // Ideally we would verify the JWT here, but since jose is async and middleware runs on edge,
+      // we can just check existence, or do a lightweight verify. The actual page/API will verify thoroughly.
+      // We will just let it pass to the router if the cookie exists.
+      return response;
+    }
+
     // [BLOCK] Unauthenticated Access
     if (isApiRoute) {
-       return NextResponse.json({ error: 'Unauthorized: Missing or invalid token' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Missing or invalid token' }, { status: 401 });
     } else {
-       // Redirect to login for pages
-       const loginUrl = new URL('/institution/login', request.url);
-       loginUrl.searchParams.set('redirect', pathname);
-       return NextResponse.redirect(loginUrl);
+      // Redirect to login for pages
+      const loginUrl = new URL('/institution/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
     }
   }
 
   // [Authorisation] Post-Auth Checks (Dashboard Access etc.)
   // Only for Pages, API usually handles granular permissions
   if (!isApiRoute) {
-     // ... Maintain existing dashboard logic if needed ...
-     // Re-implementing the robust status check using Supabase if desired, or relying on token claims.
-     // For performance, we rely on token claims.
-     
+    // ... Maintain existing dashboard logic if needed ...
+    // Re-implementing the robust status check using Supabase if desired, or relying on token claims.
+    // For performance, we rely on token claims.
+
     const effectiveStatus = customUser?.onboarding_status || 'PENDING';
     const isDashboardArea =
-        pathname.startsWith('/institution/dashboard') ||
-        pathname.startsWith('/institution/process') ||
-        pathname.startsWith('/institution/details') ||
-        pathname.startsWith('/institution/programs') ||
-        pathname.startsWith('/institution/peos') ||
-        pathname.startsWith('/institution/feedback');
+      pathname.startsWith('/institution/dashboard') ||
+      pathname.startsWith('/institution/process') ||
+      pathname.startsWith('/institution/details') ||
+      pathname.startsWith('/institution/programs') ||
+      pathname.startsWith('/institution/peos') ||
+      pathname.startsWith('/institution/feedback');
 
-      if (isDashboardArea && effectiveStatus !== 'COMPLETED') {
-        return NextResponse.redirect(new URL('/institution/onboarding', request.url))
-      }
+    if (isDashboardArea && effectiveStatus !== 'COMPLETED') {
+      return NextResponse.redirect(new URL('/institution/onboarding', request.url))
+    }
 
-      if (pathname.startsWith('/institution/onboarding') && effectiveStatus === 'COMPLETED') {
-          return NextResponse.redirect(new URL('/institution/dashboard', request.url))
-      }
+    if (pathname.startsWith('/institution/onboarding') && effectiveStatus === 'COMPLETED') {
+      return NextResponse.redirect(new URL('/institution/dashboard', request.url))
+    }
   }
 
   return response;
