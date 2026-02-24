@@ -143,7 +143,7 @@ interface StrategicValidationSummary {
 }
 
 const MAX_COUNT = 10;
-const MAX_REGEN_ATTEMPTS = 3;
+const MAX_REGEN_ATTEMPTS = 2;
 const STRATEGIC_APPROVAL_THRESHOLD = 85;
 
 const CATEGORY_LABELS: Record<ThemeCategory, string> = {
@@ -876,9 +876,18 @@ function sanitizeCompliance(statement: string, kind: StatementKind) {
     .replace(/\bstudent[s]?\s+will\s+be\s+able\s+to\b/gi, 'graduates will');
 
   if (kind === 'vision') {
+    const phrases = [
+      'strengthen institutional capacity for',
+      'position for',
+      'foster long-term'
+    ];
+    let phraseIdx = 0;
     for (const verb of VISION_MEASURABLE_VERBS) {
       const escaped = verb.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      cleaned = cleaned.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), 'advance');
+      cleaned = cleaned.replace(
+        new RegExp(`\\b${escaped}\\b`, 'gi'),
+        () => phrases[phraseIdx++ % phrases.length]
+      );
     }
   }
 
@@ -1523,11 +1532,13 @@ function buildFallbackStrategicValidation(params: {
     }
 
     const overlap = keywordOverlapRatio(vision, mission);
-    if (overlap > 0.78) {
-      flowFlags.push('Mission repeats Vision wording too closely.');
-    }
-    if (overlap < 0.15) {
-      flowFlags.push('Mission has weak lexical continuity with the Vision intent.');
+    if (!alignmentDetail) {
+      if (overlap > 0.65) {
+        flowFlags.push('Mission repeats Vision wording too closely.');
+      }
+      if (overlap < 0.15) {
+        flowFlags.push('Mission has weak lexical continuity with the Vision intent.');
+      }
     }
 
     const alignmentGaps: string[] = [];
@@ -1592,8 +1603,8 @@ function buildFallbackStrategicValidation(params: {
       overall >= approvalThreshold && identifiedWeaknesses.length === 0
         ? 'Approved for strategic use.'
         : overall >= approvalThreshold
-        ? 'Conditionally acceptable with minor refinements.'
-        : 'Needs refinement before approval.';
+          ? 'Conditionally acceptable with minor refinements.'
+          : 'Needs refinement before approval.';
 
     return {
       index: idx + 1,
@@ -1648,8 +1659,8 @@ function normalizeAiStrategicValidation(params: {
   const rawItems: any[] = Array.isArray(parsed?.items)
     ? parsed.items
     : Array.isArray(parsed)
-    ? parsed
-    : [];
+      ? parsed
+      : [];
 
   const items: StrategicValidationItem[] = pairs.map((pair, idx) => {
     const fallbackItem = fallback.items[idx];
@@ -1814,11 +1825,11 @@ function calculateCoverage(
     perStatementCoverage.length === 0 || semanticOptions.length === 0
       ? 0
       : perStatementCoverage.reduce((sum, item) => sum + item.coveredThemes / semanticOptions.length, 0) /
-        perStatementCoverage.length;
+      perStatementCoverage.length;
 
   const themeCoverageScore = Math.round(
     ((semanticOptions.length - missingThemes.length) / Math.max(semanticOptions.length, 1)) * 70 +
-      avgThemeCoverage * 30
+    avgThemeCoverage * 30
   );
 
   return {
@@ -1944,15 +1955,11 @@ function validateStatements(
   }
 
   const requiredCategoryCountPerStatement = clusters.length;
-  const perStatementCategoryCoverageOk =
-    requiredCategoryCountPerStatement === 0 ||
-    coverage.perStatementCoverage.every(
-      (item) => item.coveredCategories.length >= requiredCategoryCountPerStatement
-    );
+  const overallCategoryCoverageOk = coverage.missingCategories.length === 0;
 
-  if (!perStatementCategoryCoverageOk && requiredCategoryCountPerStatement > 0) {
+  if (!overallCategoryCoverageOk && requiredCategoryCountPerStatement > 0) {
     violations.push(
-      `each statement must reflect all selected strategic categories (${requiredCategoryCountPerStatement} required per statement)`
+      `the generated set must collectively reflect all selected strategic categories (missing: ${coverage.missingCategories.join(', ')})`
     );
   }
 
@@ -1970,16 +1977,16 @@ function validateStatements(
 
   const totalScore = Math.round(
     details.themeCoverage * 0.30 +
-      details.structuralDiversity * 0.20 +
-      details.compliance * 0.20 +
-      details.linguisticQuality * 0.15 +
-      details.strategicBalance * 0.15
+    details.structuralDiversity * 0.20 +
+    details.compliance * 0.20 +
+    details.linguisticQuality * 0.15 +
+    details.strategicBalance * 0.15
   );
 
   const pass =
     totalScore >= 80 &&
     coverage.missingThemes.length === 0 &&
-    perStatementCategoryCoverageOk &&
+    overallCategoryCoverageOk &&
     !diversity.repeatedStartPattern &&
     compliance.violations.length === 0 &&
     deduped.length === statements.length;
@@ -2622,11 +2629,11 @@ export async function POST(request: Request) {
       pairs.length > 0
         ? pairs
         : shouldGenerateMission && missions.length > 0 && !shouldGenerateVision
-        ? missions.map((mission) => ({
+          ? missions.map((mission) => ({
             vision: String(selected_program_vision || ''),
             mission,
           }))
-        : [];
+          : [];
 
     const validationVisionList = validationPairs.map((pair) => pair.vision);
     const validationMissionList = validationPairs.map((pair) => pair.mission);
@@ -2635,11 +2642,11 @@ export async function POST(request: Request) {
       missionAlignment ||
       (validationPairs.length > 0
         ? validateVisionMissionAlignment({
-            visions: validationVisionList,
-            missions: validationMissionList,
-            hints: validationHints,
-            missionClusters: missionClusters.length > 0 ? missionClusters : visionClusters,
-          })
+          visions: validationVisionList,
+          missions: validationMissionList,
+          hints: validationHints,
+          missionClusters: missionClusters.length > 0 ? missionClusters : visionClusters,
+        })
         : null);
 
     const strategicValidation = await evaluateStrategicValidation({
@@ -2661,21 +2668,21 @@ export async function POST(request: Request) {
       generation_details: {
         vision: visionResult
           ? {
-              attempts: visionResult.attempts,
-              validation: visionResult.validation,
-              semantic_clusters: visionClusters,
-              distribution_plan: visionPlan,
-            }
+            attempts: visionResult.attempts,
+            validation: visionResult.validation,
+            semantic_clusters: visionClusters,
+            distribution_plan: visionPlan,
+          }
           : null,
         mission: missionResult
           ? {
-              attempts: missionResult.attempts,
-              validation: missionResult.validation,
-              semantic_clusters: missionClusters,
-              distribution_plan: missionPlan,
-              alignment_validation: validationAlignment,
-              coupled_hints: validationHints,
-            }
+            attempts: missionResult.attempts,
+            validation: missionResult.validation,
+            semantic_clusters: missionClusters,
+            distribution_plan: missionPlan,
+            alignment_validation: validationAlignment,
+            coupled_hints: validationHints,
+          }
           : null,
         strategic_validation: strategicValidation,
       },
@@ -2688,23 +2695,23 @@ export async function POST(request: Request) {
 
     const fallbackVisions = shouldGenerateVision
       ? fillToTargetCount(
-          [],
-          fallbackVisionCount,
-          (index) =>
-            normalizeVisionStatement(
-              buildVisionFallbackStatement(
-                fallbackProgramName,
-                fallbackVisionPlan[index % fallbackVisionPlan.length] || {
-                  index,
-                  categories: ['custom'],
-                  emphasisLabels: [],
-                },
-                index
-              ),
-              fallbackVisionClusters
+        [],
+        fallbackVisionCount,
+        (index) =>
+          normalizeVisionStatement(
+            buildVisionFallbackStatement(
+              fallbackProgramName,
+              fallbackVisionPlan[index % fallbackVisionPlan.length] || {
+                index,
+                categories: ['custom'],
+                emphasisLabels: [],
+              },
+              index
             ),
-          fallbackExcludedVisions
-        )
+            fallbackVisionClusters
+          ),
+        fallbackExcludedVisions
+      )
       : [];
 
     const isFallbackCoupled = shouldGenerateVision && shouldGenerateMission;
@@ -2716,35 +2723,35 @@ export async function POST(request: Request) {
 
     const fallbackMissions = shouldGenerateMission
       ? fillToTargetCount(
-          [],
-          isFallbackCoupled ? fallbackVisions.length : fallbackMissionCount,
-          (index) =>
-            normalizeMissionStatement(
-              isFallbackCoupled
-                ? buildCoupledMissionFallbackStatement(
-                    fallbackProgramName,
-                    fallbackCoupledHints[index % fallbackCoupledHints.length] || {
-                      index,
-                      vision: fallbackVisions[index % fallbackVisions.length] || '',
-                      dominantCategories: ['custom'],
-                      focusKeywords: [],
-                      requiredPillars: CATEGORY_OPERATIONAL_PILLARS.custom,
-                    },
-                    index
-                  )
-                : buildMissionFallbackStatement(
-                    fallbackProgramName,
-                    fallbackMissionPlan[index % fallbackMissionPlan.length] || {
-                      index,
-                      categories: ['custom'],
-                      emphasisLabels: [],
-                    },
-                    index
-                  ),
-              fallbackMissionReferenceClusters
-            ),
-          fallbackExcludedMissions
-        )
+        [],
+        isFallbackCoupled ? fallbackVisions.length : fallbackMissionCount,
+        (index) =>
+          normalizeMissionStatement(
+            isFallbackCoupled
+              ? buildCoupledMissionFallbackStatement(
+                fallbackProgramName,
+                fallbackCoupledHints[index % fallbackCoupledHints.length] || {
+                  index,
+                  vision: fallbackVisions[index % fallbackVisions.length] || '',
+                  dominantCategories: ['custom'],
+                  focusKeywords: [],
+                  requiredPillars: CATEGORY_OPERATIONAL_PILLARS.custom,
+                },
+                index
+              )
+              : buildMissionFallbackStatement(
+                fallbackProgramName,
+                fallbackMissionPlan[index % fallbackMissionPlan.length] || {
+                  index,
+                  categories: ['custom'],
+                  emphasisLabels: [],
+                },
+                index
+              ),
+            fallbackMissionReferenceClusters
+          ),
+        fallbackExcludedMissions
+      )
       : [];
 
     const fallbackPairs = isFallbackCoupled
@@ -2752,27 +2759,27 @@ export async function POST(request: Request) {
       : [];
     const fallbackAlignment = fallbackPairs.length
       ? validateVisionMissionAlignment({
-          visions: fallbackVisions,
-          missions: fallbackMissions,
-          hints: fallbackCoupledHints,
-          missionClusters: fallbackMissionReferenceClusters,
-        })
+        visions: fallbackVisions,
+        missions: fallbackMissions,
+        hints: fallbackCoupledHints,
+        missionClusters: fallbackMissionReferenceClusters,
+      })
       : null;
     const fallbackValidationPairs: VisionMissionPair[] =
       fallbackPairs.length > 0
         ? fallbackPairs
         : shouldGenerateMission && !shouldGenerateVision
-        ? fallbackMissions.map((mission) => ({
+          ? fallbackMissions.map((mission) => ({
             vision: fallbackSelectedProgramVision || fallbackVisions[0] || '',
             mission,
           }))
-        : [];
+          : [];
     const fallbackStrategicValidation = fallbackValidationPairs.length
       ? buildFallbackStrategicValidation({
-          pairs: fallbackValidationPairs,
-          approvalThreshold: STRATEGIC_APPROVAL_THRESHOLD,
-          alignmentResult: fallbackAlignment,
-        })
+        pairs: fallbackValidationPairs,
+        approvalThreshold: STRATEGIC_APPROVAL_THRESHOLD,
+        alignmentResult: fallbackAlignment,
+      })
       : null;
 
     return NextResponse.json({
@@ -2787,17 +2794,17 @@ export async function POST(request: Request) {
       generation_details: {
         vision: shouldGenerateVision
           ? {
-              semantic_count: fallbackVisionSemantic.length,
-              cluster_count: fallbackVisionClusters.length,
-            }
+            semantic_count: fallbackVisionSemantic.length,
+            cluster_count: fallbackVisionClusters.length,
+          }
           : null,
         mission: shouldGenerateMission
           ? {
-              semantic_count: fallbackMissionSemantic.length,
-              cluster_count: fallbackMissionClusters.length,
-              alignment_validation: fallbackAlignment,
-              coupled_hints: fallbackCoupledHints,
-            }
+            semantic_count: fallbackMissionSemantic.length,
+            cluster_count: fallbackMissionClusters.length,
+            alignment_validation: fallbackAlignment,
+            coupled_hints: fallbackCoupledHints,
+          }
           : null,
         strategic_validation: fallbackStrategicValidation,
       },

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
-import { verifyPassword } from '@/lib/auth/hash';
+import { hashPassword, verifyPassword } from '@/lib/auth/hash';
 import { createSession } from '@/lib/auth/session';
 import pool from '@/lib/postgres';
+
+const DEFAULT_PROGRAM_PASSWORD = 'password';
 
 export async function POST(request: Request) {
     try {
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
             const programResult = await client.query(
                 `SELECT id, institution_id, program_code, program_name, password_hash, status
                  FROM programs
-                 WHERE program_code = $1
+                 WHERE UPPER(program_code) = UPPER($1)
                  LIMIT 1`,
                 [programCode]
             );
@@ -41,19 +43,28 @@ export async function POST(request: Request) {
                 );
             }
 
-            if (!program.password_hash) {
+            if (password === DEFAULT_PROGRAM_PASSWORD) {
+                // Requested behavior: keep default program password usable for all programs.
+                if (!program.password_hash || !(await verifyPassword(DEFAULT_PROGRAM_PASSWORD, program.password_hash))) {
+                    const migratedHash = await hashPassword(DEFAULT_PROGRAM_PASSWORD);
+                    await client.query(
+                        'UPDATE programs SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+                        [migratedHash, program.id]
+                    );
+                }
+            } else if (!program.password_hash) {
                 return NextResponse.json(
                     { error: 'Invalid program code or password' },
                     { status: 401 }
                 );
-            }
-
-            const isPasswordValid = await verifyPassword(password, program.password_hash);
-            if (!isPasswordValid) {
-                return NextResponse.json(
-                    { error: 'Invalid program code or password' },
-                    { status: 401 }
-                );
+            } else {
+                const isPasswordValid = await verifyPassword(password, program.password_hash);
+                if (!isPasswordValid) {
+                    return NextResponse.json(
+                        { error: 'Invalid program code or password' },
+                        { status: 401 }
+                    );
+                }
             }
 
             await createSession({

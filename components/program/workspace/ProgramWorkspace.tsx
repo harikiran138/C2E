@@ -6,8 +6,10 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Menu, X, LayoutDashboard, BookOpen, Shield, Gavel, Users, Grid2X2, FileText } from 'lucide-react';
+import * as Icons from 'lucide-react';
+import { LogOut, Menu, X, LayoutDashboard, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { PROCESS_MENU_STEPS, getProcessStep } from '@/lib/institution/process';
 
 interface ProgramWorkspaceProps {
     programId: string;
@@ -17,25 +19,26 @@ interface ProgramWorkspaceProps {
     headerContent?: React.ReactNode;
 }
 
-const PROGRAM_NAV_ITEMS = [
-    { key: 'dashboard', label: 'Program Dashboard', icon: <LayoutDashboard className="size-4" /> },
-    { key: 'tutor', label: 'Tutor Definitions', icon: <BookOpen className="size-4" /> },
-    { key: 'committee', label: 'Committee', icon: <Shield className="size-4" /> },
-    { key: 'bos', label: 'BoS', icon: <Gavel className="size-4" /> },
-    { key: 'stakeholders', label: 'Stakeholders', icon: <Users className="size-4" /> },
-    { key: 'obe', label: 'OBE Mapping', icon: <Grid2X2 className="size-4" /> },
-    { key: 'reports', label: 'Reports', icon: <FileText className="size-4" /> },
-];
-
-const SECTION_META: Record<string, { title: string; subtitle: string }> = {
-    dashboard: { title: 'Program Dashboard', subtitle: 'Track progress and execute program-level workflows.' },
-    tutor: { title: 'Tutor Definitions', subtitle: 'Define OBE protocols and reference framework resources.' },
-    committee: { title: 'Committee', subtitle: 'Manage Program Advisory Committee composition and records.' },
-    bos: { title: 'Board of Studies', subtitle: 'Maintain BoS constitution and member details.' },
-    stakeholders: { title: 'Stakeholders', subtitle: 'Add and maintain representative stakeholder records.' },
-    obe: { title: 'OBE Mapping', subtitle: 'Configure Vision, Mission, PEO, PO, and consistency mappings.' },
-    reports: { title: 'Reports', subtitle: 'Generate program-level review and compliance reports.' },
+const LEGACY_SECTION_TO_STEP: Record<string, string> = {
+    tutor: 'process-1',
+    committee: 'process-3',
+    bos: 'process-4',
+    stakeholders: 'process-5',
+    obe: 'process-6',
 };
+
+const PROGRAM_NAV_ITEMS = [
+    { key: 'dashboard', label: 'Program Dashboard', icon: <LayoutDashboard className="size-4" />, aiDriven: false },
+    ...PROCESS_MENU_STEPS.map((step) => {
+        const Icon = (Icons as any)[step.icon || 'Circle'] || Icons.ChevronRight;
+        return {
+            key: step.key,
+            label: step.title,
+            icon: <Icon className="size-4" />,
+            aiDriven: Boolean(step.aiDriven),
+        };
+    }),
+];
 
 export default function ProgramWorkspace({
     programId,
@@ -48,10 +51,26 @@ export default function ProgramWorkspace({
 
     const segments = pathname.split('/');
     const activeSectionKey = segments.length > 3 ? segments[3] : 'dashboard';
-    const sectionMeta = SECTION_META[activeSectionKey] || {
-        title: 'Program Module',
-        subtitle: 'Manage program execution tasks.',
-    };
+    const resolvedSectionKey = LEGACY_SECTION_TO_STEP[activeSectionKey] || activeSectionKey;
+
+    const sectionMeta =
+        resolvedSectionKey === 'dashboard'
+            ? { title: 'Program Dashboard', subtitle: 'Track progress and execute program-level workflows.' }
+            : resolvedSectionKey === 'reports'
+              ? { title: 'Reports', subtitle: 'Generate program-level review and compliance reports.' }
+              : (() => {
+                    const processStep = getProcessStep(resolvedSectionKey);
+                    if (processStep) {
+                        return {
+                            title: processStep.title,
+                            subtitle: processStep.description || 'Manage program execution tasks.',
+                        };
+                    }
+                    return {
+                        title: 'Program Module',
+                        subtitle: 'Manage program execution tasks.',
+                    };
+                })();
     const title = sectionMeta.title;
     const subtitle = sectionMeta.subtitle;
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -90,6 +109,9 @@ export default function ProgramWorkspace({
     };
 
     const buildHref = (sectionKey: string) => {
+        if (sectionKey === 'dashboard') {
+            return `/program/${programId}/dashboard`;
+        }
         return `/program/${programId}/${sectionKey}`;
     };
 
@@ -123,7 +145,7 @@ export default function ProgramWorkspace({
                                     </button>
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-4 overscroll-y-contain scroll-smooth scrollbar-hide pb-20">
-                                    <SidebarContent activeSectionKey={activeSectionKey} buildHref={buildHref} onClose={() => setIsSidebarOpen(false)} />
+                                    <SidebarContent activeSectionKey={resolvedSectionKey} buildHref={buildHref} onClose={() => setIsSidebarOpen(false)} />
                                 </div>
                             </div>
                         </motion.aside>
@@ -152,7 +174,7 @@ export default function ProgramWorkspace({
                             onScroll={handleSidebarScroll}
                             className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-3 py-2 pb-24 space-y-2 custom-scrollbar"
                         >
-                            <SidebarContent activeSectionKey={activeSectionKey} buildHref={buildHref} />
+                            <SidebarContent activeSectionKey={resolvedSectionKey} buildHref={buildHref} />
                         </div>
                     </div>
                 </aside>
@@ -235,6 +257,7 @@ function SidebarContent({ activeSectionKey, buildHref, onClose }: any) {
                             active={activeSectionKey === item.key}
                             onClick={onClose}
                             icon={item.icon}
+                            aiDriven={item.aiDriven}
                         >
                             {item.label}
                         </SidebarNavItem>
@@ -245,7 +268,7 @@ function SidebarContent({ activeSectionKey, buildHref, onClose }: any) {
     );
 }
 
-function SidebarNavItem({ href, active, children, onClick, icon, className }: any) {
+function SidebarNavItem({ href, active, children, onClick, icon, className, aiDriven }: any) {
     return (
         <Link
             href={href}
@@ -255,6 +278,7 @@ function SidebarNavItem({ href, active, children, onClick, icon, className }: an
                 active
                     ? "bg-white shadow-xl shadow-slate-200/50 text-slate-900 border border-slate-100 ring-1 ring-slate-900/5"
                     : "text-slate-500 hover:bg-white/60 hover:text-slate-900 hover:shadow-md",
+                aiDriven && !active && "border border-dashed border-indigo-200/50 bg-indigo-50/10",
                 className
             )}
         >
@@ -274,6 +298,14 @@ function SidebarNavItem({ href, active, children, onClick, icon, className }: an
             </div>
             <div className="flex flex-col gap-0.5 min-w-0 pt-0.5 flex-1">
                 <span className="leading-tight truncate">{children}</span>
+                {aiDriven && (
+                    <div className="flex items-center gap-1 mt-1">
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100">
+                            <Sparkles className="size-2 text-indigo-500" />
+                            <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">AI Powered</span>
+                        </div>
+                    </div>
+                )}
             </div>
         </Link>
     );
