@@ -229,7 +229,70 @@ function dedupeStatements(statements: string[]) {
     return unique;
 }
 
+function statementKey(statement: string) {
+    return statement.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function fillToTargetCount(
+    statements: string[],
+    targetCount: number,
+    fallbackFactory: (index: number) => string
+) {
+    const unique = dedupeStatements(statements).slice(0, targetCount);
+    const seen = new Set(unique.map((item) => statementKey(item)));
+
+    let fallbackIndex = 0;
+    while (unique.length < targetCount && fallbackIndex < targetCount * 8) {
+        const candidate = normalizeWhitespace(fallbackFactory(fallbackIndex));
+        const key = statementKey(candidate);
+        if (candidate && !seen.has(key)) {
+            seen.add(key);
+            unique.push(candidate);
+        }
+        fallbackIndex += 1;
+    }
+
+    return unique.slice(0, targetCount);
+}
+
+function buildVisionFallbackStatement(programName: string, focusAreas: string[], index: number) {
+    const focus = focusAreas.length > 0 ? focusAreas[index % focusAreas.length].toLowerCase() : 'innovation and ethical engineering';
+    const variants = [
+        `To be a leading ${programName} program recognized for ${focus} and societal impact.`,
+        `To be a future-oriented ${programName} program that advances sustainable engineering practice and professional integrity.`,
+        `To be a globally relevant ${programName} program that nurtures responsible innovation and lifelong learning.`,
+        `To be a progressive ${programName} program that prepares graduates for meaningful contributions to industry and community.`,
+        `To be a trusted ${programName} program fostering interdisciplinary thinking, ethics, and technology for public good.`,
+    ];
+
+    return variants[index % variants.length];
+}
+
+function buildMissionFallbackStatement(programName: string, focusAreas: string[], index: number) {
+    const focus = focusAreas.length > 0 ? focusAreas[index % focusAreas.length].toLowerCase() : 'outcome-based education';
+    const openingVariants = [
+        `Deliver a ${programName} curriculum anchored in ${focus} through continuous academic improvement.`,
+        `Provide learner-centered ${programName} education with strong foundations in ${focus} and engineering practice.`,
+        `Implement an industry-connected ${programName} curriculum that translates ${focus} into professional competence.`,
+        `Strengthen ${programName} training through experiential learning and systematic integration of ${focus}.`,
+        `Enable high-quality ${programName} education through evidence-based teaching, ${focus}, and curriculum refinement.`,
+    ];
+
+    return [
+        openingVariants[index % openingVariants.length],
+        'Strengthen industry collaboration, ethical engineering practice, and sustainability-oriented problem solving.',
+        'Promote innovation, communication, teamwork, and lifelong learning for long-term professional growth.',
+    ].join(' ');
+}
+
 export async function POST(request: Request) {
+    let fallbackProgramName = 'this program';
+    let fallbackVisionInputs: string[] = [];
+    let fallbackMissionInputs: string[] = [];
+    let fallbackVisionCount = 1;
+    let fallbackMissionCount = 1;
+    let fallbackMode: GenerationMode = 'both';
+
     try {
         const body = await request.json();
         const {
@@ -258,6 +321,12 @@ export async function POST(request: Request) {
 
         const visionCount = clampCount(vision_count ?? count, 1, 1, 10);
         const missionCount = clampCount(mission_count ?? count, 1, 1, 10);
+        fallbackProgramName = program_name;
+        fallbackVisionInputs = Array.isArray(vision_inputs) ? vision_inputs : [];
+        fallbackMissionInputs = Array.isArray(mission_inputs) ? mission_inputs : [];
+        fallbackVisionCount = visionCount;
+        fallbackMissionCount = missionCount;
+        fallbackMode = generationMode;
 
         if (generationMode === 'mission' && !selected_program_vision) {
             return NextResponse.json(
@@ -285,7 +354,14 @@ Rules:
             visionOptions = parseOptions(visionRaw)
                 .map((item) => enforceVisionQuality(removeAbsoluteClaims(item), vision_inputs || []))
                 .filter(Boolean);
-            visionOptions = dedupeStatements(visionOptions).slice(0, visionCount);
+            visionOptions = fillToTargetCount(
+                visionOptions,
+                visionCount,
+                (idx) => enforceVisionQuality(
+                    buildVisionFallbackStatement(program_name, vision_inputs || [], idx),
+                    vision_inputs || []
+                )
+            );
         }
 
         if (shouldGenerateMission) {
@@ -308,25 +384,14 @@ Rules:
             missionOptions = parseOptions(missionRaw)
                 .map((item) => enforceMissionQuality(removeAbsoluteClaims(item), mission_inputs || []))
                 .filter(Boolean);
-            missionOptions = dedupeStatements(missionOptions).slice(0, missionCount);
-        }
-
-        if (shouldGenerateVision && visionOptions.length === 0) {
-            visionOptions = [
-                enforceVisionQuality(
-                    `To be a leading ${program_name} program that advances innovation, ethics, and societal impact.`,
-                    vision_inputs || []
-                ),
-            ];
-        }
-
-        if (shouldGenerateMission && missionOptions.length === 0) {
-            missionOptions = [
-                enforceMissionQuality(
-                    `Deliver quality engineering education through outcome-based and experiential learning. Strengthen industry engagement and ethical practice with sustainability focus. Promote innovation, teamwork, and lifelong learning for professional growth.`,
+            missionOptions = fillToTargetCount(
+                missionOptions,
+                missionCount,
+                (idx) => enforceMissionQuality(
+                    buildMissionFallbackStatement(program_name, mission_inputs || [], idx),
                     mission_inputs || []
-                ),
-            ];
+                )
+            );
         }
 
         return NextResponse.json({
@@ -338,14 +403,34 @@ Rules:
 
     } catch (error: any) {
         console.error('AI Generation API Error:', error);
-        const count = 1;
-        const fallbackProgramName = "this program";
-        const fallbackVisions = Array(count).fill(0).map((_, i) => `Option ${i + 1}: To be a leading ${fallbackProgramName} program fostering innovation and professional ethics.`);
-        const fallbackMissions = Array(count).fill(0).map((_, i) => `Option ${i + 1}: We are committed to providing high-quality ${fallbackProgramName} education through experiential learning.`);
+        const shouldGenerateVision = fallbackMode === 'vision' || fallbackMode === 'both';
+        const shouldGenerateMission = fallbackMode === 'mission' || fallbackMode === 'both';
+
+        const fallbackVisions = shouldGenerateVision
+            ? fillToTargetCount(
+                [],
+                fallbackVisionCount,
+                (idx) => enforceVisionQuality(
+                    buildVisionFallbackStatement(fallbackProgramName, fallbackVisionInputs, idx),
+                    fallbackVisionInputs
+                )
+            )
+            : [];
+
+        const fallbackMissions = shouldGenerateMission
+            ? fillToTargetCount(
+                [],
+                fallbackMissionCount,
+                (idx) => enforceMissionQuality(
+                    buildMissionFallbackStatement(fallbackProgramName, fallbackMissionInputs, idx),
+                    fallbackMissionInputs
+                )
+            )
+            : [];
 
         return NextResponse.json({
-            vision: fallbackVisions[0],
-            mission: fallbackMissions[0],
+            vision: fallbackVisions[0] || null,
+            mission: fallbackMissions[0] || null,
             visions: fallbackVisions,
             missions: fallbackMissions,
             error: error.message,
