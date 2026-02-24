@@ -72,6 +72,43 @@ interface GenerationResult {
   attempts: number;
 }
 
+interface VisionMissionPair {
+  vision: string;
+  mission: string;
+}
+
+interface CoupledMissionHint {
+  index: number;
+  vision: string;
+  dominantCategories: ThemeCategory[];
+  focusKeywords: string[];
+  requiredPillars: string[];
+}
+
+interface PairAlignmentDetail {
+  index: number;
+  vision: string;
+  mission: string;
+  requiredCategories: string[];
+  coveredCategories: string[];
+  keywordHits: string[];
+  missingCategories: string[];
+  missingOperationalPillars: string[];
+  score: number;
+}
+
+interface PairAlignmentResult {
+  totalScore: number;
+  pass: boolean;
+  details: PairAlignmentDetail[];
+  violations: string[];
+}
+
+interface CoupledMissionGenerationResult extends GenerationResult {
+  alignment: PairAlignmentResult;
+  hints: CoupledMissionHint[];
+}
+
 const MAX_COUNT = 10;
 const MAX_REGEN_ATTEMPTS = 3;
 
@@ -100,6 +137,24 @@ const CATEGORY_SIGNAL_TERMS: Record<ThemeCategory, string[]> = {
   professional_values: ['ethic', 'integrity', 'professional', 'responsibility', 'leadership', 'teamwork'],
   educational_philosophy: ['outcome', 'learning', 'curriculum', 'education', 'academic', 'lifelong'],
   custom: ['priority', 'strategic', 'mission'],
+};
+
+const CATEGORY_OPERATIONAL_PILLARS: Record<ThemeCategory, string[]> = {
+  global_positioning: ['international collaboration', 'global benchmarking', 'external standards'],
+  innovation_technology: ['research ecosystem', 'innovation culture', 'industry collaboration'],
+  sustainability_society: ['sustainable practices', 'societal engagement', 'community impact'],
+  professional_values: ['ethical responsibility', 'professional integrity', 'leadership development'],
+  educational_philosophy: ['outcome-based curriculum', 'continuous improvement', 'lifelong learning'],
+  custom: ['stakeholder engagement', 'strategic academic priorities', 'mission-driven planning'],
+};
+
+const DEFAULT_MISSION_INPUT_BY_CATEGORY: Record<ThemeCategory, string> = {
+  global_positioning: 'Global collaboration and benchmarking',
+  innovation_technology: 'Innovation and entrepreneurship',
+  sustainability_society: 'Sustainability consciousness',
+  professional_values: 'Ethical engineering practice',
+  educational_philosophy: 'Outcome Based Education',
+  custom: 'Continuous academic improvement',
 };
 
 const ABSOLUTE_TERMS = ['all graduates', 'every graduate', 'always', 'guarantee', '100%'];
@@ -149,6 +204,31 @@ const STOP_WORDS = new Set([
   'are',
   'as',
   'at',
+]);
+
+const ALIGNMENT_KEYWORD_STOP_WORDS = new Set([
+  ...Array.from(STOP_WORDS),
+  'program',
+  'engineering',
+  'engineers',
+  'graduates',
+  'graduate',
+  'vision',
+  'mission',
+  'long',
+  'term',
+  'future',
+  'quality',
+  'aligned',
+  'alignment',
+  'responsible',
+  'leadership',
+  'global',
+  'international',
+  'education',
+  'learning',
+  'professional',
+  'institutional',
 ]);
 
 const VISION_OPTION_LIBRARY: Record<string, Omit<SemanticOptionConfig, 'label'>> = {
@@ -542,6 +622,27 @@ function buildSemanticObjects(labels: string[], kind: StatementKind) {
   return dedupedLabels.map((label) => buildSemanticOption(label, kind));
 }
 
+function resolveMissionInputsForGeneration(
+  selectedMissionInputs: string[],
+  visionClusters: ThemeCluster[]
+) {
+  if (selectedMissionInputs.length > 0) {
+    return selectedMissionInputs;
+  }
+
+  const derived = uniq(
+    visionClusters
+      .map((cluster) => DEFAULT_MISSION_INPUT_BY_CATEGORY[cluster.category])
+      .filter(Boolean)
+  );
+
+  if (derived.length > 0) {
+    return derived;
+  }
+
+  return ['Outcome Based Education', 'Continuous academic improvement'];
+}
+
 function buildThemeClusters(options: SemanticOption[]): ThemeCluster[] {
   const grouped = new Map<ThemeCategory, SemanticOption[]>();
 
@@ -708,6 +809,112 @@ function matchesCategory(
   const signals = CATEGORY_SIGNAL_TERMS[category] || [];
   const hits = signals.filter((term) => lower.includes(term)).length;
   return hits >= 2 || (signals.length > 0 && hits >= 1 && lower.includes(category.split('_')[0]));
+}
+
+function categoryEvidenceScore(
+  statement: string,
+  category: ThemeCategory,
+  optionsInCategory: SemanticOption[]
+) {
+  const lower = statement.toLowerCase();
+  let score = 0;
+
+  for (const option of optionsInCategory) {
+    if (lower.includes(option.normalizedLabel)) {
+      score += 4;
+    }
+    for (const intent of option.semantic_intent) {
+      if (lower.includes(intent.toLowerCase())) {
+        score += 2;
+      }
+    }
+    score += option.keywords.filter((keyword) => lower.includes(keyword)).length;
+  }
+
+  const signals = CATEGORY_SIGNAL_TERMS[category] || [];
+  const signalHits = signals.filter((term) => lower.includes(term)).length;
+  score += signalHits * 2;
+
+  return score;
+}
+
+function getDominantCategoriesForStatement(statement: string, referenceClusters: ThemeCluster[]) {
+  const categories =
+    referenceClusters.length > 0
+      ? referenceClusters.map((cluster) => cluster.category)
+      : (Object.keys(CATEGORY_LABELS) as ThemeCategory[]).filter((category) => category !== 'custom');
+
+  if (categories.length === 0) {
+    return ['custom'] as ThemeCategory[];
+  }
+
+  const ranked = categories
+    .map((category) => {
+      const options = referenceClusters.find((cluster) => cluster.category === category)?.options || [];
+      return {
+        category,
+        score: categoryEvidenceScore(statement, category, options),
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const targetCount = Math.min(2, Math.max(1, categories.length));
+  const dominant = ranked.filter((entry) => entry.score > 0).slice(0, targetCount).map((entry) => entry.category);
+
+  if (dominant.length >= targetCount) {
+    return dominant;
+  }
+
+  const fallbackOrder =
+    referenceClusters.length > 0
+      ? referenceClusters.map((cluster) => cluster.category)
+      : ranked.map((entry) => entry.category);
+
+  for (const category of fallbackOrder) {
+    if (!dominant.includes(category)) {
+      dominant.push(category);
+    }
+    if (dominant.length >= targetCount) break;
+  }
+
+  return dominant;
+}
+
+function extractAlignmentKeywords(statement: string) {
+  return uniq(
+    extractKeywords(statement)
+      .filter((word) => word.length >= 5 && !ALIGNMENT_KEYWORD_STOP_WORDS.has(word))
+      .slice(0, 6)
+  );
+}
+
+function containsPhraseEvidence(text: string, phrase: string) {
+  const lower = text.toLowerCase();
+  const phraseLower = phrase.toLowerCase();
+
+  if (lower.includes(phraseLower)) {
+    return true;
+  }
+
+  const parts = phraseLower.split(/[^a-z0-9]+/).filter((part) => part.length >= 5);
+  if (parts.length === 0) {
+    return false;
+  }
+
+  return parts.some((part) => lower.includes(part));
+}
+
+function missionSupportsCategory(statement: string, category: ThemeCategory) {
+  const lower = statement.toLowerCase();
+  const pillars = CATEGORY_OPERATIONAL_PILLARS[category] || [];
+  const signals = CATEGORY_SIGNAL_TERMS[category] || [];
+
+  if (pillars.some((pillar) => containsPhraseEvidence(lower, pillar))) {
+    return true;
+  }
+
+  const signalHits = signals.filter((signal) => lower.includes(signal)).length;
+  return signalHits >= 2;
 }
 
 function getStatementStartPattern(statement: string) {
@@ -900,6 +1107,167 @@ function buildMissionFallbackStatement(programName: string, slot: DistributionSl
     'Strengthen industry collaboration, ethical practice, and sustainability-oriented problem solving.',
     'Promote innovation, teamwork, communication, and lifelong learning for long-term professional growth.',
   ].join(' ');
+}
+
+function buildCoupledMissionHints(
+  visions: string[],
+  visionClusters: ThemeCluster[],
+  missionClusters: ThemeCluster[]
+) {
+  const referenceClusters = visionClusters.length > 0 ? visionClusters : missionClusters;
+
+  return visions.map((vision, index) => {
+    const dominantCategories = getDominantCategoriesForStatement(vision, referenceClusters);
+    const focusKeywords = extractAlignmentKeywords(vision);
+    const requiredPillars = uniq(
+      dominantCategories.flatMap((category) => CATEGORY_OPERATIONAL_PILLARS[category] || [])
+    ).slice(0, 5);
+
+    return {
+      index,
+      vision,
+      dominantCategories,
+      focusKeywords,
+      requiredPillars,
+    } satisfies CoupledMissionHint;
+  });
+}
+
+function buildCoupledMissionFallbackStatement(
+  programName: string,
+  hint: CoupledMissionHint,
+  index: number
+) {
+  const focusPhrase = formatList(
+    hint.dominantCategories.map((category) => CATEGORY_FOCUS_PHRASES[category])
+  );
+  const pillarPhrase = formatList(hint.requiredPillars.slice(0, 3));
+  const keywordPhrase = formatList(hint.focusKeywords.slice(0, 2));
+
+  const openings = [
+    `To realize this ${programName} vision, we implement mission-driven academic systems focused on ${focusPhrase} through coherent curriculum and quality enhancement.`,
+    `We operationalize this ${programName} vision by strengthening ${focusPhrase} through structured teaching-learning processes, institutional review, and stakeholder partnerships.`,
+    `This ${programName} mission advances ${focusPhrase} by integrating curricular rigor, research engagement, and professional responsibility in every stage of program delivery.`,
+  ];
+
+  return [
+    openings[index % openings.length],
+    `Translate the vision intent into practice through ${pillarPhrase || 'continuous improvement, research engagement, and ethical practice'}.`,
+    `Sustain long-term relevance through industry engagement, societal contribution, and context-aware implementation${keywordPhrase ? ` aligned with ${keywordPhrase}` : ''}.`,
+  ].join(' ');
+}
+
+function buildVisionMissionPairs(visions: string[], missions: string[]) {
+  const pairCount = Math.min(visions.length, missions.length);
+  const pairs: VisionMissionPair[] = [];
+
+  for (let i = 0; i < pairCount; i += 1) {
+    pairs.push({
+      vision: visions[i],
+      mission: missions[i],
+    });
+  }
+
+  return pairs;
+}
+
+function validateVisionMissionAlignment(params: {
+  visions: string[];
+  missions: string[];
+  hints: CoupledMissionHint[];
+  missionClusters: ThemeCluster[];
+}) {
+  const { visions, missions, hints, missionClusters } = params;
+
+  const details: PairAlignmentDetail[] = [];
+  const violations: string[] = [];
+
+  if (visions.length !== missions.length) {
+    violations.push(
+      `Vision and Mission count mismatch for coupled mode (visions: ${visions.length}, missions: ${missions.length}).`
+    );
+  }
+
+  const count = Math.min(visions.length, missions.length);
+  for (let i = 0; i < count; i += 1) {
+    const vision = visions[i];
+    const mission = missions[i];
+    const hint = hints[i];
+
+    const requiredCategories = hint?.dominantCategories || ['custom'];
+    const coveredCategories = requiredCategories.filter((category) => {
+      const options = missionClusters.find((cluster) => cluster.category === category)?.options || [];
+      return matchesCategory(mission, category, options) || missionSupportsCategory(mission, category);
+    });
+
+    const missingCategories = requiredCategories.filter(
+      (category) => !coveredCategories.includes(category)
+    );
+
+    const keywordHits = (hint?.focusKeywords || []).filter((keyword) =>
+      mission.toLowerCase().includes(keyword)
+    );
+    const requiredKeywordHits = (hint?.focusKeywords?.length || 0) >= 3 ? 1 : 0;
+    const missingOperationalPillars = (hint?.requiredPillars || []).filter(
+      (pillar) => !containsPhraseEvidence(mission, pillar)
+    );
+
+    const categoryScore =
+      requiredCategories.length === 0
+        ? 100
+        : Math.round((coveredCategories.length / requiredCategories.length) * 100);
+    const keywordScore =
+      requiredKeywordHits === 0
+        ? 100
+        : Math.min(100, Math.round((keywordHits.length / requiredKeywordHits) * 100));
+    const minPillarHits = Math.min(2, hint?.requiredPillars?.length || 0);
+    const actualPillarHits = (hint?.requiredPillars?.length || 0) - missingOperationalPillars.length;
+    const pillarScore =
+      minPillarHits === 0 ? 100 : Math.min(100, Math.round((actualPillarHits / minPillarHits) * 100));
+    const score = Math.round(categoryScore * 0.5 + keywordScore * 0.2 + pillarScore * 0.3);
+
+    if (missingCategories.length > 0) {
+      violations.push(
+        `Pair ${i + 1}: Mission does not operationalize vision categories ${missingCategories
+          .map((category) => CATEGORY_LABELS[category])
+          .join(', ')}.`
+      );
+    }
+    if (requiredKeywordHits > 0 && keywordHits.length < requiredKeywordHits) {
+      violations.push(`Pair ${i + 1}: Mission language is weakly aligned with the associated vision intent.`);
+    }
+    if (minPillarHits > 0 && actualPillarHits < minPillarHits) {
+      violations.push(
+        `Pair ${i + 1}: Mission is missing operational pillars expected from the associated vision emphasis.`
+      );
+    }
+
+    details.push({
+      index: i,
+      vision,
+      mission,
+      requiredCategories: requiredCategories.map((category) => CATEGORY_LABELS[category]),
+      coveredCategories: coveredCategories.map((category) => CATEGORY_LABELS[category]),
+      keywordHits,
+      missingCategories: missingCategories.map((category) => CATEGORY_LABELS[category]),
+      missingOperationalPillars,
+      score,
+    });
+  }
+
+  const totalScore =
+    details.length === 0
+      ? 0
+      : Math.round(details.reduce((sum, detail) => sum + detail.score, 0) / details.length);
+
+  const pass = violations.length === 0 && totalScore >= 80;
+
+  return {
+    totalScore,
+    pass,
+    details,
+    violations,
+  } satisfies PairAlignmentResult;
 }
 
 function calculateCoverage(
@@ -1277,6 +1645,72 @@ Requirements:
 6. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
 7. Ensure structural diversity across generated mission paragraphs.
 8. Avoid copying labels verbatim as a list; synthesize coherent institutional language.
+
+Output format:
+- Return strictly a JSON array of strings.
+- No markdown, no numbering, no explanations.
+`;
+}
+
+function buildCoupledMissionPrompt(params: {
+  programName: string;
+  instituteMission: string;
+  semanticOptions: SemanticOption[];
+  clusters: ThemeCluster[];
+  distributionPlan: DistributionSlot[];
+  visions: string[];
+  hints: CoupledMissionHint[];
+  customInstructions?: string;
+  excludedStatements: string[];
+  feedback: string[];
+}) {
+  const {
+    programName,
+    instituteMission,
+    semanticOptions,
+    clusters,
+    distributionPlan,
+    visions,
+    hints,
+    customInstructions,
+    excludedStatements,
+    feedback,
+  } = params;
+
+  return `
+You are generating coupled Program Mission paragraphs for an engineering program.
+
+Program: ${programName}
+Institute Mission Context: ${instituteMission || 'Not specified'}
+
+Vision Statements (ordered):
+${JSON.stringify(visions, null, 2)}
+
+Pairwise Alignment Hints (same order as Vision Statements):
+${JSON.stringify(hints, null, 2)}
+
+Structured Mission Semantic Inputs:
+${JSON.stringify(semanticOptions, null, 2)}
+
+Mission Category Clusters:
+${JSON.stringify(clusters, null, 2)}
+
+Mission Distribution Plan:
+${JSON.stringify(distributionPlan, null, 2)}
+
+${customInstructions ? `Additional User Instructions: ${customInstructions}` : ''}
+${excludedStatements.length > 0 ? `Do not repeat any of these previous mission statements: ${excludedStatements.join(' || ')}` : ''}
+${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(' | ')}` : ''}
+
+Requirements:
+1. Generate exactly ${visions.length} distinct mission paragraphs, in the same order as the provided visions.
+2. Mission i must align directly with Vision i; do not mix visions across missions.
+3. Each mission must be one paragraph with 3 to 5 sentences and practical institutional actions.
+4. Each mission must operationalize the dominant categories and required pillars provided in its hint.
+5. Maintain accreditation-safe tone: broad, attainable, mission-oriented, and suitable for ABET/NBA review.
+6. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
+7. Ensure structural diversity across mission outputs.
+8. Synthesize language; do not copy labels as a list.
 
 Output format:
 - Return strictly a JSON array of strings.
