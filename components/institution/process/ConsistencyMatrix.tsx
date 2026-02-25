@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useActiveProgramId } from '@/components/program/useActiveProgramId';
+import { useSearchParams } from 'next/navigation';
 import { 
   Loader2, 
   Save, 
@@ -22,7 +22,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 function ConsistencyMatrixContent() {
-  const programId = useActiveProgramId();
+  const searchParams = useSearchParams();
+  const programId = searchParams.get('programId');
 
   const [loading, setLoading] = useState(true);
   const [missionStatements, setMissionStatements] = useState<string[]>([]);

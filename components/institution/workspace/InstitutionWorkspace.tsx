@@ -2,13 +2,22 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { PROCESS_MENU_STEPS, SIDE_MENU_STEPS, ProcessPhase } from '@/lib/institution/process';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
-import { LayoutDashboard, ChevronRight, Menu, X, Users, BookOpen, Grid, LogOut, Sparkles } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { LayoutDashboard, FileText, ChevronRight, Menu, X, Users, BookOpen, CheckSquare, Shield, Gavel, UserPlus, Target, Grid, ListChecks, Sparkles, Share2, Layers, Book, Table, MessageSquare, Send, FileCheck, LogOut } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { createClient } from '@/utils/supabase/client';
+
+interface ProgramOption {
+    id: string;
+    program_name: string;
+    program_code: string;
+}
 
 interface InstitutionWorkspaceProps {
     title: string;
@@ -20,33 +29,6 @@ interface InstitutionWorkspaceProps {
 
 import { useInstitution } from '@/context/InstitutionContext';
 
-const INSTITUTION_NAV_ITEMS = [
-    {
-        key: 'dashboard',
-        label: 'Institution Dashboard',
-        href: '/institution/dashboard',
-        icon: <LayoutDashboard className="size-4" />,
-    },
-    {
-        key: 'programs',
-        label: 'Programs List',
-        href: '/institution/programs',
-        icon: <BookOpen className="size-4" />,
-    },
-    {
-        key: 'governance',
-        label: 'Governance',
-        href: '/institution/governance',
-        icon: <Users className="size-4" />,
-    },
-    {
-        key: 'obe-framework',
-        label: 'OBE Framework',
-        href: '/institution/obe-framework',
-        icon: <Grid className="size-4" />,
-    },
-];
-
 export default function InstitutionWorkspace({
     title,
     subtitle,
@@ -54,15 +36,19 @@ export default function InstitutionWorkspace({
     children,
     headerContent,
 }: InstitutionWorkspaceProps) {
+    const searchParams = useSearchParams();
+    const router = useRouter();
     const supabase = createClient();
     const desktopSidebarRef = useRef<HTMLDivElement>(null);
     const mobileSidebarRef = useRef<HTMLDivElement>(null);
 
-    const { institution, programs } = useInstitution();
+    const { institution, programs, selectProgram, selectedProgram } = useInstitution();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isProgramDropdownOpen, setIsProgramDropdownOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
 
     const institutionName = institution?.institution_name || 'Institution';
+    const selectedProgramId = selectedProgram?.id || '';
 
     // Restore sidebar scroll position on mount
     useEffect(() => {
@@ -101,6 +87,32 @@ export default function InstitutionWorkspace({
         }
     };
 
+    const selectedProgramLabel = useMemo(() => {
+        if (!selectedProgramId) return 'Not selected';
+        const selected = programs.find((program) => program.id === selectedProgramId);
+        if (!selected) return 'Not selected';
+        return `${selected.program_name} (${selected.program_code})`;
+    }, [programs, selectedProgramId]);
+
+    const query = searchParams.toString();
+
+    const buildHref = (stepKey: string) => {
+        if (stepKey === 'dashboard') return query ? `/institution/dashboard?${query}` : '/institution/dashboard';
+        const base = `/institution/process/${stepKey}`;
+        return query ? `${base}?${query}` : base;
+    };
+
+    const handleProgramSelect = (programId: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (programId) {
+            params.set('programId', programId);
+        } else {
+            params.delete('programId');
+        }
+        router.push(`${window.location.pathname}?${params.toString()}`);
+        setIsProgramDropdownOpen(false);
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 font-sans">
             {/* Mobile Sidebar Overlay */}
@@ -134,8 +146,12 @@ export default function InstitutionWorkspace({
                                 <div ref={mobileSidebarRef} className="flex-1 overflow-y-auto p-4 overscroll-y-contain scroll-smooth scrollbar-hide pb-20">
                                     <SidebarContent
                                         activeStepKey={activeStepKey}
+                                        buildHref={buildHref}
+                                        institutionName={institutionName}
                                         onClose={() => setIsSidebarOpen(false)}
                                         programs={programs}
+                                        selectedProgramId={selectedProgramId}
+                                        onSelectProgram={handleProgramSelect}
                                     />
                                 </div>
                             </div>
@@ -169,7 +185,11 @@ export default function InstitutionWorkspace({
                         >
                             <SidebarContent
                                 activeStepKey={activeStepKey}
+                                buildHref={buildHref}
+                                institutionName={institutionName}
                                 programs={programs}
+                                selectedProgramId={selectedProgramId}
+                                onSelectProgram={handleProgramSelect}
                             />
                         </div>
 
@@ -285,36 +305,52 @@ export default function InstitutionWorkspace({
 
 // --- SHARED SIDEBAR COMPONENTS ---
 
-function SidebarContent({ activeStepKey, onClose, programs }: any) {
+function SidebarContent({ activeStepKey, buildHref, onClose, programs, selectedProgramId, onSelectProgram }: any) {
     const [isProgramListOpen, setIsProgramListOpen] = useState(false);
-    const [selectedProgramName, setSelectedProgramName] = useState('Select Program');
 
-    const handleProgramPortalOpen = (programCode?: string) => {
-        const base = '/program-login';
-        const target = programCode ? `${base}?programCode=${encodeURIComponent(programCode)}` : base;
-        window.location.href = target;
-    };
+    const selectedProgramName = useMemo(() => {
+        if (!selectedProgramId) return 'Select Program';
+        const prog = programs?.find((p: any) => p.id === selectedProgramId);
+        return prog ? prog.program_name : 'Select Program';
+    }, [selectedProgramId, programs]);
 
     return (
         <div className="flex flex-col gap-6 py-4">
-            {/* GROUP 1 — Institution */}
+            {/* GROUP 1 — Institution (Always Visible) */}
             <SidebarGroup title="Institution Dashboard" variant="blue">
-                {INSTITUTION_NAV_ITEMS.map((item) => (
-                    <SidebarNavItem
-                        key={item.key}
-                        href={item.href}
-                        active={activeStepKey === item.key || (item.key === 'dashboard' && !activeStepKey)}
-                        onClick={onClose}
-                        icon={item.icon}
-                    >
-                        {item.label}
-                    </SidebarNavItem>
-                ))}
+                <SidebarNavItem
+                    href="/institution/dashboard"
+                    active={(!activeStepKey || activeStepKey === 'dashboard') && !selectedProgramId}
+                    onClick={() => {
+                        onSelectProgram('');
+                        if (window.innerWidth < 1024) onClose();
+                    }}
+                    icon={<LayoutDashboard className="size-4" />}
+                >
+                    Institution Dashboard
+                </SidebarNavItem>
+
+                {SIDE_MENU_STEPS.map((step) => {
+                    const Icon = (Icons as any)[step.icon || 'FileText'] || FileText;
+                    const isActive = activeStepKey === step.key;
+
+                    return (
+                        <SidebarNavItem
+                            key={step.key}
+                            href={buildHref(step.key)}
+                            active={isActive}
+                            onClick={onClose}
+                            icon={<Icon className="size-4" />}
+                        >
+                            {step.title}
+                        </SidebarNavItem>
+                    );
+                })}
             </SidebarGroup>
 
             {/* PROGRAM SELECTOR (Dropdown Section) */}
             <div className="space-y-3 px-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 px-4">Program Portals</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 px-4">Program Selection</p>
                 <div className="relative">
                     <button
                         onClick={(e) => {
@@ -336,7 +372,7 @@ function SidebarContent({ activeStepKey, onClose, programs }: any) {
                         </div>
                         <span className={cn(
                             "flex-1 text-sm font-bold",
-                            selectedProgramName !== 'Select Program' ? "text-slate-900" : "text-slate-400"
+                            selectedProgramId ? "text-slate-900" : "text-slate-400"
                         )}>
                             {selectedProgramName}
                         </span>
@@ -360,17 +396,22 @@ function SidebarContent({ activeStepKey, onClose, programs }: any) {
                                         <button
                                             key={program.id}
                                             onClick={() => {
-                                                setSelectedProgramName(program.program_name);
+                                                onSelectProgram(program.id);
                                                 setIsProgramListOpen(false);
-                                                handleProgramPortalOpen(program.program_code);
                                             }}
                                             className={cn(
                                                 "w-full flex items-center px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left",
-                                                "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                                selectedProgramId === program.id
+                                                    ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                                             )}
                                         >
                                             <span className="flex-1 pr-2">{program.program_name}</span>
-                                            <ChevronRight className="size-3 text-slate-300" />
+                                            {selectedProgramId === program.id && (
+                                                <div className="size-4 rounded-full bg-white flex items-center justify-center">
+                                                    <CheckSquare className="size-2.5 text-slate-900" />
+                                                </div>
+                                            )}
                                         </button>
                                     ))
                                 ) : (
@@ -381,6 +422,47 @@ function SidebarContent({ activeStepKey, onClose, programs }: any) {
                     </AnimatePresence>
                 </div>
             </div>
+
+            {/* GROUP 2 — Program (Visible After Selection) */}
+            <AnimatePresence mode="wait">
+                {selectedProgramId && (
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                        <SidebarGroup title="Program Execution" variant="purple">
+                            <SidebarNavItem
+                                href={`/institution/dashboard?programId=${selectedProgramId}`}
+                                active={activeStepKey === 'dashboard' && !!selectedProgramId}
+                                onClick={onClose}
+                                icon={<LayoutDashboard className="size-4" />}
+                            >
+                                Program Dashboard
+                            </SidebarNavItem>
+
+                            {PROCESS_MENU_STEPS.map((step) => {
+                                const active = activeStepKey === step.key;
+                                const Icon = (Icons as any)[step.icon || 'Circle'] || ChevronRight;
+
+                                return (
+                                    <SidebarNavItem
+                                        key={step.key}
+                                        href={buildHref(step.key)}
+                                        active={active}
+                                        onClick={onClose}
+                                        icon={<Icon className="size-4" />}
+                                        aiDriven={step.aiDriven}
+                                    >
+                                        {step.title}
+                                    </SidebarNavItem>
+                                );
+                            })}
+                        </SidebarGroup>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -451,3 +533,5 @@ function SidebarNavItem({ href, active, children, onClick, icon, aiDriven, class
         </Link>
     );
 }
+
+

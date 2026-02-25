@@ -124,6 +124,8 @@ interface StrategicValidationItem {
   scores: StrategicValidationScores;
   long_term_issues: string[];
   alignment_gaps: string[];
+  mission_pillars: string[];
+  missing_mission_pillars: string[];
   kpi_categories: string[];
   realism_flags: string[];
   accreditation_flags: string[];
@@ -1356,7 +1358,7 @@ function validateVisionMissionAlignment(params: {
     }
     if (minPillarHits > 0 && actualPillarHits < minPillarHits) {
       violations.push(
-        `Pair ${i + 1}: Mission is missing operational pillars expected from the associated vision emphasis.`
+        `Pair ${i + 1}: Mission is missing operational pirllars expected from the associated vision emphasis.`
       );
     }
 
@@ -1442,7 +1444,8 @@ Framework:
 4. Feasibility and Realism: flag exaggerated or absolute commitments.
 5. Accreditation Compatibility (ABET/NBA style): strategic tone, no classroom-level operational verbs, no vague-only language.
 6. Redundancy and Logical Flow: detect direct repetition and weak progression from Vision to Mission.
-7. Scoring (0-100): vision_quality, mission_quality, alignment_strength, measurability_potential, overall_strategic_soundness.
+7. Mission Decomposition Check: Ensure the Mission sentences explicitly map to strict operational pillars: Curriculum, Research, Industry, Ethics, Sustainability.
+8. Scoring (0-100): vision_quality, mission_quality, alignment_strength, measurability_potential, overall_strategic_soundness.
 
 Output requirements:
 - Return STRICT JSON only.
@@ -1461,6 +1464,8 @@ Output requirements:
       },
       "long_term_issues": [],
       "alignment_gaps": [],
+      "mission_pillars": [],
+      "missing_mission_pillars": [],
       "kpi_categories": [],
       "realism_flags": [],
       "accreditation_flags": [],
@@ -1619,6 +1624,8 @@ function buildFallbackStrategicValidation(params: {
       },
       long_term_issues: visionIssues,
       alignment_gaps: alignmentGaps,
+      mission_pillars: [],
+      missing_mission_pillars: [],
       kpi_categories: kpiCategories,
       realism_flags: realismFlags,
       accreditation_flags: accreditationFlags,
@@ -1693,6 +1700,8 @@ function normalizeAiStrategicValidation(params: {
       scores,
       long_term_issues: normalizeStringList(candidate.long_term_issues),
       alignment_gaps: normalizeStringList(candidate.alignment_gaps),
+      mission_pillars: normalizeStringList(candidate.mission_pillars),
+      missing_mission_pillars: normalizeStringList(candidate.missing_mission_pillars),
       kpi_categories: normalizeStringList(candidate.kpi_categories),
       realism_flags: normalizeStringList(candidate.realism_flags),
       accreditation_flags: normalizeStringList(candidate.accreditation_flags),

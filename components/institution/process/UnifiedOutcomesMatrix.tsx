@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useActiveProgramId } from '@/components/program/useActiveProgramId';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { 
   Loader2, 
@@ -54,7 +54,8 @@ const TIER_2_POS = [
 ];
 
 function UnifiedOutcomesMatrixContent() {
-  const programId = useActiveProgramId();
+  const searchParams = useSearchParams();
+  const programId = searchParams?.get('programId');
 
   const [loading, setLoading] = useState(true);
   const [missionStatements, setMissionStatements] = useState<string[]>([]);

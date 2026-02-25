@@ -3,10 +3,7 @@ import pool from '@/lib/postgres';
 import { v4 as uuidv4 } from 'uuid';
 import { validateProgramPayload } from '@/lib/validation/onboarding';
 import { verifyToken } from '@/lib/auth';
-import { hashPassword } from '@/lib/auth/hash';
 import { logAudit, ACTION_TYPES } from '@/lib/audit';
-
-const DEFAULT_PROGRAM_PASSWORD = 'password';
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('institution_token')?.value;
@@ -43,7 +40,6 @@ export async function POST(request: NextRequest) {
 
     const normalizedProgramCode = payload.program_code.trim().toUpperCase();
     const newId = uuidv4();
-    const defaultPasswordHash = await hashPassword(DEFAULT_PROGRAM_PASSWORD);
 
     const client = await pool.connect();
     try {
@@ -68,12 +64,11 @@ export async function POST(request: NextRequest) {
           intake,
           academic_year,
           program_code,
-          password_hash,
           vision,
           mission,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
         [
           newId,
           institutionId,
@@ -84,7 +79,6 @@ export async function POST(request: NextRequest) {
           payload.intake,
           payload.academic_year.trim(),
           normalizedProgramCode,
-          defaultPasswordHash,
           payload.vision?.trim() || null,
           payload.mission?.trim() || null
         ]

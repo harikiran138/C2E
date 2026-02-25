@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useActiveProgramId } from '@/components/program/useActiveProgramId';
+import { useSearchParams } from 'next/navigation';
 import { 
   Edit2, 
   Lock, 
@@ -42,7 +42,8 @@ import { z } from "zod";
 import { memberSchema } from "@/lib/schemas";
 
 function StakeholdersFormContent() {
-  const programId = useActiveProgramId();
+  const searchParams = useSearchParams();
+  const programId = searchParams.get('programId');
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

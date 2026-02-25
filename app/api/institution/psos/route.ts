@@ -1,27 +1,14 @@
 import pool from '@/lib/postgres';
 import { NextResponse } from 'next/server';
-import {
-  forbiddenProgramResponse,
-  getAccessContext,
-  hasProgramAccess,
-  unauthorizedResponse,
-} from '@/lib/auth/request-access';
 
 export async function GET(request: Request) {
   try {
-    const context = await getAccessContext(request);
-    if (!context) return unauthorizedResponse();
-
     const { searchParams } = new URL(request.url);
-    const requestedProgramId = searchParams.get('programId');
-    const programId = requestedProgramId || (context.mode === 'program' ? context.programId : '');
+    const programId = searchParams.get('programId');
 
     if (!programId) {
-      return NextResponse.json({ error: 'Program ID required' }, { status: 400 });
+       return NextResponse.json({ error: 'Program ID required' }, { status: 400 });
     }
-
-    const canAccess = await hasProgramAccess(context, programId);
-    if (!canAccess) return forbiddenProgramResponse();
 
     const client = await pool.connect();
     try {
@@ -38,33 +25,27 @@ export async function GET(request: Request) {
   }
 }
 
+// Bulk Save / Sync
 export async function POST(request: Request) {
   try {
-    const context = await getAccessContext(request);
-    if (!context) return unauthorizedResponse();
-
     const { program_id, psos } = await request.json();
-    const programId = String(program_id || '');
 
-    if (!programId || !Array.isArray(psos)) {
+    if (!program_id || !Array.isArray(psos)) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
-
-    const canAccess = await hasProgramAccess(context, programId);
-    if (!canAccess) return forbiddenProgramResponse();
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('DELETE FROM program_psos WHERE program_id = $1', [programId]);
+      
+      await client.query('DELETE FROM program_psos WHERE program_id = $1', [program_id]);
 
       if (psos.length > 0) {
-        for (let i = 0; i < psos.length; i += 1) {
-          await client.query(
-            'INSERT INTO program_psos (program_id, pso_statement, pso_number) VALUES ($1, $2, $3)',
-            [programId, psos[i].statement, i + 1]
-          );
-        }
+          const values = psos.map((p: any, i: number) => `('${program_id}', '${p.statement.replace(/'/g, "''")}', ${i + 1})`).join(',');
+          await client.query(`
+            INSERT INTO program_psos (program_id, pso_statement, pso_number)
+            VALUES ${values}
+          `);
       }
 
       await client.query('COMMIT');
@@ -82,32 +63,19 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  try {
-    const context = await getAccessContext(request);
-    if (!context) return unauthorizedResponse();
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
-
-    const client = await pool.connect();
     try {
-      if (context.mode === 'program') {
-        await client.query('DELETE FROM program_psos WHERE id = $1 AND program_id = $2', [id, context.programId]);
-      } else {
-        await client.query(
-          `DELETE FROM program_psos
-           WHERE id = $1
-             AND program_id IN (SELECT id FROM programs WHERE institution_id = $2)`,
-          [id, context.institutionId]
-        );
-      }
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-      return NextResponse.json({ success: true });
-    } finally {
-      client.release();
+        const client = await pool.connect();
+        try {
+            await client.query('DELETE FROM program_psos WHERE id = $1', [id]);
+            return NextResponse.json({ success: true });
+        } finally {
+            client.release();
+        }
+    } catch (e: any) {
+        return NextResponse.json({ error: e.message }, { status: 500 });
     }
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
 }

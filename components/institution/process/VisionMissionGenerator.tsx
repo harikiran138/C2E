@@ -1,15 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useActiveProgramId } from '@/components/program/useActiveProgramId';
+import { useSearchParams } from 'next/navigation';
 import { Loader2, Sparkles, Save, Check, RefreshCw } from 'lucide-react';
 import { AI_API_URL } from '@/lib/api';
 import PeoGenerator from '@/components/institution/process/PeoGenerator';
-
-type VisionMissionPair = {
-    vision: string;
-    mission: string;
-};
 
 const VISION_PRIORITIES = [
     'Global Engineering Excellence',
@@ -69,23 +64,9 @@ function mergeUniqueStatements(existing: string[], incoming: string[]) {
     return merged;
 }
 
-function buildVisionMissionPairs(visions: string[], missions: string[]): VisionMissionPair[] {
-    const pairCount = Math.min(visions.length, missions.length);
-    const pairs: VisionMissionPair[] = [];
-
-    for (let i = 0; i < pairCount; i += 1) {
-        const vision = String(visions[i] || '').trim();
-        const mission = String(missions[i] || '').trim();
-        if (vision && mission) {
-            pairs.push({ vision, mission });
-        }
-    }
-
-    return pairs;
-}
-
 export default function VisionMissionGenerator() {
-    const programId = useActiveProgramId();
+    const searchParams = useSearchParams();
+    const programId = searchParams.get('programId');
 
     const [loading, setLoading] = useState(true);
     const [institution, setInstitution] = useState<any>(null);
@@ -108,7 +89,6 @@ export default function VisionMissionGenerator() {
     const [missionOptions, setMissionOptions] = useState<string[]>([]);
     const [visionGenerationHistory, setVisionGenerationHistory] = useState<string[]>([]);
     const [missionGenerationHistory, setMissionGenerationHistory] = useState<string[]>([]);
-    const [visionMissionPairs, setVisionMissionPairs] = useState<VisionMissionPair[]>([]);
     const [visionGenerateCount, setVisionGenerateCount] = useState(3);
     const [missionGenerateCount, setMissionGenerateCount] = useState(3);
 
@@ -139,7 +119,6 @@ export default function VisionMissionGenerator() {
                             const loadedMissionOptions = Array.isArray(currentProgram.mission_options) ? currentProgram.mission_options : [];
                             setVisionOptions(loadedVisionOptions);
                             setMissionOptions(loadedMissionOptions);
-                            setVisionMissionPairs(buildVisionMissionPairs(loadedVisionOptions, loadedMissionOptions));
                             setVisionGenerationHistory(loadedVisionOptions);
                             setMissionGenerationHistory(loadedMissionOptions);
 
@@ -212,71 +191,30 @@ export default function VisionMissionGenerator() {
         setGeneratingVision(true);
         try {
             const excludedVisions = mergeUniqueStatements(visionGenerationHistory, visionOptions);
-            const excludedMissions = mergeUniqueStatements(missionGenerationHistory, missionOptions);
-            const missionInputsForCoupled = selectedMissionPriorities.length > 0
-                ? selectedMissionPriorities
-                : selectedVisionPriorities;
             const response = await fetch(`${AI_API_URL}/ai/generate-vision-mission`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mode: 'both',
+                    mode: 'vision',
                     program_name: program.program_name,
                     institute_vision: institution.vision || '',
                     institute_mission: institution.mission || '',
                     vision_inputs: selectedVisionPriorities,
-                    mission_inputs: missionInputsForCoupled,
+                    mission_inputs: selectedMissionPriorities,
                     vision_count: visionGenerateCount,
-                    mission_count: visionGenerateCount,
-                    selected_program_vision: programVision || visionOptions[0] || '',
-                    exclude_visions: excludedVisions,
-                    exclude_missions: excludedMissions
+                    exclude_visions: excludedVisions
                 }),
             });
 
             if (response.ok) {
                 const data = await response.json();
-                const apiPairs: VisionMissionPair[] = Array.isArray(data.pairs)
-                    ? data.pairs
-                        .map((item: any) => ({
-                            vision: String(item?.vision || '').trim(),
-                            mission: String(item?.mission || '').trim()
-                        }))
-                        .filter((item: VisionMissionPair) => item.vision && item.mission)
-                    : [];
-
-                const newVisions = apiPairs.length > 0
-                    ? apiPairs.map((item: VisionMissionPair) => item.vision)
-                    : (data.visions && data.visions.length > 0 ? data.visions : (data.vision ? [data.vision] : []));
-                const newMissions = apiPairs.length > 0
-                    ? apiPairs.map((item: VisionMissionPair) => item.mission)
-                    : (data.missions && data.missions.length > 0 ? data.missions : (data.mission ? [data.mission] : []));
-
-                const computedPairs = apiPairs.length > 0
-                    ? apiPairs
-                    : buildVisionMissionPairs(newVisions, newMissions);
-
+                // Fallback to reading the visions array we specifically requested
+                const newVisions = data.visions && data.visions.length > 0 ? data.visions : (data.vision ? [data.vision] : []);
                 setVisionOptions(newVisions);
-                setMissionOptions(newMissions);
-                setVisionMissionPairs(computedPairs);
                 setVisionGenerationHistory((previous) => mergeUniqueStatements(previous, newVisions));
-                setMissionGenerationHistory((previous) => mergeUniqueStatements(previous, newMissions));
 
-                if (newVisions.length > 0) {
-                    const selectedVision = programVision && newVisions.includes(programVision)
-                        ? programVision
-                        : newVisions[0];
-                    setProgramVision(selectedVision);
-
-                    const pairedMission = computedPairs.find((item) => item.vision === selectedVision)?.mission;
-                    if (pairedMission) {
-                        setProgramMission(pairedMission);
-                    } else if (!programMission && newMissions.length > 0) {
-                        setProgramMission(newMissions[0]);
-                    }
-                } else if (!programMission && newMissions.length > 0) {
-                    setProgramMission(newMissions[0]);
-                }
+                // Auto-select first option if none selected
+                if (!programVision && newVisions.length > 0) setProgramVision(newVisions[0]);
 
                 setIsAiGenerated(true);
             } else {
@@ -326,7 +264,6 @@ export default function VisionMissionGenerator() {
                 const data = await response.json();
                 const newMissions = data.missions && data.missions.length > 0 ? data.missions : (data.mission ? [data.mission] : []);
                 setMissionOptions(newMissions);
-                setVisionMissionPairs([]);
                 setMissionGenerationHistory((previous) => mergeUniqueStatements(previous, newMissions));
                 // Auto-select first option if none selected
                 if (!programMission && newMissions.length > 0) setProgramMission(newMissions[0]);
@@ -532,7 +469,7 @@ export default function VisionMissionGenerator() {
                         className="flex-1 h-12 rounded-xl bg-amber-500 text-white font-bold text-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-200 active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
                     >
                         {generatingVision ? <Loader2 className="size-5 animate-spin" /> : <RefreshCw className="size-5" />}
-                        Generate Vision + Mission
+                        Generate Draft Vision
                     </button>
                 </div>
 
@@ -546,20 +483,11 @@ export default function VisionMissionGenerator() {
                                     key={idx}
                                     text={opt}
                                     isSelected={programVision === opt}
-                                    onSelect={() => {
-                                        setProgramVision(opt);
-                                        const pairedMission = visionMissionPairs[idx]?.mission;
-                                        if (pairedMission) setProgramMission(pairedMission);
-                                    }}
+                                    onSelect={() => setProgramVision(opt)}
                                     onEdit={(newVal) => {
                                         const newOpts = [...visionOptions];
                                         newOpts[idx] = newVal;
                                         setVisionOptions(newOpts);
-                                        if (visionMissionPairs[idx]) {
-                                            const updatedPairs = [...visionMissionPairs];
-                                            updatedPairs[idx] = { ...updatedPairs[idx], vision: newVal };
-                                            setVisionMissionPairs(updatedPairs);
-                                        }
                                         if (programVision === opt) setProgramVision(newVal);
                                     }}
                                 />
@@ -693,20 +621,11 @@ export default function VisionMissionGenerator() {
                                     key={idx}
                                     text={opt}
                                     isSelected={programMission === opt}
-                                    onSelect={() => {
-                                        setProgramMission(opt);
-                                        const pairedVision = visionMissionPairs[idx]?.vision;
-                                        if (pairedVision) setProgramVision(pairedVision);
-                                    }}
+                                    onSelect={() => setProgramMission(opt)}
                                     onEdit={(newVal) => {
                                         const newOpts = [...missionOptions];
                                         newOpts[idx] = newVal;
                                         setMissionOptions(newOpts);
-                                        if (visionMissionPairs[idx]) {
-                                            const updatedPairs = [...visionMissionPairs];
-                                            updatedPairs[idx] = { ...updatedPairs[idx], mission: newVal };
-                                            setVisionMissionPairs(updatedPairs);
-                                        }
                                         if (programMission === opt) setProgramMission(newVal);
                                     }}
                                 />

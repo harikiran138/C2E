@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useActiveProgramId } from '@/components/program/useActiveProgramId';
+import { useSearchParams } from 'next/navigation';
 import { 
   Sparkles, 
   Save, 
@@ -96,7 +96,8 @@ function getOrderedCriteria(quality: SmartAbetQuality): QualityCriterion[] {
 }
 
 export default function PeoGenerator({ hideContext = false, isEmbedded = false }: PeoGeneratorProps) {
-  const programId = useActiveProgramId();
+  const searchParams = useSearchParams();
+  const programId = searchParams.get('programId');
 
   // --- STATE ---
   const [loading, setLoading] = useState(true);

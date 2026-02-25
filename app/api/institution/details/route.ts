@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/postgres';
-import {
-  getAccessContext,
-  unauthorizedResponse,
-} from '@/lib/auth/request-access';
-import { validateInstitutionDetailsPayload } from '@/lib/validation/onboarding';
+import { verifyToken } from '@/lib/auth';
+import { validateInstitutionDetailsPayload, validateVisionMissionPayload } from '@/lib/validation/onboarding';
+
+async function getInstitutionId(request: NextRequest): Promise<string | null> {
+  const token = request.cookies.get('institution_token')?.value;
+  if (!token) return null;
+  const payload = await verifyToken(token);
+  return payload?.id as string || null;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const access = await getAccessContext(request);
-    if (!access) {
-      return unauthorizedResponse();
+    const institutionId = await getInstitutionId(request);
+    if (!institutionId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const institutionId = access.institutionId;
 
     const client = await pool.connect();
     try {
+      // Fetch Institution
       const instResult = await client.query(
         `SELECT
           id,
@@ -38,111 +41,52 @@ export async function GET(request: NextRequest) {
 
       const institution = instResult.rows[0];
 
-      const progResult =
-        access.mode === 'program'
-          ? await client.query(
-              `SELECT
-                id,
-                program_name,
-                degree,
-                level,
-                duration,
-                intake,
-                academic_year,
-                program_code,
-                vision,
-                mission,
-                vision_priorities,
-                mission_priorities,
-                program_vision,
-                program_mission,
-                lead_society,
-                consistency_matrix,
-                peo_brainstorming_start_date,
-                peo_brainstorming_end_date,
-                peo_feedback_start_date,
-                peo_feedback_end_date,
-                peo_consolidation_start_date,
-                peo_consolidation_end_date,
-                generated_by_ai,
-                vision_options,
-                mission_options,
-                vision_inputs_used,
-                mission_inputs_used
-               FROM programs
-               WHERE institution_id = $1 AND id = $2
-               ORDER BY created_at ASC`,
-              [institutionId, access.programId]
-            )
-          : await client.query(
-              `SELECT
-                id,
-                program_name,
-                degree,
-                level,
-                duration,
-                intake,
-                academic_year,
-                program_code,
-                vision,
-                mission,
-                vision_priorities,
-                mission_priorities,
-                program_vision,
-                program_mission,
-                lead_society,
-                consistency_matrix,
-                peo_brainstorming_start_date,
-                peo_brainstorming_end_date,
-                peo_feedback_start_date,
-                peo_feedback_end_date,
-                peo_consolidation_start_date,
-                peo_consolidation_end_date,
-                generated_by_ai,
-                vision_options,
-                mission_options,
-                vision_inputs_used,
-                mission_inputs_used
-               FROM programs
-               WHERE institution_id = $1
-               ORDER BY created_at ASC`,
-              [institutionId]
-            );
+      // Fetch Programs
+      const progResult = await client.query(
+        `SELECT
+          id,
+          program_name,
+          degree,
+          level,
+          duration,
+          intake,
+          academic_year,
+          program_code,
+          vision,
+          mission,
+          vision_priorities,
+          mission_priorities
+         FROM programs
+         WHERE institution_id = $1
+         ORDER BY created_at ASC`,
+        [institutionId]
+      );
 
       const programs = progResult.rows;
 
-      return NextResponse.json({
-        institution: institution || {},
-        programs: programs || [],
+      return NextResponse.json({ 
+        institution: institution || {}, 
+        programs: programs || [] 
       });
     } finally {
       client.release();
     }
   } catch (error: any) {
     console.error('Error fetching details:', error);
-    return NextResponse.json(
-      {
+    return NextResponse.json({ 
         error: error.message,
         stack: error.stack,
-        details: 'Failed at /api/institution/details GET',
-      },
-      { status: 500 }
-    );
+        details: 'Failed at /api/institution/details GET'
+    }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const access = await getAccessContext(request);
-    if (!access) {
-      return unauthorizedResponse();
+    const institutionId = await getInstitutionId(request);
+    if (!institutionId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    if (access.mode !== 'institution') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const institutionId = access.institutionId;
 
     const body = await request.json();
     const payload = {
@@ -165,14 +109,14 @@ export async function POST(request: NextRequest) {
     const client = await pool.connect();
     try {
       await client.query(
-        `UPDATE institutions
+        `UPDATE institutions 
          SET institution_name = $1,
-             institution_type = $2,
-             institution_status = $3,
-             established_year = $4,
-             university_affiliation = $5,
-             city = $6,
-             state = $7,
+             institution_type = $2, 
+             institution_status = $3, 
+             established_year = $4, 
+             university_affiliation = $5, 
+             city = $6, 
+             state = $7, 
              vision = $8,
              mission = $9,
              updated_at = NOW()
@@ -187,7 +131,7 @@ export async function POST(request: NextRequest) {
           payload.state.trim(),
           payload.vision?.trim() || null,
           payload.mission?.trim() || null,
-          institutionId,
+          institutionId
         ]
       );
 
