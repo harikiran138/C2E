@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 // Simple in-memory cache for AI results
 const aiCache = new Map<string, string[]>();
@@ -21,20 +21,20 @@ export async function POST(request: Request) {
 
     // Fallback/Safety Check
     if (!GEMINI_API_KEY) {
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.');
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.');
+      }
+      console.warn('GEMINI_API_KEY is missing. Using mock generation.');
+      const mockResults = Array.from({ length: count }).map((_, i) => {
+        const p1 = priorities[i % priorities.length];
+        const p2 = priorities[(i + 1) % priorities.length] || priorities[0];
+        if (type === 'vision') {
+          return `To be a global leader in ${programName} education, fostering ${p1} and ${p2} to transform society.`;
+        } else {
+          return `To provide ${p1} through ${p2} in ${programName}, ensuring holistic development of students.`;
         }
-        console.warn('GEMINI_API_KEY is missing. Using mock generation.');
-        const mockResults = Array.from({ length: count }).map((_, i) => {
-             const p1 = priorities[i % priorities.length];
-             const p2 = priorities[(i + 1) % priorities.length] || priorities[0];
-             if (type === 'vision') {
-                 return `To be a global leader in ${programName} education, fostering ${p1} and ${p2} to transform society.`;
-             } else {
-                 return `To provide ${p1} through ${p2} in ${programName}, ensuring holistic development of students.`;
-             }
-        });
-        return NextResponse.json({ results: mockResults });
+      });
+      return NextResponse.json({ results: mockResults });
     }
 
     // Call Gemini API via Fetch
@@ -61,31 +61,31 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Gemini API Error:', errorText);
-        throw new Error(`Gemini API Failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Gemini API Error:', errorText);
+      throw new Error(`Gemini API Failed: ${response.statusText}`);
     }
 
     const data = await response.json();
     const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!generatedText) {
-        throw new Error('No content generated');
+      throw new Error('No content generated');
     }
 
     // Clean up and parse the array
     let cleanedText = generatedText.replace(/```json/g, '').replace(/```/g, '').trim();
     let results: string[] = [];
-    
+
     try {
-        const parsed = JSON.parse(cleanedText);
-        if (Array.isArray(parsed)) {
-            results = parsed;
-        } else {
-            results = [cleanedText];
-        }
+      const parsed = JSON.parse(cleanedText);
+      if (Array.isArray(parsed)) {
+        results = parsed;
+      } else {
+        results = [cleanedText];
+      }
     } catch (e) {
-        results = cleanedText.split('\n').filter((l: string) => l.trim().length > 10).map((l: string) => l.replace(/^\d+\.\s*/, '').trim());
+      results = cleanedText.split('\n').filter((l: string) => l.trim().length > 10).map((l: string) => l.replace(/^\d+\.\s*/, '').trim());
     }
 
     // Cache the results
