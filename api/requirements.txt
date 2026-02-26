@@ -1,0 +1,7 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.2
+python-dotenv==1.0.0
+httpx==0.25.2
+# ML dependencies omitted for Vercel compatibility (Too large for 250MB limit)
+# Local ML will only run in the dedicated Mac environment.

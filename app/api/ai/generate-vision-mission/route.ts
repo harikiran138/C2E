@@ -145,8 +145,10 @@ interface StrategicValidationSummary {
 }
 
 const MAX_COUNT = 10;
-const MAX_REGEN_ATTEMPTS = 2;
-const STRATEGIC_APPROVAL_THRESHOLD = 85;
+const MAX_REGEN_ATTEMPTS = 3;
+const STRATEGIC_APPROVAL_THRESHOLD = 90;
+const VISION_APPROVAL_THRESHOLD = 90;
+const VISION_MAX_PILLARS = 3;
 
 const CATEGORY_LABELS: Record<ThemeCategory, string> = {
   global_positioning: 'Global Positioning',
@@ -164,6 +166,15 @@ const CATEGORY_FOCUS_PHRASES: Record<ThemeCategory, string> = {
   professional_values: 'ethics and professional responsibility',
   educational_philosophy: 'outcome-oriented learning quality',
   custom: 'program-specific strategic priorities',
+};
+
+const VISION_PILLAR_PHRASES: Record<ThemeCategory, string> = {
+  global_positioning: 'benchmark-quality institutional distinction',
+  innovation_technology: 'transformative innovation leadership',
+  sustainability_society: 'sustainable societal contribution',
+  professional_values: 'ethical and professional leadership',
+  educational_philosophy: 'academic distinction and lifelong scholarly growth',
+  custom: 'program-specific strategic distinction',
 };
 
 const CATEGORY_SIGNAL_TERMS: Record<ThemeCategory, string[]> = {
@@ -246,6 +257,49 @@ const VISION_MEASURABLE_VERBS = [
   'strengthen',
   'teaching',
   'fostering',
+];
+
+const VISION_OPERATIONAL_TERMS = [
+  ...VISION_MEASURABLE_VERBS,
+  'education',
+  'teaching',
+  'learning',
+  'curriculum',
+  'pedagogy',
+  'classroom',
+  'coursework',
+  'assessment',
+  'faculty',
+  'students',
+  'student',
+  'deliverables',
+  'training',
+  'train',
+  'prepare',
+  'nurture',
+  'empower',
+  'enable',
+  'outcome based',
+  'outcome-oriented',
+  'outcome oriented',
+  'through education',
+  'through teaching',
+];
+
+const VISION_MARKETING_TERMS = ['destination', 'hub', 'world-class', 'best-in-class', 'unmatched'];
+
+const VISION_POSITIONING_STARTERS = [
+  'To be globally recognized for',
+  'To be internationally benchmarked for',
+  'To attain global leadership in',
+  'To be globally distinguished for',
+];
+
+const VISION_GLOBAL_POSITIONING_PATTERNS: Array<{ concept: string; regex: RegExp }> = [
+  { concept: 'globally recognized', regex: /\bglobally recognized\b/i },
+  { concept: 'internationally benchmarked', regex: /\binternationally benchmarked\b/i },
+  { concept: 'global leadership', regex: /\bglobal leadership\b/i },
+  { concept: 'globally distinguished', regex: /\bglobally distinguished\b/i },
 ];
 
 const STOP_WORDS = new Set([
@@ -872,6 +926,176 @@ function containsAny(text: string, terms: string[]) {
   return terms.some((term) => lower.includes(term));
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsBoundedTerm(text: string, term: string) {
+  const pattern = new RegExp(`\\b${escapeRegExp(term.toLowerCase())}\\b`, 'i');
+  return pattern.test(text);
+}
+
+function findMatchedTerms(text: string, terms: string[]) {
+  const lower = text.toLowerCase();
+  return terms.filter((term) => containsBoundedTerm(lower, term));
+}
+
+function getCoveredCategoriesForStatement(statement: string, clusters: ThemeCluster[]) {
+  return clusters
+    .filter((cluster) => matchesCategory(statement, cluster.category, cluster.options))
+    .map((cluster) => cluster.category);
+}
+
+function extractGlobalPositioningConcepts(statement: string) {
+  const lower = statement.toLowerCase();
+  const concepts = VISION_GLOBAL_POSITIONING_PATTERNS
+    .filter(({ regex }) => regex.test(lower))
+    .map(({ concept }) => concept);
+  const globalTokenHits = lower.match(/\b(global|globally|international|internationally|world)\b/g) || [];
+  return {
+    concepts: uniq(concepts),
+    globalTokenHits: globalTokenHits.length,
+  };
+}
+
+function getRepeatedTokenSignals(statement: string) {
+  const lower = statement.toLowerCase();
+  const monitoredTokens = [
+    'global',
+    'globally',
+    'international',
+    'internationally',
+    'leadership',
+    'distinction',
+    'recognized',
+    'benchmarked',
+  ];
+
+  return monitoredTokens.filter((token) => {
+    const matches = lower.match(new RegExp(`\\b${escapeRegExp(token)}\\b`, 'g')) || [];
+    return matches.length > 1;
+  });
+}
+
+function evaluateVisionStrategicQuality(
+  statement: string,
+  semanticOptions: SemanticOption[],
+  clusters: ThemeCluster[]
+) {
+  const normalized = normalizeWhitespace(statement);
+  const lower = normalized.toLowerCase();
+  const words = normalized.replace(/[.?!]+$/, '').split(/\s+/).filter(Boolean);
+  const longTermSignals = ['long-term', 'long horizon', 'future', 'sustained', 'enduring', 'institutional'];
+  const positioningSignals = ['recognition', 'recognized', 'distinction', 'leadership', 'benchmarked'];
+
+  const operationalMatches = findMatchedTerms(lower, VISION_OPERATIONAL_TERMS);
+  const marketingMatches = findMatchedTerms(lower, VISION_MARKETING_TERMS);
+  const immediateOutcomeMatches = OUTCOME_STYLE_TERMS.filter((term) => lower.includes(term));
+  const globalPositioning = extractGlobalPositioningConcepts(normalized);
+  const coveredCategories = getCoveredCategoriesForStatement(normalized, clusters);
+  const repeatedTokenSignals = getRepeatedTokenSignals(normalized);
+
+  const hardViolations: string[] = [];
+  if (operationalMatches.length > 0) {
+    hardViolations.push(`operational leakage: ${uniq(operationalMatches).slice(0, 6).join(', ')}`);
+  }
+  if (marketingMatches.length > 0) {
+    hardViolations.push(`marketing language detected: ${uniq(marketingMatches).join(', ')}`);
+  }
+  if (immediateOutcomeMatches.length > 0) {
+    hardViolations.push('immediate-outcome language detected');
+  }
+  if (globalPositioning.concepts.length !== 1) {
+    hardViolations.push(
+      `must contain exactly one global positioning concept (found ${globalPositioning.concepts.length})`
+    );
+  }
+  if (globalPositioning.globalTokenHits > 1) {
+    hardViolations.push('global positioning phrase stacking detected');
+  }
+  if (coveredCategories.length > VISION_MAX_PILLARS) {
+    hardViolations.push(`more than ${VISION_MAX_PILLARS} strategic pillars detected`);
+  }
+
+  let longTermAbstraction = 100;
+  if (words.length < 15 || words.length > 25) {
+    longTermAbstraction -= 35;
+  }
+  if (!longTermSignals.some((signal) => lower.includes(signal))) {
+    longTermAbstraction -= 30;
+  }
+  if (immediateOutcomeMatches.length > 0) {
+    longTermAbstraction -= 35;
+  }
+
+  let institutionalPositioning = 100;
+  if (!VISION_POSITIONING_STARTERS.some((start) => lower.startsWith(start.toLowerCase()))) {
+    institutionalPositioning -= 35;
+  }
+  if (!positioningSignals.some((signal) => lower.includes(signal))) {
+    institutionalPositioning -= 30;
+  }
+  if (globalPositioning.concepts.length !== 1) {
+    institutionalPositioning -= 35;
+  }
+
+  let noOperationalLeakage = 100;
+  if (operationalMatches.length > 0) {
+    noOperationalLeakage = Math.max(0, 100 - operationalMatches.length * 30);
+  }
+
+  let redundancyControl = 100;
+  if (repeatedTokenSignals.length > 0) {
+    redundancyControl -= 40;
+  }
+  if (globalPositioning.globalTokenHits > 1) {
+    redundancyControl -= 35;
+  }
+
+  let strategicClarity = 100;
+  if (marketingMatches.length > 0) strategicClarity -= 40;
+  if (words.length < 15 || words.length > 25) strategicClarity -= 20;
+  if (coveredCategories.length > VISION_MAX_PILLARS) strategicClarity -= 35;
+
+  let alignmentWithFocusAreas = 100;
+  if (semanticOptions.length > 0) {
+    const matchedOptions = semanticOptions.filter((option) => matchesSemanticOption(normalized, option)).length;
+    const ratio = matchedOptions / semanticOptions.length;
+    alignmentWithFocusAreas = Math.round(Math.min(100, ratio * 100));
+  } else if (clusters.length > 0) {
+    const ratio = coveredCategories.length / Math.min(clusters.length, VISION_MAX_PILLARS);
+    alignmentWithFocusAreas = Math.round(Math.min(100, ratio * 100));
+  }
+
+  const weightedScore = Math.round(
+    longTermAbstraction * 0.2 +
+    institutionalPositioning * 0.2 +
+    noOperationalLeakage * 0.2 +
+    redundancyControl * 0.15 +
+    strategicClarity * 0.15 +
+    alignmentWithFocusAreas * 0.1
+  );
+
+  const overall = clampScore(weightedScore);
+  const score = hardViolations.length > 0 ? Math.min(overall, 79) : overall;
+
+  return {
+    score,
+    coveredCategories,
+    hardViolations,
+    repeatedTokenSignals,
+    globalConcepts: globalPositioning.concepts,
+    dimensions: {
+      long_term_abstraction: clampScore(longTermAbstraction),
+      institutional_positioning: clampScore(institutionalPositioning),
+      no_operational_leakage: clampScore(noOperationalLeakage),
+      redundancy_control: clampScore(redundancyControl),
+      strategic_clarity: clampScore(strategicClarity),
+      alignment_with_focus_areas: clampScore(alignmentWithFocusAreas),
+    },
+  };
+}
+
 function hasComplianceViolation(statement: string, kind: StatementKind) {
   const lower = statement.toLowerCase();
   const violations: string[] = [];
@@ -887,10 +1111,14 @@ function hasComplianceViolation(statement: string, kind: StatementKind) {
   }
 
   if (kind === 'vision') {
-    for (const verb of VISION_MEASURABLE_VERBS) {
-      if (lower.includes(verb)) {
-        violations.push(`uses measurable/operational verb: "${verb}"`);
-      }
+    const operational = findMatchedTerms(lower, VISION_OPERATIONAL_TERMS);
+    for (const term of operational) {
+      violations.push(`uses measurable/operational term: "${term}"`);
+    }
+
+    const marketing = findMatchedTerms(lower, VISION_MARKETING_TERMS);
+    for (const term of marketing) {
+      violations.push(`uses marketing tone: "${term}"`);
     }
   }
 
@@ -909,22 +1137,6 @@ function sanitizeCompliance(statement: string, kind: StatementKind) {
     .replace(/\bat graduation\b/gi, 'in their professional journey')
     .replace(/\bon graduation\b/gi, 'in their professional journey')
     .replace(/\bstudent[s]?\s+will\s+be\s+able\s+to\b/gi, 'graduates will');
-
-  if (kind === 'vision') {
-    const phrases = [
-      'strengthen institutional capacity for',
-      'position for',
-      'foster long-term'
-    ];
-    let phraseIdx = 0;
-    for (const verb of VISION_MEASURABLE_VERBS) {
-      const escaped = verb.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      cleaned = cleaned.replace(
-        new RegExp(`\\b${escaped}\\b`, 'gi'),
-        () => phrases[phraseIdx++ % phrases.length]
-      );
-    }
-  }
 
   return normalizeWhitespace(cleaned);
 }
@@ -1084,7 +1296,7 @@ function ensureVisionWordWindow(statement: string) {
   const maxWords = 25;
   let words = normalizeWhitespace(statement).replace(/[.?!]+$/, '').split(/\s+/);
 
-  const filler = ['with', 'long-term', 'aspiration', 'for', 'engineering', 'education'];
+  const filler = ['with', 'long-term', 'institutional', 'aspiration', 'for', 'strategic', 'distinction'];
   let fillerIndex = 0;
   while (words.length < minWords) {
     words.push(filler[fillerIndex % filler.length]);
@@ -1136,13 +1348,16 @@ function ensureAllCategoriesReferenced(
     if (matched) covered.add(cluster.category);
   }
 
-  const missing = clusters.filter((cluster) => !covered.has(cluster.category));
+  const maxPillars = kind === 'vision' ? VISION_MAX_PILLARS : 4;
+  const missingSlots = Math.max(0, maxPillars - covered.size);
+  const missing = clusters.filter((cluster) => !covered.has(cluster.category)).slice(0, missingSlots);
   if (missing.length === 0) {
     return ensureSentence(statement);
   }
 
+  const phraseCatalog = kind === 'vision' ? VISION_PILLAR_PHRASES : CATEGORY_FOCUS_PHRASES;
   const missingPhrase = formatList(
-    missing.map((cluster) => CATEGORY_FOCUS_PHRASES[cluster.category])
+    missing.map((cluster) => phraseCatalog[cluster.category])
   );
 
   const connector =
@@ -1154,7 +1369,7 @@ function ensureAllCategoriesReferenced(
 }
 
 function diversifyVisionStarts(statements: string[]) {
-  const starters = ['To become', 'Advancing', 'A program committed to', 'Striving toward', 'Dedicated to'];
+  const starters = VISION_POSITIONING_STARTERS;
   const used = new Set<string>();
 
   return statements.map((statement, index) => {
@@ -1165,7 +1380,7 @@ function diversifyVisionStarts(statements: string[]) {
     }
 
     const targetStarter = starters[index % starters.length];
-    const body = statement.replace(/^[A-Za-z\-]+(?:\s+[A-Za-z\-]+){0,3}\s+/u, '');
+    const body = statement.replace(/^[A-Za-z\-]+(?:\s+[A-Za-z\-]+){0,6}\s+/u, '');
     const rewritten = `${targetStarter} ${body}`;
     const rewrittenPattern = getStatementStartPattern(rewritten);
     used.add(rewrittenPattern);
@@ -1233,13 +1448,13 @@ function fillToTargetCount(
 }
 
 function buildVisionFallbackStatement(programName: string, slot: DistributionSlot, index: number) {
-  const focusPhrase = formatList(slot.categories.map((category) => CATEGORY_FOCUS_PHRASES[category]));
+  const selectedCategories = slot.categories.slice(0, VISION_MAX_PILLARS);
+  const focusPhrase = formatList(selectedCategories.map((category) => VISION_PILLAR_PHRASES[category]));
   const variants = [
-    `To become a leading ${programName} destination shaping ${focusPhrase} for long-term global relevance`,
-    `Advancing ${programName} aspirations through ${focusPhrase} in a future-focused and internationally benchmarked academic ecosystem`,
-    `A program committed to long-horizon impact by integrating ${focusPhrase} within responsible and globally aligned engineering education`,
-    `Striving toward a globally respected ${programName} identity grounded in ${focusPhrase} and mission-aligned educational transformation`,
-    `Dedicated to sustained ${programName} leadership through ${focusPhrase} with strong institutional and societal commitment`,
+    `To be globally recognized for long-term ${programName} distinction through ${focusPhrase} with sustained institutional and societal impact`,
+    `To be internationally benchmarked for enduring ${programName} leadership shaped by ${focusPhrase} and future-facing strategic relevance`,
+    `To attain global leadership in ${programName} through sustained ${focusPhrase} and long-horizon institutional distinction`,
+    `To be globally distinguished for sustained ${programName} excellence through ${focusPhrase} with enduring strategic contribution`,
   ];
 
   return ensureSentence(variants[index % variants.length]);
@@ -1975,6 +2190,54 @@ function evaluateStrategicBalance(
   return Math.round((passCount / statements.length) * 100);
 }
 
+function evaluateVisionGovernanceSet(
+  statements: string[],
+  semanticOptions: SemanticOption[],
+  clusters: ThemeCluster[]
+) {
+  const perStatement = statements.map((statement, index) => {
+    const assessment = evaluateVisionStrategicQuality(statement, semanticOptions, clusters);
+    return {
+      index,
+      statement,
+      ...assessment,
+    };
+  });
+
+  const averageScore =
+    perStatement.length === 0
+      ? 0
+      : Math.round(perStatement.reduce((sum, item) => sum + item.score, 0) / perStatement.length);
+
+  const violations: string[] = [];
+  for (const item of perStatement) {
+    if (item.hardViolations.length > 0) {
+      for (const violation of item.hardViolations) {
+        violations.push(`Statement ${item.index + 1}: ${violation}`);
+      }
+    }
+    if (item.score < VISION_APPROVAL_THRESHOLD) {
+      violations.push(
+        `Statement ${item.index + 1}: strategic score ${item.score} is below required threshold ${VISION_APPROVAL_THRESHOLD}`
+      );
+    }
+    if (item.repeatedTokenSignals.length > 0) {
+      violations.push(
+        `Statement ${item.index + 1}: phrase redundancy detected (${item.repeatedTokenSignals.join(', ')})`
+      );
+    }
+  }
+
+  const pass = perStatement.length > 0 && perStatement.every((item) => item.score >= VISION_APPROVAL_THRESHOLD);
+
+  return {
+    averageScore,
+    pass,
+    violations,
+    perStatement,
+  };
+}
+
 function validateStatements(
   kind: StatementKind,
   statements: string[],
@@ -2011,8 +2274,9 @@ function validateStatements(
 
   const requiredCategoryCountPerStatement = clusters.length;
   const overallCategoryCoverageOk = coverage.missingCategories.length === 0;
+  const requireFullCategoryCoverage = kind === 'mission' || requiredCategoryCountPerStatement <= VISION_MAX_PILLARS;
 
-  if (!overallCategoryCoverageOk && requiredCategoryCountPerStatement > 0) {
+  if (!overallCategoryCoverageOk && requiredCategoryCountPerStatement > 0 && requireFullCategoryCoverage) {
     violations.push(
       `the generated set must collectively reflect all selected strategic categories (missing: ${coverage.missingCategories.join(', ')})`
     );
@@ -2042,16 +2306,29 @@ function validateStatements(
     details.strategicBalance * 0.15
   );
 
+  let visionGovernanceAverage = 0;
+  let visionGovernancePass = true;
+  if (kind === 'vision') {
+    const visionGovernance = evaluateVisionGovernanceSet(statements, semanticOptions, clusters);
+    visionGovernanceAverage = visionGovernance.averageScore;
+    visionGovernancePass = visionGovernance.pass;
+    violations.push(...visionGovernance.violations);
+  }
+
+  const strictTotalScore =
+    kind === 'vision' ? Math.round(totalScore * 0.35 + visionGovernanceAverage * 0.65) : totalScore;
+
   const pass =
-    totalScore >= 80 &&
+    strictTotalScore >= (kind === 'vision' ? VISION_APPROVAL_THRESHOLD : 80) &&
     coverage.missingThemes.length === 0 &&
-    overallCategoryCoverageOk &&
+    (requireFullCategoryCoverage ? overallCategoryCoverageOk : true) &&
     !diversity.repeatedStartPattern &&
     compliance.violations.length === 0 &&
-    deduped.length === statements.length;
+    deduped.length === statements.length &&
+    (kind === 'vision' ? visionGovernancePass : true);
 
   return {
-    totalScore,
+    totalScore: strictTotalScore,
     pass,
     details,
     missingThemes: coverage.missingThemes,
@@ -2141,14 +2418,15 @@ Requirements:
 1. Generate exactly ${count} distinct Vision statements.
 2. Treat all selected semantic inputs as active constraints for every statement.
 3. Each statement must remain strictly aspirational and represent institutional standing (WHERE), not teaching processes (HOW).
-4. Mandatory: Each statement MUST begin with one of these aspirational phrases: "To be recognized as...", "To emerge as a leading...", "To advance as a premier...", or "To be globally distinguished for...".
-5. Hard Ban on verbs in Vision: "cultivate", "provide", "deliver", "strengthen capacity", "through education", "through outcome-oriented". These are Mission verbs.
-6. Each statement must reflect every strategic category represented in the selected inputs and avoid narrow measurable action verbs.
-7. Keep each statement between 15 and 25 words.
-8. Ensure structural diversity; avoid repeating the same sentence start across all outputs.
-9. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
-10. Do not concatenate labels; synthesize meaning.
-11. Logic: The Program Vision must logically extend the Institute Vision into the disciplinary context of ${programName} without repeating it verbatim.
+4. Mandatory start: each statement MUST begin with one of these exact starts: "To be globally recognized for", "To be internationally benchmarked for", "To attain global leadership in", or "To be globally distinguished for".
+5. Global concept rule: use exactly ONE global positioning phrase per statement and do not stack additional global/international words.
+6. Hard Ban in Vision: operational/process terms such as education, teaching, learning, curriculum, pedagogy, provide, deliver, develop, cultivate, train, implement.
+7. Limit each Vision to a maximum of ${VISION_MAX_PILLARS} strategic pillars.
+8. Keep each statement between 15 and 25 words.
+9. Ensure structural diversity; avoid repeating identical sentence starts across all outputs.
+10. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes, destination, hub, world-class.
+11. Do not concatenate labels; synthesize meaning with long-term institutional abstraction.
+12. Logic: The Program Vision must logically extend the Institute Vision into the disciplinary context of ${programName} without repeating it verbatim.
 
 Output format:
 - Return strictly a JSON array of strings.
@@ -2358,7 +2636,33 @@ async function generateWithValidation(params: {
     excludedStatements
   );
 
-  const finalFallback = kind === 'vision' ? diversifyVisionStarts(fallbackStatements) : fallbackStatements;
+  let finalFallback = kind === 'vision' ? diversifyVisionStarts(fallbackStatements) : fallbackStatements;
+
+  if (kind === 'vision') {
+    finalFallback = finalFallback.map((statement, index) => {
+      let candidate = statement;
+
+      for (let repairAttempt = 0; repairAttempt < MAX_REGEN_ATTEMPTS; repairAttempt += 1) {
+        const assessment = evaluateVisionStrategicQuality(candidate, semanticOptions, clusters);
+        if (assessment.score >= VISION_APPROVAL_THRESHOLD) {
+          return candidate;
+        }
+
+        candidate = normalizeVisionStatement(
+          fallbackFactory(index + count * (repairAttempt + 1)),
+          clusters
+        );
+      }
+
+      const defaultPillar = VISION_PILLAR_PHRASES[clusters[0]?.category || 'custom'];
+      return ensureVisionWordWindow(
+        ensureSentence(
+          `${VISION_POSITIONING_STARTERS[index % VISION_POSITIONING_STARTERS.length]} long-term institutional distinction in ${defaultPillar} with sustained societal relevance`
+        )
+      );
+    });
+  }
+
   const validation = validateStatements(
     kind,
     finalFallback,
