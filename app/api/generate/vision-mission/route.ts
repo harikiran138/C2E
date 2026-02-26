@@ -39,17 +39,25 @@ export async function POST(request: Request) {
 
     // Call Gemini API via Fetch
     const prompt = `
-      You are an expert academic consultant.
+      You are an expert academic consultant for NBA/ABET accreditation.
       Context: The institution has the following Vision: "${institutionContext || 'N/A'}".
       Program Name: "${programName}".
       Task: Generate ${count} distinct and professional ${type} statements for this program.
       Focus Areas (Priorities): ${priorities.join(', ')}.
       
-      Constraints:
-      1. Each statement should be strictly 1-2 sentences.
-      2. Professional, academic tone.
-      3. Align with the provided priorities.
-      4. Output strictly as a JSON array of strings, e.g., ["Statement 1", "Statement 2"]. Do not include markdown formatting or extra text.
+      Strategic Constraints for ${type.toUpperCase()}:
+      ${type === 'vision' ? `
+      1. Vision must represent institutional STANDING (WHERE), not the teaching PROCESS (HOW).
+      2. Mandatory Starts: Every Vision MUST begin with "To be recognized as...", "To emerge as a leading...", or "To advance as a premier...".
+      3. Banned Verbs (Vision only): do NOT use "cultivate", "provide", "deliver", "strengthen", "through education", "through outcome-oriented".
+      ` : `
+      1. Mission must represent the implementable action (HOW) the program achieves its vision.
+      2. Professional and action-oriented.
+      `}
+      4. Each statement should be strictly 1-2 sentences.
+      5. Professional, academic tone.
+      6. Align with the provided priorities.
+      7. Output strictly as a JSON array of strings, e.g., ["Statement 1", "Statement 2"]. Do not include markdown formatting or extra text.
     `;
 
     const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {

@@ -240,6 +240,12 @@ const VISION_MEASURABLE_VERBS = [
   'measure',
   'evaluate',
   'analyze',
+  'cultivate',
+  'provide',
+  'deliver',
+  'strengthen',
+  'teaching',
+  'fostering',
 ];
 
 const STOP_WORDS = new Set([
@@ -595,6 +601,33 @@ function normalizeStringList(value: unknown, max = 8) {
     .map((item) => normalizeWhitespace(String(item)))
     .filter(Boolean)
     .slice(0, max);
+}
+
+function validateInstituteContext(text: string): boolean {
+  if (!text) return false;
+  const cleaned = normalizeWhitespace(text).toLowerCase();
+  // Filter out common placeholders and very short/low-quality inputs
+  if (cleaned.length < 10) return false;
+  if (['hello', 'nil', 'n/a', 'none', 'not specified', 'placeholder'].includes(cleaned)) return false;
+  return true;
+}
+
+function getBaselineInstituteVision(programName: string): string {
+  return `To be a globally recognized institution committed to excellence in technical education, research, and societal development, fostering innovation in fields like ${programName}.`;
+}
+
+function getBaselineInstituteMission(programName: string): string {
+  return `To provide quality education, foster research and innovation, and promote ethical values and sustainability for long-term societal impact through disciplinary strengths in ${programName}.`;
+}
+
+function calculateJaccardSimilarity(s1: string, s2: string): number {
+  const k1 = new Set(extractKeywords(s1));
+  const k2 = new Set(extractKeywords(s2));
+  if (k1.size === 0 || k2.size === 0) return 0;
+
+  const intersection = new Set([...k1].filter(x => k2.has(x)));
+  const union = new Set([...k1, ...k2]);
+  return intersection.size / union.size;
 }
 
 function parseJsonResponse(rawText: string): any | null {
@@ -1851,15 +1884,28 @@ function calculateCoverage(
 
 function evaluateStructuralDiversity(statements: string[]) {
   if (statements.length === 0) {
-    return { score: 0, repeatedStartPattern: false };
+    return { score: 0, repeatedStartPattern: false, highSimilarity: false };
   }
 
   const starts = statements.map((statement) => getStatementStartPattern(statement));
   const uniqueStarts = new Set(starts);
   const repeatedStartPattern = uniqueStarts.size === 1 && statements.length > 1;
-  const score = Math.round((uniqueStarts.size / statements.length) * 100);
 
-  return { score, repeatedStartPattern };
+  // New: Jaccard Similarity Check to catch mission paragraphs that are too similar
+  let maxSimilarity = 0;
+  for (let i = 0; i < statements.length; i++) {
+    for (let j = i + 1; j < statements.length; j++) {
+      const sim = calculateJaccardSimilarity(statements[i], statements[j]);
+      if (sim > maxSimilarity) maxSimilarity = sim;
+    }
+  }
+
+  const highSimilarity = maxSimilarity > 0.6; // Threshold for suspicious similarity
+
+  let score = Math.round((uniqueStarts.size / statements.length) * 100);
+  if (highSimilarity) score = Math.min(score, 50); // Penalize score if similarity is high
+
+  return { score, repeatedStartPattern, highSimilarity };
 }
 
 function evaluateCompliance(statements: string[], kind: StatementKind) {
@@ -1976,6 +2022,10 @@ function validateStatements(
     violations.push('all statements use the same start pattern');
   }
 
+  if (diversity.highSimilarity) {
+    violations.push('generated statements are structurally redundant or too similar (template reuse detected)');
+  }
+
   const details: ValidationBreakdown = {
     themeCoverage: coverage.themeCoverageScore,
     structuralDiversity: diversity.score,
@@ -2090,12 +2140,15 @@ ${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(' | ')}
 Requirements:
 1. Generate exactly ${count} distinct Vision statements.
 2. Treat all selected semantic inputs as active constraints for every statement.
-3. Each statement must remain aspirational, accreditation-safe, and suitable for long-term (10-15 year) vision framing.
-4. Each statement must reflect every strategic category represented in the selected inputs and avoid narrow measurable action verbs.
-5. Keep each statement between 15 and 25 words.
-6. Ensure structural diversity; avoid repeating the same sentence start across all outputs.
-7. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
-8. Do not concatenate labels; synthesize meaning.
+3. Each statement must remain strictly aspirational and represent institutional standing (WHERE), not teaching processes (HOW).
+4. Mandatory: Each statement MUST begin with one of these aspirational phrases: "To be recognized as...", "To emerge as a leading...", "To advance as a premier...", or "To be globally distinguished for...".
+5. Hard Ban on verbs in Vision: "cultivate", "provide", "deliver", "strengthen capacity", "through education", "through outcome-oriented". These are Mission verbs.
+6. Each statement must reflect every strategic category represented in the selected inputs and avoid narrow measurable action verbs.
+7. Keep each statement between 15 and 25 words.
+8. Ensure structural diversity; avoid repeating the same sentence start across all outputs.
+9. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
+10. Do not concatenate labels; synthesize meaning.
+11. Logic: The Program Vision must logically extend the Institute Vision into the disciplinary context of ${programName} without repeating it verbatim.
 
 Output format:
 - Return strictly a JSON array of strings.
@@ -2149,14 +2202,17 @@ ${excludedStatements.length > 0 ? `Do not repeat any of these previous statement
 ${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(' | ')}` : ''}
 
 Requirements:
-1. Generate exactly ${count} distinct Mission statements.
-2. Each mission must be one paragraph with 3 to 5 sentences.
-3. Every paragraph must reflect all selected semantic inputs in a mission-appropriate way.
-4. Maintain accreditation-safe tone: implementable, broad, realistic, mission-aligned.
-5. Every paragraph must reflect every strategic category represented in the selected inputs.
-6. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
-7. Ensure structural diversity across generated mission paragraphs.
-8. Avoid copying labels verbatim as a list; synthesize coherent institutional language.
+1. Generate exactly ${count} distinct Mission paragraphs.
+2. Each paragraph must follow a strict "3 Operational Pillars" structure:
+   - Pillar 1: Academic/Curriculum (How we teach/learn).
+   - Pillar 2: Research/Industry (How we innovate/collaborate).
+   - Pillar 3: Ethics/Sustainability (How we impact society).
+3. Diversity Constraint: Do NOT simply swap the first verb of the paragraph. Every sentence in the paragraph must be structurally unique across all ${count} candidates.
+4. Logic: Every Mission paragraph must explain HOW the Program Vision will be attained.
+5. Tone: Professional, implementation-oriented, and action-driven.
+6. Length: 40-70 words per paragraph.
+7. Avoid restricted wording: guarantee, ensure all, absolute mastery, 100% placement.
+8. Synthesize meaning from the Institute Mission context; do not repeat it verbatim.
 
 Output format:
 - Return strictly a JSON array of strings.
@@ -2217,12 +2273,13 @@ ${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(' | ')}
 Requirements:
 1. Generate exactly ${visions.length} distinct mission paragraphs, in the same order as the provided visions.
 2. Mission i must align directly with Vision i; do not mix visions across missions.
-3. Each mission must be one paragraph with 3 to 5 sentences and practical institutional actions.
+3. Each mission must be one paragraph with 3 to 5 sentences following a strict "3 Operational Pillars" structure (Academic Excellence, Research/Industry Innovation, and Ethical/Societal Impact).
 4. Each mission must operationalize the dominant categories and required pillars provided in its hint.
-5. Maintain accreditation-safe tone: broad, attainable, mission-oriented, and suitable for ABET/NBA review.
-6. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
-7. Ensure structural diversity across mission outputs.
-8. Synthesize language; do not copy labels as a list.
+5. Structural Diversity: NO duplication of sentence templates. Every sentence across the JSON array must be unique.
+6. Tone: Implementation-focused, accreditation-ready, and professional.
+7. Length: 40-70 words per paragraph.
+8. Synthesize language; do not repeat labels or visions verbatim.
+9. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
 
 Output format:
 - Return strictly a JSON array of strings.
@@ -2491,6 +2548,14 @@ export async function POST(request: Request) {
       exclude_missions,
     } = body;
 
+    const programName = String(program_name || 'the program');
+    const validInstituteVision = validateInstituteContext(String(institute_vision || ''))
+      ? String(institute_vision)
+      : getBaselineInstituteVision(programName);
+    const validInstituteMission = validateInstituteContext(String(institute_mission || ''))
+      ? String(institute_mission)
+      : getBaselineInstituteMission(programName);
+
     if (!program_name) {
       return NextResponse.json({ error: 'Missing program_name' }, { status: 400 });
     }
@@ -2559,8 +2624,8 @@ export async function POST(request: Request) {
         excludedStatements: excludedVisions,
         promptFactory: (feedback) =>
           buildVisionPrompt({
-            programName: String(program_name),
-            instituteVision: String(institute_vision || ''),
+            programName,
+            instituteVision: validInstituteVision,
             semanticOptions: visionSemantic,
             clusters: visionClusters,
             distributionPlan: visionPlan,
@@ -2586,8 +2651,8 @@ export async function POST(request: Request) {
         }
 
         missionResult = await generateCoupledMissionsWithValidation({
-          programName: String(program_name),
-          instituteMission: String(institute_mission || ''),
+          programName,
+          instituteMission: validInstituteMission,
           visions: visionsForMission,
           semanticOptions: missionSemantic,
           missionClusters,
@@ -2606,9 +2671,9 @@ export async function POST(request: Request) {
           excludedStatements: excludedMissions,
           promptFactory: (feedback) =>
             buildMissionPrompt({
-              programName: String(program_name),
+              programName,
               selectedProgramVision: String(selected_program_vision || ''),
-              instituteMission: String(institute_mission || ''),
+              instituteMission: validInstituteMission,
               semanticOptions: missionSemantic,
               clusters: missionClusters,
               distributionPlan: missionPlan,
@@ -2618,7 +2683,7 @@ export async function POST(request: Request) {
               feedback,
             }),
           fallbackFactory: (index) =>
-            buildMissionFallbackStatement(String(program_name), missionPlan[index % missionPlan.length] || {
+            buildMissionFallbackStatement(programName, missionPlan[index % missionPlan.length] || {
               index,
               categories: ['custom'],
               emphasisLabels: [],

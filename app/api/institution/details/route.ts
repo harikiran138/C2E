@@ -55,7 +55,9 @@ export async function GET(request: NextRequest) {
           vision,
           mission,
           vision_priorities,
-          mission_priorities
+          mission_priorities,
+          consistency_matrix,
+          peo_po_matrix
          FROM programs
          WHERE institution_id = $1
          ORDER BY created_at ASC`,
@@ -64,19 +66,19 @@ export async function GET(request: NextRequest) {
 
       const programs = progResult.rows;
 
-      return NextResponse.json({ 
-        institution: institution || {}, 
-        programs: programs || [] 
+      return NextResponse.json({
+        institution: institution || {},
+        programs: programs || []
       });
     } finally {
       client.release();
     }
   } catch (error: any) {
     console.error('Error fetching details:', error);
-    return NextResponse.json({ 
-        error: error.message,
-        stack: error.stack,
-        details: 'Failed at /api/institution/details GET'
+    return NextResponse.json({
+      error: error.message,
+      stack: error.stack,
+      details: 'Failed at /api/institution/details GET'
     }, { status: 500 });
   }
 }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-const PEO_TIME_HORIZON = 'Within 4 to 5 years of graduation';
+const PEO_TIME_HORIZON = 'Within 3 to 5 years of graduation';
 const PEO_TIME_HORIZON_LOWER = PEO_TIME_HORIZON.toLowerCase();
 
 const ABSOLUTE_TERMS = ['all graduates', 'every graduate', 'always', 'guarantee', '100%'];
@@ -146,8 +146,8 @@ function enforcePeoQuality(rawStatement: string, priority: string, programName: 
   }
 
   const words = statement.split(/\s+/);
-  if (words.length > 62) {
-    statement = words.slice(0, 62).join(' ');
+  if (words.length > 35) {
+    statement = words.slice(0, 35).join(' ');
   }
 
   if (words.length < 18) {
@@ -160,7 +160,10 @@ function enforcePeoQuality(rawStatement: string, priority: string, programName: 
 function scoreSmartAbet(statement: string) {
   const lower = statement.toLowerCase();
 
-  const specific = lower.length >= 90;
+  const words = statement.split(/\s+/);
+  const specific = words.length >= 20 && words.length <= 35;
+  const careerKeywords = ['career', 'professional', 'leadership', 'innovation', 'sustainability', 'research'];
+  const hasCareerFocus = containsAny(lower, careerKeywords);
   const measurable = containsAny(lower, MEASURABLE_CUES);
   const attainable = !containsAny(lower, ABSOLUTE_TERMS);
   const relevant = containsAny(lower, RELEVANCE_CUES);
@@ -169,7 +172,8 @@ function scoreSmartAbet(statement: string) {
   const missionAligned = containsAny(lower, MISSION_ALIGNMENT_CUES);
 
   const criteria = [
-    { key: 'specific', label: 'Specific', passed: specific, guidance: 'State clear professional attainment focus.' },
+    { key: 'specific', label: 'Specific', passed: specific, guidance: 'Length should be 20-35 words.' },
+    { key: 'careerFocus', label: 'Career Focus', passed: hasCareerFocus, guidance: 'Must mention career, professional, leadership, innovation, etc.' },
     { key: 'measurable', label: 'Measurable', passed: measurable, guidance: 'Use language that can be assessed indirectly.' },
     { key: 'attainable', label: 'Attainable', passed: attainable, guidance: 'Avoid absolute or unrealistic guarantees.' },
     { key: 'relevant', label: 'Relevant', passed: relevant, guidance: 'Reflect discipline and professional context.' },
@@ -254,39 +258,44 @@ export async function POST(request: Request) {
 
     // Call Gemini API via Fetch
     const prompt = `
-      You are an ABET EAC accreditation evaluator and engineering curriculum consultant.
+      You are an Accreditation-Aware Academic Policy Designer.
+      
       Program: "${programName}".
       Context: ${institutionContext || 'N/A'}
       Priority Anchors: ${priorities.join(', ')}.
 
-      Task:
-      Generate exactly ${normalizedCount} distinct Program Educational Objectives (PEOs).
+      Task: Generate exactly ${normalizedCount} distinct Program Educational Objectives (PEOs) for this program.
 
-      ABET framing to follow:
-      - PEOs are broad statements describing what graduates are expected to attain within 4 to 5 years after graduation.
-      - Statements should reflect career and professional attainment, not immediate graduation outcomes.
+      PEO Requirements:
+      1. Generate 3 to 4 PEO statements.
+      2. Each PEO must describe achievements 3–5 years after graduation.
+      3. PEOs must be career-oriented, not classroom outcomes.
+      4. PEOs must be measurable via alumni or employer feedback.
+      5. Avoid immediate graduation outcomes.
+      6. Avoid operational teaching language.
+      7. Ensure diversity across:
+         - Professional competence
+         - Leadership & teamwork
+         - Societal responsibility
+         - Innovation & lifelong learning
+      8. Maintain accreditation-safe tone (NBA / ABET compatible).
+      9. Avoid repetition.
+      10. Use “Graduates will…” structure for the core sentence.
+      11. Mandatory Prefix: Each PEO must begin with "${PEO_TIME_HORIZON}, graduates will..."
+      12. Word length: Each statement must be between 20 and 35 words.
 
-      Writing constraints:
-      1. Each PEO must be one sentence and should begin with: "${PEO_TIME_HORIZON}, graduates will..."
-      2. Keep each PEO broad, realistic, and assessable indirectly through alumni/employer/stakeholder feedback.
-      3. Avoid narrow student-outcome wording (for example: "at graduation", "demonstrate tool use", "develop an app").
-      4. Avoid absolute or unrealistic terms (for example: "all graduates will excel", "all graduates will start ventures").
-      5. Across the full set, cover technical/professional growth, ethical responsibility, societal impact, and lifelong learning.
-      6. Keep PEOs aligned with the institute mission and program mission from the provided context.
-      7. Do not use the words "excel" or "excellence"; use "progress", "advance", "engage", or similar measurable phrasing.
-      8. Use concise professional language suitable for accreditation documents.
+      Lead Society strategic focus (integrated into PEOs):
+      - Technical excellence
+      - Leadership development
+      - Societal impact
+      - Innovation & entrepreneurship
+      - Ethical responsibility
+      - Community engagement
 
       Output format:
       - Return strictly a JSON array of strings.
-      - Do not include markdown, numbering keys, or explanatory text.
-
-      Reject examples (do not generate anything similar):
-      - "Graduates will demonstrate immediate coding capabilities at graduation."
-      - "All graduates will establish successful startups."
-      - "Graduates will excel in professional practice."
-
-      Produce the final JSON array now.
-
+      - No markdown.
+      - No explanation.
       `;
 
     const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
