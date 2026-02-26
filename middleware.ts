@@ -46,12 +46,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
 
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-  attachSecurityHeaders(response);
+  const requestHeaders = new Headers(request.headers);
 
   if (
     STATIC_FILE_REGEX.test(pathname) ||
@@ -59,6 +54,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/public') ||
     pathname === '/favicon.ico'
   ) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    attachSecurityHeaders(response);
     return response;
   }
 
@@ -85,14 +82,20 @@ export async function middleware(request: NextRequest) {
   const isStakeholderArea = pathname.startsWith('/stakeholder') || pathname.startsWith('/api/stakeholder');
 
   if (!isInstitutionArea && !isStakeholderArea) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    attachSecurityHeaders(response);
     return response;
   }
 
   if (isInstitutionArea && isPublicPath(pathname, PUBLIC_INSTITUTION_PATHS)) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    attachSecurityHeaders(response);
     return response;
   }
 
   if (isStakeholderArea && isPublicPath(pathname, PUBLIC_STAKEHOLDER_PATHS)) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    attachSecurityHeaders(response);
     return response;
   }
 
@@ -115,6 +118,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/stakeholder/login', request.url));
     }
 
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    attachSecurityHeaders(response);
     return response;
   }
 
@@ -142,6 +147,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  let refreshCookiesToSet: string[] = [];
+
   if (!customUser && refreshToken) {
     try {
       const refreshUrl = new URL('/api/institution/auth/refresh', request.url);
@@ -154,7 +161,7 @@ export async function middleware(request: NextRequest) {
 
       if (refreshRes.ok) {
         const setCookieHeaders = refreshRes.headers.getSetCookie();
-        setCookieHeaders.forEach((cookie) => response.headers.append('Set-Cookie', cookie));
+        refreshCookiesToSet = setCookieHeaders;
 
         const newToken = setCookieHeaders
           .find((cookie) => cookie.startsWith('institution_token='))
@@ -162,6 +169,12 @@ export async function middleware(request: NextRequest) {
           .split('=')[1];
 
         if (newToken) {
+          // Pass the new token to downstream route handlers
+          const currentCookie = requestHeaders.get('cookie') || '';
+          const cookiePairs = currentCookie.split(';').filter((c) => !c.trim().startsWith('institution_token='));
+          cookiePairs.push(`institution_token=${newToken}`);
+          requestHeaders.set('cookie', cookiePairs.join('; '));
+
           const payload = await verifyToken(newToken);
           if (payload && payload.id) {
             customUser = {
@@ -206,9 +219,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  attachSecurityHeaders(response);
+  refreshCookiesToSet.forEach((cookie) => response.headers.append('Set-Cookie', cookie));
+
   return response;
 }
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
+

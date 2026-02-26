@@ -4187,3 +4187,72 @@ Caused by:
     1: Unable to open static sorted file referenced from 00004928.meta
     2: Unable to open static sorted file 00004920.sst
     3: No such file or directory (os error 2)
+✓ Compiled in 173ms
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+
+thread 'tokio-runtime-worker' (1622807) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for EcmascriptBuildNodeChunkContent::new (TaskId 709512))
+
+Caused by:
+    0: Looking up data for TaskId 709512 from database failed
+    1: Unable to open static sorted file referenced from 00005034.meta
+    2: Unable to open static sorted file 00005027.sst
+    3: No such file or directory (os error 2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'tokio-runtime-worker' (1622899) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for ChunkItemBatchWithAsyncModuleInfo::from_module_batch (TaskId 708168))
+
+Caused by:
+    0: Looking up data for TaskId 708168 from database failed
+    1: Unable to open static sorted file referenced from 00005106.meta
+    2: Unable to open static sorted file 00005101.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (1623282) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for chunk_items_with_info_with_type (TaskId 708287))
+
+Caused by:
+    0: Looking up data for TaskId 708287 from database failed
+    1: Unable to open static sorted file referenced from 00005106.meta
+    2: Unable to open static sorted file 00005101.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (1574661) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for ChunkItemBatchWithAsyncModuleInfo::from_module_batch (TaskId 708168))
+
+Caused by:
+    0: Looking up data for TaskId 708168 from database failed
+    1: Unable to open static sorted file referenced from 00005106.meta
+    2: Unable to open static sorted file 00005101.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (1623282) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for EcmascriptBuildNodeChunkContent::new (TaskId 709512))
+
+Caused by:
+    0: Looking up data for TaskId 709512 from database failed
+    1: Unable to open static sorted file referenced from 00005034.meta
+    2: Unable to open static sorted file 00005027.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (1574661) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for ChunkItemBatchWithAsyncModuleInfo::from_module_batch (TaskId 708168))
+
+Caused by:
+    0: Looking up data for TaskId 708168 from database failed
+    1: Unable to open static sorted file referenced from 00005106.meta
+    2: Unable to open static sorted file 00005101.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (1468918) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for <SingleItemCssChunk as OutputAsset>::path (TaskId 709602))
+
+Caused by:
+    0: Looking up data for TaskId 709602 from database failed
+    1: Unable to open static sorted file referenced from 00005088.meta
+    2: Unable to open static sorted file 00005084.sst
+    3: No such file or directory (os error 2)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
