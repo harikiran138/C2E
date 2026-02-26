@@ -46,19 +46,87 @@ class StrategicClassifier:
 
     POSITIONING_STARTERS = [
         "to be globally recognized for",
-        "to be internationally benchmarked for",
-        "to attain global leadership in",
-        "to be globally distinguished for",
+        "to emerge as",
+        "to achieve distinction in",
+        "to advance as a leading",
+        "to be globally respected for",
     ]
 
     POSITIONING_KEYWORDS = ["recognition", "recognized", "distinction", "leadership", "benchmarked"]
     LONG_TERM_SIGNALS = ["long-term", "long horizon", "future", "sustained", "enduring", "institutional"]
+    REDUNDANCY_SUFFIXES = [
+        "ization",
+        "ation",
+        "ition",
+        "tion",
+        "sion",
+        "ment",
+        "ness",
+        "ity",
+        "ship",
+        "ing",
+        "ed",
+        "es",
+        "s",
+    ]
+    REDUNDANCY_STOP_WORDS = {
+        "the",
+        "and",
+        "for",
+        "with",
+        "that",
+        "this",
+        "from",
+        "into",
+        "through",
+        "toward",
+        "towards",
+        "to",
+        "of",
+        "in",
+        "on",
+        "a",
+        "an",
+        "by",
+        "be",
+        "or",
+        "is",
+        "are",
+        "as",
+        "at",
+        "program",
+        "engineering",
+        "institutional",
+        "strategic",
+        "global",
+        "globally",
+        "international",
+        "internationally",
+        "future",
+        "long",
+        "term",
+        "sustained",
+    }
+    SYNONYM_STACK_GROUPS = [
+        {
+            "label": "distinction-concept stacking",
+            "terms": ["distinction", "excellence", "premier", "leading", "leadership"],
+            "threshold": 3,
+        },
+        {
+            "label": "innovation-concept stacking",
+            "terms": ["innovation", "innovative", "transformative", "foresight", "advancement"],
+            "threshold": 3,
+        },
+    ]
 
     GLOBAL_CONCEPT_PATTERNS = [
         ("globally recognized", re.compile(r"\bglobally recognized\b", re.IGNORECASE)),
+        ("globally respected", re.compile(r"\bglobally respected\b", re.IGNORECASE)),
         ("internationally benchmarked", re.compile(r"\binternationally benchmarked\b", re.IGNORECASE)),
         ("global leadership", re.compile(r"\bglobal leadership\b", re.IGNORECASE)),
-        ("globally distinguished", re.compile(r"\bglobally distinguished\b", re.IGNORECASE)),
+        ("global distinction", re.compile(r"\b(global distinction|achieve distinction|distinction in)\b", re.IGNORECASE)),
+        ("leading advancement", re.compile(r"\badvance as a leading\b", re.IGNORECASE)),
     ]
 
     def _contains_bounded_term(self, text: str, term: str) -> bool:
@@ -86,6 +154,59 @@ class StrategicClassifier:
     def _clamp(self, value: float) -> int:
         return max(0, min(100, int(round(value))))
 
+    def _normalize_root(self, token: str) -> str:
+        root = re.sub(r"[^a-z0-9]", "", token.lower())
+        if not root or len(root) <= 4:
+            return root
+        for suffix in self.REDUNDANCY_SUFFIXES:
+            if root.endswith(suffix) and len(root) - len(suffix) >= 4:
+                root = root[: -len(suffix)]
+                break
+        return root
+
+    def _extract_core_tokens(self, text: str) -> List[str]:
+        tokens = re.findall(r"[a-z0-9]+", text.lower())
+        return [token for token in tokens if len(token) >= 5 and token not in self.REDUNDANCY_STOP_WORDS]
+
+    def _repeated_roots(self, text: str) -> List[str]:
+        counts: Dict[str, int] = {}
+        for token in self._extract_core_tokens(text):
+            root = self._normalize_root(token)
+            if not root or root in self.REDUNDANCY_STOP_WORDS:
+                continue
+            counts[root] = counts.get(root, 0) + 1
+        return sorted([root for root, count in counts.items() if count > 1])
+
+    def _duplicate_bigrams(self, text: str) -> List[str]:
+        tokens = re.findall(r"[a-z0-9]+", text.lower())
+        counts: Dict[str, int] = {}
+        for i in range(len(tokens) - 1):
+            first = tokens[i]
+            second = tokens[i + 1]
+            if (
+                len(first) < 5
+                or len(second) < 5
+                or first in self.REDUNDANCY_STOP_WORDS
+                or second in self.REDUNDANCY_STOP_WORDS
+            ):
+                continue
+            bigram = f"{first} {second}"
+            counts[bigram] = counts.get(bigram, 0) + 1
+        return sorted([phrase for phrase, count in counts.items() if count > 1])
+
+    def _synonym_stacking(self, text: str) -> List[str]:
+        lower = text.lower()
+        stacked = []
+        for group in self.SYNONYM_STACK_GROUPS:
+            matched = [
+                term
+                for term in group["terms"]
+                if re.search(rf"\b{re.escape(term)}\b", lower, re.IGNORECASE)
+            ]
+            if len(set(matched)) >= int(group["threshold"]):
+                stacked.append(str(group["label"]))
+        return stacked
+
     def calculate_score(self, vision: str) -> Dict[str, Any]:
         normalized = " ".join((vision or "").split())
         lower_vision = normalized.lower()
@@ -99,6 +220,9 @@ class StrategicClassifier:
         for token in ["global", "globally", "international", "internationally", "leadership", "distinction"]:
             if len(re.findall(rf"\b{token}\b", lower_vision, re.IGNORECASE)) > 1:
                 repeated_tokens.append(token)
+        repeated_roots = self._repeated_roots(normalized)
+        duplicate_bigrams = self._duplicate_bigrams(normalized)
+        synonym_stacking = self._synonym_stacking(normalized)
 
         pillar_count = self._estimate_pillar_count(normalized)
         immediate_outcome = any(
@@ -119,6 +243,12 @@ class StrategicClassifier:
             hard_violations.append("More than 3 strategic pillars detected")
         if immediate_outcome:
             hard_violations.append("Immediate-outcome language detected")
+        if repeated_roots:
+            hard_violations.append(f"Repeated root words detected: {', '.join(repeated_roots)}")
+        if duplicate_bigrams:
+            hard_violations.append(f"Duplicate noun phrases detected: {', '.join(duplicate_bigrams)}")
+        if synonym_stacking:
+            hard_violations.append(f"Synonym stacking detected: {', '.join(synonym_stacking)}")
 
         long_term_abstraction = 100
         if len(words) < 15 or len(words) > 25:
@@ -141,6 +271,12 @@ class StrategicClassifier:
         redundancy_control = 100
         if repeated_tokens:
             redundancy_control -= 40
+        if repeated_roots:
+            redundancy_control -= min(65, len(repeated_roots) * 22)
+        if duplicate_bigrams:
+            redundancy_control -= min(55, len(duplicate_bigrams) * 25)
+        if synonym_stacking:
+            redundancy_control -= 35
         if global_token_hits > 1:
             redundancy_control -= 35
 
@@ -151,6 +287,12 @@ class StrategicClassifier:
             strategic_clarity -= 40
         if pillar_count > 3:
             strategic_clarity -= 35
+        if repeated_roots:
+            strategic_clarity -= 30
+        if duplicate_bigrams:
+            strategic_clarity -= 30
+        if synonym_stacking:
+            strategic_clarity -= 25
 
         # This local scorer has no focus-area context; keep neutral to avoid artificial inflation.
         alignment_with_focus_areas = 80
@@ -171,6 +313,12 @@ class StrategicClassifier:
         violations = list(hard_violations)
         if repeated_tokens:
             violations.append(f"Phrase redundancy detected: {', '.join(repeated_tokens)}")
+        if repeated_roots:
+            violations.append(f"Repeated root words detected: {', '.join(repeated_roots)}")
+        if duplicate_bigrams:
+            violations.append(f"Duplicate noun phrases detected: {', '.join(duplicate_bigrams)}")
+        if synonym_stacking:
+            violations.append(f"Synonym stacking detected: {', '.join(synonym_stacking)}")
         if final_score < 90:
             violations.append(f"Strategic score below threshold: {final_score}/100")
 

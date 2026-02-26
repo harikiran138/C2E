@@ -63,11 +63,13 @@ ai_cache = {}
 
 VISION_APPROVAL_THRESHOLD = 90
 VISION_MAX_REPAIR_ATTEMPTS = 3
+VISION_SIMILARITY_THRESHOLD = 0.75
 VISION_STARTERS = [
     "To be globally recognized for",
-    "To be internationally benchmarked for",
-    "To attain global leadership in",
-    "To be globally distinguished for",
+    "To emerge as",
+    "To achieve distinction in",
+    "To advance as a leading",
+    "To be globally respected for",
 ]
 
 
@@ -75,21 +77,79 @@ def normalize_whitespace(text: str) -> str:
     return " ".join((text or "").split()).strip()
 
 
+def extract_tokens(text: str) -> List[str]:
+    normalized = normalize_whitespace(text).lower()
+    cleaned = re.sub(r"[^a-z0-9\s]", " ", normalized)
+    return [token for token in cleaned.split() if len(token) >= 4]
+
+
+def vision_similarity(a: str, b: str) -> float:
+    tokens_a = set(extract_tokens(a))
+    tokens_b = set(extract_tokens(b))
+    if not tokens_a or not tokens_b:
+        return 0.0
+    intersection = len(tokens_a.intersection(tokens_b))
+    union = len(tokens_a.union(tokens_b))
+    return intersection / union if union else 0.0
+
+
+def get_vision_starter(statement: str) -> str:
+    lower = normalize_whitespace(statement).lower()
+    ordered = sorted(VISION_STARTERS, key=len, reverse=True)
+    for starter in ordered:
+        if lower.startswith(starter.lower()):
+            return starter
+    return ""
+
+
+def strip_vision_starter(statement: str) -> str:
+    cleaned = normalize_whitespace(statement).rstrip(".")
+    ordered = sorted(VISION_STARTERS, key=len, reverse=True)
+    lower = cleaned.lower()
+    for starter in ordered:
+        if lower.startswith(starter.lower()):
+            return cleaned[len(starter):].strip()
+    return cleaned
+
+
+def rewrite_vision_starter(statement: str, starter: str) -> str:
+    body = strip_vision_starter(statement)
+    if not body:
+        body = "long-term institutional distinction through strategic innovation and sustainable societal contribution"
+    return normalize_whitespace(f"{starter} {body}.")
+
+
 def to_strategic_focus_phrase(focus_inputs: List[str]) -> str:
     if not focus_inputs:
-        return "institutional distinction, innovation leadership, and sustainable societal contribution"
+        return "institutional leadership, innovation leadership, and sustainable societal contribution"
 
-    cleaned = []
+    cleaned: List[str] = []
     for raw in focus_inputs[:3]:
         item = normalize_whitespace(str(raw).lower())
-        item = re.sub(r"\b(outcome based|outcome-based|outcome oriented|outcome-oriented)\b", "institutional distinction", item)
-        item = re.sub(r"\b(education|teaching|learning|curriculum|pedagogy|classroom|faculty)\b", "academic distinction", item)
-        item = re.sub(r"\b(provide|deliver|develop|cultivate|train|prepare|implement|foster|empower)\b", "advance", item)
-        if item:
-            cleaned.append(item)
+        if re.search(r"\b(global|international|benchmark)\b", item):
+            cleaned.append("global standards")
+            continue
+        if re.search(r"\b(innovation|technology|entrepreneur)\b", item):
+            cleaned.append("innovation leadership")
+            continue
+        if re.search(r"\b(ethic|integrity|professional|responsibility)\b", item):
+            cleaned.append("ethical leadership")
+            continue
+        if re.search(r"\b(sustain|societ|social|community)\b", item):
+            cleaned.append("sustainable societal contribution")
+            continue
+        if re.search(r"\b(outcome|education|teaching|learning|curriculum|pedagogy|classroom)\b", item):
+            cleaned.append("scholarly standards")
+            continue
+
+        compact = " ".join(item.split()[:3]).strip()
+        if compact:
+            cleaned.append(compact)
+
+    cleaned = list(dict.fromkeys(cleaned))
 
     if not cleaned:
-        return "institutional distinction, innovation leadership, and sustainable societal contribution"
+        return "institutional leadership, innovation leadership, and sustainable societal contribution"
     if len(cleaned) == 1:
         return cleaned[0]
     if len(cleaned) == 2:
@@ -101,11 +161,92 @@ def build_deterministic_vision(program_name: str, focus_inputs: List[str], index
     focus_phrase = to_strategic_focus_phrase(focus_inputs)
     templates = [
         f"To be globally recognized for long-term {program_name} distinction through {focus_phrase} with sustained societal and professional relevance.",
-        f"To be internationally benchmarked for enduring {program_name} leadership through {focus_phrase} with long-horizon institutional impact.",
-        f"To attain global leadership in {program_name} through sustained {focus_phrase} and strategic institutional distinction.",
-        f"To be globally distinguished for sustained {program_name} excellence through {focus_phrase} with enduring strategic contribution.",
+        f"To emerge as a long-horizon {program_name} benchmark for globally respected distinction through {focus_phrase} and enduring strategic relevance.",
+        f"To achieve distinction in {program_name} through sustained {focus_phrase} and long-term institutional contribution.",
+        f"To advance as a leading {program_name} program through sustained {focus_phrase}, institutional leadership, and enduring strategic contribution.",
+        f"To be globally respected for sustained {program_name} excellence through {focus_phrase} with long-horizon societal relevance.",
     ]
     return templates[index % len(templates)]
+
+
+def build_safe_diversity_vision(program_name: str, index: int) -> str:
+    templates = [
+        f"To be globally recognized for long-term {program_name} distinction through institutional leadership, innovation foresight, and sustainable societal contribution.",
+        f"To emerge as a long-horizon {program_name} benchmark for globally respected distinction through strategic innovation leadership and enduring public value.",
+        f"To achieve distinction in {program_name} through sustained institutional leadership, responsible innovation, and long-term societal contribution.",
+        f"To advance as a leading {program_name} program through strategic distinction, institutional leadership, and enduring professional and societal relevance.",
+        f"To be globally respected for sustained {program_name} excellence through ethical institutional leadership, innovation strength, and long-horizon societal value.",
+    ]
+    return templates[index % len(templates)]
+
+
+def enforce_vision_diversity(visions: List[str], program_name: str, focus_inputs: List[str]) -> List[str]:
+    diversified: List[str] = []
+    used_starters = set()
+
+    for idx, statement in enumerate(visions):
+        candidate = normalize_whitespace(statement)
+        attempts = 0
+
+        while attempts < 6:
+            starter = VISION_STARTERS[(idx + attempts) % len(VISION_STARTERS)]
+            candidate = rewrite_vision_starter(candidate, starter)
+            score_info = score_vision(candidate)
+            starter_key = get_vision_starter(candidate)
+            repeated_starter = starter_key in used_starters if starter_key else False
+            too_similar = any(
+                vision_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD
+                for existing in diversified
+            )
+
+            if (
+                score_info["score"] >= VISION_APPROVAL_THRESHOLD
+                and not score_info.get("hard_fail")
+                and not repeated_starter
+                and not too_similar
+            ):
+                break
+
+            candidate = build_deterministic_vision(program_name, focus_inputs, idx + attempts + len(visions))
+            attempts += 1
+
+        final_check = score_vision(candidate)
+        final_starter = get_vision_starter(candidate)
+        final_too_similar = any(
+            vision_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD
+            for existing in diversified
+        )
+        if (
+            final_check["score"] < VISION_APPROVAL_THRESHOLD
+            or final_check.get("hard_fail")
+            or (final_starter in used_starters if final_starter else False)
+            or final_too_similar
+        ):
+            replacement = candidate
+            for safety_idx in range(len(VISION_STARTERS) * 3):
+                safe_candidate = build_safe_diversity_vision(program_name, idx + safety_idx)
+                safe_starter = get_vision_starter(safe_candidate)
+                safe_too_similar = any(
+                    vision_similarity(safe_candidate, existing) > VISION_SIMILARITY_THRESHOLD
+                    for existing in diversified
+                )
+                safe_score = score_vision(safe_candidate)
+                if (
+                    safe_score["score"] >= VISION_APPROVAL_THRESHOLD
+                    and not safe_score.get("hard_fail")
+                    and (safe_starter not in used_starters if safe_starter else True)
+                    and not safe_too_similar
+                ):
+                    replacement = safe_candidate
+                    break
+            candidate = replacement
+
+        diversified.append(candidate)
+        starter_key = get_vision_starter(candidate)
+        if starter_key:
+            used_starters.add(starter_key)
+
+    return diversified
 
 async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool = True) -> str:
     if not api_key:
@@ -172,16 +313,18 @@ STRICT RULES:
 3. Do NOT use operational/process language: education, teaching, learning, curriculum, pedagogy, provide, deliver, develop, cultivate, train, prepare, implement, foster.
 4. Each Vision must contain exactly ONE global positioning phrase:
    - globally recognized
-   - internationally benchmarked
+   - globally respected
    - global leadership
-   - globally distinguished
+   - global distinction
+   - leading advancement
 5. Do not stack multiple global/international phrases in one statement.
 6. Limit each Vision to maximum 3 strategic pillars.
 7. Maintain professional accreditation tone (ABET/NBA compatible).
 8. No exaggerated claims such as guarantee, best in all, world-class in everything.
 9. Length: 15–25 words.
-10. Avoid repeating identical sentence structure across outputs.
-11. Vision must NOT describe curriculum or teaching process. That belongs to Mission.
+10. Each Vision must use a different opening phrase and distinct structural framing.
+11. If similarity between two Vision statements is above 70%, rewrite the weaker one.
+12. Vision must NOT describe curriculum or teaching process. That belongs to Mission.
 
 Before generating, internally:
 - Abstract selected themes into long-term institutional positioning.
@@ -197,9 +340,10 @@ If multiple statements are requested, ensure they target different institutional
 
 Vision must begin with one of:
 - To be globally recognized for
-- To be internationally benchmarked for
-- To attain global leadership in
-- To be globally distinguished for
+- To emerge as
+- To achieve distinction in
+- To advance as a leading
+- To be globally respected for
 
 Output must be a plain JSON array of strings containing ONLY the final statements. Example: ["Vision 1", "Vision 2"]
 
@@ -242,6 +386,13 @@ Entropy Seed: {{seed}}
                     v_clean = normalize_whitespace(v)
                     v_key = v_clean.lower()
                     if not v_clean or v_key in unique_visions_global or visions_remaining <= 0:
+                        continue
+
+                    too_similar = any(
+                        vision_similarity(v_clean, existing) > VISION_SIMILARITY_THRESHOLD
+                        for existing in all_visions
+                    )
+                    if too_similar:
                         continue
 
                     assessment = score_vision(v_clean)
@@ -303,33 +454,22 @@ Entropy Seed: {{seed}}
                     if deterministic_assessment["score"] >= VISION_APPROVAL_THRESHOLD and not deterministic_assessment.get("hard_fail"):
                         current_v = deterministic
                     else:
-                        current_v = (
-                            f"To be globally recognized for long-term {request.program_name} distinction through "
-                            "institutional leadership, innovation foresight, and sustainable societal contribution."
-                        )
+                        current_v = build_safe_diversity_vision(request.program_name, idx)
 
                 refined_visions.append(current_v)
 
-            # Keep uniqueness after repair while preserving strict threshold.
-            unique_refined = []
-            seen_refined = set()
-            for idx, candidate in enumerate(refined_visions):
-                key = candidate.lower()
-                if key in seen_refined:
-                    candidate = build_deterministic_vision(request.program_name, request.vision_inputs, idx + request.vision_count)
-                    key = candidate.lower()
-                if key not in seen_refined:
-                    seen_refined.add(key)
-                    unique_refined.append(candidate)
+            diversified = enforce_vision_diversity(refined_visions, request.program_name, request.vision_inputs)
 
-            while len(unique_refined) < request.vision_count:
-                candidate = build_deterministic_vision(request.program_name, request.vision_inputs, len(unique_refined) + request.vision_count)
-                key = candidate.lower()
-                if key not in seen_refined:
-                    seen_refined.add(key)
-                    unique_refined.append(candidate)
+            # Deterministic fill if diversity filtering reduced count.
+            fill_cursor = request.vision_count
+            while len(diversified) < request.vision_count:
+                candidate = build_deterministic_vision(request.program_name, request.vision_inputs, fill_cursor)
+                fill_cursor += 1
+                if any(vision_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD for existing in diversified):
+                    continue
+                diversified.append(candidate)
 
-            visions = unique_refined[:request.vision_count]
+            visions = diversified[:request.vision_count]
             vision_scores = {v: score_vision(v) for v in visions}
 
         if request.mode in ['mission', 'both']:
@@ -375,11 +515,10 @@ Entropy Seed: {{seed}}
             candidate = build_deterministic_vision(request.program_name, request.vision_inputs, idx)
             assessment = score_vision(candidate)
             if assessment["score"] < VISION_APPROVAL_THRESHOLD or assessment.get("hard_fail"):
-                candidate = (
-                    f"To be globally recognized for long-term {request.program_name} distinction through "
-                    "institutional leadership, innovation foresight, and sustainable societal contribution."
-                )
+                candidate = build_safe_diversity_vision(request.program_name, idx)
             fb_visions.append(candidate)
+
+        fb_visions = enforce_vision_diversity(fb_visions, request.program_name, request.vision_inputs)
 
         fb_missions = generate_elite_fallback_missions(request.program_name, request.mission_count)
             

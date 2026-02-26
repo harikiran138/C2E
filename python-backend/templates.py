@@ -4,10 +4,10 @@ from typing import List
 
 VISION_TEMPLATES = [
     "To be globally recognized for long-term {program} distinction through transformative innovation leadership, ethical professional standards, and sustainable societal contribution.",
-    "To be internationally benchmarked for enduring {program} leadership shaped by strategic innovation, institutional distinction, and responsible societal impact.",
-    "To attain global leadership in {program} through sustained institutional distinction, innovation foresight, and ethical societal relevance.",
-    "To be globally distinguished for sustained {program} excellence through benchmark-quality institutional standards, innovation leadership, and long-horizon societal contribution.",
-    "To be globally recognized for enduring {program} prominence through strategic distinction, responsible innovation, and sustainable public value."
+    "To emerge as a long-horizon {program} benchmark for globally respected distinction through strategic innovation leadership and enduring societal relevance.",
+    "To achieve distinction in {program} through sustained institutional leadership, responsible innovation, and long-term societal contribution.",
+    "To advance as a leading {program} program through strategic distinction, innovation foresight, and enduring professional and societal impact.",
+    "To be globally respected for sustained {program} excellence through ethical institutional leadership, innovation strength, and long-horizon public value."
 ]
 
 MISSION_TEMPLATES = [

@@ -149,6 +149,7 @@ const MAX_REGEN_ATTEMPTS = 3;
 const STRATEGIC_APPROVAL_THRESHOLD = 90;
 const VISION_APPROVAL_THRESHOLD = 90;
 const VISION_MAX_PILLARS = 3;
+const VISION_SIMILARITY_THRESHOLD = 0.75;
 
 const CATEGORY_LABELS: Record<ThemeCategory, string> = {
   global_positioning: 'Global Positioning',
@@ -169,12 +170,12 @@ const CATEGORY_FOCUS_PHRASES: Record<ThemeCategory, string> = {
 };
 
 const VISION_PILLAR_PHRASES: Record<ThemeCategory, string> = {
-  global_positioning: 'benchmark-quality institutional distinction',
+  global_positioning: 'benchmark-quality global standards',
   innovation_technology: 'transformative innovation leadership',
   sustainability_society: 'sustainable societal contribution',
-  professional_values: 'ethical and professional leadership',
-  educational_philosophy: 'academic distinction and lifelong scholarly growth',
-  custom: 'program-specific strategic distinction',
+  professional_values: 'ethical professional standards',
+  educational_philosophy: 'scholarly excellence and lifelong growth',
+  custom: 'program-specific strategic identity',
 };
 
 const CATEGORY_SIGNAL_TERMS: Record<ThemeCategory, string[]> = {
@@ -288,19 +289,75 @@ const VISION_OPERATIONAL_TERMS = Array.from(new Set([
 ]));
 
 const VISION_MARKETING_TERMS = ['destination', 'hub', 'world-class', 'best-in-class', 'unmatched'];
+const REDUNDANCY_STOP_WORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'with',
+  'that',
+  'this',
+  'from',
+  'into',
+  'through',
+  'toward',
+  'towards',
+  'to',
+  'of',
+  'in',
+  'on',
+  'a',
+  'an',
+  'by',
+  'be',
+  'or',
+  'is',
+  'are',
+  'as',
+  'at',
+  'program',
+  'engineering',
+  'institutional',
+  'strategic',
+  'long',
+  'term',
+  'future',
+  'sustained',
+  'societal',
+  'professional',
+  'global',
+  'globally',
+  'international',
+  'internationally',
+]);
+const REDUNDANCY_SUFFIXES = ['ization', 'ation', 'ition', 'tion', 'sion', 'ment', 'ness', 'ity', 'ship', 'ing', 'ed', 'es', 's'];
+const SYNONYM_STACK_GROUPS: Array<{ label: string; terms: string[]; threshold: number }> = [
+  {
+    label: 'distinction-concept stacking',
+    terms: ['distinction', 'excellence', 'premier', 'leadership', 'leading'],
+    threshold: 3,
+  },
+  {
+    label: 'innovation-concept stacking',
+    terms: ['innovation', 'innovative', 'transformative', 'foresight', 'advancement'],
+    threshold: 3,
+  },
+];
 
 const VISION_POSITIONING_STARTERS = [
   'To be globally recognized for',
-  'To be internationally benchmarked for',
-  'To attain global leadership in',
-  'To be globally distinguished for',
+  'To emerge as',
+  'To achieve distinction in',
+  'To advance as a leading',
+  'To be globally respected for',
 ];
 
 const VISION_GLOBAL_POSITIONING_PATTERNS: Array<{ concept: string; regex: RegExp }> = [
   { concept: 'globally recognized', regex: /\bglobally recognized\b/i },
+  { concept: 'globally respected', regex: /\bglobally respected\b/i },
   { concept: 'internationally benchmarked', regex: /\binternationally benchmarked\b/i },
   { concept: 'global leadership', regex: /\bglobal leadership\b/i },
-  { concept: 'globally distinguished', regex: /\bglobally distinguished\b/i },
+  { concept: 'global distinction', regex: /\b(global distinction|achieve distinction|distinction in)\b/i },
+  { concept: 'leading advancement', regex: /\badvance as a leading\b/i },
 ];
 
 const STOP_WORDS = new Set([
@@ -978,6 +1035,82 @@ function getRepeatedTokenSignals(statement: string) {
   });
 }
 
+function normalizeRootToken(token: string) {
+  let root = token.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!root || root.length <= 4) return root;
+
+  for (const suffix of REDUNDANCY_SUFFIXES) {
+    if (root.endsWith(suffix) && root.length - suffix.length >= 4) {
+      root = root.slice(0, -suffix.length);
+      break;
+    }
+  }
+
+  return root;
+}
+
+function getRepeatedRootSignals(statement: string) {
+  const tokens = normalizeWhitespace(statement)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 5 && !REDUNDANCY_STOP_WORDS.has(token));
+
+  const counts = new Map<string, number>();
+  for (const token of tokens) {
+    const root = normalizeRootToken(token);
+    if (!root || REDUNDANCY_STOP_WORDS.has(root)) continue;
+    counts.set(root, (counts.get(root) || 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([root]) => root);
+}
+
+function getDuplicatePhraseSignals(statement: string) {
+  const tokens = normalizeWhitespace(statement)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const bigramCounts = new Map<string, number>();
+
+  for (let i = 0; i < tokens.length - 1; i += 1) {
+    const first = tokens[i];
+    const second = tokens[i + 1];
+    if (
+      first.length < 5 ||
+      second.length < 5 ||
+      REDUNDANCY_STOP_WORDS.has(first) ||
+      REDUNDANCY_STOP_WORDS.has(second)
+    ) {
+      continue;
+    }
+
+    const bigram = `${first} ${second}`;
+    bigramCounts.set(bigram, (bigramCounts.get(bigram) || 0) + 1);
+  }
+
+  return [...bigramCounts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([phrase]) => phrase);
+}
+
+function getSynonymStackingSignals(statement: string) {
+  const lower = statement.toLowerCase();
+  const signals: string[] = [];
+
+  for (const group of SYNONYM_STACK_GROUPS) {
+    const matched = group.terms.filter((term) =>
+      new RegExp(`\\b${escapeRegExp(term)}\\b`, 'i').test(lower)
+    );
+    if (uniq(matched).length >= group.threshold) {
+      signals.push(group.label);
+    }
+  }
+
+  return signals;
+}
+
 function evaluateVisionStrategicQuality(
   statement: string,
   semanticOptions: SemanticOption[],
@@ -995,6 +1128,9 @@ function evaluateVisionStrategicQuality(
   const globalPositioning = extractGlobalPositioningConcepts(normalized);
   const coveredCategories = getCoveredCategoriesForStatement(normalized, clusters);
   const repeatedTokenSignals = getRepeatedTokenSignals(normalized);
+  const repeatedRootSignals = getRepeatedRootSignals(normalized);
+  const duplicatePhraseSignals = getDuplicatePhraseSignals(normalized);
+  const synonymStackingSignals = getSynonymStackingSignals(normalized);
 
   const hardViolations: string[] = [];
   if (operationalMatches.length > 0) {
@@ -1016,6 +1152,15 @@ function evaluateVisionStrategicQuality(
   }
   if (coveredCategories.length > VISION_MAX_PILLARS) {
     hardViolations.push(`more than ${VISION_MAX_PILLARS} strategic pillars detected`);
+  }
+  if (repeatedRootSignals.length > 0) {
+    hardViolations.push(`repeated root words detected: ${repeatedRootSignals.join(', ')}`);
+  }
+  if (duplicatePhraseSignals.length > 0) {
+    hardViolations.push(`duplicate noun phrases detected: ${duplicatePhraseSignals.join(', ')}`);
+  }
+  if (synonymStackingSignals.length > 0) {
+    hardViolations.push(`synonym stacking detected: ${synonymStackingSignals.join(', ')}`);
   }
 
   let longTermAbstraction = 100;
@@ -1049,6 +1194,15 @@ function evaluateVisionStrategicQuality(
   if (repeatedTokenSignals.length > 0) {
     redundancyControl -= 40;
   }
+  if (repeatedRootSignals.length > 0) {
+    redundancyControl -= Math.min(65, repeatedRootSignals.length * 22);
+  }
+  if (duplicatePhraseSignals.length > 0) {
+    redundancyControl -= Math.min(55, duplicatePhraseSignals.length * 25);
+  }
+  if (synonymStackingSignals.length > 0) {
+    redundancyControl -= 35;
+  }
   if (globalPositioning.globalTokenHits > 1) {
     redundancyControl -= 35;
   }
@@ -1057,6 +1211,9 @@ function evaluateVisionStrategicQuality(
   if (marketingMatches.length > 0) strategicClarity -= 40;
   if (words.length < 15 || words.length > 25) strategicClarity -= 20;
   if (coveredCategories.length > VISION_MAX_PILLARS) strategicClarity -= 35;
+  if (repeatedRootSignals.length > 0) strategicClarity -= 30;
+  if (duplicatePhraseSignals.length > 0) strategicClarity -= 30;
+  if (synonymStackingSignals.length > 0) strategicClarity -= 25;
 
   let alignmentWithFocusAreas = 100;
   if (semanticOptions.length > 0) {
@@ -1085,6 +1242,9 @@ function evaluateVisionStrategicQuality(
     coveredCategories,
     hardViolations,
     repeatedTokenSignals,
+    repeatedRootSignals,
+    duplicatePhraseSignals,
+    synonymStackingSignals,
     globalConcepts: globalPositioning.concepts,
     dimensions: {
       long_term_abstraction: clampScore(longTermAbstraction),
@@ -1292,6 +1452,83 @@ function getStatementStartPattern(statement: string) {
     .join(' ');
 }
 
+function getVisionOpeningPhrase(statement: string) {
+  const normalized = normalizeWhitespace(statement).toLowerCase();
+  const orderedStarters = [...VISION_POSITIONING_STARTERS].sort((a, b) => b.length - a.length);
+  for (const starter of orderedStarters) {
+    if (normalized.startsWith(starter.toLowerCase())) {
+      return starter;
+    }
+  }
+  return getStatementStartPattern(statement);
+}
+
+function stripVisionOpening(statement: string) {
+  let cleaned = normalizeWhitespace(statement).replace(/[.?!]+$/, '');
+  const orderedStarters = [...VISION_POSITIONING_STARTERS].sort((a, b) => b.length - a.length);
+  for (const starter of orderedStarters) {
+    if (cleaned.toLowerCase().startsWith(starter.toLowerCase())) {
+      cleaned = cleaned.slice(starter.length).trim();
+      break;
+    }
+  }
+  return cleaned;
+}
+
+function rewriteVisionOpening(statement: string, starter: string) {
+  const body = stripVisionOpening(statement);
+  const fallbackBody =
+    body.length > 0
+      ? body
+      : 'long-term institutional distinction through strategic innovation and sustainable societal contribution';
+  return ensureVisionWordWindow(ensureSentence(`${starter} ${fallbackBody}`));
+}
+
+function enforceVisionSetDiversity(params: {
+  statements: string[];
+  clusters: ThemeCluster[];
+  semanticOptions: SemanticOption[];
+  fallbackFactory: (index: number) => string;
+}): string[] {
+  const { statements, clusters, semanticOptions, fallbackFactory } = params;
+  const diversified: string[] = [];
+  const usedOpenings = new Set<string>();
+
+  for (let i = 0; i < statements.length; i += 1) {
+    let candidate = statements[i];
+    let attempts = 0;
+
+    while (attempts < 6) {
+      const preferredStarter =
+        VISION_POSITIONING_STARTERS[(i + attempts) % VISION_POSITIONING_STARTERS.length];
+      candidate = rewriteVisionOpening(candidate, preferredStarter);
+
+      const opening = getVisionOpeningPhrase(candidate);
+      const repeatedOpening = usedOpenings.has(opening);
+      const tooSimilar = diversified.some(
+        (existing) => calculateJaccardSimilarity(existing, candidate) > VISION_SIMILARITY_THRESHOLD
+      );
+      const quality = evaluateVisionStrategicQuality(candidate, semanticOptions, clusters);
+
+      if (!repeatedOpening && !tooSimilar && quality.score >= VISION_APPROVAL_THRESHOLD) {
+        break;
+      }
+
+      candidate = normalizeVisionStatement(
+        fallbackFactory(i + statements.length * (attempts + 1)),
+        clusters
+      );
+      attempts += 1;
+    }
+
+    const finalOpening = getVisionOpeningPhrase(candidate);
+    usedOpenings.add(finalOpening);
+    diversified.push(candidate);
+  }
+
+  return diversified;
+}
+
 function ensureVisionWordWindow(statement: string) {
   const minWords = 15;
   const maxWords = 25;
@@ -1453,9 +1690,10 @@ function buildVisionFallbackStatement(programName: string, slot: DistributionSlo
   const focusPhrase = formatList(selectedCategories.map((category) => VISION_PILLAR_PHRASES[category]));
   const variants = [
     `To be globally recognized for long-term ${programName} distinction through ${focusPhrase} with sustained institutional and societal impact`,
-    `To be internationally benchmarked for enduring ${programName} leadership shaped by ${focusPhrase} and future-facing strategic relevance`,
-    `To attain global leadership in ${programName} through sustained ${focusPhrase} and long-horizon institutional distinction`,
-    `To be globally distinguished for sustained ${programName} excellence through ${focusPhrase} with enduring strategic contribution`,
+    `To emerge as a long-horizon ${programName} benchmark for globally respected distinction through ${focusPhrase} and enduring strategic relevance`,
+    `To achieve distinction in ${programName} through sustained ${focusPhrase} and long-term institutional contribution`,
+    `To advance as a leading ${programName} program through sustained ${focusPhrase}, institutional leadership, and enduring strategic contribution`,
+    `To be globally respected for sustained ${programName} excellence through ${focusPhrase} with long-horizon societal relevance`,
   ];
 
   return ensureSentence(variants[index % variants.length]);
@@ -2211,6 +2449,7 @@ function evaluateVisionGovernanceSet(
       : Math.round(perStatement.reduce((sum, item) => sum + item.score, 0) / perStatement.length);
 
   const violations: string[] = [];
+  const openings = new Set<string>();
   for (const item of perStatement) {
     if (item.hardViolations.length > 0) {
       for (const violation of item.hardViolations) {
@@ -2226,6 +2465,38 @@ function evaluateVisionGovernanceSet(
       violations.push(
         `Statement ${item.index + 1}: phrase redundancy detected (${item.repeatedTokenSignals.join(', ')})`
       );
+    }
+    if (item.repeatedRootSignals.length > 0) {
+      violations.push(
+        `Statement ${item.index + 1}: repeated root words detected (${item.repeatedRootSignals.join(', ')})`
+      );
+    }
+    if (item.duplicatePhraseSignals.length > 0) {
+      violations.push(
+        `Statement ${item.index + 1}: duplicate noun phrases detected (${item.duplicatePhraseSignals.join(', ')})`
+      );
+    }
+    if (item.synonymStackingSignals.length > 0) {
+      violations.push(
+        `Statement ${item.index + 1}: synonym stacking detected (${item.synonymStackingSignals.join(', ')})`
+      );
+    }
+
+    const opening = getVisionOpeningPhrase(item.statement);
+    if (openings.has(opening)) {
+      violations.push(`Statement ${item.index + 1}: opening phrase repeats another Vision statement.`);
+    }
+    openings.add(opening);
+  }
+
+  for (let i = 0; i < perStatement.length; i += 1) {
+    for (let j = i + 1; j < perStatement.length; j += 1) {
+      const similarity = calculateJaccardSimilarity(perStatement[i].statement, perStatement[j].statement);
+      if (similarity > VISION_SIMILARITY_THRESHOLD) {
+        violations.push(
+          `Statements ${i + 1} and ${j + 1}: structural similarity ${Math.round(similarity * 100)}% exceeds threshold.`
+        );
+      }
     }
   }
 
@@ -2419,15 +2690,16 @@ Requirements:
 1. Generate exactly ${count} distinct Vision statements.
 2. Treat all selected semantic inputs as active constraints across the full set, while keeping each individual statement concise.
 3. Each statement must remain strictly aspirational and represent institutional standing (WHERE), not teaching processes (HOW).
-4. Mandatory start: each statement MUST begin with one of these exact starts: "To be globally recognized for", "To be internationally benchmarked for", "To attain global leadership in", or "To be globally distinguished for".
+4. Mandatory start: each statement MUST begin with one of these exact starts: "To be globally recognized for", "To emerge as", "To achieve distinction in", "To advance as a leading", or "To be globally respected for".
 5. Global concept rule: use exactly ONE global positioning phrase per statement and do not stack additional global/international words.
 6. Hard Ban in Vision: operational/process terms such as education, teaching, learning, curriculum, pedagogy, provide, deliver, develop, cultivate, train, implement.
 7. Limit each Vision to a maximum of ${VISION_MAX_PILLARS} strategic pillars.
 8. Keep each statement between 15 and 25 words.
-9. Ensure structural diversity; avoid repeating identical sentence starts across all outputs.
-10. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes, destination, hub, world-class.
-11. Do not concatenate labels; synthesize meaning with long-term institutional abstraction.
-12. Logic: The Program Vision must logically extend the Institute Vision into the disciplinary context of ${programName} without repeating it verbatim.
+9. Ensure structural diversity; each output must use a different opening phrase and distinct sentence framing.
+10. If any pair exceeds 70% structural similarity, rewrite the weaker candidate.
+11. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes, destination, hub, world-class.
+12. Do not concatenate labels; synthesize meaning with long-term institutional abstraction.
+13. Logic: The Program Vision must logically extend the Institute Vision into the disciplinary context of ${programName} without repeating it verbatim.
 
 Output format:
 - Return strictly a JSON array of strings.
@@ -2610,7 +2882,15 @@ async function generateWithValidation(params: {
       excludedStatements
     );
 
-    const finalStatements = kind === 'vision' ? diversifyVisionStarts(filled) : filled;
+    const finalStatements =
+      kind === 'vision'
+        ? enforceVisionSetDiversity({
+          statements: diversifyVisionStarts(filled),
+          clusters,
+          semanticOptions,
+          fallbackFactory,
+        })
+        : filled;
     const validation = validateStatements(
       kind,
       finalStatements,
@@ -2661,6 +2941,13 @@ async function generateWithValidation(params: {
           `${VISION_POSITIONING_STARTERS[index % VISION_POSITIONING_STARTERS.length]} long-term institutional distinction in ${defaultPillar} with sustained societal relevance`
         )
       );
+    });
+
+    finalFallback = enforceVisionSetDiversity({
+      statements: finalFallback,
+      clusters,
+      semanticOptions,
+      fallbackFactory,
     });
   }
 
