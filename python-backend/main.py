@@ -4,7 +4,7 @@ import json
 import asyncio
 import re
 import time
-from typing import List, Optional, Dict
+from typing import Any, List, Optional, Dict
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -64,12 +64,133 @@ ai_cache = {}
 VISION_APPROVAL_THRESHOLD = 90
 VISION_MAX_REPAIR_ATTEMPTS = 3
 VISION_SIMILARITY_THRESHOLD = 0.75
+MISSION_APPROVAL_THRESHOLD = 90
 VISION_STARTERS = [
     "To be globally recognized for",
     "To emerge as",
     "To achieve distinction in",
     "To advance as a leading",
     "To be globally respected for",
+]
+MISSION_OPERATIONAL_VERBS = [
+    "deliver",
+    "strengthen",
+    "foster",
+    "promote",
+    "advance",
+    "implement",
+    "integrate",
+    "enable",
+    "support",
+    "sustain",
+    "build",
+]
+MISSION_MARKETING_TERMS = ["destination", "hub", "world-class", "best-in-class", "unmatched"]
+MISSION_RESTRICTED_TERMS = ["guarantee", "ensure all", "100%", "master", "excel in all"]
+MISSION_IMMEDIATE_OUTCOME_TERMS = [
+    "at graduation",
+    "on graduation",
+    "students will be able to",
+    "student will be able to",
+]
+MISSION_PILLAR_SIGNALS = {
+    "academic": [
+        "curriculum",
+        "outcome-based",
+        "outcome based",
+        "academic",
+        "learning",
+        "pedagogy",
+        "continuous improvement",
+        "rigor",
+    ],
+    "research_industry": [
+        "research",
+        "industry",
+        "innovation",
+        "laboratory",
+        "hands-on",
+        "internship",
+        "collaboration",
+    ],
+    "professional_standards": [
+        "professional standards",
+        "engineering standards",
+        "standards alignment",
+        "quality standards",
+    ],
+    "ethics_society": [
+        "ethical",
+        "ethics",
+        "societal",
+        "community",
+        "sustainable",
+        "responsibility",
+        "public",
+    ],
+}
+MISSION_REDUNDANCY_SUFFIXES = ["ization", "ation", "ition", "tion", "sion", "ment", "ness", "ity", "ship", "ing", "ed", "es", "s"]
+MISSION_REDUNDANCY_STOP_WORDS = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "that",
+    "this",
+    "from",
+    "into",
+    "through",
+    "toward",
+    "towards",
+    "to",
+    "of",
+    "in",
+    "on",
+    "a",
+    "an",
+    "by",
+    "be",
+    "or",
+    "is",
+    "are",
+    "as",
+    "at",
+    "program",
+    "engineering",
+    "institutional",
+    "strategic",
+    "global",
+    "globally",
+    "international",
+    "internationally",
+    "long",
+    "term",
+    "future",
+    "sustained",
+    "professional",
+    "societal",
+    "community",
+    "industry",
+    "research",
+    "innovation",
+    "ethical",
+    "responsibility",
+    "standards",
+    "leadership",
+    "growth",
+    "impact",
+}
+MISSION_SYNONYM_GROUPS = [
+    {
+        "label": "distinction-concept stacking",
+        "terms": ["distinction", "excellence", "premier", "leading", "leadership"],
+        "threshold": 3,
+    },
+    {
+        "label": "innovation-concept stacking",
+        "terms": ["innovation", "innovative", "transformative", "foresight", "advancement"],
+        "threshold": 3,
+    },
 ]
 
 
@@ -121,7 +242,7 @@ def rewrite_vision_starter(statement: str, starter: str) -> str:
 
 def to_strategic_focus_phrase(focus_inputs: List[str]) -> str:
     if not focus_inputs:
-        return "institutional leadership, innovation leadership, and sustainable societal contribution"
+        return "institutional leadership, innovation capability, and sustainable societal contribution"
 
     cleaned: List[str] = []
     for raw in focus_inputs[:3]:
@@ -130,10 +251,10 @@ def to_strategic_focus_phrase(focus_inputs: List[str]) -> str:
             cleaned.append("global standards")
             continue
         if re.search(r"\b(innovation|technology|entrepreneur)\b", item):
-            cleaned.append("innovation leadership")
+            cleaned.append("innovation capability")
             continue
         if re.search(r"\b(ethic|integrity|professional|responsibility)\b", item):
-            cleaned.append("ethical leadership")
+            cleaned.append("ethical standards")
             continue
         if re.search(r"\b(sustain|societ|social|community)\b", item):
             cleaned.append("sustainable societal contribution")
@@ -149,7 +270,7 @@ def to_strategic_focus_phrase(focus_inputs: List[str]) -> str:
     cleaned = list(dict.fromkeys(cleaned))
 
     if not cleaned:
-        return "institutional leadership, innovation leadership, and sustainable societal contribution"
+        return "institutional leadership, innovation capability, and sustainable societal contribution"
     if len(cleaned) == 1:
         return cleaned[0]
     if len(cleaned) == 2:
@@ -248,6 +369,231 @@ def enforce_vision_diversity(visions: List[str], program_name: str, focus_inputs
 
     return diversified
 
+
+def split_sentences(text: str) -> List[str]:
+    return [s.strip() for s in re.split(r"(?<=[.!?])\s+", normalize_whitespace(text)) if s.strip()]
+
+
+def normalize_root(word: str) -> str:
+    root = re.sub(r"[^a-z0-9]", "", word.lower())
+    if len(root) <= 4:
+        return root
+    for suffix in MISSION_REDUNDANCY_SUFFIXES:
+        if root.endswith(suffix) and len(root) - len(suffix) >= 4:
+            root = root[: -len(suffix)]
+            break
+    return root
+
+
+def repeated_roots(text: str) -> List[str]:
+    tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]+", text.lower())
+        if len(token) >= 5 and token not in MISSION_REDUNDANCY_STOP_WORDS
+    ]
+    counts: Dict[str, int] = {}
+    for token in tokens:
+        root = normalize_root(token)
+        if not root or root in MISSION_REDUNDANCY_STOP_WORDS:
+            continue
+        counts[root] = counts.get(root, 0) + 1
+    return sorted([root for root, count in counts.items() if count > 1])
+
+
+def duplicate_bigrams(text: str) -> List[str]:
+    tokens = re.findall(r"[a-z0-9]+", text.lower())
+    counts: Dict[str, int] = {}
+    for i in range(len(tokens) - 1):
+        first, second = tokens[i], tokens[i + 1]
+        if (
+            len(first) < 5
+            or len(second) < 5
+            or first in MISSION_REDUNDANCY_STOP_WORDS
+            or second in MISSION_REDUNDANCY_STOP_WORDS
+        ):
+            continue
+        phrase = f"{first} {second}"
+        counts[phrase] = counts.get(phrase, 0) + 1
+    return sorted([phrase for phrase, count in counts.items() if count > 1])
+
+
+def synonym_stacking(text: str) -> List[str]:
+    lower = text.lower()
+    stacked: List[str] = []
+    for group in MISSION_SYNONYM_GROUPS:
+        matched = [
+            term
+            for term in group["terms"]
+            if re.search(rf"\b{re.escape(term)}\b", lower, re.IGNORECASE)
+        ]
+        if len(set(matched)) >= int(group["threshold"]):
+            stacked.append(str(group["label"]))
+    return stacked
+
+
+def mission_pillar_hits(mission: str) -> Dict[str, Any]:
+    lower = mission.lower()
+    hits = {
+        "academic": any(re.search(rf"\b{re.escape(term)}\b", lower) for term in MISSION_PILLAR_SIGNALS["academic"]),
+        "research_industry": any(re.search(rf"\b{re.escape(term)}\b", lower) for term in MISSION_PILLAR_SIGNALS["research_industry"]),
+        "professional_standards": any(re.search(rf"\b{re.escape(term)}\b", lower) for term in MISSION_PILLAR_SIGNALS["professional_standards"]),
+        "ethics_society": any(re.search(rf"\b{re.escape(term)}\b", lower) for term in MISSION_PILLAR_SIGNALS["ethics_society"]),
+    }
+    hits["total"] = len([k for k, v in hits.items() if k != "total" and v])
+    return hits
+
+
+def score_mission(mission: str, reference_vision: str = "") -> Dict[str, Any]:
+    normalized = normalize_whitespace(mission)
+    lower = normalized.lower()
+    words = re.findall(r"\b[\w-]+\b", normalized)
+    sentence_count = len(split_sentences(normalized))
+
+    operational_hits = [
+        verb for verb in MISSION_OPERATIONAL_VERBS if re.search(rf"\b{re.escape(verb)}\b", lower, re.IGNORECASE)
+    ]
+    marketing_hits = [
+        term for term in MISSION_MARKETING_TERMS if re.search(rf"\b{re.escape(term)}\b", lower, re.IGNORECASE)
+    ]
+    restricted_hits = [term for term in MISSION_RESTRICTED_TERMS if term in lower]
+    immediate_outcome_hits = [term for term in MISSION_IMMEDIATE_OUTCOME_TERMS if term in lower]
+    roots = repeated_roots(normalized)
+    dup_phrases = duplicate_bigrams(normalized)
+    stacked = synonym_stacking(normalized)
+    pillars = mission_pillar_hits(normalized)
+
+    overlap = vision_similarity(reference_vision, normalized) if reference_vision else 0.35
+    leakage = vision_similarity(reference_vision, normalized) if reference_vision else 0.0
+    vision_keywords = []
+    if reference_vision:
+        vision_keywords = [w for w in extract_tokens(reference_vision) if len(w) >= 5][:8]
+    keyword_hits = len([w for w in vision_keywords if w in lower])
+    required_keyword_hits = min(2, len(vision_keywords))
+
+    hard_violations: List[str] = []
+    if len(operational_hits) < 2:
+        hard_violations.append("insufficient operational action verbs in mission")
+    if sentence_count < 3 or sentence_count > 4:
+        hard_violations.append("mission must contain 3 to 4 structured sentences")
+    if pillars["total"] < 3:
+        hard_violations.append("mission must operationalize at least three strategic pillars")
+    if len(roots) > 1:
+        hard_violations.append(f"repeated root words detected: {', '.join(roots)}")
+    if dup_phrases:
+        hard_violations.append(f"duplicate noun phrases detected: {', '.join(dup_phrases)}")
+    if stacked:
+        hard_violations.append(f"synonym stacking detected: {', '.join(stacked)}")
+    if marketing_hits:
+        hard_violations.append(f"marketing language detected: {', '.join(marketing_hits)}")
+    if restricted_hits:
+        hard_violations.append(f"restricted wording detected: {', '.join(restricted_hits)}")
+    if immediate_outcome_hits:
+        hard_violations.append("immediate-outcome language detected")
+    if leakage > 0.72:
+        hard_violations.append("mission repeats vision wording too closely")
+
+    alignment_with_vision = 100
+    if reference_vision:
+        overlap_score = min(100, round(overlap * 100))
+        keyword_score = 100 if required_keyword_hits == 0 else min(100, round((keyword_hits / required_keyword_hits) * 100))
+        pillar_score = min(100, round((pillars["total"] / 4) * 100))
+        alignment_with_vision = min(
+            100,
+            round(65 + overlap_score * 0.15 + keyword_score * 0.1 + pillar_score * 0.25),
+        )
+
+    operational_clarity = 100
+    if len(operational_hits) < 2:
+        operational_clarity -= 45
+    if pillars["total"] < 3:
+        operational_clarity -= 35
+    if sentence_count < 3 or sentence_count > 4:
+        operational_clarity -= 25
+
+    no_redundancy = 100
+    if roots:
+        no_redundancy -= min(65, len(roots) * 22)
+    if dup_phrases:
+        no_redundancy -= min(60, len(dup_phrases) * 25)
+    if stacked:
+        no_redundancy -= 35
+
+    accreditation_tone = 100
+    if marketing_hits:
+        accreditation_tone -= 45
+    if restricted_hits:
+        accreditation_tone -= 35
+    if immediate_outcome_hits:
+        accreditation_tone -= 40
+
+    strategic_coherence = 100
+    if sentence_count < 3 or sentence_count > 4:
+        strategic_coherence -= 35
+    if len(words) < 45 or len(words) > 110:
+        strategic_coherence -= 25
+    if pillars["total"] < 3:
+        strategic_coherence -= 25
+    if leakage > 0.72:
+        strategic_coherence -= 30
+
+    weighted = round(
+        alignment_with_vision * 0.25
+        + operational_clarity * 0.20
+        + no_redundancy * 0.15
+        + accreditation_tone * 0.20
+        + strategic_coherence * 0.20
+    )
+    final_score = max(0, min(100, weighted))
+    if hard_violations:
+        final_score = min(final_score, 79)
+
+    violations = list(hard_violations)
+    if final_score < MISSION_APPROVAL_THRESHOLD:
+        violations.append(f"Mission score below threshold: {final_score}/100")
+
+    return {
+        "score": final_score,
+        "hard_fail": len(hard_violations) > 0,
+        "violations": violations,
+        "breakdown": {
+            "alignment_with_vision": max(0, min(100, alignment_with_vision)),
+            "operational_clarity": max(0, min(100, operational_clarity)),
+            "no_redundancy": max(0, min(100, no_redundancy)),
+            "accreditation_tone": max(0, min(100, accreditation_tone)),
+            "strategic_coherence": max(0, min(100, strategic_coherence)),
+        },
+    }
+
+
+def build_safe_mission(program_name: str, index: int) -> str:
+    variants = [
+        f"Deliver a rigorous {program_name} curriculum through outcome-based education, continuous assessment, and evidence-driven academic improvement.",
+        "Strengthen research engagement, industry collaboration, and hands-on practice to align graduate preparation with professional engineering standards.",
+        "Foster ethical responsibility, innovation capability, and societal awareness to sustain long-term professional growth and community impact.",
+    ]
+    ordered = [variants[index % 3], variants[(index + 1) % 3], variants[(index + 2) % 3]]
+    return " ".join(ordered)
+
+
+def enforce_mission_diversity(missions: List[str], reference_vision: str, program_name: str) -> List[str]:
+    diversified: List[str] = []
+    for idx, mission in enumerate(missions):
+        candidate = normalize_whitespace(mission)
+        attempts = 0
+        while attempts < 6:
+            evaluation = score_mission(candidate, reference_vision)
+            too_similar = any(vision_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD for existing in diversified)
+            if evaluation["score"] >= MISSION_APPROVAL_THRESHOLD and not evaluation["hard_fail"] and not too_similar:
+                break
+            candidate = build_safe_mission(program_name, idx + attempts)
+            attempts += 1
+
+        final_eval = score_mission(candidate, reference_vision)
+        if final_eval["score"] < MISSION_APPROVAL_THRESHOLD or final_eval["hard_fail"]:
+            candidate = build_safe_mission(program_name, idx + len(missions))
+        diversified.append(candidate)
+    return diversified
+
 async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool = True) -> str:
     if not api_key:
         raise Exception("GEMINI_API_KEY not found")
@@ -301,6 +647,7 @@ async def generate_vm(request: VMGenerateRequest):
         visions = []
         missions = []
         vision_scores = {}
+        mission_scores = {}
 
         if request.mode in ['vision', 'both']:
             vision_prompt = f"""
@@ -475,12 +822,28 @@ Entropy Seed: {{seed}}
         if request.mode in ['mission', 'both']:
             v_context = request.selected_program_vision if request.selected_program_vision else (visions[0] if visions else "")
             mission_prompt = f"""
-You are an academic accreditation expert. Generate exactly {request.mission_count} distinct Program Mission formulation(s).
+You are an accreditation-aware strategic academic architect.
+
+Generate exactly {request.mission_count} distinct Program Mission formulation(s).
+
 Program: {request.program_name}
 Institute Mission: {request.institute_mission}
 Program Vision: {v_context}
 Selected Focus Areas: {", ".join(request.mission_inputs)}
-Rules: 3–5 action sentences in one paragraph per mission. Align with Vision.
+
+Requirements:
+1. Mission must explain HOW the Program Vision will be achieved.
+2. Each mission must have exactly 3 to 4 structured sentences.
+3. Operational pillars required:
+   - Academic rigor / curriculum quality / continuous improvement
+   - Research and industry engagement / hands-on practice
+   - Professional standards with ethics and societal responsibility
+4. Include at least two operational verbs such as deliver, strengthen, foster, promote, implement, integrate.
+5. Avoid direct phrase reuse from the Vision sentence.
+6. Avoid redundant noun stacking and repeated root words.
+7. Keep each mission between 45 and 110 words.
+8. Accreditation-safe tone only. No marketing language or absolute claims.
+
 Output must be a plain JSON array of strings containing ONLY the mission statements. Example: ["Mission 1", "Mission 2"]
 
 Entropy Seed: {{seed}}
@@ -499,12 +862,80 @@ Entropy Seed: {{seed}}
                 print(f"DEBUG: Mission Parse Error -> {str(e)}")
                 missions = [mission_text.replace('```json', '').replace('```', '').strip()]
 
+            normalized_missions = [normalize_whitespace(m) for m in missions if normalize_whitespace(m)]
+            if not normalized_missions:
+                normalized_missions = [build_safe_mission(request.program_name, 0)]
+
+            refined_missions: List[str] = []
+            mission_reference = normalize_whitespace(v_context)
+
+            for idx, mission in enumerate(normalized_missions[: request.mission_count]):
+                candidate = mission
+                for repair_attempt in range(VISION_MAX_REPAIR_ATTEMPTS):
+                    assessment = score_mission(candidate, mission_reference)
+                    print(
+                        f"DEBUG: Mission Assessment -> Attempt: {repair_attempt+1}, Score: {assessment['score']}, "
+                        f"HardFail: {assessment.get('hard_fail')}, Text: {candidate[:50]}..."
+                    )
+                    if assessment["score"] >= MISSION_APPROVAL_THRESHOLD and not assessment.get("hard_fail"):
+                        break
+
+                    mission_repair_prompt = f"""
+You are an Elite Strategic Mission Quality Controller.
+
+Program Vision:
+"{mission_reference}"
+
+Generated Mission:
+"{candidate}"
+
+Rewrite this mission to satisfy ALL rules:
+1. 3 to 4 structured sentences.
+2. Explain HOW the Vision will be achieved.
+3. Include academic rigor, research/industry engagement, and professional standards with ethics/societal responsibility.
+4. Use operational verbs (deliver, strengthen, foster, promote, implement, integrate).
+5. Remove redundancy, repeated root words, and noun stacking.
+6. Avoid absolute/marketing language.
+7. Keep it 45-110 words.
+8. Accreditation-safe tone.
+
+Return ONLY the corrected Mission paragraph.
+"""
+                    try:
+                        repaired_mission = await call_gemini_rest_async(mission_repair_prompt, use_cache=False)
+                        repaired_mission = normalize_whitespace(repaired_mission.strip().strip('"').strip("'"))
+                        if repaired_mission:
+                            candidate = repaired_mission
+                    except Exception:
+                        candidate = build_safe_mission(request.program_name, idx + repair_attempt)
+
+                final_assessment = score_mission(candidate, mission_reference)
+                if final_assessment["score"] < MISSION_APPROVAL_THRESHOLD or final_assessment.get("hard_fail"):
+                    candidate = build_safe_mission(request.program_name, idx)
+                refined_missions.append(candidate)
+
+            missions = enforce_mission_diversity(refined_missions, mission_reference, request.program_name)
+
+            fill_idx = request.mission_count
+            while len(missions) < request.mission_count:
+                candidate = build_safe_mission(request.program_name, fill_idx)
+                fill_idx += 1
+                if any(vision_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD for existing in missions):
+                    continue
+                missions.append(candidate)
+
+            missions = missions[: request.mission_count]
+            mission_scores = {m: score_mission(m, mission_reference) for m in missions}
+
         return VMGenerateResponse(
             vision=visions[0] if visions else None,
             mission=missions[0] if missions else None,
             visions=visions,
             missions=missions,
-            scores=vision_scores if visions else {}
+            scores={
+                "vision": vision_scores if vision_scores else {},
+                "mission": mission_scores if mission_scores else {},
+            }
         )
         
     except Exception as e:
@@ -521,13 +952,31 @@ Entropy Seed: {{seed}}
         fb_visions = enforce_vision_diversity(fb_visions, request.program_name, request.vision_inputs)
 
         fb_missions = generate_elite_fallback_missions(request.program_name, request.mission_count)
+        fb_missions = enforce_mission_diversity(
+            [normalize_whitespace(m) for m in fb_missions if normalize_whitespace(m)],
+            normalize_whitespace(request.selected_program_vision or (fb_visions[0] if fb_visions else "")),
+            request.program_name,
+        )
             
         return VMGenerateResponse(
             vision=fb_visions[0] if fb_visions else "", 
             mission=fb_missions[0] if fb_missions else "",
             visions=fb_visions,
             missions=fb_missions,
-            scores={v: score_vision(v) for v in fb_visions} if fb_visions else {}
+            scores={
+                "vision": ({v: score_vision(v) for v in fb_visions} if fb_visions else {}),
+                "mission": (
+                    {
+                        m: score_mission(
+                            m,
+                            normalize_whitespace(request.selected_program_vision or (fb_visions[0] if fb_visions else "")),
+                        )
+                        for m in fb_missions
+                    }
+                    if fb_missions
+                    else {}
+                ),
+            }
         )
 
 if __name__ == "__main__":

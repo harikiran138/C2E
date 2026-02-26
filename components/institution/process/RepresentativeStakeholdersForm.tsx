@@ -18,27 +18,20 @@ import {
   Linkedin,
   Award,
   Info,
-  UserCog,
-  Search
+  UserCog
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const STAKEHOLDER_CATEGORIES = [
-  'Academia',
-  'Industry',
-  'Corporate',
-  'Potential Employer',
-  'Professional Body',
-  'Research organisation',
+  'Industry professionals',
   'Alumni',
-  'Senior Students',
-  'Parents',
-  'Management'
+  'Academic experts',
+  'Employer representatives',
+  'Advisory board members'
 ];
 
-import { z } from "zod";
 import { memberSchema } from "@/lib/schemas";
 
 function StakeholdersFormContent() {
@@ -61,7 +54,9 @@ function StakeholdersFormContent() {
     mobile_number: '',
     specialisation: '',
     category: '',
-    linkedin_id: ''
+    linkedin_id: '',
+    stakeholder_password: '',
+    is_approved: false
   });
 
   const fetchMembers = async () => {
@@ -94,6 +89,20 @@ function StakeholdersFormContent() {
       setErrors(result.error.flatten().fieldErrors);
       return;
     }
+
+    if (!formData.member_id.trim()) {
+      setErrors((prev) => ({ ...prev, member_id: ['Member ID is required for stakeholder login.'] }));
+      return;
+    }
+
+    if (formData.is_approved && !editingId && formData.stakeholder_password.trim().length < 8) {
+      setErrors((prev) => ({
+        ...prev,
+        stakeholder_password: ['Approved stakeholders require at least 8-character password.'],
+      }));
+      return;
+    }
+
     setErrors({}); // Clear errors if validation passes
 
     setSubmitting(true);
@@ -114,7 +123,9 @@ function StakeholdersFormContent() {
             mobile_number: '',
             specialisation: '',
             category: '',
-            linkedin_id: ''
+            linkedin_id: '',
+            stakeholder_password: '',
+            is_approved: false
         });
         setEditingId(null);
         fetchMembers();
@@ -140,7 +151,9 @@ function StakeholdersFormContent() {
       mobile_number: member.mobile_number || '',
       specialisation: member.specialisation || '',
       category: member.category || '',
-      linkedin_id: member.linkedin_id || ''
+      linkedin_id: member.linkedin_id || '',
+      stakeholder_password: '',
+      is_approved: Boolean(member.is_approved)
     });
     setEditingId(member.id);
     setExpandedId(member.id);
@@ -300,6 +313,7 @@ function StakeholdersFormContent() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Member ID</label>
               <input 
+                required
                 value={formData.member_id}
                 onChange={(e) => setFormData({ ...formData, member_id: e.target.value })}
                 className={cn(
@@ -448,6 +462,44 @@ function StakeholdersFormContent() {
               </div>
               {errors.linkedin_id && <p className="text-xs font-semibold text-red-500 mt-1">{errors.linkedin_id[0]}</p>}
             </div>
+
+            {/* Stakeholder Password */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Stakeholder Password
+              </label>
+              <input
+                type="password"
+                value={formData.stakeholder_password}
+                onChange={(e) => setFormData({ ...formData, stakeholder_password: e.target.value })}
+                className={cn(
+                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                  errors.stakeholder_password
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/10"
+                    : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
+                )}
+                placeholder={editingId ? "Leave blank to keep current password" : "Min 8 characters"}
+              />
+              {errors.stakeholder_password && (
+                <p className="text-xs font-semibold text-red-500 mt-1">{errors.stakeholder_password[0]}</p>
+              )}
+            </div>
+
+            {/* Access Approval */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                External Feedback Access
+              </label>
+              <label className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={formData.is_approved}
+                  onChange={(e) => setFormData({ ...formData, is_approved: e.target.checked })}
+                  className="size-4 rounded border-slate-300"
+                />
+                Approve stakeholder login
+              </label>
+            </div>
           </div>
 
           <div className="flex gap-4 pt-6 border-t border-slate-100 mt-6">
@@ -506,7 +558,9 @@ function StakeholdersFormContent() {
                             mobile_number: '',
                             specialisation: '',
                             category: '',
-                            linkedin_id: ''
+                            linkedin_id: '',
+                            stakeholder_password: '',
+                            is_approved: false
                         });
                     }}
                     className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95"
@@ -574,7 +628,21 @@ function StakeholdersFormContent() {
                                 <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                                     <div className="md:col-span-4">
                                         <div className="font-bold text-slate-900 truncate text-lg">{member.member_name}</div>
-                                        <div className="text-xs font-bold text-indigo-600 uppercase tracking-wide mt-0.5">{member.member_id || 'STAKEHOLDER'}</div>
+                                        <div className="mt-0.5 flex items-center gap-2">
+                                          <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">
+                                            {member.member_id || 'STAKEHOLDER'}
+                                          </span>
+                                          <span
+                                            className={cn(
+                                              "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                                              member.is_approved
+                                                ? "bg-emerald-100 text-emerald-700"
+                                                : "bg-amber-100 text-amber-700"
+                                            )}
+                                          >
+                                            {member.is_approved ? 'Approved' : 'Pending'}
+                                          </span>
+                                        </div>
                                     </div>
                                     
                                     <div className="md:col-span-4 hidden md:block">
@@ -623,6 +691,7 @@ function StakeholdersFormContent() {
                                                 <InfoCard icon={Mail} label="Email Address" value={member.email} />
                                                 <InfoCard icon={Phone} label="Mobile Number" value={member.mobile_number} />
                                                 <InfoCard icon={Building} label="Organization" value={member.organization} />
+                                                <InfoCard icon={Lock} label="Feedback Access" value={member.is_approved ? 'Approved' : 'Pending Approval'} />
                                                 
                                                 <InfoCard icon={Award} label="Specialisation" value={member.specialisation} secondary />
                                                 <InfoCard icon={Linkedin} label="LinkedIn" value={member.linkedin_id} isLink secondary />

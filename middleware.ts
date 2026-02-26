@@ -1,57 +1,25 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
-import { verifyToken, verifyRefreshToken } from './lib/auth';
+import { NextResponse, type NextRequest } from 'next/server';
+import { verifyToken } from './lib/auth';
 import { checkRateLimit } from './lib/rate-limit';
 
-// Define public paths that do not require authentication
-const PUBLIC_PATHS = [
+const PUBLIC_INSTITUTION_PATHS = [
   '/institution/login',
   '/institution/register',
   '/api/institution/register',
   '/api/institution/login',
   '/api/institution/auth/refresh',
-  '/', 
+  '/api/institution/signup/validate',
 ];
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+const PUBLIC_STAKEHOLDER_PATHS = ['/stakeholder/login', '/api/stakeholder/login'];
 
-  const { pathname } = request.nextUrl;
-  const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
+const STATIC_FILE_REGEX = /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js)$/i;
 
-  // [SECURITY] Rate Limiting (Basic)
-  // Limit sensitive routes more strictly
-  const isAuthRoute = pathname.includes('/login') || pathname.includes('/register');
-  const limitInfo = isAuthRoute 
-      ? { limit: 10, windowMs: 60 * 1000 } // 10 reqs/min for auth
-      : { limit: 100, windowMs: 60 * 1000 }; // 100 reqs/min general
+function isPublicPath(pathname: string, allowedPaths: string[]): boolean {
+  return allowedPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
 
-  if (pathname.startsWith('/api')) {
-      const allowed = checkRateLimit({ ip: String(ip), ...limitInfo });
-      if (!allowed) {
-          return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
-      }
-  }
-
-  // [SECURITY] Strict Origin Check (CSRF for API mutations)
-  // Ensure POST/PUT/DELETE requests come from our own origin
-  if (pathname.startsWith('/api') && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
-      const origin = request.headers.get('origin');
-      const host = request.headers.get('host'); // e.g. localhost:3000
-      // In production, host might not include protocol, origin does (https://...)
-      // Simple check: Origin must contain Host
-      if (origin && host && !origin.includes(host)) {
-           // Allow if allowed origin (e.g. from env)
-           // For now, strict block
-           return NextResponse.json({ error: 'CSRF Forbidden: Origin mismatch' }, { status: 403 });
-      }
-  }
-
-  // [SECURITY] Add Security Headers (Helmet-equivalent for Edge)
+function attachSecurityHeaders(response: NextResponse) {
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline';
@@ -72,137 +40,175 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
+}
 
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
 
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+  attachSecurityHeaders(response);
 
-  // Skip auth check for public paths and static assets
   if (
-    PUBLIC_PATHS.some(path => pathname.startsWith(path)) ||
-    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js)$/) ||
-    pathname.startsWith('/_next') || 
-    pathname.startsWith('/public')
+    STATIC_FILE_REGEX.test(pathname) ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/public') ||
+    pathname === '/favicon.ico'
   ) {
     return response;
   }
 
-  // [AUTH] Custom Session Check & Token Refresh
+  const isApiRoute = pathname.startsWith('/api');
+  const isAuthRoute = pathname.includes('/login') || pathname.includes('/register');
+
+  if (isApiRoute) {
+    const limitInfo = isAuthRoute ? { limit: 10, windowMs: 60 * 1000 } : { limit: 100, windowMs: 60 * 1000 };
+    const allowed = checkRateLimit({ ip: String(ip), ...limitInfo });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+    }
+
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
+      const origin = request.headers.get('origin');
+      const host = request.headers.get('host');
+      if (origin && host && !origin.includes(host)) {
+        return NextResponse.json({ error: 'CSRF Forbidden: Origin mismatch' }, { status: 403 });
+      }
+    }
+  }
+
+  const isInstitutionArea = pathname.startsWith('/institution') || pathname.startsWith('/api/institution');
+  const isStakeholderArea = pathname.startsWith('/stakeholder') || pathname.startsWith('/api/stakeholder');
+
+  if (!isInstitutionArea && !isStakeholderArea) {
+    return response;
+  }
+
+  if (isInstitutionArea && isPublicPath(pathname, PUBLIC_INSTITUTION_PATHS)) {
+    return response;
+  }
+
+  if (isStakeholderArea && isPublicPath(pathname, PUBLIC_STAKEHOLDER_PATHS)) {
+    return response;
+  }
+
+  if (isStakeholderArea) {
+    const stakeholderToken = request.cookies.get('stakeholder_token')?.value;
+    if (!stakeholderToken) {
+      if (pathname.startsWith('/api/stakeholder')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      const redirectUrl = new URL('/stakeholder/login', request.url);
+      redirectUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    const stakeholderPayload = await verifyToken(stakeholderToken);
+    if (!stakeholderPayload || stakeholderPayload.role !== 'stakeholder') {
+      if (pathname.startsWith('/api/stakeholder')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL('/stakeholder/login', request.url));
+    }
+
+    return response;
+  }
+
   let customUser: { id: string; email: string; role?: string; onboarding_status?: string } | null = null;
-  
+
   const institutionToken = request.cookies.get('institution_token')?.value;
   const refreshToken = request.cookies.get('institution_refresh')?.value;
-  
+
   if (institutionToken) {
-    try {
-        const payload = await verifyToken(institutionToken);
-        if (payload) {
-          customUser = {
-            id: payload.id as string,
-            email: payload.email as string,
-            role: payload.role as string | undefined,
-            onboarding_status: payload.onboarding_status as string | undefined,
-          };
-          // console.log('Middleware: Access Token Valid:', customUser.email);
+    const payload = await verifyToken(institutionToken);
+    if (payload && payload.id) {
+      if (payload.role && payload.role !== 'institution_admin') {
+        if (pathname.startsWith('/api/institution')) {
+          return NextResponse.json({ error: 'Forbidden role' }, { status: 403 });
         }
-    } catch (e) {
-        // console.log('Middleware: Access Token Invalid/Expired');
+        return NextResponse.redirect(new URL('/institution/login', request.url));
+      }
+
+      customUser = {
+        id: payload.id as string,
+        email: payload.email as string,
+        role: payload.role as string | undefined,
+        onboarding_status: payload.onboarding_status as string | undefined,
+      };
     }
   }
 
-  // Auto-Refresh Logic
   if (!customUser && refreshToken) {
-     try {
-        // We call the refresh endpoint internally to get new tokens
-        const refreshUrl = new URL('/api/institution/auth/refresh', request.url);
-        const refreshRes = await fetch(refreshUrl, {
-            method: 'POST',
-            headers: {
-                'Cookie': `institution_refresh=${refreshToken}`
-            }
-        });
+    try {
+      const refreshUrl = new URL('/api/institution/auth/refresh', request.url);
+      const refreshRes = await fetch(refreshUrl, {
+        method: 'POST',
+        headers: {
+          Cookie: `institution_refresh=${refreshToken}`,
+        },
+      });
 
-        if (refreshRes.ok) {
-            // Refresh successful! Get the new tokens from cookies
-            const setCookieHeaders = refreshRes.headers.getSetCookie();
-            
-            // Apply these cookies to the current response
-            setCookieHeaders.forEach(cookie => {
-                response.headers.append('Set-Cookie', cookie);
-            });
+      if (refreshRes.ok) {
+        const setCookieHeaders = refreshRes.headers.getSetCookie();
+        setCookieHeaders.forEach((cookie) => response.headers.append('Set-Cookie', cookie));
 
-            // Re-verify the new access token to get user context for this request
-            // We need to parse the set-cookie to find the access token
-            const newToken = setCookieHeaders
-                .find(c => c.startsWith('institution_token='))
-                ?.split(';')[0]
-                .split('=')[1];
+        const newToken = setCookieHeaders
+          .find((cookie) => cookie.startsWith('institution_token='))
+          ?.split(';')[0]
+          .split('=')[1];
 
-            if (newToken) {
-                const payload = await verifyToken(newToken);
-                if (payload) {
-                    customUser = {
-                        id: payload.id as string,
-                        email: payload.email as string,
-                        role: payload.role as string | undefined,
-                        onboarding_status: payload.onboarding_status as string | undefined,
-                    };
-                }
-            }
+        if (newToken) {
+          const payload = await verifyToken(newToken);
+          if (payload && payload.id) {
+            customUser = {
+              id: payload.id as string,
+              email: payload.email as string,
+              role: payload.role as string | undefined,
+              onboarding_status: payload.onboarding_status as string | undefined,
+            };
+          }
         }
-     } catch (e) {
-         console.error('Middleware: Refresh failed:', e);
-     }
+      }
+    } catch (error) {
+      console.error('Middleware refresh failed:', error);
+    }
   }
-
-  const isApiRoute = pathname.startsWith('/api');
 
   if (!customUser) {
-    // [BLOCK] Unauthenticated Access
-    if (isApiRoute) {
-       return NextResponse.json({ error: 'Unauthorized: Missing or invalid token' }, { status: 401 });
-    } else {
-       // Redirect to login for pages
-       const loginUrl = new URL('/institution/login', request.url);
-       loginUrl.searchParams.set('redirect', pathname);
-       return NextResponse.redirect(loginUrl);
+    if (pathname.startsWith('/api/institution')) {
+      return NextResponse.json({ error: 'Unauthorized: Missing or invalid token' }, { status: 401 });
     }
+    const loginUrl = new URL('/institution/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // [Authorisation] Post-Auth Checks (Dashboard Access etc.)
-  // Only for Pages, API usually handles granular permissions
-  if (!isApiRoute) {
-     // ... Maintain existing dashboard logic if needed ...
-     // Re-implementing the robust status check using Supabase if desired, or relying on token claims.
-     // For performance, we rely on token claims.
-     
-    const effectiveStatus = customUser?.onboarding_status || 'PENDING';
+  if (!pathname.startsWith('/api/institution')) {
+    const effectiveStatus = customUser.onboarding_status || 'PENDING';
     const isDashboardArea =
-        pathname.startsWith('/institution/dashboard') ||
-        pathname.startsWith('/institution/process') ||
-        pathname.startsWith('/institution/details') ||
-        pathname.startsWith('/institution/programs') ||
-        pathname.startsWith('/institution/peos') ||
-        pathname.startsWith('/institution/feedback');
+      pathname.startsWith('/institution/dashboard') ||
+      pathname.startsWith('/institution/process') ||
+      pathname.startsWith('/institution/details') ||
+      pathname.startsWith('/institution/programs') ||
+      pathname.startsWith('/institution/peos') ||
+      pathname.startsWith('/institution/feedback');
 
-      if (isDashboardArea && effectiveStatus !== 'COMPLETED') {
-        return NextResponse.redirect(new URL('/institution/onboarding', request.url))
-      }
+    if (isDashboardArea && effectiveStatus !== 'COMPLETED') {
+      return NextResponse.redirect(new URL('/institution/onboarding', request.url));
+    }
 
-      if (pathname.startsWith('/institution/onboarding') && effectiveStatus === 'COMPLETED') {
-          return NextResponse.redirect(new URL('/institution/dashboard', request.url))
-      }
+    if (pathname.startsWith('/institution/onboarding') && effectiveStatus === 'COMPLETED') {
+      return NextResponse.redirect(new URL('/institution/dashboard', request.url));
+    }
   }
 
   return response;
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-}
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+};

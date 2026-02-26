@@ -16,6 +16,10 @@ interface ProgramDashboardHomeProps {
   selectedProgramId?: string;
 }
 
+function ensureCoreModules(keys: string[]) {
+  return Array.from(new Set([...keys, 'process-7']));
+}
+
 const container: Variants = {
   hidden: { opacity: 0 },
   show: {
@@ -31,7 +35,7 @@ const item: Variants = {
 
 export default function ProgramDashboardHome({ statsData, loading, selectedProgramId }: ProgramDashboardHomeProps) {
   // Pinned module keys - loading from DB preferences if available
-  const [pinnedKeys, setPinnedKeys] = useState<string[]>(['process-4', 'process-3', 'process-5']);
+  const [pinnedKeys, setPinnedKeys] = useState<string[]>(ensureCoreModules(['process-4', 'process-3', 'process-5']));
   const [tempPinnedKeys, setTempPinnedKeys] = useState<string[]>([]);
   const [showCustomizePanel, setShowCustomizePanel] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,8 +50,9 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
         .then(data => {
           console.log('[Dashboard] Loaded preferences:', data);
           if (data.enabled_modules && data.enabled_modules.length > 0) {
-            setPinnedKeys(data.enabled_modules);
-            console.log('[Dashboard] Set pinned keys to:', data.enabled_modules);
+            const nextKeys = ensureCoreModules(data.enabled_modules);
+            setPinnedKeys(nextKeys);
+            console.log('[Dashboard] Set pinned keys to:', nextKeys);
           } else {
             console.log('[Dashboard] No saved preferences, using defaults');
           }
@@ -104,6 +109,12 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
       color: 'emerald',
       icon: 'Target'
     },
+    'process-7': {
+      label: 'VMPEO Feedback',
+      value: statsData?.vmpeoFeedbackEntries || 0,
+      color: 'teal',
+      icon: 'MessageSquare'
+    },
     'process-9': {
       label: 'Generated POs',
       value: statsData?.poCount || 0,
@@ -158,8 +169,9 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
       });
       const result = await response.json();
       console.log('[Dashboard] Save response:', result);
-      setPinnedKeys([...tempPinnedKeys]);
-      console.log('[Dashboard] Updated pinnedKeys to:', tempPinnedKeys);
+      const nextKeys = ensureCoreModules(tempPinnedKeys);
+      setPinnedKeys(nextKeys);
+      console.log('[Dashboard] Updated pinnedKeys to:', nextKeys);
       setSaveSuccess(true);
       setTimeout(() => {
         setShowCustomizePanel(false);
@@ -199,7 +211,7 @@ export default function ProgramDashboardHome({ statsData, loading, selectedProgr
 
           return (
             <motion.div key={key} variants={item}>
-              <Link href={`/institution/dashboard?programId=${selectedProgramId}&step=${key}`}>
+              <Link href={`/institution/process/${key}?programId=${selectedProgramId}`}>
                 <Card className="h-full border border-slate-200 bg-white hover:border-indigo-300 transition-all duration-300 shadow-sm hover:shadow-md flex flex-col justify-between p-4 rounded-lg group relative overflow-hidden">
                   <div className="flex items-start justify-between mb-3">
                     <div className={cn(

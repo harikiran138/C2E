@@ -257,7 +257,7 @@ function UnifiedOutcomesMatrixContent() {
                             </div>
                             <div>
                                 <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Consistency Matrix of Mission & PEOs</h2>
-                                <p className="text-sm text-slate-500 font-medium">Map Mission Components to Program Educational Objectives</p>
+                                <p className="text-sm text-slate-500 font-medium">Map Mission of the program to Program Educational Objectives</p>
                             </div>
                         </div>
                         <button
@@ -278,7 +278,7 @@ function UnifiedOutcomesMatrixContent() {
                                             <th className="px-8 py-6 min-w-[350px]">
                                                 <div className="flex items-center gap-2">
                                                     <FileText className="size-4 text-slate-400" />
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Mission Components</span>
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Mission of the program</span>
                                                 </div>
                                             </th>
                                             {peos.map((peo, i) => (

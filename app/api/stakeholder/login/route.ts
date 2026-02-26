@@ -1,0 +1,123 @@
+import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcrypt';
+import pool from '@/lib/postgres';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { signTokenWithExpiry } from '@/lib/auth';
+
+export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
+
+  try {
+    const allowed = checkRateLimit({ ip, limit: 8, windowMs: 60 * 1000 });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many login attempts. Please try again shortly.' }, { status: 429 });
+    }
+
+    const body = await request.json();
+    const instituteId = String(body?.institute_id || '').trim();
+    const programId = String(body?.program_id || '').trim();
+    const stakeholderId = String(body?.stakeholder_id || '').trim();
+    const stakeholderPassword = String(body?.stakeholder_password || '');
+
+    if (!instituteId || !programId || !stakeholderId || !stakeholderPassword) {
+      return NextResponse.json(
+        { error: 'Institute, Program, Stakeholder ID and password are required.' },
+        { status: 400 }
+      );
+    }
+
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `SELECT
+            rs.id AS stakeholder_ref_id,
+            rs.member_id,
+            rs.member_name,
+            rs.category,
+            rs.is_approved,
+            rs.login_password_hash,
+            rs.program_id,
+            p.program_name,
+            i.id AS institution_id,
+            i.institution_name
+         FROM representative_stakeholders rs
+         INNER JOIN programs p ON p.id = rs.program_id
+         INNER JOIN institutions i ON i.id = p.institution_id
+         WHERE i.id = $1
+           AND p.id = $2
+           AND LOWER(rs.member_id) = LOWER($3)
+         LIMIT 1`,
+        [instituteId, programId, stakeholderId]
+      );
+
+      if (result.rows.length === 0) {
+        // Fake compare to reduce timing signal
+        await bcrypt.compare(stakeholderPassword, '$2b$10$abcdefghijklmnopqrstuv');
+        return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
+      }
+
+      const stakeholder = result.rows[0];
+      if (!stakeholder.is_approved) {
+        return NextResponse.json({ error: 'Stakeholder is not approved for feedback access.' }, { status: 403 });
+      }
+
+      if (!stakeholder.login_password_hash) {
+        return NextResponse.json(
+          { error: 'Stakeholder login password is not configured. Please contact Program Admin.' },
+          { status: 403 }
+        );
+      }
+
+      const passwordMatch = await bcrypt.compare(stakeholderPassword, stakeholder.login_password_hash);
+      if (!passwordMatch) {
+        return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
+      }
+
+      const stakeholderToken = await signTokenWithExpiry(
+        {
+          role: 'stakeholder',
+          stakeholder_ref_id: stakeholder.stakeholder_ref_id,
+          stakeholder_member_id: stakeholder.member_id,
+          stakeholder_name: stakeholder.member_name,
+          stakeholder_category: stakeholder.category,
+          institution_id: stakeholder.institution_id,
+          institution_name: stakeholder.institution_name,
+          program_id: stakeholder.program_id,
+          program_name: stakeholder.program_name,
+        },
+        '8h'
+      );
+
+      await client.query('UPDATE representative_stakeholders SET last_login_at = NOW() WHERE id = $1', [
+        stakeholder.stakeholder_ref_id,
+      ]);
+
+      const response = NextResponse.json({
+        ok: true,
+        stakeholder: {
+          stakeholder_id: stakeholder.member_id,
+          stakeholder_name: stakeholder.member_name,
+          category: stakeholder.category,
+          institution_name: stakeholder.institution_name,
+          program_id: stakeholder.program_id,
+          program_name: stakeholder.program_name,
+        },
+      });
+
+      response.cookies.set('stakeholder_token', stakeholderToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 8 * 60 * 60,
+      });
+
+      return response;
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error('Stakeholder login error:', error);
+    return NextResponse.json({ error: error.message || 'Login failed' }, { status: 500 });
+  }
+}

@@ -6,6 +6,8 @@ import { Loader2, Sparkles, Save, Check, RefreshCw } from 'lucide-react';
 import { AI_API_URL } from '@/lib/api';
 import PeoGenerator from '@/components/institution/process/PeoGenerator';
 
+const VISION_APPROVAL_THRESHOLD = 90;
+
 const VISION_PRIORITIES = [
     'Global Engineering Excellence',
     'Future-ready engineers',
@@ -64,6 +66,28 @@ function mergeUniqueStatements(existing: string[], incoming: string[]) {
     return merged;
 }
 
+function normalizeStatement(value: unknown) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function findScoreInfo(scoreMap: Record<string, any>, statement: string) {
+    const normalized = normalizeStatement(statement).toLowerCase();
+    if (!normalized) return null;
+
+    for (const [key, value] of Object.entries(scoreMap || {})) {
+        if (normalizeStatement(key).toLowerCase() === normalized) {
+            return value;
+        }
+    }
+    return null;
+}
+
+function extractScoreMap(payload: any, kind: 'vision' | 'mission') {
+    if (!payload || typeof payload !== 'object') return {};
+    if (payload[kind] && typeof payload[kind] === 'object') return payload[kind];
+    return payload;
+}
+
 export default function VisionMissionGenerator() {
     const searchParams = useSearchParams();
     const programId = searchParams.get('programId');
@@ -92,12 +116,16 @@ export default function VisionMissionGenerator() {
     const [visionGenerateCount, setVisionGenerateCount] = useState(3);
     const [missionGenerateCount, setMissionGenerateCount] = useState(3);
     const [visionScores, setVisionScores] = useState<Record<string, any>>({});
+    const [missionScores, setMissionScores] = useState<Record<string, any>>({});
 
     const [generatingVision, setGeneratingVision] = useState(false);
     const [generatingMission, setGeneratingMission] = useState(false);
+    const [savingVisionSelection, setSavingVisionSelection] = useState(false);
     const [saving, setSaving] = useState(false);
     const [isAiGenerated, setIsAiGenerated] = useState(false);
-    const canGenerateMission = Boolean(programVision || visionOptions.length > 0);
+    const [isVisionSelectionSaved, setIsVisionSelectionSaved] = useState(false);
+    const [isVisionApproved, setIsVisionApproved] = useState(false);
+    const canGenerateMission = isVisionSelectionSaved && isVisionApproved;
 
     useEffect(() => {
         const fetchData = async () => {
@@ -112,9 +140,16 @@ export default function VisionMissionGenerator() {
                     if (programId && instData.programs) {
                         const currentProgram = instData.programs.find((p: any) => p.id === programId);
                         if (currentProgram) {
+                            const initialVision = normalizeStatement(currentProgram.program_vision || currentProgram.vision || '');
+                            const initialMission = normalizeStatement(currentProgram.program_mission || currentProgram.mission || '');
+                            const hasInitialVisionScore = currentProgram.vision_score !== null && currentProgram.vision_score !== undefined;
+                            const hasInitialMissionScore = currentProgram.mission_score !== null && currentProgram.mission_score !== undefined;
+                            const initialVisionScore = hasInitialVisionScore ? Number(currentProgram.vision_score) : NaN;
+                            const initialMissionScore = hasInitialMissionScore ? Number(currentProgram.mission_score) : NaN;
+
                             setProgram(currentProgram);
-                            setProgramVision(currentProgram.program_vision || currentProgram.vision || '');
-                            setProgramMission(currentProgram.program_mission || currentProgram.mission || '');
+                            setProgramVision(initialVision);
+                            setProgramMission(initialMission);
                             setIsAiGenerated(currentProgram.generated_by_ai || false);
                             const loadedVisionOptions = Array.isArray(currentProgram.vision_options) ? currentProgram.vision_options : [];
                             const loadedMissionOptions = Array.isArray(currentProgram.mission_options) ? currentProgram.mission_options : [];
@@ -122,6 +157,24 @@ export default function VisionMissionGenerator() {
                             setMissionOptions(loadedMissionOptions);
                             setVisionGenerationHistory(loadedVisionOptions);
                             setMissionGenerationHistory(loadedMissionOptions);
+                            setVisionScores(initialVision && hasInitialVisionScore && Number.isFinite(initialVisionScore) ? {
+                                [initialVision]: {
+                                    score: initialVisionScore,
+                                    ...(currentProgram.vision_analysis && typeof currentProgram.vision_analysis === 'object'
+                                        ? currentProgram.vision_analysis
+                                        : {})
+                                }
+                            } : {});
+                            setMissionScores(initialMission && hasInitialMissionScore && Number.isFinite(initialMissionScore) ? {
+                                [initialMission]: {
+                                    score: initialMissionScore,
+                                    ...(currentProgram.mission_analysis && typeof currentProgram.mission_analysis === 'object'
+                                        ? currentProgram.mission_analysis
+                                        : {})
+                                }
+                            } : {});
+                            setIsVisionSelectionSaved(Boolean(initialVision));
+                            setIsVisionApproved(hasInitialVisionScore && Number.isFinite(initialVisionScore) && initialVisionScore >= VISION_APPROVAL_THRESHOLD);
 
                             // Load saved priorities from used inputs if available, else fallback to vision_priorities
                             if (currentProgram.vision_inputs_used) {
@@ -181,6 +234,91 @@ export default function VisionMissionGenerator() {
         }
     };
 
+    const handleVisionSelectionChange = (nextVision: string) => {
+        setProgramVision(nextVision);
+        setProgramMission('');
+        setMissionOptions([]);
+        setMissionScores({});
+        setIsVisionSelectionSaved(false);
+        setIsVisionApproved(false);
+    };
+
+    const resolveSelectedVisionScoreInfo = () => {
+        const selectedFromMap = findScoreInfo(visionScores, programVision);
+        if (selectedFromMap && typeof selectedFromMap === 'object') {
+            return selectedFromMap;
+        }
+        const hasExistingScore = program?.vision_score !== null && program?.vision_score !== undefined;
+        const existingScore = hasExistingScore ? Number(program?.vision_score) : NaN;
+        if (hasExistingScore && Number.isFinite(existingScore)) {
+            return {
+                score: existingScore,
+                ...(program?.vision_analysis && typeof program.vision_analysis === 'object' ? program.vision_analysis : {})
+            };
+        }
+        return null;
+    };
+
+    const handleSaveSelectedVision = async () => {
+        if (!programId) return;
+        const normalizedVision = normalizeStatement(programVision);
+        if (!normalizedVision) {
+            alert('Select a Vision statement before saving.');
+            return;
+        }
+
+        setSavingVisionSelection(true);
+        try {
+            const scoreInfo = resolveSelectedVisionScoreInfo();
+            const response = await fetch('/api/institution/program/update-vm', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    program_id: programId,
+                    program_vision: normalizedVision,
+                    vision_score: typeof scoreInfo?.score === 'number' ? scoreInfo.score : null,
+                    vision_analysis: scoreInfo || null,
+                    vision_inputs_used: selectedVisionPriorities,
+                    vision_options: visionOptions,
+                    generated_by_ai: isAiGenerated,
+                }),
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                alert(result.error || 'Failed to save selected Vision.');
+                return;
+            }
+
+            setIsVisionSelectionSaved(true);
+            const approved = Boolean(result?.selected_vision?.approved);
+            setIsVisionApproved(approved);
+            if (typeof result?.selected_vision?.score === 'number') {
+                setVisionScores((prev) => ({
+                    ...prev,
+                    [normalizedVision]: {
+                        ...(findScoreInfo(prev, normalizedVision) || {}),
+                        score: result.selected_vision.score
+                    }
+                }));
+                setProgram((prev: any) => ({
+                    ...(prev || {}),
+                    program_vision: normalizedVision,
+                    vision: normalizedVision,
+                    vision_score: result.selected_vision.score
+                }));
+            }
+            if (!approved) {
+                alert(`Mission generation is blocked until selected Vision score reaches ${VISION_APPROVAL_THRESHOLD}.`);
+            }
+        } catch (error) {
+            console.error('Vision save error:', error);
+            alert('Failed to save selected Vision.');
+        } finally {
+            setSavingVisionSelection(false);
+        }
+    };
+
     const handleGenerateVision = async () => {
         if (!institution || !program) return;
 
@@ -213,12 +351,18 @@ export default function VisionMissionGenerator() {
                 const newVisions = data.visions && data.visions.length > 0 ? data.visions : (data.vision ? [data.vision] : []);
                 setVisionOptions(newVisions);
                 if (data.scores) {
-                    setVisionScores(prev => ({ ...prev, ...data.scores }));
+                    const extractedVisionScores = extractScoreMap(data.scores, 'vision');
+                    setVisionScores(prev => ({ ...prev, ...extractedVisionScores }));
                 }
                 setVisionGenerationHistory((previous) => mergeUniqueStatements(previous, newVisions));
 
                 // Auto-select first option if none selected
-                if (!programVision && newVisions.length > 0) setProgramVision(newVisions[0]);
+                if (!programVision && newVisions.length > 0) {
+                    handleVisionSelectionChange(newVisions[0]);
+                } else {
+                    setIsVisionSelectionSaved(false);
+                    setIsVisionApproved(false);
+                }
 
                 setIsAiGenerated(true);
             } else {
@@ -236,7 +380,11 @@ export default function VisionMissionGenerator() {
         if (!institution || !program) return;
 
         if (!canGenerateMission) {
-            alert('Please generate or select a program vision before generating mission statements.');
+            if (!isVisionSelectionSaved) {
+                alert('Save one selected Vision statement before generating Mission drafts.');
+                return;
+            }
+            alert(`Mission generation is blocked until the saved Vision score is at least ${VISION_APPROVAL_THRESHOLD}.`);
             return;
         }
 
@@ -248,16 +396,11 @@ export default function VisionMissionGenerator() {
         setGeneratingMission(true);
         try {
             const excludedMissions = mergeUniqueStatements(missionGenerationHistory, missionOptions);
-            const response = await fetch(`${AI_API_URL}/ai/generate-vision-mission`, {
+            const response = await fetch('/api/institution/program/generate-mission', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mode: 'mission',
-                    program_name: program.program_name,
-                    institute_vision: institution.vision || '',
-                    institute_mission: institution.mission || '',
-                    selected_program_vision: programVision || visionOptions[0] || '',
-                    vision_inputs: selectedVisionPriorities,
+                    program_id: programId,
                     mission_inputs: selectedMissionPriorities,
                     mission_count: missionGenerateCount,
                     exclude_missions: excludedMissions
@@ -268,6 +411,10 @@ export default function VisionMissionGenerator() {
                 const data = await response.json();
                 const newMissions = data.missions && data.missions.length > 0 ? data.missions : (data.mission ? [data.mission] : []);
                 setMissionOptions(newMissions);
+                if (data.scores) {
+                    const extractedMissionScores = extractScoreMap(data.scores, 'mission');
+                    setMissionScores(prev => ({ ...prev, ...extractedMissionScores }));
+                }
                 setMissionGenerationHistory((previous) => mergeUniqueStatements(previous, newMissions));
                 // Auto-select first option if none selected
                 if (!programMission && newMissions.length > 0) setProgramMission(newMissions[0]);
@@ -278,7 +425,7 @@ export default function VisionMissionGenerator() {
             }
         } catch (error) {
             console.error('Mission generation error:', error);
-            alert('Failed to connect to AI backend. Please ensure it is running.');
+            alert('Mission generation failed. Please try again.');
         } finally {
             setGeneratingMission(false);
         }
@@ -288,6 +435,8 @@ export default function VisionMissionGenerator() {
         if (!programId) return;
         setSaving(true);
         try {
+            const selectedVisionScoreInfo = resolveSelectedVisionScoreInfo();
+            const selectedMissionScoreInfo = findScoreInfo(missionScores, programMission);
             const response = await fetch('/api/institution/program/update-vm', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -295,6 +444,10 @@ export default function VisionMissionGenerator() {
                     program_id: programId,
                     program_vision: programVision,
                     program_mission: programMission,
+                    vision_score: typeof selectedVisionScoreInfo?.score === 'number' ? selectedVisionScoreInfo.score : null,
+                    mission_score: typeof selectedMissionScoreInfo?.score === 'number' ? selectedMissionScoreInfo.score : null,
+                    vision_analysis: selectedVisionScoreInfo || null,
+                    mission_analysis: selectedMissionScoreInfo || null,
                     vision_inputs_used: selectedVisionPriorities,
                     mission_inputs_used: selectedMissionPriorities,
                     generated_by_ai: isAiGenerated,
@@ -303,10 +456,28 @@ export default function VisionMissionGenerator() {
                 })
             });
 
+            const result = await response.json().catch(() => ({}));
             if (response.ok) {
+                setIsVisionSelectionSaved(Boolean(result?.selected_vision?.text || programVision));
+                setIsVisionApproved(Boolean(result?.selected_vision?.approved));
+                if (typeof result?.selected_vision?.score === 'number' && result?.selected_vision?.text) {
+                    setProgram((prev: any) => ({
+                        ...(prev || {}),
+                        program_vision: result.selected_vision.text,
+                        vision: result.selected_vision.text,
+                        vision_score: result.selected_vision.score
+                    }));
+                    setVisionScores((prev) => ({
+                        ...prev,
+                        [result.selected_vision.text]: {
+                            ...(findScoreInfo(prev, result.selected_vision.text) || {}),
+                            score: result.selected_vision.score
+                        }
+                    }));
+                }
                 alert('Vision, Mission, and Priorities saved successfully to the database!');
             } else {
-                alert('Failed to save.');
+                alert(result.error || 'Failed to save.');
             }
         } catch (error) {
             console.error('Save error:', error);
@@ -374,6 +545,9 @@ export default function VisionMissionGenerator() {
     if (loading) {
         return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary size-8" /></div>;
     }
+
+    const visibleVisionOptions = visionOptions.length > 0 ? visionOptions : (programVision ? [programVision] : []);
+    const visibleMissionOptions = missionOptions.length > 0 ? missionOptions : (programMission ? [programMission] : []);
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto pb-20">
@@ -499,25 +673,45 @@ export default function VisionMissionGenerator() {
                 </div>
 
                 {/* Vision Options List */}
-                {visionOptions.length > 0 && (
+                {visibleVisionOptions.length > 0 && (
                     <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">Pick a Vision Statement</label>
                         <div className="space-y-3">
-                            {visionOptions.map((opt, idx) => (
+                            {visibleVisionOptions.map((opt, idx) => (
                                 <OptionCard
                                     key={idx}
                                     text={opt}
                                     isSelected={programVision === opt}
-                                    onSelect={() => setProgramVision(opt)}
-                                    scoreInfo={visionScores[opt]}
+                                    onSelect={() => handleVisionSelectionChange(opt)}
+                                    scoreInfo={findScoreInfo(visionScores, opt)}
                                     onEdit={(newVal) => {
-                                        const newOpts = [...visionOptions];
+                                        const newOpts = [...visibleVisionOptions];
                                         newOpts[idx] = newVal;
                                         setVisionOptions(newOpts);
-                                        if (programVision === opt) setProgramVision(newVal);
+                                        if (programVision === opt) {
+                                            handleVisionSelectionChange(newVal);
+                                        }
                                     }}
                                 />
                             ))}
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-xs text-slate-600">
+                                Save one selected Vision with score at least {VISION_APPROVAL_THRESHOLD} to unlock Mission generation.
+                            </p>
+                            <button
+                                onClick={handleSaveSelectedVision}
+                                disabled={savingVisionSelection || !normalizeStatement(programVision)}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-xs font-bold text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {savingVisionSelection ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                                Save Selected Vision
+                            </button>
+                        </div>
+                        <div className={`text-[11px] font-semibold ${isVisionSelectionSaved && isVisionApproved ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            {isVisionSelectionSaved && isVisionApproved
+                                ? `Saved and approved for Mission generation (>= ${VISION_APPROVAL_THRESHOLD}).`
+                                : 'Mission generation remains locked until the selected Vision is saved and approved.'}
                         </div>
                         {isAiGenerated && <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider"><Sparkles className="size-3" /> Enhanced by AI</div>}
                     </div>
@@ -633,23 +827,26 @@ export default function VisionMissionGenerator() {
                 </div>
                 {!canGenerateMission && (
                     <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        Generate or select a program vision first to enable mission generation.
+                        {!isVisionSelectionSaved
+                            ? 'Save one selected Vision statement to enable Mission generation.'
+                            : `Mission generation is blocked until the saved Vision score reaches ${VISION_APPROVAL_THRESHOLD}.`}
                     </p>
                 )}
 
                 {/* Mission Options List */}
-                {missionOptions.length > 0 && (
+                {visibleMissionOptions.length > 0 && (
                     <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">Pick a Mission Statement</label>
                         <div className="space-y-3">
-                            {missionOptions.map((opt, idx) => (
+                            {visibleMissionOptions.map((opt, idx) => (
                                 <OptionCard
                                     key={idx}
                                     text={opt}
                                     isSelected={programMission === opt}
                                     onSelect={() => setProgramMission(opt)}
+                                    scoreInfo={findScoreInfo(missionScores, opt)}
                                     onEdit={(newVal) => {
-                                        const newOpts = [...missionOptions];
+                                        const newOpts = [...visibleMissionOptions];
                                         newOpts[idx] = newVal;
                                         setMissionOptions(newOpts);
                                         if (programMission === opt) setProgramMission(newVal);

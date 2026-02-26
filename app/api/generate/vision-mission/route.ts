@@ -8,6 +8,7 @@ const aiCache = new Map<string, string[]>();
 
 const VISION_APPROVAL_THRESHOLD = 90;
 const VISION_SIMILARITY_THRESHOLD = 0.75;
+const MISSION_APPROVAL_THRESHOLD = 90;
 const VISION_GLOBAL_PATTERNS: Array<{ concept: string; regex: RegExp }> = [
   { concept: 'globally recognized', regex: /\bglobally recognized\b/i },
   { concept: 'globally respected', regex: /\bglobally respected\b/i },
@@ -72,6 +73,33 @@ const REDUNDANCY_STOP_WORDS = new Set([
   'term',
   'future',
 ]);
+const MISSION_OPERATIONAL_VERBS = [
+  'deliver',
+  'strengthen',
+  'foster',
+  'promote',
+  'advance',
+  'implement',
+  'integrate',
+  'enable',
+  'support',
+  'sustain',
+  'build',
+];
+const MISSION_MARKETING_TERMS = VISION_MARKETING_TERMS;
+const MISSION_RESTRICTED_TERMS = ['guarantee', 'ensure all', '100%', 'master', 'excel in all'];
+const MISSION_IMMEDIATE_TERMS = [
+  'at graduation',
+  'on graduation',
+  'students will be able to',
+  'student will be able to',
+];
+const MISSION_PILLAR_SIGNALS = {
+  academic: ['curriculum', 'outcome-based', 'outcome based', 'academic', 'learning', 'continuous improvement', 'rigor'],
+  research_industry: ['research', 'industry', 'innovation', 'laboratory', 'hands-on', 'internship', 'collaboration'],
+  professional_standards: ['professional standards', 'engineering standards', 'standards alignment', 'quality standards'],
+  ethics_society: ['ethical', 'ethics', 'societal', 'community', 'sustainable', 'responsibility', 'public'],
+} as const;
 const VISION_STARTERS = [
   'To be globally recognized for',
   'To emerge as',
@@ -124,6 +152,89 @@ function getSynonymStacking(statement: string) {
     ['innovation', 'innovative', 'transformative', 'foresight', 'advancement'],
   ];
   return groups.some((group) => group.filter((term) => new RegExp(`\\b${term}\\b`, 'i').test(lower)).length >= 3);
+}
+
+function missionPillarCoverage(statement: string) {
+  const lower = statement.toLowerCase();
+  const hits = {
+    academic: MISSION_PILLAR_SIGNALS.academic.some((term) => containsTerm(lower, term)),
+    research_industry: MISSION_PILLAR_SIGNALS.research_industry.some((term) => containsTerm(lower, term)),
+    professional_standards: MISSION_PILLAR_SIGNALS.professional_standards.some((term) => containsTerm(lower, term)),
+    ethics_society: MISSION_PILLAR_SIGNALS.ethics_society.some((term) => containsTerm(lower, term)),
+  };
+  return {
+    ...hits,
+    total: Object.values(hits).filter(Boolean).length,
+  };
+}
+
+function scoreMissionCandidate(statement: string, referenceVision = '') {
+  const normalized = normalizeWhitespace(statement);
+  const lower = normalized.toLowerCase();
+  const words = normalized.replace(/[.?!]+$/, '').split(/\s+/).filter(Boolean);
+  const sentenceCount = normalized.split(/(?<=[.!?])\s+/).filter(Boolean).length;
+  const operationalHits = MISSION_OPERATIONAL_VERBS.filter((term) => containsTerm(lower, term));
+  const marketingHits = MISSION_MARKETING_TERMS.filter((term) => containsTerm(lower, term));
+  const restrictedHits = MISSION_RESTRICTED_TERMS.filter((term) => lower.includes(term));
+  const immediateHits = MISSION_IMMEDIATE_TERMS.filter((term) => lower.includes(term));
+  const repeatedRoots = getRepeatedRoots(normalized);
+  const synonymStacking = getSynonymStacking(normalized);
+  const pillars = missionPillarCoverage(normalized);
+
+  const overlap = referenceVision ? visionSimilarity(referenceVision, normalized) : 0.35;
+  const leakage = referenceVision ? visionSimilarity(referenceVision, normalized) : 0;
+
+  const hardFailures = [
+    ...(operationalHits.length < 2 ? ['insufficient operational verbs'] : []),
+    ...(sentenceCount < 3 || sentenceCount > 4 ? ['mission sentence count'] : []),
+    ...(pillars.total < 3 ? ['pillar coverage'] : []),
+    ...(repeatedRoots.length > 0 ? [`repeated roots: ${repeatedRoots.join(', ')}`] : []),
+    ...(synonymStacking ? ['synonym stacking'] : []),
+    ...(marketingHits.length > 0 ? ['marketing language'] : []),
+    ...(restrictedHits.length > 0 ? ['restricted wording'] : []),
+    ...(immediateHits.length > 0 ? ['immediate outcomes'] : []),
+    ...(leakage > 0.72 ? ['vision leakage'] : []),
+  ];
+
+  let alignment = 100;
+  if (referenceVision) {
+    const pillarScore = Math.min(100, Math.round((pillars.total / 4) * 100));
+    alignment = Math.round(Math.min(100, overlap * 100) * 0.65 + pillarScore * 0.35);
+  }
+  let operational = 100;
+  if (operationalHits.length < 2) operational -= 45;
+  if (pillars.total < 3) operational -= 35;
+  if (sentenceCount < 3 || sentenceCount > 4) operational -= 25;
+
+  let redundancy = 100;
+  if (repeatedRoots.length > 0) redundancy -= Math.min(60, repeatedRoots.length * 20);
+  if (synonymStacking) redundancy -= 35;
+
+  let accreditation = 100;
+  if (marketingHits.length > 0) accreditation -= 45;
+  if (restrictedHits.length > 0) accreditation -= 35;
+  if (immediateHits.length > 0) accreditation -= 40;
+
+  let coherence = 100;
+  if (sentenceCount < 3 || sentenceCount > 4) coherence -= 35;
+  if (words.length < 45 || words.length > 110) coherence -= 25;
+  if (pillars.total < 3) coherence -= 25;
+  if (leakage > 0.72) coherence -= 30;
+
+  let score = Math.round(
+    alignment * 0.25 +
+    operational * 0.2 +
+    redundancy * 0.15 +
+    accreditation * 0.2 +
+    coherence * 0.2
+  );
+  score = Math.max(0, Math.min(100, score));
+  if (hardFailures.length > 0) score = Math.min(score, 79);
+
+  return {
+    score,
+    hardFailures,
+  };
 }
 
 function extractVisionGlobalConcepts(statement: string) {
@@ -214,13 +325,15 @@ function buildDeterministicVision(programName: string, priorities: string[], ind
       normalizeWhitespace(String(p).toLowerCase())
         .replace(/\b(outcome based|outcome-based|outcome oriented|outcome-oriented)\b/g, 'institutional leadership')
         .replace(/\b(education|teaching|learning|curriculum|pedagogy|classroom)\b/g, 'scholarly standards')
+        .replace(/\b(innovation|technology|entrepreneurship|entrepreneur)\b/g, 'innovation capability')
+        .replace(/\b(ethic|ethical|integrity|professional|responsibility)\b/g, 'ethical standards')
         .replace(/\b(develop|provide|deliver|cultivate|train|prepare|implement|foster)\b/g, 'advance')
     )
     .filter(Boolean);
   const pillarText =
     selected.length > 0
       ? selected.join(', ').replace(/, ([^,]*)$/, ', and $1')
-      : 'institutional leadership, innovation leadership, and sustainable societal contribution';
+      : 'institutional leadership, innovation capability, and sustainable societal contribution';
 
   const templates = [
     `To be globally recognized for long-term ${programName} distinction through ${pillarText} with sustained societal and professional relevance.`,
@@ -231,6 +344,16 @@ function buildDeterministicVision(programName: string, priorities: string[], ind
   ];
 
   return templates[index % templates.length];
+}
+
+function buildDeterministicMission(programName: string, index: number) {
+  const variants = [
+    `Deliver a rigorous ${programName} curriculum through outcome-based education, continuous assessment, and evidence-driven academic improvement.`,
+    'Strengthen research engagement, industry collaboration, and hands-on practice to align graduate preparation with professional engineering standards.',
+    'Foster ethical responsibility, innovation capability, and societal awareness to sustain long-term professional growth and community impact.',
+  ];
+  const rotated = [variants[index % 3], variants[(index + 1) % 3], variants[(index + 2) % 3]];
+  return rotated.join(' ');
 }
 
 function buildSafeVisionVariant(programName: string, index: number) {
@@ -296,12 +419,16 @@ export async function POST(request: Request) {
       7. If similarity between two statements exceeds 70%, rewrite the weaker one.
       ` : `
       1. Mission must represent the implementable action (HOW) the program achieves its vision.
-      2. Professional and action-oriented.
+      2. Use exactly 3 to 4 structured sentences.
+      3. Include curriculum quality, research/industry engagement, and professional standards with ethical/societal responsibility.
+      4. Include at least two operational verbs (deliver, strengthen, foster, promote, implement, integrate).
+      5. Avoid direct phrase reuse from the Vision context.
+      6. Avoid redundant noun stacking and repeated root words.
+      7. Keep each mission 45-110 words.
       `}
-      4. Each statement should be strictly 1-2 sentences.
-      5. Professional, academic tone.
-      6. Align with the provided priorities.
-      7. Output strictly as a JSON array of strings, e.g., ["Statement 1", "Statement 2"]. Do not include markdown formatting or extra text.
+      8. Professional, academic tone.
+      9. Align with the provided priorities.
+      10. Output strictly as a JSON array of strings, e.g., ["Statement 1", "Statement 2"]. Do not include markdown formatting or extra text.
     `;
 
     const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
@@ -380,6 +507,35 @@ export async function POST(request: Request) {
 
         const starter = getVisionStarter(candidate);
         if (starter) usedStarters.add(starter);
+        diversified.push(candidate);
+      }
+
+      results = diversified;
+    } else if (type === 'mission') {
+      const referenceVision = normalizeWhitespace(String(institutionContext || ''));
+      const diversified: string[] = [];
+
+      for (let index = 0; index < count; index += 1) {
+        let candidate = normalizeWhitespace(results[index] || '');
+        let attempts = 0;
+
+        while (attempts < 6) {
+          const quality = scoreMissionCandidate(candidate, referenceVision);
+          const tooSimilar = diversified.some(
+            (existing) => visionSimilarity(existing, candidate) > VISION_SIMILARITY_THRESHOLD
+          );
+          if (quality.score >= MISSION_APPROVAL_THRESHOLD && quality.hardFailures.length === 0 && !tooSimilar) {
+            break;
+          }
+          candidate = buildDeterministicMission(programName, index + attempts);
+          attempts += 1;
+        }
+
+        const finalQuality = scoreMissionCandidate(candidate, referenceVision);
+        if (finalQuality.score < MISSION_APPROVAL_THRESHOLD || finalQuality.hardFailures.length > 0) {
+          candidate = buildDeterministicMission(programName, index + count);
+        }
+
         diversified.push(candidate);
       }
 

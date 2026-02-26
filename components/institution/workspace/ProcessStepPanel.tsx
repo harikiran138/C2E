@@ -12,6 +12,7 @@ import ProgramOutcomesForm from '@/components/institution/process/ProgramOutcome
 import PsoGenerator from '@/components/institution/process/PsoGenerator';
 import AcademicCouncilForm from '@/components/institution/process/AcademicCouncilForm';
 import OBEFrameworkForm from '@/components/institution/process/OBEFrameworkForm';
+import VMPEOFeedbackDashboard from '@/components/institution/VMPEOFeedbackDashboard';
 import { Save, Loader2 } from 'lucide-react';
 
 const CATEGORY_CELL_FIELDS = [
@@ -459,6 +460,10 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
     return <VisionMissionGenerator />;
   }
 
+  if (step.key === 'process-7') {
+    return <VMPEOFeedbackDashboard />;
+  }
+
   if (step.key === 'process-8') {
     return <ConsistencyMatrix />;
   }
@@ -483,7 +488,7 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
     return <ActionPanel step={step} />;
   }
 
-  if (step.kind === 'form' && !['council', 'process-3', 'process-4', 'process-5', 'process-6', 'process-9', 'process-10', 'process-12', 'process-14'].includes(step.key)) {
+  if (step.kind === 'form' && !['council', 'process-3', 'process-4', 'process-5', 'process-6', 'process-7', 'process-9', 'process-10', 'process-12', 'process-14'].includes(step.key)) {
     return <SharedForm step={step} />;
   }
 

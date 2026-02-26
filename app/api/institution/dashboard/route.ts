@@ -59,8 +59,20 @@ export async function GET(request: Request) {
         let peoCount = 0;
         let poCount = 0;
         let psoCount = 0;
+        let vmpeoFeedbackSubmissions = 0;
+        let vmpeoFeedbackEntries = 0;
 
         if (programId) {
+            const safeProgramCount = async (tableName: 'program_vmpeo_feedback_submissions' | 'program_vmpeo_feedback_entries') => {
+                try {
+                    const result = await client.query(`SELECT COUNT(*) as count FROM ${tableName} WHERE program_id = $1`, [programId]);
+                    return parseInt(result.rows[0]?.count || '0');
+                } catch (error: any) {
+                    if (error?.code === '42P01') return 0; // relation does not exist yet
+                    throw error;
+                }
+            };
+
             // Run program-specific queries in parallel
             const [
                 pacRes,
@@ -88,11 +100,14 @@ export async function GET(request: Request) {
             peoCount = parseInt(peoRes.rows[0]?.count || '0');
             poCount = parseInt(poRes.rows[0]?.count || '0');
             psoCount = parseInt(psoRes.rows[0]?.count || '0');
-            // process-2 (Coordinator) and process-7 (PEOs standalone) removed from steps
+            vmpeoFeedbackSubmissions = await safeProgramCount('program_vmpeo_feedback_submissions');
+            vmpeoFeedbackEntries = await safeProgramCount('program_vmpeo_feedback_entries');
+            // process-2 (Coordinator) removed from active menu steps
             stepStatus['process-3'] = pacCount > 0;
             stepStatus['process-4'] = bosCount > 0;
             stepStatus['process-5'] = stakeholdersCount > 0;
             stepStatus['process-6'] = vmpRes.rows[0]?.finalized; 
+            stepStatus['process-7'] = vmpeoFeedbackEntries > 0;
             // process-6 now covers Vision, Mission & PEOs
             stepStatus['process-9'] = poCount > 0;
             stepStatus['process-10'] = psoCount > 0;
@@ -100,6 +115,8 @@ export async function GET(request: Request) {
             dataVars.peoCount = peoCount;
             dataVars.poCount = poCount;
             dataVars.psoCount = psoCount;
+            dataVars.vmpeoFeedbackSubmissions = vmpeoFeedbackSubmissions;
+            dataVars.vmpeoFeedbackEntries = vmpeoFeedbackEntries;
         }
 
         // 7. Recent Activities (Filter by program if selected)

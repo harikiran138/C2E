@@ -76,10 +76,20 @@ export const PROCESS_STEPS: ProcessStep[] = [
     icon: 'Target'
   },
   {
+    key: 'process-7',
+    title: 'Vision, Mission and PEO feedback',
+    section: 'process',
+    processNumber: 7,
+    kind: 'form',
+    phase: 'Stakeholder & PEOs',
+    description: 'Configure stakeholder timeline and review consolidated Vision, Mission and PEO feedback.',
+    icon: 'MessageSquare'
+  },
+  {
     key: 'process-8',
     title: 'Generate Consistency Matrix of Mission & PEOs',
     section: 'process',
-    processNumber: 7,
+    processNumber: 8,
     kind: 'matrix',
     phase: 'Stakeholder & PEOs',
     description: 'Generate consistency matrix between mission components and PEOs.',

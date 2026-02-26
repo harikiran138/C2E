@@ -150,6 +150,7 @@ const STRATEGIC_APPROVAL_THRESHOLD = 90;
 const VISION_APPROVAL_THRESHOLD = 90;
 const VISION_MAX_PILLARS = 3;
 const VISION_SIMILARITY_THRESHOLD = 0.75;
+const MISSION_APPROVAL_THRESHOLD = 90;
 
 const CATEGORY_LABELS: Record<ThemeCategory, string> = {
   global_positioning: 'Global Positioning',
@@ -342,6 +343,43 @@ const SYNONYM_STACK_GROUPS: Array<{ label: string; terms: string[]; threshold: n
     threshold: 3,
   },
 ];
+const MISSION_OPERATIONAL_VERBS = [
+  'deliver',
+  'strengthen',
+  'foster',
+  'promote',
+  'advance',
+  'implement',
+  'integrate',
+  'enable',
+  'support',
+  'build',
+  'sustain',
+];
+const MISSION_MARKETING_TERMS = VISION_MARKETING_TERMS;
+const MISSION_PILLAR_SIGNALS = {
+  academic: [
+    'curriculum',
+    'outcome-based',
+    'outcome based',
+    'academic',
+    'learning',
+    'pedagogy',
+    'continuous improvement',
+    'rigor',
+  ],
+  research_industry: [
+    'research',
+    'industry',
+    'innovation',
+    'laboratory',
+    'hands-on',
+    'internship',
+    'collaboration',
+  ],
+  professional_standards: ['professional standards', 'engineering standards', 'quality standards', 'standards alignment'],
+  ethics_society: ['ethical', 'ethics', 'societal', 'community', 'sustainable', 'responsibility', 'public'],
+} as const;
 
 const VISION_POSITIONING_STARTERS = [
   'To be globally recognized for',
@@ -1257,6 +1295,149 @@ function evaluateVisionStrategicQuality(
   };
 }
 
+function getMissionPillarHits(statement: string) {
+  const lower = statement.toLowerCase();
+  const hits = {
+    academic: MISSION_PILLAR_SIGNALS.academic.some((term) => containsPhraseEvidence(lower, term)),
+    research_industry: MISSION_PILLAR_SIGNALS.research_industry.some((term) => containsPhraseEvidence(lower, term)),
+    professional_standards: MISSION_PILLAR_SIGNALS.professional_standards.some((term) => containsPhraseEvidence(lower, term)),
+    ethics_society: MISSION_PILLAR_SIGNALS.ethics_society.some((term) => containsPhraseEvidence(lower, term)),
+  };
+
+  return {
+    ...hits,
+    total: Object.values(hits).filter(Boolean).length,
+  };
+}
+
+function evaluateMissionStrategicQuality(params: {
+  statement: string;
+  referenceVision?: string;
+  semanticOptions: SemanticOption[];
+  clusters: ThemeCluster[];
+}) {
+  const { statement, referenceVision = '', semanticOptions, clusters } = params;
+  const normalized = normalizeWhitespace(statement);
+  const lower = normalized.toLowerCase();
+  const words = normalized.replace(/[.?!]+$/, '').split(/\s+/).filter(Boolean);
+  const sentenceCount = splitSentences(normalized).length;
+
+  const operationalHits = findMatchedTerms(lower, MISSION_OPERATIONAL_VERBS);
+  const marketingHits = findMatchedTerms(lower, MISSION_MARKETING_TERMS);
+  const repeatedRoots = getRepeatedRootSignals(normalized);
+  const duplicatePhrases = getDuplicatePhraseSignals(normalized);
+  const synonymStacking = getSynonymStackingSignals(normalized);
+  const immediateOutcomeMatches = OUTCOME_STYLE_TERMS.filter((term) => lower.includes(term));
+  const restrictedHits = [...ABSOLUTE_TERMS, ...FORBIDDEN_TERMS].filter((term) => lower.includes(term));
+  const pillarHits = getMissionPillarHits(normalized);
+  const categoryHits = getCoveredCategoriesForStatement(normalized, clusters).length;
+
+  const overlap = referenceVision ? keywordOverlapRatio(referenceVision, normalized) : 0.35;
+  const lexicalLeakage = referenceVision ? calculateJaccardSimilarity(referenceVision, normalized) : 0;
+  const visionKeywordHits = referenceVision
+    ? extractAlignmentKeywords(referenceVision).filter((keyword) => lower.includes(keyword)).length
+    : 0;
+  const requiredVisionKeywordHits = referenceVision ? Math.min(2, extractAlignmentKeywords(referenceVision).length) : 0;
+
+  const hardViolations: string[] = [];
+  if (operationalHits.length < 2) {
+    hardViolations.push('insufficient operational action verbs in mission');
+  }
+  if (sentenceCount < 3 || sentenceCount > 4) {
+    hardViolations.push('mission must contain 3 to 4 structured sentences');
+  }
+  if (pillarHits.total < 3) {
+    hardViolations.push('mission must operationalize at least three strategic pillars');
+  }
+  if (repeatedRoots.length > 0) {
+    hardViolations.push(`repeated root words detected: ${repeatedRoots.join(', ')}`);
+  }
+  if (duplicatePhrases.length > 0) {
+    hardViolations.push(`duplicate noun phrases detected: ${duplicatePhrases.join(', ')}`);
+  }
+  if (synonymStacking.length > 0) {
+    hardViolations.push(`synonym stacking detected: ${synonymStacking.join(', ')}`);
+  }
+  if (marketingHits.length > 0) {
+    hardViolations.push(`marketing language detected: ${marketingHits.join(', ')}`);
+  }
+  if (immediateOutcomeMatches.length > 0) {
+    hardViolations.push('immediate-outcome language detected');
+  }
+  if (restrictedHits.length > 0) {
+    hardViolations.push(`restricted language detected: ${restrictedHits.join(', ')}`);
+  }
+  if (lexicalLeakage > 0.72) {
+    hardViolations.push('mission repeats vision phrasing too closely');
+  }
+
+  let alignmentWithVision = 100;
+  if (referenceVision) {
+    const overlapScore = Math.round(Math.min(100, overlap * 100));
+    const keywordScore =
+      requiredVisionKeywordHits === 0
+        ? 100
+        : Math.min(100, Math.round((visionKeywordHits / requiredVisionKeywordHits) * 100));
+    const categoryScore = clusters.length === 0 ? 90 : Math.min(100, Math.round((categoryHits / clusters.length) * 100));
+    alignmentWithVision = Math.round(overlapScore * 0.5 + keywordScore * 0.2 + categoryScore * 0.3);
+  }
+
+  let operationalClarity = 100;
+  if (operationalHits.length < 2) operationalClarity -= 45;
+  if (pillarHits.total < 3) operationalClarity -= 35;
+  if (sentenceCount < 3 || sentenceCount > 4) operationalClarity -= 25;
+
+  let noRedundancy = 100;
+  if (repeatedRoots.length > 0) noRedundancy -= Math.min(65, repeatedRoots.length * 22);
+  if (duplicatePhrases.length > 0) noRedundancy -= Math.min(60, duplicatePhrases.length * 25);
+  if (synonymStacking.length > 0) noRedundancy -= 35;
+
+  let accreditationTone = 100;
+  if (marketingHits.length > 0) accreditationTone -= 45;
+  if (immediateOutcomeMatches.length > 0) accreditationTone -= 40;
+  if (restrictedHits.length > 0) accreditationTone -= 35;
+  if (operationalHits.length < 2) accreditationTone -= 20;
+
+  let strategicCoherence = 100;
+  if (sentenceCount < 3 || sentenceCount > 4) strategicCoherence -= 35;
+  if (words.length < 45 || words.length > 110) strategicCoherence -= 25;
+  if (pillarHits.total < 3) strategicCoherence -= 25;
+  if (lexicalLeakage > 0.72) strategicCoherence -= 30;
+
+  const weightedScore = Math.round(
+    alignmentWithVision * 0.25 +
+    operationalClarity * 0.2 +
+    noRedundancy * 0.15 +
+    accreditationTone * 0.2 +
+    strategicCoherence * 0.2
+  );
+
+  const overall = clampScore(weightedScore);
+  const score = hardViolations.length > 0 ? Math.min(overall, 79) : overall;
+
+  return {
+    score,
+    hardViolations,
+    dimensions: {
+      alignment_with_vision: clampScore(alignmentWithVision),
+      operational_clarity: clampScore(operationalClarity),
+      no_redundancy: clampScore(noRedundancy),
+      accreditation_tone: clampScore(accreditationTone),
+      strategic_coherence: clampScore(strategicCoherence),
+    },
+    diagnostics: {
+      operationalHits,
+      repeatedRoots,
+      duplicatePhrases,
+      synonymStacking,
+      sentenceCount,
+      wordCount: words.length,
+      pillarCoverage: pillarHits.total,
+      lexicalLeakage: Number(lexicalLeakage.toFixed(3)),
+    },
+  };
+}
+
 function hasComplianceViolation(statement: string, kind: StatementKind) {
   const lower = statement.toLowerCase();
   const violations: string[] = [];
@@ -1714,6 +1895,22 @@ function buildMissionFallbackStatement(programName: string, slot: DistributionSl
     'Strengthen industry collaboration, ethical practice, and sustainability-oriented problem solving.',
     'Promote innovation, teamwork, communication, and lifelong learning for long-term professional growth.',
   ].join(' ');
+}
+
+function buildMissionQualityFallbackStatement(index: number) {
+  const variants = [
+    'Deliver a rigorous program curriculum through outcome-based education, continuous assessment, and evidence-driven academic improvement.',
+    `Strengthen research engagement, industry collaboration, and hands-on practice to align graduate preparation with professional engineering standards.`,
+    `Foster ethical responsibility, innovation capability, and societal awareness to sustain long-term professional growth and community impact.`,
+  ];
+
+  const rotated = [
+    variants[index % variants.length],
+    variants[(index + 1) % variants.length],
+    variants[(index + 2) % variants.length],
+  ];
+
+  return rotated.join(' ');
 }
 
 function buildCoupledMissionHints(
@@ -2510,13 +2707,75 @@ function evaluateVisionGovernanceSet(
   };
 }
 
+function evaluateMissionGovernanceSet(params: {
+  statements: string[];
+  referenceVisions: string[];
+  semanticOptions: SemanticOption[];
+  clusters: ThemeCluster[];
+}) {
+  const { statements, referenceVisions, semanticOptions, clusters } = params;
+  const perStatement = statements.map((statement, index) => {
+    const referenceVision = referenceVisions[index] || referenceVisions[0] || '';
+    const assessment = evaluateMissionStrategicQuality({
+      statement,
+      referenceVision,
+      semanticOptions,
+      clusters,
+    });
+    return {
+      index,
+      statement,
+      ...assessment,
+    };
+  });
+
+  const averageScore =
+    perStatement.length === 0
+      ? 0
+      : Math.round(perStatement.reduce((sum, item) => sum + item.score, 0) / perStatement.length);
+
+  const violations: string[] = [];
+  for (const item of perStatement) {
+    if (item.hardViolations.length > 0) {
+      for (const violation of item.hardViolations) {
+        violations.push(`Statement ${item.index + 1}: ${violation}`);
+      }
+    }
+    if (item.score < MISSION_APPROVAL_THRESHOLD) {
+      violations.push(
+        `Statement ${item.index + 1}: mission score ${item.score} is below required threshold ${MISSION_APPROVAL_THRESHOLD}`
+      );
+    }
+  }
+
+  for (let i = 0; i < perStatement.length; i += 1) {
+    for (let j = i + 1; j < perStatement.length; j += 1) {
+      const similarity = calculateJaccardSimilarity(perStatement[i].statement, perStatement[j].statement);
+      if (similarity > 0.7) {
+        violations.push(
+          `Statements ${i + 1} and ${j + 1}: mission similarity ${Math.round(similarity * 100)}% exceeds threshold.`
+        );
+      }
+    }
+  }
+
+  const pass = perStatement.length > 0 && perStatement.every((item) => item.score >= MISSION_APPROVAL_THRESHOLD);
+  return {
+    averageScore,
+    pass,
+    violations,
+    perStatement,
+  };
+}
+
 function validateStatements(
   kind: StatementKind,
   statements: string[],
   semanticOptions: SemanticOption[],
   clusters: ThemeCluster[],
   distributionPlan: DistributionSlot[],
-  excludedStatements: string[]
+  excludedStatements: string[],
+  referenceVisions: string[] = []
 ): ValidationResult {
   const violations: string[] = [];
   const deduped = dedupeStatements(statements);
@@ -2580,24 +2839,41 @@ function validateStatements(
 
   let visionGovernanceAverage = 0;
   let visionGovernancePass = true;
+  let missionGovernanceAverage = 0;
+  let missionGovernancePass = true;
   if (kind === 'vision') {
     const visionGovernance = evaluateVisionGovernanceSet(statements, semanticOptions, clusters);
     visionGovernanceAverage = visionGovernance.averageScore;
     visionGovernancePass = visionGovernance.pass;
     violations.push(...visionGovernance.violations);
+  } else if (kind === 'mission') {
+    const missionGovernance = evaluateMissionGovernanceSet({
+      statements,
+      referenceVisions,
+      semanticOptions,
+      clusters,
+    });
+    missionGovernanceAverage = missionGovernance.averageScore;
+    missionGovernancePass = missionGovernance.pass;
+    violations.push(...missionGovernance.violations);
   }
 
-  const strictTotalScore =
-    kind === 'vision' ? Math.round(totalScore * 0.35 + visionGovernanceAverage * 0.65) : totalScore;
+  const strictTotalScore = kind === 'vision'
+    ? Math.round(totalScore * 0.35 + visionGovernanceAverage * 0.65)
+    : kind === 'mission'
+      ? Math.round(totalScore * 0.3 + missionGovernanceAverage * 0.7)
+      : totalScore;
 
   const pass =
-    strictTotalScore >= (kind === 'vision' ? VISION_APPROVAL_THRESHOLD : 80) &&
+    strictTotalScore >=
+    (kind === 'vision' ? VISION_APPROVAL_THRESHOLD : kind === 'mission' ? MISSION_APPROVAL_THRESHOLD : 80) &&
     coverage.missingThemes.length === 0 &&
     (requireFullCategoryCoverage ? overallCategoryCoverageOk : true) &&
     !diversity.repeatedStartPattern &&
     compliance.violations.length === 0 &&
     deduped.length === statements.length &&
-    (kind === 'vision' ? visionGovernancePass : true);
+    (kind === 'vision' ? visionGovernancePass : true) &&
+    (kind === 'mission' ? missionGovernancePass : true);
 
   return {
     totalScore: strictTotalScore,
@@ -2754,16 +3030,19 @@ ${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(' | ')}
 
 Requirements:
 1. Generate exactly ${count} distinct Mission paragraphs.
-2. Each paragraph must follow a strict "3 Operational Pillars" structure:
-   - Pillar 1: Academic/Curriculum (How we teach/learn).
-   - Pillar 2: Research/Industry (How we innovate/collaborate).
-   - Pillar 3: Ethics/Sustainability (How we impact society).
-3. Diversity Constraint: Do NOT simply swap the first verb of the paragraph. Every sentence in the paragraph must be structurally unique across all ${count} candidates.
-4. Logic: Every Mission paragraph must explain HOW the Program Vision will be attained.
-5. Tone: Professional, implementation-oriented, and action-driven.
-6. Length: 40-70 words per paragraph.
-7. Avoid restricted wording: guarantee, ensure all, absolute mastery, 100% placement.
-8. Synthesize meaning from the Institute Mission context; do not repeat it verbatim.
+2. Each paragraph must explain HOW the selected Program Vision will be achieved.
+3. Each paragraph must follow a strict "3 Operational Pillars" structure:
+   - Pillar 1: Academic rigor / curriculum quality / continuous improvement.
+   - Pillar 2: Research and industry engagement / hands-on practice.
+   - Pillar 3: Professional standards, ethics, and sustained societal impact.
+4. Mission must include at least two operational verbs such as deliver, strengthen, foster, promote, implement, or integrate.
+5. Diversity Constraint: Do NOT simply swap the first verb of the paragraph. Every sentence in the paragraph must be structurally unique across all ${count} candidates.
+6. Avoid direct phrase reuse from the Vision sentence; Mission should operationalize Vision, not restate it.
+7. Tone: Professional, implementation-oriented, and action-driven.
+8. Length: 3-4 sentences and 45-110 words per paragraph.
+9. Avoid restricted wording: guarantee, ensure all, absolute mastery, 100% placement.
+10. Avoid redundant noun stacking or repeated root words.
+11. Synthesize meaning from the Institute Mission context; do not repeat it verbatim.
 
 Output format:
 - Return strictly a JSON array of strings.
@@ -2824,13 +3103,14 @@ ${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(' | ')}
 Requirements:
 1. Generate exactly ${visions.length} distinct mission paragraphs, in the same order as the provided visions.
 2. Mission i must align directly with Vision i; do not mix visions across missions.
-3. Each mission must be one paragraph with 3 to 5 sentences following a strict "3 Operational Pillars" structure (Academic Excellence, Research/Industry Innovation, and Ethical/Societal Impact).
+3. Each mission must be one paragraph with exactly 3 to 4 sentences following a strict "3 Operational Pillars" structure (Academic/Curriculum Quality, Research/Industry Engagement, and Professional Standards with Ethical/Societal Impact).
 4. Each mission must operationalize the dominant categories and required pillars provided in its hint.
-5. Structural Diversity: NO duplication of sentence templates. Every sentence across the JSON array must be unique.
-6. Tone: Implementation-focused, accreditation-ready, and professional.
-7. Length: 40-70 words per paragraph.
-8. Synthesize language; do not repeat labels or visions verbatim.
-9. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
+5. Each mission must include at least two operational verbs such as deliver, strengthen, foster, promote, implement, or integrate.
+6. Structural Diversity: NO duplication of sentence templates. Every sentence across the JSON array must be unique.
+7. Tone: Implementation-focused, accreditation-ready, and professional.
+8. Length: 45-110 words per paragraph.
+9. Avoid direct phrase reuse from Vision i and avoid redundant noun stacking or repeated root words.
+10. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
 
 Output format:
 - Return strictly a JSON array of strings.
@@ -2845,6 +3125,7 @@ async function generateWithValidation(params: {
   clusters: ThemeCluster[];
   distributionPlan: DistributionSlot[];
   excludedStatements: string[];
+  referenceVisions?: string[];
   promptFactory: (feedback: string[]) => string;
   fallbackFactory: (index: number) => string;
 }): Promise<GenerationResult> {
@@ -2855,6 +3136,7 @@ async function generateWithValidation(params: {
     clusters,
     distributionPlan,
     excludedStatements,
+    referenceVisions = [],
     promptFactory,
     fallbackFactory,
   } = params;
@@ -2897,7 +3179,8 @@ async function generateWithValidation(params: {
       semanticOptions,
       clusters,
       distributionPlan,
-      excludedStatements
+      excludedStatements,
+      kind === 'mission' ? referenceVisions : []
     );
 
     if (validation.pass) {
@@ -2949,6 +3232,30 @@ async function generateWithValidation(params: {
       semanticOptions,
       fallbackFactory,
     });
+  } else if (kind === 'mission') {
+    finalFallback = finalFallback.map((statement, index) => {
+      let candidate = statement;
+      const referenceVision = referenceVisions[index] || referenceVisions[0] || '';
+
+      for (let repairAttempt = 0; repairAttempt < MAX_REGEN_ATTEMPTS; repairAttempt += 1) {
+        const assessment = evaluateMissionStrategicQuality({
+          statement: candidate,
+          referenceVision,
+          semanticOptions,
+          clusters,
+        });
+        if (assessment.score >= MISSION_APPROVAL_THRESHOLD) {
+          return candidate;
+        }
+
+        candidate = normalizeMissionStatement(
+          fallbackFactory(index + count * (repairAttempt + 1)),
+          clusters
+        );
+      }
+
+      return normalizeMissionStatement(buildMissionQualityFallbackStatement(index), clusters);
+    });
   }
 
   const validation = validateStatements(
@@ -2957,7 +3264,8 @@ async function generateWithValidation(params: {
     semanticOptions,
     clusters,
     distributionPlan,
-    excludedStatements
+    excludedStatements,
+    kind === 'mission' ? referenceVisions : []
   );
 
   return {
@@ -3039,7 +3347,8 @@ async function generateCoupledMissionsWithValidation(params: {
       semanticOptions,
       missionClusters,
       missionDistributionPlan,
-      excludedStatements
+      excludedStatements,
+      visions
     );
     const alignment = validateVisionMissionAlignment({
       visions,
@@ -3088,7 +3397,8 @@ async function generateCoupledMissionsWithValidation(params: {
     semanticOptions,
     missionClusters,
     missionDistributionPlan,
-    excludedStatements
+    excludedStatements,
+    visions
   );
   const alignment = validateVisionMissionAlignment({
     visions,
@@ -3258,6 +3568,7 @@ export async function POST(request: Request) {
           customInstructions: String(mission_instructions || ''),
         });
       } else {
+        const missionReferenceVision = String(selected_program_vision || visionResult?.statements?.[0] || '');
         missionResult = await generateWithValidation({
           kind: 'mission',
           count: missionCount,
@@ -3265,6 +3576,7 @@ export async function POST(request: Request) {
           clusters: missionClusters,
           distributionPlan: missionPlan,
           excludedStatements: excludedMissions,
+          referenceVisions: Array.from({ length: missionCount }, () => missionReferenceVision),
           promptFactory: (feedback) =>
             buildMissionPrompt({
               programName,

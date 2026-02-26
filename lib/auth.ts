@@ -29,10 +29,14 @@ function getRefreshSecret() {
 }
 
 export async function signToken(payload: any) {
+  return await signTokenWithExpiry(payload, '15m');
+}
+
+export async function signTokenWithExpiry(payload: any, expiresIn: string) {
   return await new jose.SignJWT(payload)
     .setProtectedHeader({ alg })
     .setIssuedAt()
-    .setExpirationTime('15m') // Hardened: 15 minutes
+    .setExpirationTime(expiresIn)
     .sign(getSecret());
 }
 

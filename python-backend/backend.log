@@ -64,3 +64,9 @@ WARNING: Rate limit (429) hit. Waiting 6s... (Attempt 3/3)
 CRITICAL ERROR generating VM: Max retries exceeded for Gemini API
 DEBUG: Fallback Path - Returning fb_visions: 8
 INFO:     ::1:0 - "POST /ai/generate-vision-mission HTTP/1.1" 200 OK
+WARNING: Rate limit (429) hit. Waiting 2s... (Attempt 1/3)
+WARNING: Rate limit (429) hit. Waiting 4s... (Attempt 2/3)
+WARNING: Rate limit (429) hit. Waiting 6s... (Attempt 3/3)
+CRITICAL ERROR generating VM: Max retries exceeded for Gemini API
+DEBUG: Fallback Path - Returning fb_visions: 1
+INFO:     ::1:0 - "POST /ai/generate-vision-mission HTTP/1.1" 200 OK

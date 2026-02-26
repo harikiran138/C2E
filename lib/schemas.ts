@@ -10,6 +10,8 @@ export const memberSchema = z.object({
   mobile_number: z.string().regex(/^\d{10}$/, { message: "Phone must be exactly 10 digits." }),
   specialisation: z.string().optional(),
   category: z.string().min(1, { message: "Please select a category." }),
+  stakeholder_password: z.string().optional(),
+  is_approved: z.boolean().optional(),
   tenure_start_date: z.string().optional(),
   tenure_end_date: z.string().optional(),
   linkedin_id: z.string().optional(),
