@@ -54,9 +54,7 @@ function StakeholdersFormContent() {
     mobile_number: '',
     specialisation: '',
     category: '',
-    linkedin_id: '',
-    stakeholder_password: '',
-    is_approved: false
+    linkedin_id: ''
   });
 
   const fetchMembers = async () => {
@@ -90,19 +88,6 @@ function StakeholdersFormContent() {
       return;
     }
 
-    if (!formData.member_id.trim()) {
-      setErrors((prev) => ({ ...prev, member_id: ['Member ID is required for stakeholder login.'] }));
-      return;
-    }
-
-    if (formData.is_approved && !editingId && formData.stakeholder_password.trim().length < 8) {
-      setErrors((prev) => ({
-        ...prev,
-        stakeholder_password: ['Approved stakeholders require at least 8-character password.'],
-      }));
-      return;
-    }
-
     setErrors({}); // Clear errors if validation passes
 
     setSubmitting(true);
@@ -114,7 +99,16 @@ function StakeholdersFormContent() {
       });
 
       if (response.ok) {
-        alert(editingId ? 'Stakeholder updated successfully!' : 'Stakeholder added successfully!');
+        const payload = await response.json();
+
+        if (editingId) {
+          alert('Stakeholder updated successfully!');
+        } else {
+          alert(
+            `Stakeholder added successfully!\nStakeholder ID: ${payload?.data?.member_id || 'generated'}\nDefault Password: ${payload?.defaults?.password || 'apassword'}`
+          );
+        }
+
         setFormData({
             member_name: '',
             member_id: '',
@@ -123,9 +117,7 @@ function StakeholdersFormContent() {
             mobile_number: '',
             specialisation: '',
             category: '',
-            linkedin_id: '',
-            stakeholder_password: '',
-            is_approved: false
+            linkedin_id: ''
         });
         setEditingId(null);
         fetchMembers();
@@ -151,9 +143,7 @@ function StakeholdersFormContent() {
       mobile_number: member.mobile_number || '',
       specialisation: member.specialisation || '',
       category: member.category || '',
-      linkedin_id: member.linkedin_id || '',
-      stakeholder_password: '',
-      is_approved: Boolean(member.is_approved)
+      linkedin_id: member.linkedin_id || ''
     });
     setEditingId(member.id);
     setExpandedId(member.id);
@@ -313,15 +303,18 @@ function StakeholdersFormContent() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Member ID</label>
               <input 
-                required
                 value={formData.member_id}
                 onChange={(e) => setFormData({ ...formData, member_id: e.target.value })}
+                readOnly
                 className={cn(
-                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
+                  "w-full h-11 rounded-xl border bg-slate-100/60 px-4 text-sm font-semibold text-slate-600 placeholder:text-slate-400 outline-none cursor-not-allowed",
                   errors.member_id ? "border-red-500 focus:border-red-500 focus:ring-red-500/10" : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
                 )}
-                placeholder="Unique ID" 
+                placeholder="Auto-generated on save" 
               />
+              <p className="text-[11px] font-medium text-slate-500">
+                Generated format: `INSTCODE-PROGCODE-001` | Default password: `apassword`
+              </p>
               {errors.member_id && <p className="text-xs font-semibold text-red-500 mt-1">{errors.member_id[0]}</p>}
             </div>
 
@@ -463,43 +456,6 @@ function StakeholdersFormContent() {
               {errors.linkedin_id && <p className="text-xs font-semibold text-red-500 mt-1">{errors.linkedin_id[0]}</p>}
             </div>
 
-            {/* Stakeholder Password */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                Stakeholder Password
-              </label>
-              <input
-                type="password"
-                value={formData.stakeholder_password}
-                onChange={(e) => setFormData({ ...formData, stakeholder_password: e.target.value })}
-                className={cn(
-                  "w-full h-11 rounded-xl border bg-slate-50/50 px-4 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 transition-all outline-none",
-                  errors.stakeholder_password
-                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/10"
-                    : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
-                )}
-                placeholder={editingId ? "Leave blank to keep current password" : "Min 8 characters"}
-              />
-              {errors.stakeholder_password && (
-                <p className="text-xs font-semibold text-red-500 mt-1">{errors.stakeholder_password[0]}</p>
-              )}
-            </div>
-
-            {/* Access Approval */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                External Feedback Access
-              </label>
-              <label className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-semibold text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={formData.is_approved}
-                  onChange={(e) => setFormData({ ...formData, is_approved: e.target.checked })}
-                  className="size-4 rounded border-slate-300"
-                />
-                Approve stakeholder login
-              </label>
-            </div>
           </div>
 
           <div className="flex gap-4 pt-6 border-t border-slate-100 mt-6">
@@ -558,9 +514,7 @@ function StakeholdersFormContent() {
                             mobile_number: '',
                             specialisation: '',
                             category: '',
-                            linkedin_id: '',
-                            stakeholder_password: '',
-                            is_approved: false
+                            linkedin_id: ''
                         });
                     }}
                     className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all active:scale-95"

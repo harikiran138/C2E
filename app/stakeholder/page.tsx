@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function StakeholderIndexPage() {
-  redirect('/stakeholder/login');
+  redirect('/institution/login?type=stakeholder');
 }

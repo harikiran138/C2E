@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, LogOut, CalendarClock, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Loader2, LogOut, CalendarClock, ShieldCheck, AlertCircle, FileText, CheckSquare, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import StakeholderSurvey from '@/components/institution/StakeholderSurvey';
 
 type ContextResponse = {
   stakeholder: {
@@ -43,6 +44,13 @@ export default function StakeholderFeedbackDashboard() {
   const [missionRating, setMissionRating] = useState(0);
   const [missionComment, setMissionComment] = useState('');
   const [peoFeedback, setPeoFeedback] = useState<PEOFeedbackState>({});
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+
+  const [view, setView] = useState<'validation' | 'consultation' | 'settings'>('validation');
 
   const loadContext = async () => {
     setLoading(true);
@@ -50,7 +58,7 @@ export default function StakeholderFeedbackDashboard() {
     try {
       const response = await fetch('/api/stakeholder/context');
       if (response.status === 401) {
-        router.push('/stakeholder/login');
+        router.push('/institution/login?type=stakeholder');
         return;
       }
       const payload = await response.json();
@@ -139,7 +147,50 @@ export default function StakeholderFeedbackDashboard() {
 
   const handleLogout = async () => {
     await fetch('/api/stakeholder/logout', { method: 'POST' });
-    router.push('/stakeholder/login');
+    router.push('/institution/login?type=stakeholder');
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordMessage('Fill current password, new password, and confirmation.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordMessage('New password must be at least 8 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage('New password and confirmation do not match.');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordMessage(null);
+    try {
+      const response = await fetch('/api/stakeholder/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to update password.');
+      }
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordMessage('Password updated successfully.');
+    } catch (err: any) {
+      setPasswordMessage(err.message || 'Failed to update password.');
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   if (loading) {
@@ -164,7 +215,7 @@ export default function StakeholderFeedbackDashboard() {
         <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Stakeholder Feedback Dashboard</h1>
+              <h1 className="text-2xl font-bold text-slate-900">Stakeholder Portal</h1>
               <p className="mt-1 text-sm text-slate-600">
                 {context.stakeholder.institutionName} | {context.stakeholder.programName}
               </p>
@@ -172,132 +223,224 @@ export default function StakeholderFeedbackDashboard() {
                 {context.stakeholder.stakeholderId} • {context.stakeholder.category}
               </p>
             </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setView('settings')}
+                className={cn(
+                  "p-2 rounded-lg border transition-all",
+                  view === 'settings' ? "bg-indigo-50 border-indigo-200 text-indigo-600" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                )}
+                title="Account Settings"
+              >
+                <Settings className="size-5" />
+              </button>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+              >
+                <LogOut className="size-4" /> Logout
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-2 border-t border-slate-100 pt-6">
             <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+              onClick={() => setView('validation')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                view === 'validation' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : "text-slate-500 hover:bg-slate-50"
+              )}
             >
-              <LogOut className="size-4" /> Logout
+              <CheckSquare className="size-4" />
+              Validation Feedback
+            </button>
+            <button
+              onClick={() => setView('consultation')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                view === 'consultation' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : "text-slate-500 hover:bg-slate-50"
+              )}
+            >
+              <FileText className="size-4" />
+              PEO Consultation Survey
             </button>
           </div>
         </header>
 
-        <div
-          className={cn(
-            'rounded-2xl border p-4 text-sm',
-            canSubmit ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'
-          )}
-        >
-          <div className="flex items-center gap-2 font-semibold">
-            {canSubmit ? <ShieldCheck className="size-4" /> : <CalendarClock className="size-4" />}
-            Feedback Cycle: {context.feedbackWindow.cycle}
+        {view === 'settings' ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <button onClick={() => setView('validation')} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                <ArrowLeft className="size-5 text-slate-500" />
+              </button>
+              <h2 className="text-xl font-bold text-slate-900">Account Settings</h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">Update your stakeholder login password.</p>
+            <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                placeholder="Current password"
+                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+              />
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="New password"
+                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+              />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Confirm new password"
+                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+              />
+            </div>
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                onClick={handleChangePassword}
+                disabled={passwordLoading}
+                className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+              >
+                {passwordLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                Update Password
+              </button>
+              {passwordMessage && (
+                <p className="text-sm font-medium text-slate-600">{passwordMessage}</p>
+              )}
+            </div>
+          </section>
+        ) : view === 'consultation' ? (
+          <div className="-mx-4 md:mx-0">
+            <StakeholderSurvey
+              programId={context.stakeholder.programId}
+              programName={context.stakeholder.programName}
+              onBack={() => setView('validation')}
+            />
           </div>
-          <p className="mt-1">
-            Window: {context.feedbackWindow.startAt ? new Date(context.feedbackWindow.startAt).toLocaleString() : 'Not set'} to{' '}
-            {context.feedbackWindow.endAt ? new Date(context.feedbackWindow.endAt).toLocaleString() : 'Not set'}
-          </p>
-          {!canSubmit && context.feedbackWindow.lockReason && (
-            <p className="mt-1 flex items-center gap-1 font-medium">
-              <AlertCircle className="size-4" /> {context.feedbackWindow.lockReason}
-            </p>
-          )}
-          {context.latestSubmissionAt && (
-            <p className="mt-1 text-xs font-semibold text-slate-600">
-              Last submitted at: {new Date(context.latestSubmissionAt).toLocaleString()}
-            </p>
-          )}
-        </div>
-
-        <FeedbackSection
-          title="Vision Feedback"
-          statement={context.vision}
-          rating={visionRating}
-          comment={visionComment}
-          onRating={setVisionRating}
-          onComment={setVisionComment}
-        />
-
-        <FeedbackSection
-          title="Mission Feedback"
-          statement={context.mission}
-          rating={missionRating}
-          comment={missionComment}
-          onRating={setMissionRating}
-          onComment={setMissionComment}
-        />
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-900">PEO Feedback</h2>
-          <p className="mt-1 text-sm text-slate-500">Provide rating and comments for each Program Educational Objective.</p>
-
-          <div className="mt-5 space-y-5">
-            {context.peos.length === 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
-                No PEOs are configured for this program yet.
+        ) : view === 'validation' ? (
+          <>
+            <div
+              className={cn(
+                'rounded-2xl border p-4 text-sm',
+                canSubmit ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'
+              )}
+            >
+              <div className="flex items-center gap-2 font-semibold">
+                {canSubmit ? <ShieldCheck className="size-4" /> : <CalendarClock className="size-4" />}
+                Feedback Cycle: {context.feedbackWindow.cycle}
               </div>
-            )}
-
-            {context.peos.map((peo) => (
-              <div key={peo.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-bold text-slate-800">
-                  PEO-{String(peo.peoNumber).padStart(2, '0')}:
+              <p className="mt-1">
+                Window: {context.feedbackWindow.startAt ? new Date(context.feedbackWindow.startAt).toLocaleString() : 'Not set'} to{' '}
+                {context.feedbackWindow.endAt ? new Date(context.feedbackWindow.endAt).toLocaleString() : 'Not set'}
+              </p>
+              {!canSubmit && context.feedbackWindow.lockReason && (
+                <p className="mt-1 flex items-center gap-1 font-medium">
+                  <AlertCircle className="size-4" /> {context.feedbackWindow.lockReason}
                 </p>
-                <p className="mt-1 text-sm text-slate-600">{peo.statement}</p>
-                <div className="mt-3">
-                  <RatingSelector value={peoFeedback[peo.id]?.rating || 0} onChange={(rating) => {
-                    setPeoFeedback((prev) => ({
-                      ...prev,
-                      [peo.id]: { rating, comment: prev[peo.id]?.comment || '' },
-                    }));
-                  }} />
-                </div>
-                <textarea
-                  value={peoFeedback[peo.id]?.comment || ''}
-                  onChange={(event) => {
-                    const comment = event.target.value;
-                    setPeoFeedback((prev) => ({
-                      ...prev,
-                      [peo.id]: { rating: prev[peo.id]?.rating || 0, comment },
-                    }));
-                  }}
-                  placeholder="Comment for this PEO..."
-                  className="mt-3 min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-                />
+              )}
+              {context.latestSubmissionAt && (
+                <p className="mt-1 text-xs font-semibold text-slate-600">
+                  Last submitted at: {new Date(context.latestSubmissionAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            <FeedbackSection
+              title="Vision Feedback"
+              statement={context.vision}
+              rating={visionRating}
+              comment={visionComment}
+              onRating={setVisionRating}
+              onComment={setVisionComment}
+            />
+
+            <FeedbackSection
+              title="Mission Feedback"
+              statement={context.mission}
+              rating={missionRating}
+              comment={missionComment}
+              onRating={setMissionRating}
+              onComment={setMissionComment}
+            />
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-900">PEO Feedback</h2>
+              <p className="mt-1 text-sm text-slate-500">Provide rating and comments for each Program Educational Objective.</p>
+
+              <div className="mt-5 space-y-5">
+                {context.peos.length === 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                    No PEOs are configured for this program yet.
+                  </div>
+                )}
+
+                {context.peos.map((peo) => (
+                  <div key={peo.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-bold text-slate-800">
+                      PEO-{String(peo.peoNumber).padStart(2, '0')}:
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">{peo.statement}</p>
+                    <div className="mt-3">
+                      <RatingSelector value={peoFeedback[peo.id]?.rating || 0} onChange={(rating) => {
+                        setPeoFeedback((prev) => ({
+                          ...prev,
+                          [peo.id]: { rating, comment: prev[peo.id]?.comment || '' },
+                        }));
+                      }} />
+                    </div>
+                    <textarea
+                      value={peoFeedback[peo.id]?.comment || ''}
+                      onChange={(event) => {
+                        const comment = event.target.value;
+                        setPeoFeedback((prev) => ({
+                          ...prev,
+                          [peo.id]: { rating: prev[peo.id]?.rating || 0, comment },
+                        }));
+                      }}
+                      placeholder="Comment for this PEO..."
+                      className="mt-3 min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>
-        )}
-        {success && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {success}
-          </div>
-        )}
-
-        <div className="pb-8">
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || !canSubmit || context.peos.length === 0}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" /> Submitting...
-              </>
-            ) : (
-              'Submit Feedback'
-            )}
-          </button>
-          {pendingFields > 0 && (
-            <p className="mt-2 text-xs font-semibold text-slate-500">
-              Pending ratings: {pendingFields}
-            </p>
-          )}
-        </div>
+            <div className="pb-8">
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || !canSubmit || context.peos.length === 0}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" /> Submitting...
+                  </>
+                ) : (
+                  'Submit Feedback'
+                )}
+              </button>
+              {pendingFields > 0 && (
+                <p className="mt-2 text-xs font-semibold text-slate-500">
+                  Pending ratings: {pendingFields}
+                </p>
+              )}
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+function ArrowLeft({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+    </svg>
   );
 }
 
