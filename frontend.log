@@ -1,0 +1,23 @@
+
+> c2e@1.0.0 dev
+> next dev -p 3001
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.1.7:3001
+- Environments: .env.local
+- Experiments (use with caution):
+  · optimizePackageImports
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 564ms
+ GET /institution/process/process-6?programId=537dadd8-78fe-437e-ac60-c871c12765c0 200 in 1570ms (compile: 822ms, proxy.ts: 84ms, render: 664ms)
+ GET /api/institution/me 200 in 664ms (compile: 104ms, proxy.ts: 7ms, render: 552ms)
+ GET /api/institution/details 200 in 5.7s (compile: 75ms, proxy.ts: 7ms, render: 5.6s)
+(node:54127) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /api/institution/details 200 in 146ms (compile: 4ms, proxy.ts: 3ms, render: 139ms)
+ GET /api/institution/peos?programId=537dadd8-78fe-437e-ac60-c871c12765c0 200 in 90ms (compile: 17ms, proxy.ts: 1657µs, render: 71ms)
+ GET /api/institution/details 200 in 147ms (compile: 1525µs, proxy.ts: 2ms, render: 144ms)
+ GET /api/institution/peos?programId=537dadd8-78fe-437e-ac60-c871c12765c0 200 in 79ms (compile: 3ms, proxy.ts: 3ms, render: 73ms)

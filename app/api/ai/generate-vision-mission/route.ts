@@ -259,7 +259,7 @@ const VISION_MEASURABLE_VERBS = [
   'fostering',
 ];
 
-const VISION_OPERATIONAL_TERMS = [
+const VISION_OPERATIONAL_TERMS = Array.from(new Set([
   ...VISION_MEASURABLE_VERBS,
   'education',
   'teaching',
@@ -279,12 +279,13 @@ const VISION_OPERATIONAL_TERMS = [
   'nurture',
   'empower',
   'enable',
+  'foster',
   'outcome based',
   'outcome-oriented',
   'outcome oriented',
   'through education',
   'through teaching',
-];
+]));
 
 const VISION_MARKETING_TERMS = ['destination', 'hub', 'world-class', 'best-in-class', 'unmatched'];
 
@@ -2416,7 +2417,7 @@ ${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(' | ')}
 
 Requirements:
 1. Generate exactly ${count} distinct Vision statements.
-2. Treat all selected semantic inputs as active constraints for every statement.
+2. Treat all selected semantic inputs as active constraints across the full set, while keeping each individual statement concise.
 3. Each statement must remain strictly aspirational and represent institutional standing (WHERE), not teaching processes (HOW).
 4. Mandatory start: each statement MUST begin with one of these exact starts: "To be globally recognized for", "To be internationally benchmarked for", "To attain global leadership in", or "To be globally distinguished for".
 5. Global concept rule: use exactly ONE global positioning phrase per statement and do not stack additional global/international words.
@@ -2898,7 +2899,11 @@ export async function POST(request: Request) {
     const missionSemantic = buildSemanticObjects(missionInputsForGeneration, 'mission');
     const missionClusters = buildThemeClusters(missionSemantic);
 
-    const visionPlan = buildDistributionPlan(visionClusters, visionCount);
+    const visionPlan = buildDistributionPlan(visionClusters, visionCount).map((slot) => ({
+      ...slot,
+      categories: slot.categories.slice(0, VISION_MAX_PILLARS),
+      emphasisLabels: slot.emphasisLabels.slice(0, VISION_MAX_PILLARS),
+    }));
     const missionPlan = buildDistributionPlan(missionClusters, missionCount);
 
     fallbackProgramName = String(program_name);

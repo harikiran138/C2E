@@ -91,6 +91,7 @@ export default function VisionMissionGenerator() {
     const [missionGenerationHistory, setMissionGenerationHistory] = useState<string[]>([]);
     const [visionGenerateCount, setVisionGenerateCount] = useState(3);
     const [missionGenerateCount, setMissionGenerateCount] = useState(3);
+    const [visionScores, setVisionScores] = useState<Record<string, any>>({});
 
     const [generatingVision, setGeneratingVision] = useState(false);
     const [generatingMission, setGeneratingMission] = useState(false);
@@ -211,6 +212,9 @@ export default function VisionMissionGenerator() {
                 // Fallback to reading the visions array we specifically requested
                 const newVisions = data.visions && data.visions.length > 0 ? data.visions : (data.vision ? [data.vision] : []);
                 setVisionOptions(newVisions);
+                if (data.scores) {
+                    setVisionScores(prev => ({ ...prev, ...data.scores }));
+                }
                 setVisionGenerationHistory((previous) => mergeUniqueStatements(previous, newVisions));
 
                 // Auto-select first option if none selected
@@ -315,12 +319,14 @@ export default function VisionMissionGenerator() {
         text,
         isSelected,
         onSelect,
-        onEdit
+        onEdit,
+        scoreInfo
     }: {
         text: string;
         isSelected: boolean;
         onSelect: () => void;
         onEdit: (val: string) => void;
+        scoreInfo?: any;
     }) => (
         <div className={`p-4 rounded-xl border transition-all ${isSelected ? 'bg-primary/5 border-primary shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
             <div className="flex gap-3">
@@ -331,12 +337,31 @@ export default function VisionMissionGenerator() {
                     <Check className="size-3" />
                 </button>
                 <div className="flex-1 space-y-2">
-                    <textarea
-                        value={text}
-                        onChange={(e) => onEdit(e.target.value)}
-                        className="w-full bg-transparent border-0 p-0 text-sm focus:ring-0 resize-none"
-                        rows={text.length > 100 ? 4 : 2}
-                    />
+                    <div className="flex justify-between items-start gap-2">
+                        <textarea
+                            value={text}
+                            onChange={(e) => onEdit(e.target.value)}
+                            className="flex-1 bg-transparent border-0 p-0 text-sm focus:ring-0 resize-none font-medium text-slate-800"
+                            rows={text.length > 100 ? 3 : 2}
+                        />
+                        {scoreInfo && (
+                            <div className={`shrink-0 flex flex-col items-center justify-center px-3 py-2 rounded-lg ${scoreInfo.score >= 90 ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'}`}>
+                                <span className={`text-lg font-black ${scoreInfo.score >= 90 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                    {scoreInfo.score}
+                                </span>
+                                <span className="text-[8px] font-bold uppercase tracking-tighter opacity-60">Score</span>
+                            </div>
+                        )}
+                    </div>
+                    {scoreInfo?.violations?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                            {scoreInfo.violations.map((v: string, i: number) => (
+                                <span key={i} className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-md font-medium">
+                                    {v}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -383,13 +408,13 @@ export default function VisionMissionGenerator() {
                                 key={item}
                                 onClick={() => togglePriority(item, selectedVisionPriorities, setSelectedVisionPriorities)}
                                 className={`h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${selectedVisionPriorities.includes(item)
-                                        ? 'bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                                    ? 'bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
                                     }`}
                             >
                                 <div className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${selectedVisionPriorities.includes(item)
-                                        ? 'bg-purple-500 border-purple-500'
-                                        : 'border-slate-300'
+                                    ? 'bg-purple-500 border-purple-500'
+                                    : 'border-slate-300'
                                     }`}>
                                     {selectedVisionPriorities.includes(item) && <div className="size-1.5 rounded-full bg-white" />}
                                 </div>
@@ -403,13 +428,13 @@ export default function VisionMissionGenerator() {
                                 <button
                                     onClick={() => togglePriority(item, selectedVisionPriorities, setSelectedVisionPriorities)}
                                     className={`w-full h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${selectedVisionPriorities.includes(item)
-                                            ? 'bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900'
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                                        ? 'bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
                                         }`}
                                 >
                                     <div className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${selectedVisionPriorities.includes(item)
-                                            ? 'bg-purple-500 border-purple-500'
-                                            : 'border-slate-300'
+                                        ? 'bg-purple-500 border-purple-500'
+                                        : 'border-slate-300'
                                         }`}>
                                         {selectedVisionPriorities.includes(item) && <div className="size-1.5 rounded-full bg-white" />}
                                     </div>
@@ -484,6 +509,7 @@ export default function VisionMissionGenerator() {
                                     text={opt}
                                     isSelected={programVision === opt}
                                     onSelect={() => setProgramVision(opt)}
+                                    scoreInfo={visionScores[opt]}
                                     onEdit={(newVal) => {
                                         const newOpts = [...visionOptions];
                                         newOpts[idx] = newVal;
@@ -516,13 +542,13 @@ export default function VisionMissionGenerator() {
                                 key={item}
                                 onClick={() => togglePriority(item, selectedMissionPriorities, setSelectedMissionPriorities)}
                                 className={`h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${selectedMissionPriorities.includes(item)
-                                        ? 'bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                                    ? 'bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
                                     }`}
                             >
                                 <div className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${selectedMissionPriorities.includes(item)
-                                        ? 'bg-blue-500 border-blue-500'
-                                        : 'border-slate-300'
+                                    ? 'bg-blue-500 border-blue-500'
+                                    : 'border-slate-300'
                                     }`}>
                                     {selectedMissionPriorities.includes(item) && <div className="size-1.5 rounded-full bg-white" />}
                                 </div>
@@ -536,13 +562,13 @@ export default function VisionMissionGenerator() {
                                 <button
                                     onClick={() => togglePriority(item, selectedMissionPriorities, setSelectedMissionPriorities)}
                                     className={`w-full h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${selectedMissionPriorities.includes(item)
-                                            ? 'bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900'
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                                        ? 'bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
                                         }`}
                                 >
                                     <div className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${selectedMissionPriorities.includes(item)
-                                            ? 'bg-blue-500 border-blue-500'
-                                            : 'border-slate-300'
+                                        ? 'bg-blue-500 border-blue-500'
+                                        : 'border-slate-300'
                                         }`}>
                                         {selectedMissionPriorities.includes(item) && <div className="size-1.5 rounded-full bg-white" />}
                                     </div>

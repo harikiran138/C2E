@@ -2,7 +2,7 @@ import os
 import httpx
 import json
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, Dict
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -54,6 +54,7 @@ class VMGenerateResponse(BaseModel):
     mission: Optional[str] = None
     visions: Optional[List[str]] = None
     missions: Optional[List[str]] = None
+    scores: Optional[Dict[str, Dict]] = None
 
 # Simple in-memory cache
 ai_cache = {}
@@ -110,6 +111,7 @@ async def generate_vm(request: VMGenerateRequest):
     try:
         visions = []
         missions = []
+        vision_scores = {}
 
         if request.mode in ['vision', 'both']:
             VISION_FORBIDDEN = [
@@ -254,6 +256,7 @@ Entropy Seed: {{seed}}
                 refined_visions.append(current_v)
             
             visions = refined_visions
+            vision_scores = {v: score_vision(v) for v in visions}
 
         if request.mode in ['mission', 'both']:
             v_context = request.selected_program_vision if request.selected_program_vision else (visions[0] if visions else "")
@@ -288,7 +291,8 @@ Entropy Seed: {{seed}}
             vision=visions[0] if visions else None,
             mission=missions[0] if missions else None,
             visions=visions,
-            missions=missions
+            missions=missions,
+            scores=vision_scores if visions else {}
         )
         
     except Exception as e:
@@ -298,10 +302,11 @@ Entropy Seed: {{seed}}
         fb_missions = generate_elite_fallback_missions(request.program_name, request.mission_count)
             
         return VMGenerateResponse(
-            vision=fb_visions[0], 
-            mission=fb_missions[0],
+            vision=fb_visions[0] if fb_visions else "", 
+            mission=fb_missions[0] if fb_missions else "",
             visions=fb_visions,
-            missions=fb_missions
+            missions=fb_missions,
+            scores={v: score_vision(v) for v in fb_visions} if fb_visions else {}
         )
 
 if __name__ == "__main__":

@@ -2,14 +2,16 @@ import os
 import httpx
 import json
 import asyncio
-from typing import List, Optional
+import re
+import time
+from typing import List, Optional, Dict
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from prompts.refinement import VISION_REFINEMENT_PROMPT, MISSION_REFINEMENT_PROMPT, PEO_REFINEMENT_PROMPT, PSO_REFINEMENT_PROMPT, SCORING_PROMPT, VISION_QUALITY_ENFORCEMENT_PROMPT, VISION_DEBUG_AND_REPAIR_AGENT, VISION_AUTO_VERIFY_AND_FIX_PROMPT
 from strategic_scoring import score_vision
-from templates import generate_elite_fallback_visions, generate_elite_fallback_missions
+from templates import generate_elite_fallback_missions
 from ml_engine import get_local_vision
 
 load_dotenv()
@@ -54,9 +56,56 @@ class VMGenerateResponse(BaseModel):
     mission: Optional[str] = None
     visions: Optional[List[str]] = None
     missions: Optional[List[str]] = None
+    scores: Optional[Dict[str, Dict]] = None
 
 # Simple in-memory cache
 ai_cache = {}
+
+VISION_APPROVAL_THRESHOLD = 90
+VISION_MAX_REPAIR_ATTEMPTS = 3
+VISION_STARTERS = [
+    "To be globally recognized for",
+    "To be internationally benchmarked for",
+    "To attain global leadership in",
+    "To be globally distinguished for",
+]
+
+
+def normalize_whitespace(text: str) -> str:
+    return " ".join((text or "").split()).strip()
+
+
+def to_strategic_focus_phrase(focus_inputs: List[str]) -> str:
+    if not focus_inputs:
+        return "institutional distinction, innovation leadership, and sustainable societal contribution"
+
+    cleaned = []
+    for raw in focus_inputs[:3]:
+        item = normalize_whitespace(str(raw).lower())
+        item = re.sub(r"\b(outcome based|outcome-based|outcome oriented|outcome-oriented)\b", "institutional distinction", item)
+        item = re.sub(r"\b(education|teaching|learning|curriculum|pedagogy|classroom|faculty)\b", "academic distinction", item)
+        item = re.sub(r"\b(provide|deliver|develop|cultivate|train|prepare|implement|foster|empower)\b", "advance", item)
+        if item:
+            cleaned.append(item)
+
+    if not cleaned:
+        return "institutional distinction, innovation leadership, and sustainable societal contribution"
+    if len(cleaned) == 1:
+        return cleaned[0]
+    if len(cleaned) == 2:
+        return f"{cleaned[0]} and {cleaned[1]}"
+    return f"{cleaned[0]}, {cleaned[1]}, and {cleaned[2]}"
+
+
+def build_deterministic_vision(program_name: str, focus_inputs: List[str], index: int) -> str:
+    focus_phrase = to_strategic_focus_phrase(focus_inputs)
+    templates = [
+        f"To be globally recognized for long-term {program_name} distinction through {focus_phrase} with sustained societal and professional relevance.",
+        f"To be internationally benchmarked for enduring {program_name} leadership through {focus_phrase} with long-horizon institutional impact.",
+        f"To attain global leadership in {program_name} through sustained {focus_phrase} and strategic institutional distinction.",
+        f"To be globally distinguished for sustained {program_name} excellence through {focus_phrase} with enduring strategic contribution.",
+    ]
+    return templates[index % len(templates)]
 
 async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool = True) -> str:
     if not api_key:
@@ -110,14 +159,9 @@ async def generate_vm(request: VMGenerateRequest):
     try:
         visions = []
         missions = []
+        vision_scores = {}
 
         if request.mode in ['vision', 'both']:
-            VISION_FORBIDDEN = [
-                "cultivate", "develop", "provide", "deliver",
-                "train", "prepare", "nurture", "empower",
-                "implement", "teach"
-            ]
-            
             vision_prompt = f"""
 You are generating a PROGRAM VISION statement for an engineering institution.
 
@@ -125,17 +169,19 @@ STRICT RULES:
 
 1. Vision must represent a 10–15 year long-term institutional aspiration.
 2. Vision must describe WHERE the program will stand in the future — not HOW it will educate students.
-3. Do NOT use operational or educational verbs such as:
-   cultivate, develop, provide, deliver, train, prepare, nurture, empower, implement, teach.
-4. Vision must reflect institutional positioning such as:
-   recognition, leadership, distinction, excellence, global standing, advancement.
-5. All selected themes must be covered collectively across the generated statements.
-6. Maintain professional accreditation tone (ABET/NBA compatible).
-7. No exaggerated claims such as:
-   guarantee, best in all, world-class in everything.
-8. Length: 18–25 words.
-9. Avoid repeating identical sentence structure across outputs.
-10. Vision must NOT describe curriculum or teaching process. That belongs to Mission.
+3. Do NOT use operational/process language: education, teaching, learning, curriculum, pedagogy, provide, deliver, develop, cultivate, train, prepare, implement, foster.
+4. Each Vision must contain exactly ONE global positioning phrase:
+   - globally recognized
+   - internationally benchmarked
+   - global leadership
+   - globally distinguished
+5. Do not stack multiple global/international phrases in one statement.
+6. Limit each Vision to maximum 3 strategic pillars.
+7. Maintain professional accreditation tone (ABET/NBA compatible).
+8. No exaggerated claims such as guarantee, best in all, world-class in everything.
+9. Length: 15–25 words.
+10. Avoid repeating identical sentence structure across outputs.
+11. Vision must NOT describe curriculum or teaching process. That belongs to Mission.
 
 Before generating, internally:
 - Abstract selected themes into long-term institutional positioning.
@@ -150,13 +196,10 @@ Generate exactly {request.vision_count} UNIQUE and DISTINCT Vision statements.
 If multiple statements are requested, ensure they target different institutional outcomes (e.g., one on innovation, one on ethics, one on global impact).
 
 Vision must begin with one of:
-- To be recognized as
-- To achieve distinction in
+- To be globally recognized for
+- To be internationally benchmarked for
 - To attain global leadership in
-- To advance as a leading
-- To be a nationally and internationally respected
-- To emerge as a premier institution for
-- To emerge as a premier institution for
+- To be globally distinguished for
 
 Output must be a plain JSON array of strings containing ONLY the final statements. Example: ["Vision 1", "Vision 2"]
 
@@ -165,7 +208,7 @@ Entropy Seed: {{seed}}
             # CHUNKED GENERATION LOGIC
             all_visions = []
             unique_visions_global = set()
-            visions_remaining = request.vision_count
+            visions_remaining = max(1, request.vision_count)
             
             chunk_size = 10
             max_total_retries = 20
@@ -176,7 +219,6 @@ Entropy Seed: {{seed}}
                 current_chunk_request = min(chunk_size, visions_remaining)
                 
                 # Update prompt for this chunk with a unique seed
-                import time
                 current_seed = f"{time.time()}_{total_attempts}"
                 current_chunk_prompt = vision_prompt.replace(f"exactly {request.vision_count}", f"exactly {current_chunk_request}")
                 current_chunk_prompt = current_chunk_prompt.replace("{seed}", current_seed)
@@ -188,7 +230,6 @@ Entropy Seed: {{seed}}
                 vision_text = await call_gemini_rest_async(current_chunk_prompt, use_cache=False)
                 
                 try:
-                    import re
                     match = re.search(r'\[.*\]', vision_text, re.DOTALL)
                     if match:
                         chunk_parsed = json.loads(match.group(0))
@@ -198,62 +239,98 @@ Entropy Seed: {{seed}}
                     chunk_parsed = [v.strip().strip('"').strip("'") for v in vision_text.split('\n') if len(v.strip()) > 10]
 
                 for v in chunk_parsed:
-                    v_clean = v.strip().lower()
-                    if v_clean not in unique_visions_global and visions_remaining > 0:
-                        # Only add if no forbidden verbs
-                        if not any(verb in v_clean for verb in VISION_FORBIDDEN):
-                            all_visions.append(v)
-                            unique_visions_global.add(v_clean)
-                            visions_remaining -= 1
+                    v_clean = normalize_whitespace(v)
+                    v_key = v_clean.lower()
+                    if not v_clean or v_key in unique_visions_global or visions_remaining <= 0:
+                        continue
+
+                    assessment = score_vision(v_clean)
+                    if assessment.get("hard_fail"):
+                        continue
+
+                    all_visions.append(v_clean)
+                    unique_visions_global.add(v_key)
+                    visions_remaining -= 1
+
+            while len(all_visions) < request.vision_count:
+                deterministic = build_deterministic_vision(request.program_name, request.vision_inputs, len(all_visions))
+                d_key = deterministic.lower()
+                if d_key not in unique_visions_global:
+                    all_visions.append(deterministic)
+                    unique_visions_global.add(d_key)
             
             visions = all_visions[:request.vision_count]
                 
             # RECURSIVE FEEDBACK LOOP (GOVERNANCE STAGE)
             refined_visions = []
-            import re
+            for idx, v in enumerate(visions):
+                current_v = normalize_whitespace(v)
 
-            async def get_score(v_text):
-                try:
-                    # LOCAL STRATEGIC SCORING (Deterministic)
-                    result = score_vision(v_text)
-                    print(f"DEBUG: Strategic Classifier Assessment -> Score: {result['score']}, Violations: {result['violations']}")
-                    return result['score']
-                except Exception as se:
-                    print(f"DEBUG: Local scoring failed: {str(se)}")
-                    return 0
+                for loop_idx in range(VISION_MAX_REPAIR_ATTEMPTS):
+                    assessment = score_vision(current_v)
+                    print(
+                        f"DEBUG: Vision Assessment -> Attempt: {loop_idx+1}, Score: {assessment['score']}, "
+                        f"HardFail: {assessment.get('hard_fail')}, Text: {current_v[:50]}..."
+                    )
 
-            for v in visions:
-                current_v = v
-                max_loop_attempts = 5
-                
-                for loop_idx in range(max_loop_attempts):
-                    score = await get_score(current_v)
-                    print(f"DEBUG: Vision Assessment -> Attempt: {loop_idx+1}, Score: {score}, Text: {current_v[:50]}...")
-                    
-                    if score >= 90:
-                        print(f"DEBUG: 90+ Threshold Met!")
+                    if assessment["score"] >= VISION_APPROVAL_THRESHOLD and not assessment.get("hard_fail"):
                         break
-                        
-                    # ENTERPRISE AUTO-GOVERNANCE STAGE
-                    print(f"DEBUG: Score {score} < 90. Triggering Enterprise Auto-Verify & Fix Agent...")
+
+                    print(
+                        f"DEBUG: Score {assessment['score']} < {VISION_APPROVAL_THRESHOLD}. "
+                        "Triggering Auto-Verify & Fix Agent..."
+                    )
                     refinement_prompt = VISION_AUTO_VERIFY_AND_FIX_PROMPT.format(
                         generated_vision=current_v
                     )
                     try:
-                        current_v = await call_gemini_rest_async(refinement_prompt)
-                        current_v = current_v.strip().strip('"').strip("'")
-                    except Exception as re_err:
-                        print(f"DEBUG: API Limit during refinement. Switching to DEDICATED LOCAL ML...")
+                        repaired = await call_gemini_rest_async(refinement_prompt, use_cache=False)
+                        repaired = normalize_whitespace(repaired.strip().strip('"').strip("'"))
+                        if repaired:
+                            current_v = repaired
+                    except Exception:
+                        print("DEBUG: API limitation during refinement. Attempting local fallback generation...")
                         local_v = get_local_vision(request.program_name, request.vision_inputs)
                         if local_v:
-                            current_v = local_v
-                            print(f"DEBUG: Local ML Generated: {current_v}")
+                            current_v = normalize_whitespace(local_v)
                         else:
                             break
-                
+
+                final_assessment = score_vision(current_v)
+                if final_assessment["score"] < VISION_APPROVAL_THRESHOLD or final_assessment.get("hard_fail"):
+                    deterministic = build_deterministic_vision(request.program_name, request.vision_inputs, idx)
+                    deterministic_assessment = score_vision(deterministic)
+                    if deterministic_assessment["score"] >= VISION_APPROVAL_THRESHOLD and not deterministic_assessment.get("hard_fail"):
+                        current_v = deterministic
+                    else:
+                        current_v = (
+                            f"To be globally recognized for long-term {request.program_name} distinction through "
+                            "institutional leadership, innovation foresight, and sustainable societal contribution."
+                        )
+
                 refined_visions.append(current_v)
-            
-            visions = refined_visions
+
+            # Keep uniqueness after repair while preserving strict threshold.
+            unique_refined = []
+            seen_refined = set()
+            for idx, candidate in enumerate(refined_visions):
+                key = candidate.lower()
+                if key in seen_refined:
+                    candidate = build_deterministic_vision(request.program_name, request.vision_inputs, idx + request.vision_count)
+                    key = candidate.lower()
+                if key not in seen_refined:
+                    seen_refined.add(key)
+                    unique_refined.append(candidate)
+
+            while len(unique_refined) < request.vision_count:
+                candidate = build_deterministic_vision(request.program_name, request.vision_inputs, len(unique_refined) + request.vision_count)
+                key = candidate.lower()
+                if key not in seen_refined:
+                    seen_refined.add(key)
+                    unique_refined.append(candidate)
+
+            visions = unique_refined[:request.vision_count]
+            vision_scores = {v: score_vision(v) for v in visions}
 
         if request.mode in ['mission', 'both']:
             v_context = request.selected_program_vision if request.selected_program_vision else (visions[0] if visions else "")
@@ -268,13 +345,11 @@ Output must be a plain JSON array of strings containing ONLY the mission stateme
 
 Entropy Seed: {{seed}}
              """
-            import time
             m_seed = f"{time.time()}_mission"
             mission_prompt = mission_prompt.replace("{seed}", m_seed)
             mission_text = await call_gemini_rest_async(mission_prompt, use_cache=False)
             print(f"DEBUG: Gemini Mission Raw Response -> {mission_text}")
             try:
-                import re
                 match = re.search(r'\[.*\]', mission_text, re.DOTALL)
                 if match:
                     missions = json.loads(match.group(0))
@@ -288,20 +363,32 @@ Entropy Seed: {{seed}}
             vision=visions[0] if visions else None,
             mission=missions[0] if missions else None,
             visions=visions,
-            missions=missions
+            missions=missions,
+            scores=vision_scores if visions else {}
         )
         
     except Exception as e:
         print(f"CRITICAL ERROR generating VM: {str(e)}")
-        # ELITE FALLBACK ENGINE (DIVERSE & STRATEGIC)
-        fb_visions = generate_elite_fallback_visions(request.program_name, request.vision_count)
+        # Deterministic strict fallback for Vision governance.
+        fb_visions = []
+        for idx in range(max(1, request.vision_count)):
+            candidate = build_deterministic_vision(request.program_name, request.vision_inputs, idx)
+            assessment = score_vision(candidate)
+            if assessment["score"] < VISION_APPROVAL_THRESHOLD or assessment.get("hard_fail"):
+                candidate = (
+                    f"To be globally recognized for long-term {request.program_name} distinction through "
+                    "institutional leadership, innovation foresight, and sustainable societal contribution."
+                )
+            fb_visions.append(candidate)
+
         fb_missions = generate_elite_fallback_missions(request.program_name, request.mission_count)
             
         return VMGenerateResponse(
-            vision=fb_visions[0], 
-            mission=fb_missions[0],
+            vision=fb_visions[0] if fb_visions else "", 
+            mission=fb_missions[0] if fb_missions else "",
             visions=fb_visions,
-            missions=fb_missions
+            missions=fb_missions,
+            scores={v: score_vision(v) for v in fb_visions} if fb_visions else {}
         )
 
 if __name__ == "__main__":

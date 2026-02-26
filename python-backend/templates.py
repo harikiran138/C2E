@@ -3,11 +3,11 @@ import time
 from typing import List
 
 VISION_TEMPLATES = [
-    "To be recognized as a premier center of excellence in {program} through innovation and strategic leadership in line with global standards.",
-    "To achieve distinction in {program} by fostering a research-driven ecosystem and sustainable technological advancement for societal impact.",
-    "To emerge as a globally respected institution for {program} innovation, advancing elite standards in professional leadership.",
-    "To attain leadership in {program} excellence by pioneering transformative technological solutions and ethical engineering practices.",
-    "To advance as a leading global authority in {program}, recognized for distinction, innovation, and strategic relevance."
+    "To be globally recognized for long-term {program} distinction through transformative innovation leadership, ethical professional standards, and sustainable societal contribution.",
+    "To be internationally benchmarked for enduring {program} leadership shaped by strategic innovation, institutional distinction, and responsible societal impact.",
+    "To attain global leadership in {program} through sustained institutional distinction, innovation foresight, and ethical societal relevance.",
+    "To be globally distinguished for sustained {program} excellence through benchmark-quality institutional standards, innovation leadership, and long-horizon societal contribution.",
+    "To be globally recognized for enduring {program} prominence through strategic distinction, responsible innovation, and sustainable public value."
 ]
 
 MISSION_TEMPLATES = [
