@@ -11,7 +11,12 @@ const PUBLIC_INSTITUTION_PATHS = [
   '/api/institution/signup/validate',
 ];
 
-const PUBLIC_STAKEHOLDER_PATHS = ['/stakeholder/login', '/api/stakeholder/login'];
+const PUBLIC_STAKEHOLDER_PATHS = [
+  '/stakeholder/login',
+  '/api/stakeholder/login',
+  '/stakeholder/first-password',
+  '/api/stakeholder/first-password'
+];
 
 const STATIC_FILE_REGEX = /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js)$/i;
 
@@ -111,7 +116,21 @@ export async function middleware(request: NextRequest) {
     }
 
     const stakeholderPayload = await verifyToken(stakeholderToken);
-    if (!stakeholderPayload || stakeholderPayload.role !== 'stakeholder') {
+
+    let isBlocklisted = false;
+    try {
+      const verifyRes = await fetch(new URL('/api/auth/verify', request.url), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: stakeholderToken })
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok || !verifyData.valid) isBlocklisted = true;
+    } catch (e) {
+      console.error('Stakeholder verify error:', e);
+    }
+
+    if (!stakeholderPayload || stakeholderPayload.role !== 'stakeholder' || isBlocklisted) {
       if (pathname.startsWith('/api/stakeholder')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
@@ -144,6 +163,21 @@ export async function middleware(request: NextRequest) {
         role: payload.role as string | undefined,
         onboarding_status: payload.onboarding_status as string | undefined,
       };
+
+      // Check blocklist via API to avoid edge runtime issues with pg
+      try {
+        const verifyRes = await fetch(new URL('/api/auth/verify', request.url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: institutionToken })
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyRes.ok || !verifyData.valid) {
+          customUser = null; // Token blocklisted
+        }
+      } catch (err) {
+        console.error('Middleware token verify error:', err);
+      }
     }
   }
 

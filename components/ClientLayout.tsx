@@ -1,27 +1,33 @@
-'use client';
+"use client";
 
-import { usePathname } from 'next/navigation';
+import { usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { useInstitution } from '@/context/InstitutionContext';
-import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useInstitution } from "@/context/InstitutionContext";
+import LoadingScreen from "@/components/ui/LoadingScreen";
 
-export default function ClientLayout({ children }: { children: React.ReactNode }) {
+export default function ClientLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
-  const isInstitutionSection = pathname?.startsWith('/institution');
-  const isStakeholderSection = pathname?.startsWith('/stakeholder');
+  const isInstitutionSection = pathname?.startsWith("/institution");
+  const isStakeholderSection = pathname?.startsWith("/stakeholder");
   const isPortalSection = isInstitutionSection || isStakeholderSection;
   const { loading } = useInstitution();
 
-  const showLoading = isInstitutionSection && loading && !pathname.includes('/login') && !pathname.includes('/signup');
+  const showLoading =
+    isInstitutionSection &&
+    loading &&
+    !pathname.includes("/login") &&
+    !pathname.includes("/signup");
 
   return (
     <>
       {showLoading && <LoadingScreen />}
       {!isPortalSection && <Navbar />}
-      <main className="min-h-screen overflow-x-hidden">
-        {children}
-      </main>
+      <main className="min-h-screen overflow-x-hidden">{children}</main>
       {!isPortalSection && <Footer />}
     </>
   );

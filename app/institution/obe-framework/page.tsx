@@ -1,7 +1,7 @@
-import InstitutionWorkspace from '@/components/institution/workspace/InstitutionWorkspace';
-import Link from 'next/link';
+import InstitutionWorkspace from "@/components/institution/workspace/InstitutionWorkspace";
+import Link from "next/link";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function InstitutionObeFrameworkPage() {
   return (
@@ -11,10 +11,12 @@ export default function InstitutionObeFrameworkPage() {
       subtitle="Institution-level overview for OBE adoption"
     >
       <div className="rounded-2xl border border-slate-200 bg-white p-8 space-y-4">
-        <h2 className="text-xl font-bold text-slate-900">OBE Framework Access</h2>
+        <h2 className="text-xl font-bold text-slate-900">
+          OBE Framework Access
+        </h2>
         <p className="text-slate-600">
-          Framework artifacts are maintained within each program portal to preserve program-level isolation and audit
-          traceability.
+          Framework artifacts are maintained within each program portal to
+          preserve program-level isolation and audit traceability.
         </p>
         <Link
           href="/institution/programs"

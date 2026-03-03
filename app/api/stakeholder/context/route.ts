@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/postgres';
-import { verifyToken } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import pool from "@/lib/postgres";
+import { verifyToken } from "@/lib/auth";
 
 type StakeholderTokenPayload = {
   role?: string;
@@ -13,11 +13,13 @@ type StakeholderTokenPayload = {
   program_name?: string;
 };
 
-async function getStakeholderPayload(request: NextRequest): Promise<StakeholderTokenPayload | null> {
-  const token = request.cookies.get('stakeholder_token')?.value;
+async function getStakeholderPayload(
+  request: NextRequest,
+): Promise<StakeholderTokenPayload | null> {
+  const token = request.cookies.get("stakeholder_token")?.value;
   if (!token) return null;
   const payload = (await verifyToken(token)) as StakeholderTokenPayload | null;
-  if (!payload || payload.role !== 'stakeholder') return null;
+  if (!payload || payload.role !== "stakeholder") return null;
   if (!payload.stakeholder_ref_id || !payload.program_id) return null;
   return payload;
 }
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
   try {
     const payload = await getStakeholderPayload(request);
     if (!payload) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const client = await pool.connect();
@@ -51,16 +53,22 @@ export async function GET(request: NextRequest) {
          INNER JOIN institutions i ON i.id = p.institution_id
          WHERE rs.id = $1 AND rs.program_id = $2
          LIMIT 1`,
-        [payload.stakeholder_ref_id, payload.program_id]
+        [payload.stakeholder_ref_id, payload.program_id],
       );
 
       if (stakeholderRes.rows.length === 0) {
-        return NextResponse.json({ error: 'Stakeholder mapping not found.' }, { status: 404 });
+        return NextResponse.json(
+          { error: "Stakeholder mapping not found." },
+          { status: 404 },
+        );
       }
 
       const stakeholder = stakeholderRes.rows[0];
       if (!stakeholder.is_approved) {
-        return NextResponse.json({ error: 'Stakeholder is not approved for feedback access.' }, { status: 403 });
+        return NextResponse.json(
+          { error: "Stakeholder is not approved for feedback access." },
+          { status: 403 },
+        );
       }
 
       const peosRes = await client.query(
@@ -68,7 +76,7 @@ export async function GET(request: NextRequest) {
          FROM program_peos
          WHERE program_id = $1
          ORDER BY peo_number ASC`,
-        [payload.program_id]
+        [payload.program_id],
       );
 
       const latestSubmissionRes = await client.query(
@@ -77,17 +85,21 @@ export async function GET(request: NextRequest) {
          WHERE program_id = $1 AND stakeholder_ref_id = $2
          ORDER BY submitted_at DESC
          LIMIT 1`,
-        [payload.program_id, payload.stakeholder_ref_id]
+        [payload.program_id, payload.stakeholder_ref_id],
       );
 
-      const startAt = stakeholder.vmpeo_feedback_start_at ? new Date(stakeholder.vmpeo_feedback_start_at) : null;
-      const endAt = stakeholder.vmpeo_feedback_end_at ? new Date(stakeholder.vmpeo_feedback_end_at) : null;
+      const startAt = stakeholder.vmpeo_feedback_start_at
+        ? new Date(stakeholder.vmpeo_feedback_start_at)
+        : null;
+      const endAt = stakeholder.vmpeo_feedback_end_at
+        ? new Date(stakeholder.vmpeo_feedback_end_at)
+        : null;
       const now = new Date();
       const canSubmit = !!(startAt && endAt && now >= startAt && now <= endAt);
 
       let lockReason: string | null = null;
       if (!startAt || !endAt) {
-        lockReason = 'Feedback timeline is not configured by Program Admin.';
+        lockReason = "Feedback timeline is not configured by Program Admin.";
       } else if (now < startAt) {
         lockReason = `Feedback window starts on ${startAt.toLocaleDateString()}.`;
       } else if (now > endAt) {
@@ -107,12 +119,14 @@ export async function GET(request: NextRequest) {
         feedbackWindow: {
           startAt: startAt ? startAt.toISOString() : null,
           endAt: endAt ? endAt.toISOString() : null,
-          cycle: (stakeholder.vmpeo_feedback_cycle || 'brainstorming') as 'brainstorming' | 'finalization',
+          cycle: (stakeholder.vmpeo_feedback_cycle || "brainstorming") as
+            | "brainstorming"
+            | "finalization",
           canSubmit,
           lockReason,
         },
-        vision: stakeholder.vision || '',
-        mission: stakeholder.mission || '',
+        vision: stakeholder.vision || "",
+        mission: stakeholder.mission || "",
         peos: peosRes.rows.map((row) => ({
           id: String(row.id),
           peoNumber: Number(row.peo_number),
@@ -126,7 +140,10 @@ export async function GET(request: NextRequest) {
       client.release();
     }
   } catch (error: any) {
-    console.error('Stakeholder context error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    console.error("Stakeholder context error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

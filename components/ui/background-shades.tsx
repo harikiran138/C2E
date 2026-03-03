@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { LiquidMetal } from "@paper-design/shaders-react"
-import { motion } from "framer-motion"
+import { LiquidMetal } from "@paper-design/shaders-react";
+import { motion } from "framer-motion";
 
 export default function ShadersBackground() {
   return (
@@ -33,5 +33,5 @@ export default function ShadersBackground() {
         </motion.div>
       </div>
     </div>
-  )
+  );
 }

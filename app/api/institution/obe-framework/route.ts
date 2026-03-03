@@ -1,54 +1,57 @@
-import { createClient } from '../../../../utils/supabase/server';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { createClient } from "../../../../utils/supabase/server";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { verifyToken } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('institution_token')?.value;
+    const token = cookieStore.get("institution_token")?.value;
 
     if (!token) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const payload = await verifyToken(token);
     if (!payload || !payload.id) {
-        return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
     const institutionId = payload.id;
 
     const supabase = await createClient();
     const { data, error } = await supabase
-        .from('obe_framework')
-        .select('*, programs(program_name)')
-        .eq('institution_id', institutionId)
-        .order('created_at', { ascending: true });
+      .from("obe_framework")
+      .select("*, programs(program_name)")
+      .eq("institution_id", institutionId)
+      .order("created_at", { ascending: true });
 
     if (error) {
-        console.error('Error fetching Framework members:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Error fetching Framework members:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ data });
   } catch (error) {
-    console.error('OBE Framework Fetch Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("OBE Framework Fetch Error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('institution_token')?.value;
+    const token = cookieStore.get("institution_token")?.value;
 
     if (!token) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const payload = await verifyToken(token);
     if (!payload || !payload.id) {
-        return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
     const institutionId = payload.id as string;
 
@@ -58,102 +61,107 @@ export async function POST(request: Request) {
     let query;
 
     if (body.id) {
-        // Update existing member/framework/library item
-        query = supabase
-            .from('obe_framework')
-            .update({
-                member_name: body.member_name || 'N/A',
-                designation: body.designation || 'N/A',
-                program_id: body.program_id,
-                email_official: body.email_official,
-                email_personal: body.email_personal,
-                mobile_official: body.mobile_official,
-                mobile_personal: body.mobile_personal,
-                linkedin_id: body.linkedin_id,
-                pdf_url: body.pdf_url,
-                pdf_name: body.pdf_name,
-                title: body.title,
-                description: body.description
-            })
-            .eq('id', body.id)
-            .eq('institution_id', institutionId)
-            .select()
-            .single();
+      // Update existing member/framework/library item
+      query = supabase
+        .from("obe_framework")
+        .update({
+          member_name: body.member_name || "N/A",
+          designation: body.designation || "N/A",
+          program_id: body.program_id,
+          email_official: body.email_official,
+          email_personal: body.email_personal,
+          mobile_official: body.mobile_official,
+          mobile_personal: body.mobile_personal,
+          linkedin_id: body.linkedin_id,
+          pdf_url: body.pdf_url,
+          pdf_name: body.pdf_name,
+          title: body.title,
+          description: body.description,
+        })
+        .eq("id", body.id)
+        .eq("institution_id", institutionId)
+        .select()
+        .single();
     } else {
-        // Insert new library item
-        query = supabase
-            .from('obe_framework')
-            .insert({
-                institution_id: institutionId,
-                member_name: body.member_name || 'N/A',
-                designation: body.designation || 'N/A',
-                program_id: body.program_id,
-                email_official: body.email_official,
-                email_personal: body.email_personal,
-                mobile_official: body.mobile_official,
-                mobile_personal: body.mobile_personal,
-                linkedin_id: body.linkedin_id,
-                pdf_url: body.pdf_url,
-                pdf_name: body.pdf_name,
-                title: body.title,
-                description: body.description
-            })
-            .select()
-            .single();
+      // Insert new library item
+      query = supabase
+        .from("obe_framework")
+        .insert({
+          institution_id: institutionId,
+          member_name: body.member_name || "N/A",
+          designation: body.designation || "N/A",
+          program_id: body.program_id,
+          email_official: body.email_official,
+          email_personal: body.email_personal,
+          mobile_official: body.mobile_official,
+          mobile_personal: body.mobile_personal,
+          linkedin_id: body.linkedin_id,
+          pdf_url: body.pdf_url,
+          pdf_name: body.pdf_name,
+          title: body.title,
+          description: body.description,
+        })
+        .select()
+        .single();
     }
 
     const { data, error } = await query;
 
     if (error) {
-        console.error('Error saving framework member:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Error saving framework member:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ data });
-
   } catch (error) {
-    console.error('OBE Framework API Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("OBE Framework API Error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function DELETE(request: Request) {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('institution_token')?.value;
+    const token = cookieStore.get("institution_token")?.value;
 
     if (!token) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const payload = await verifyToken(token);
     if (!payload || !payload.id) {
-        return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
     const institutionId = payload.id;
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const id = searchParams.get("id");
 
     if (!id) {
-        return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
     const supabase = await createClient();
     const { error } = await supabase
-        .from('obe_framework')
-        .delete()
-        .eq('id', id)
-        .eq('institution_id', institutionId);
+      .from("obe_framework")
+      .delete()
+      .eq("id", id)
+      .eq("institution_id", institutionId);
 
     if (error) {
-        console.error('Error deleting framework member:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Error deleting framework member:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('OBE Framework DELETE Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("OBE Framework DELETE Error:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

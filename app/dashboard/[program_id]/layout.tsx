@@ -1,10 +1,10 @@
-import { redirect } from 'next/navigation';
+import { redirect } from "next/navigation";
 
 export default async function ProgramDashboardLayout({
-    params,
+  params,
 }: {
-    params: Promise<{ program_id: string }>;
+  params: Promise<{ program_id: string }>;
 }) {
-    const { program_id } = await params;
-    redirect(`/program/${program_id}/dashboard`);
+  const { program_id } = await params;
+  redirect(`/program/${program_id}/dashboard`);
 }

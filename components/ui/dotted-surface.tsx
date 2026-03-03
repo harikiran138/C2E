@@ -1,11 +1,11 @@
 "use client";
 
-import { cn } from '@/lib/utils';
-import { useTheme } from 'next-themes';
-import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
+import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
+import React, { useEffect, useRef } from "react";
+import * as THREE from "three";
 
-type DottedSurfaceProps = Omit<React.ComponentProps<'div'>, 'ref'>;
+type DottedSurfaceProps = Omit<React.ComponentProps<"div">, "ref">;
 
 export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
   // Fallback if useTheme is not provided by a ThemeProvider
@@ -13,7 +13,7 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
   try {
     themeObj = useTheme();
   } catch (e) {
-    themeObj = { theme: 'light' };
+    themeObj = { theme: "light" };
   }
   const { theme } = themeObj;
 
@@ -72,21 +72,21 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
     for (let ix = 0; ix < AMOUNTX; ix++) {
       for (let iy = 0; iy < AMOUNTY; iy++) {
         const x = ix * SEPARATION - (AMOUNTX * SEPARATION) / 2;
-        const y = 0; 
+        const y = 0;
         const z = iy * SEPARATION - (AMOUNTY * SEPARATION) / 2;
 
         positions.push(x, y, z);
-        
+
         // Use Gold color for particles to match brand
         colors.push(goldR, goldG, goldB);
       }
     }
 
     geometry.setAttribute(
-      'position',
+      "position",
       new THREE.Float32BufferAttribute(positions, 3),
     );
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
     // Create material
     const material = new THREE.PointsMaterial({
@@ -141,7 +141,7 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
       renderer.setSize(width, height);
     };
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     // Start animation
     animate();
@@ -158,7 +158,7 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 
     // Cleanup function
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
 
       if (sceneRef.current) {
         cancelAnimationFrame(sceneRef.current.animationId);
@@ -186,12 +186,15 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
     };
   }, [theme]);
 
-  // Using absolute instead of fixed to keep it contained 
+  // Using absolute instead of fixed to keep it contained
   // if used inside a relative section
   return (
     <div
       ref={containerRef}
-      className={cn('pointer-events-none absolute inset-0 -z-10 bg-transparent', className)}
+      className={cn(
+        "pointer-events-none absolute inset-0 -z-10 bg-transparent",
+        className,
+      )}
       {...props}
     />
   );

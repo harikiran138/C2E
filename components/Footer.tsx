@@ -10,7 +10,7 @@ export default function Footer() {
   return (
     <footer className="bg-black/95 backdrop-blur-md text-white h-[120px] md:h-[100px] relative overflow-hidden border-t border-white/10 mt-auto flex items-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
@@ -19,10 +19,12 @@ export default function Footer() {
         >
           {/* Copyright */}
           <div className="flex flex-col md:flex-row items-center space-y-1 md:space-y-0 md:space-x-4">
-              <span className="text-white font-black text-xl tracking-tighter brightness-150">C2X</span>
-              <p className="text-[10px] md:text-[12px] font-bold tracking-[0.2em] text-gray-400 whitespace-nowrap">
-                © {currentYear} Compliance to Excellence. All Rights Reserved.
-              </p>
+            <span className="text-white font-black text-xl tracking-tighter brightness-150">
+              C2X
+            </span>
+            <p className="text-[10px] md:text-[12px] font-bold tracking-[0.2em] text-gray-400 whitespace-nowrap">
+              © {currentYear} Compliance to Excellence. All Rights Reserved.
+            </p>
           </div>
 
           {/* Navigation Links */}
@@ -54,7 +56,7 @@ export default function Footer() {
                 href="#"
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.2, color: '#c9a961', y: -2 }}
+                whileHover={{ scale: 1.2, color: "#c9a961", y: -2 }}
                 transition={{ delay: i * 0.1 + 0.8 }}
                 viewport={{ once: true }}
                 className="text-gray-400 transition-colors"

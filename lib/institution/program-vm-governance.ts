@@ -1,34 +1,40 @@
-import type { PoolClient } from 'pg';
+import type { PoolClient } from "pg";
 
 export const VISION_APPROVAL_THRESHOLD = 90;
 
 const GLOBAL_POSITIONING_CUES = [
-  'globally recognized',
-  'globally respected',
-  'internationally recognized',
-  'distinction in',
-  'leading',
-  'leadership in',
-  'to emerge as',
-  'to be known for',
+  "globally recognized",
+  "globally respected",
+  "internationally recognized",
+  "distinction in",
+  "leading",
+  "leadership in",
+  "to emerge as",
+  "to be known for",
 ];
 
 const OPERATIONAL_LEAKAGE_CUES = [
-  'teach',
-  'teaching',
-  'curriculum',
-  'coursework',
-  'train',
-  'training',
-  'learning',
-  'laboratory',
-  'labs',
-  'classroom',
-  'internship',
-  'placement',
+  "teach",
+  "teaching",
+  "curriculum",
+  "coursework",
+  "train",
+  "training",
+  "learning",
+  "laboratory",
+  "labs",
+  "classroom",
+  "internship",
+  "placement",
 ];
 
-const MARKETING_CUES = ['destination', 'hub', 'world-class', 'unparalleled', 'premier'];
+const MARKETING_CUES = [
+  "destination",
+  "hub",
+  "world-class",
+  "unparalleled",
+  "premier",
+];
 
 export interface ProgramOwnership {
   id: string;
@@ -53,7 +59,9 @@ export interface SelectedVisionRecord {
 }
 
 export function normalizeStatement(value: unknown): string {
-  return String(value || '').replace(/\s+/g, ' ').trim();
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function normalizeStringArray(value: unknown): string[] {
@@ -90,12 +98,21 @@ export function estimateVisionScore(statement: string): number {
     .map((part) => part.trim())
     .filter(Boolean).length;
 
-  const globalCueHits = GLOBAL_POSITIONING_CUES.filter((cue) => lower.includes(cue)).length;
-  const operationalHits = OPERATIONAL_LEAKAGE_CUES.filter((cue) => lower.includes(cue)).length;
-  const marketingHits = MARKETING_CUES.filter((cue) => lower.includes(cue)).length;
+  const globalCueHits = GLOBAL_POSITIONING_CUES.filter((cue) =>
+    lower.includes(cue),
+  ).length;
+  const operationalHits = OPERATIONAL_LEAKAGE_CUES.filter((cue) =>
+    lower.includes(cue),
+  ).length;
+  const marketingHits = MARKETING_CUES.filter((cue) =>
+    lower.includes(cue),
+  ).length;
 
   const hasStrategicConnector = /\bthrough\b|\bvia\b|\bby\b/.test(lower);
-  const hasInstitutionalCue = /\binstitutional\b|\bprofessional\b|\bstandards\b|\brelevance\b|\bimpact\b/.test(lower);
+  const hasInstitutionalCue =
+    /\binstitutional\b|\bprofessional\b|\bstandards\b|\brelevance\b|\bimpact\b/.test(
+      lower,
+    );
 
   let score = 55;
   if (words.length >= 12 && words.length <= 30) score += 12;
@@ -117,7 +134,7 @@ export function estimateVisionScore(statement: string): number {
 export async function getOwnedProgram(
   client: PoolClient,
   programId: string,
-  institutionId: string
+  institutionId: string,
 ): Promise<ProgramOwnership | null> {
   const result = await client.query<ProgramOwnership>(
     `SELECT
@@ -132,14 +149,14 @@ export async function getOwnedProgram(
       mission
      FROM programs
      WHERE id = $1 AND institution_id = $2`,
-    [programId, institutionId]
+    [programId, institutionId],
   );
   return result.rows[0] || null;
 }
 
 export async function getSelectedVision(
   client: PoolClient,
-  programId: string
+  programId: string,
 ): Promise<SelectedVisionRecord | null> {
   const selected = await client.query<SelectedVisionRecord>(
     `SELECT
@@ -155,7 +172,7 @@ export async function getSelectedVision(
        AND is_selected = TRUE
      ORDER BY updated_at DESC
      LIMIT 1`,
-    [programId]
+    [programId],
   );
   return selected.rows[0] || null;
 }
@@ -168,11 +185,11 @@ export async function upsertSelectedVision(
     visionScore: number | null;
     visionAnalysis: Record<string, unknown> | null;
     source: string;
-  }
+  },
 ): Promise<SelectedVisionRecord> {
   const normalizedVision = normalizeStatement(args.visionText);
   if (!normalizedVision) {
-    throw new Error('Vision statement is required.');
+    throw new Error("Vision statement is required.");
   }
 
   await client.query(
@@ -181,7 +198,7 @@ export async function upsertSelectedVision(
          updated_at = NOW()
      WHERE program_id = $1
        AND is_selected = TRUE`,
-    [args.programId]
+    [args.programId],
   );
 
   const existing = await client.query<{ id: string }>(
@@ -191,7 +208,7 @@ export async function upsertSelectedVision(
        AND LOWER(TRIM(vision_text)) = LOWER(TRIM($2))
      ORDER BY updated_at DESC
      LIMIT 1`,
-    [args.programId, normalizedVision]
+    [args.programId, normalizedVision],
   );
 
   let selectedVisionId: string;
@@ -212,7 +229,7 @@ export async function upsertSelectedVision(
         args.visionScore,
         args.visionAnalysis ? JSON.stringify(args.visionAnalysis) : null,
         args.source,
-      ]
+      ],
     );
   } else {
     const inserted = await client.query<{ id: string }>(
@@ -233,14 +250,14 @@ export async function upsertSelectedVision(
         args.visionScore,
         args.visionAnalysis ? JSON.stringify(args.visionAnalysis) : null,
         args.source,
-      ]
+      ],
     );
     selectedVisionId = inserted.rows[0].id;
   }
 
   const selected = await getSelectedVision(client, args.programId);
   if (!selected || selected.id !== selectedVisionId) {
-    throw new Error('Failed to select program vision.');
+    throw new Error("Failed to select program vision.");
   }
   return selected;
 }
@@ -254,7 +271,7 @@ export async function upsertActiveMission(
     missionScore: number | null;
     missionAnalysis: Record<string, unknown> | null;
     source: string;
-  }
+  },
 ): Promise<{
   id: string;
   mission_text: string;
@@ -263,7 +280,7 @@ export async function upsertActiveMission(
 }> {
   const normalizedMission = normalizeStatement(args.missionText);
   if (!normalizedMission) {
-    throw new Error('Mission statement is required.');
+    throw new Error("Mission statement is required.");
   }
 
   await client.query(
@@ -272,7 +289,7 @@ export async function upsertActiveMission(
          updated_at = NOW()
      WHERE program_id = $1
        AND is_active = TRUE`,
-    [args.programId]
+    [args.programId],
   );
 
   const existing = await client.query<{ id: string }>(
@@ -283,7 +300,7 @@ export async function upsertActiveMission(
        AND LOWER(TRIM(mission_text)) = LOWER(TRIM($3))
      ORDER BY updated_at DESC
      LIMIT 1`,
-    [args.programId, args.visionId, normalizedMission]
+    [args.programId, args.visionId, normalizedMission],
   );
 
   let missionId: string;
@@ -304,7 +321,7 @@ export async function upsertActiveMission(
         args.missionScore,
         args.missionAnalysis ? JSON.stringify(args.missionAnalysis) : null,
         args.source,
-      ]
+      ],
     );
   } else {
     const inserted = await client.query<{ id: string }>(
@@ -327,7 +344,7 @@ export async function upsertActiveMission(
         args.missionScore,
         args.missionAnalysis ? JSON.stringify(args.missionAnalysis) : null,
         args.source,
-      ]
+      ],
     );
     missionId = inserted.rows[0].id;
   }
@@ -344,11 +361,11 @@ export async function upsertActiveMission(
        AND is_active = TRUE
      ORDER BY updated_at DESC
      LIMIT 1`,
-    [args.programId]
+    [args.programId],
   );
 
   if (!active.rows[0] || active.rows[0].id !== missionId) {
-    throw new Error('Failed to activate mission statement.');
+    throw new Error("Failed to activate mission statement.");
   }
 
   return active.rows[0];

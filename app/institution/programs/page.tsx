@@ -1,6 +1,6 @@
-import ProgramDetails from '@/components/institution/ProgramDetails';
+import ProgramDetails from "@/components/institution/ProgramDetails";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function Page() {
   return <ProgramDetails />;

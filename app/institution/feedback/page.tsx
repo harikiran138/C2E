@@ -1,5 +1,5 @@
-import InstitutionWorkspace from '@/components/institution/workspace/InstitutionWorkspace';
-import VMPEOFeedbackDashboard from '@/components/institution/VMPEOFeedbackDashboard';
+import InstitutionWorkspace from "@/components/institution/workspace/InstitutionWorkspace";
+import VMPEOFeedbackDashboard from "@/components/institution/VMPEOFeedbackDashboard";
 
 export default function FeedbackPage() {
   return (

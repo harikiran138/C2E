@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/postgres';
-import { verifyToken } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import pool from "@/lib/postgres";
+import { verifyToken } from "@/lib/auth";
 import {
   VISION_APPROVAL_THRESHOLD,
   clampScore,
@@ -11,10 +11,10 @@ import {
   normalizeStringArray,
   upsertActiveMission,
   upsertSelectedVision,
-} from '@/lib/institution/program-vm-governance';
+} from "@/lib/institution/program-vm-governance";
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('institution_token')?.value;
+  const token = request.cookies.get("institution_token")?.value;
   if (!token) return null;
   const payload = await verifyToken(token);
   return (payload?.id as string) || null;
@@ -24,17 +24,26 @@ export async function PUT(request: NextRequest) {
   try {
     const institutionId = await getInstitutionId(request);
     if (!institutionId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const programId = String(body?.program_id || '').trim();
+    const programId = String(body?.program_id || "").trim();
     if (!programId) {
-      return NextResponse.json({ error: 'Program ID is required.' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Program ID is required." },
+        { status: 400 },
+      );
     }
 
-    const hasVisionField = Object.prototype.hasOwnProperty.call(body, 'program_vision');
-    const hasMissionField = Object.prototype.hasOwnProperty.call(body, 'program_mission');
+    const hasVisionField = Object.prototype.hasOwnProperty.call(
+      body,
+      "program_vision",
+    );
+    const hasMissionField = Object.prototype.hasOwnProperty.call(
+      body,
+      "program_mission",
+    );
     const normalizedProgramVision = normalizeStatement(body?.program_vision);
     const normalizedProgramMission = normalizeStatement(body?.program_mission);
 
@@ -43,27 +52,34 @@ export async function PUT(request: NextRequest) {
     const visionOptions = normalizeStringArray(body?.vision_options);
     const missionOptions = normalizeStringArray(body?.mission_options);
     const generatedByAi =
-      typeof body?.generated_by_ai === 'boolean' ? body.generated_by_ai : null;
+      typeof body?.generated_by_ai === "boolean" ? body.generated_by_ai : null;
 
     const visionScore = clampScore(body?.vision_score);
     const missionScore = clampScore(body?.mission_score);
     const visionAnalysis =
-      body?.vision_analysis && typeof body.vision_analysis === 'object'
+      body?.vision_analysis && typeof body.vision_analysis === "object"
         ? (body.vision_analysis as Record<string, unknown>)
         : null;
     const missionAnalysis =
-      body?.mission_analysis && typeof body.mission_analysis === 'object'
+      body?.mission_analysis && typeof body.mission_analysis === "object"
         ? (body.mission_analysis as Record<string, unknown>)
         : null;
 
     const client = await pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
-      const ownedProgram = await getOwnedProgram(client, programId, institutionId);
+      const ownedProgram = await getOwnedProgram(
+        client,
+        programId,
+        institutionId,
+      );
       if (!ownedProgram) {
-        await client.query('ROLLBACK');
-        return NextResponse.json({ error: 'Program not found or unauthorized.' }, { status: 404 });
+        await client.query("ROLLBACK");
+        return NextResponse.json(
+          { error: "Program not found or unauthorized." },
+          { status: 404 },
+        );
       }
 
       const currentProgramResult = await client.query<{
@@ -90,13 +106,16 @@ export async function PUT(request: NextRequest) {
          FROM programs
          WHERE id = $1
          FOR UPDATE`,
-        [programId]
+        [programId],
       );
 
       const current = currentProgramResult.rows[0];
       if (!current) {
-        await client.query('ROLLBACK');
-        return NextResponse.json({ error: 'Program not found.' }, { status: 404 });
+        await client.query("ROLLBACK");
+        return NextResponse.json(
+          { error: "Program not found." },
+          { status: 404 },
+        );
       }
 
       const existingSelectedVision = await getSelectedVision(client, programId);
@@ -111,7 +130,7 @@ export async function PUT(request: NextRequest) {
                  updated_at = NOW()
              WHERE program_id = $1
                AND is_selected = TRUE`,
-            [programId]
+            [programId],
           );
           await client.query(
             `UPDATE program_missions
@@ -119,17 +138,18 @@ export async function PUT(request: NextRequest) {
                  updated_at = NOW()
              WHERE program_id = $1
                AND is_active = TRUE`,
-            [programId]
+            [programId],
           );
           selectedVision = null;
           visionChanged = Boolean(existingSelectedVision);
         } else {
-          const resolvedVisionScore = visionScore ?? estimateVisionScore(normalizedProgramVision);
+          const resolvedVisionScore =
+            visionScore ?? estimateVisionScore(normalizedProgramVision);
           const resolvedVisionAnalysis =
             visionAnalysis ??
             ({
               score: resolvedVisionScore,
-              source: 'heuristic_estimate',
+              source: "heuristic_estimate",
             } as Record<string, unknown>);
 
           selectedVision = await upsertSelectedVision(client, {
@@ -137,12 +157,15 @@ export async function PUT(request: NextRequest) {
             visionText: normalizedProgramVision,
             visionScore: resolvedVisionScore,
             visionAnalysis: resolvedVisionAnalysis,
-            source: generatedByAi ? 'ai' : 'manual',
+            source: generatedByAi ? "ai" : "manual",
           });
-          const previousText = normalizeStatement(existingSelectedVision?.vision_text || '');
+          const previousText = normalizeStatement(
+            existingSelectedVision?.vision_text || "",
+          );
           visionChanged =
             !previousText ||
-            previousText.toLowerCase() !== selectedVision.vision_text.toLowerCase();
+            previousText.toLowerCase() !==
+              selectedVision.vision_text.toLowerCase();
         }
       }
 
@@ -151,13 +174,14 @@ export async function PUT(request: NextRequest) {
       }
 
       let activeMissionText: string | null = normalizeStatement(
-        ownedProgram.program_mission || ownedProgram.mission || ''
+        ownedProgram.program_mission || ownedProgram.mission || "",
       );
       if (!activeMissionText) {
         activeMissionText = null;
       }
       let finalMissionScore: number | null = current.mission_score ?? null;
-      let finalMissionAnalysis: Record<string, unknown> | null = current.mission_analysis ?? null;
+      let finalMissionAnalysis: Record<string, unknown> | null =
+        current.mission_analysis ?? null;
 
       if (visionChanged) {
         await client.query(
@@ -166,7 +190,7 @@ export async function PUT(request: NextRequest) {
                updated_at = NOW()
            WHERE program_id = $1
              AND is_active = TRUE`,
-          [programId]
+          [programId],
         );
         activeMissionText = null;
         finalMissionScore = null;
@@ -181,25 +205,27 @@ export async function PUT(request: NextRequest) {
                  updated_at = NOW()
              WHERE program_id = $1
                AND is_active = TRUE`,
-            [programId]
+            [programId],
           );
           activeMissionText = null;
           finalMissionScore = null;
           finalMissionAnalysis = null;
         } else {
           if (!selectedVision) {
-            await client.query('ROLLBACK');
+            await client.query("ROLLBACK");
             return NextResponse.json(
-              { error: 'Mission cannot be saved without a selected Vision.' },
-              { status: 409 }
+              { error: "Mission cannot be saved without a selected Vision." },
+              { status: 409 },
             );
           }
 
           if (selectedVision.vision_score === null) {
-            const estimatedScore = estimateVisionScore(selectedVision.vision_text);
+            const estimatedScore = estimateVisionScore(
+              selectedVision.vision_text,
+            );
             const estimatedAnalysis = {
               score: estimatedScore,
-              source: 'heuristic_estimate',
+              source: "heuristic_estimate",
             };
             await client.query(
               `UPDATE program_visions
@@ -207,7 +233,11 @@ export async function PUT(request: NextRequest) {
                    vision_analysis = $3::jsonb,
                    updated_at = NOW()
                WHERE id = $1`,
-              [selectedVision.id, estimatedScore, JSON.stringify(estimatedAnalysis)]
+              [
+                selectedVision.id,
+                estimatedScore,
+                JSON.stringify(estimatedAnalysis),
+              ],
             );
             selectedVision = {
               ...selectedVision,
@@ -220,12 +250,12 @@ export async function PUT(request: NextRequest) {
             selectedVision.vision_score === null ||
             selectedVision.vision_score < VISION_APPROVAL_THRESHOLD
           ) {
-            await client.query('ROLLBACK');
+            await client.query("ROLLBACK");
             return NextResponse.json(
               {
                 error: `Mission cannot be saved because selected Vision score is below ${VISION_APPROVAL_THRESHOLD}.`,
               },
-              { status: 409 }
+              { status: 409 },
             );
           }
 
@@ -234,8 +264,9 @@ export async function PUT(request: NextRequest) {
             visionId: selectedVision.id,
             missionText: normalizedProgramMission,
             missionScore: missionScore ?? current.mission_score ?? null,
-            missionAnalysis: missionAnalysis ?? current.mission_analysis ?? null,
-            source: generatedByAi ? 'ai' : 'manual',
+            missionAnalysis:
+              missionAnalysis ?? current.mission_analysis ?? null,
+            source: generatedByAi ? "ai" : "manual",
           });
 
           activeMissionText = activeMission.mission_text;
@@ -254,7 +285,7 @@ export async function PUT(request: NextRequest) {
              AND is_active = TRUE
            ORDER BY updated_at DESC
            LIMIT 1`,
-          [programId]
+          [programId],
         );
         if (activeMission.rows[0]) {
           activeMissionText = activeMission.rows[0].mission_text;
@@ -270,7 +301,8 @@ export async function PUT(request: NextRequest) {
       const finalVisionText = selectedVision?.vision_text || null;
       const finalVisionScore = selectedVision?.vision_score ?? null;
       const finalVisionAnalysis =
-        (selectedVision?.vision_analysis as Record<string, unknown> | null) || null;
+        (selectedVision?.vision_analysis as Record<string, unknown> | null) ||
+        null;
 
       const finalVisionInputs =
         visionInputs.length > 0
@@ -289,7 +321,9 @@ export async function PUT(request: NextRequest) {
           ? missionOptions
           : normalizeStringArray(current.mission_options);
       const finalGeneratedByAi =
-        generatedByAi !== null ? generatedByAi : Boolean(current.generated_by_ai);
+        generatedByAi !== null
+          ? generatedByAi
+          : Boolean(current.generated_by_ai);
 
       await client.query(
         `UPDATE programs
@@ -326,10 +360,10 @@ export async function PUT(request: NextRequest) {
           finalVisionInputs,
           finalMissionInputs,
           finalGeneratedByAi,
-        ]
+        ],
       );
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       return NextResponse.json({
         ok: true,
@@ -352,16 +386,16 @@ export async function PUT(request: NextRequest) {
         vision_required_for_mission: true,
       });
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
   } catch (error: any) {
-    console.error('Error updating program vision/mission:', error);
+    console.error("Error updating program vision/mission:", error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to update Vision/Mission.' },
-      { status: 500 }
+      { error: error?.message || "Failed to update Vision/Mission." },
+      { status: 500 },
     );
   }
 }

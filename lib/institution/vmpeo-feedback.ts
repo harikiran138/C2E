@@ -1,6 +1,6 @@
-import pool from '@/lib/postgres';
+import pool from "@/lib/postgres";
 
-export type FeedbackCategory = 'vision' | 'mission' | 'peo';
+export type FeedbackCategory = "vision" | "mission" | "peo";
 
 export interface VmpeoReportFilters {
   programId: string;
@@ -21,7 +21,7 @@ export interface VmpeoReportRow {
   rating: number;
   comment: string | null;
   date: string;
-  feedbackCycle: 'brainstorming' | 'finalization';
+  feedbackCycle: "brainstorming" | "finalization";
   peoNumber: number | null;
   peoStatement: string | null;
 }
@@ -60,7 +60,7 @@ export interface VmpeoReportResult {
     name: string;
     timelineStartAt: string | null;
     timelineEndAt: string | null;
-    feedbackCycle: 'brainstorming' | 'finalization';
+    feedbackCycle: "brainstorming" | "finalization";
   };
   filters: {
     category: FeedbackCategory | null;
@@ -71,19 +71,27 @@ export interface VmpeoReportResult {
   rows: VmpeoReportRow[];
   summary: VmpeoSummary;
   commentsByPeo: VmpeoCommentGroup[];
-  availableStakeholders: Array<{ stakeholderId: string; stakeholderName: string }>;
+  availableStakeholders: Array<{
+    stakeholderId: string;
+    stakeholderName: string;
+  }>;
 }
 
-function normalizeFeedbackCategory(raw?: string | null): FeedbackCategory | null {
+function normalizeFeedbackCategory(
+  raw?: string | null,
+): FeedbackCategory | null {
   if (!raw) return null;
   const value = raw.trim().toLowerCase();
-  if (value === 'vision' || value === 'mission' || value === 'peo') {
+  if (value === "vision" || value === "mission" || value === "peo") {
     return value;
   }
   return null;
 }
 
-function normalizeDateBoundary(raw?: string | null, endOfDay = false): string | null {
+function normalizeDateBoundary(
+  raw?: string | null,
+  endOfDay = false,
+): string | null {
   if (!raw) return null;
   const value = raw.trim();
   if (!value) return null;
@@ -101,17 +109,24 @@ function roundToTwo(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function categoryLabel(category: FeedbackCategory, peoNumber: number | null): string {
-  if (category === 'peo') {
+function categoryLabel(
+  category: FeedbackCategory,
+  peoNumber: number | null,
+): string {
+  if (category === "peo") {
     const number = peoNumber || 0;
-    return `PEO-${String(number).padStart(2, '0')}`;
+    return `PEO-${String(number).padStart(2, "0")}`;
   }
-  return category === 'vision' ? 'Vision' : 'Mission';
+  return category === "vision" ? "Vision" : "Mission";
 }
 
-export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promise<VmpeoReportResult> {
+export async function fetchVmpeoFeedbackReport(
+  input: VmpeoReportFilters,
+): Promise<VmpeoReportResult> {
   const category = normalizeFeedbackCategory(input.category);
-  const stakeholder = input.stakeholder?.trim() ? input.stakeholder.trim() : null;
+  const stakeholder = input.stakeholder?.trim()
+    ? input.stakeholder.trim()
+    : null;
   const fromDate = normalizeDateBoundary(input.fromDate, false);
   const toDate = normalizeDateBoundary(input.toDate, true);
 
@@ -122,16 +137,16 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
        FROM programs
        WHERE id = $1
        LIMIT 1`,
-      [input.programId]
+      [input.programId],
     );
 
     if (programRes.rows.length === 0) {
-      throw new Error('Program not found');
+      throw new Error("Program not found");
     }
 
     const program = programRes.rows[0];
     const params: Array<string> = [input.programId];
-    const conditions: string[] = ['s.program_id = $1'];
+    const conditions: string[] = ["s.program_id = $1"];
 
     if (category) {
       params.push(category);
@@ -140,7 +155,9 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
 
     if (stakeholder) {
       params.push(`%${stakeholder}%`);
-      conditions.push(`LOWER(s.stakeholder_member_id) LIKE LOWER($${params.length})`);
+      conditions.push(
+        `LOWER(s.stakeholder_member_id) LIKE LOWER($${params.length})`,
+      );
     }
 
     if (fromDate) {
@@ -153,7 +170,7 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
       conditions.push(`s.submitted_at <= $${params.length}`);
     }
 
-    const whereClause = conditions.join(' AND ');
+    const whereClause = conditions.join(" AND ");
 
     const rowsRes = await client.query(
       `SELECT
@@ -173,7 +190,7 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
        INNER JOIN program_vmpeo_feedback_submissions s ON s.id = e.submission_id
        WHERE ${whereClause}
        ORDER BY s.submitted_at DESC, e.category ASC, e.peo_number ASC NULLS LAST`,
-      params
+      params,
     );
 
     const rows: VmpeoReportRow[] = rowsRes.rows.map((row) => ({
@@ -181,13 +198,18 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
       instituteName: String(row.institution_name),
       stakeholderId: String(row.stakeholder_member_id),
       stakeholderName: String(row.stakeholder_name),
-      stakeholderCategory: row.stakeholder_category ? String(row.stakeholder_category) : null,
+      stakeholderCategory: row.stakeholder_category
+        ? String(row.stakeholder_category)
+        : null,
       category: row.category as FeedbackCategory,
-      categoryLabel: categoryLabel(row.category as FeedbackCategory, row.peo_number ?? null),
+      categoryLabel: categoryLabel(
+        row.category as FeedbackCategory,
+        row.peo_number ?? null,
+      ),
       rating: Number(row.rating),
       comment: row.comment ? String(row.comment) : null,
       date: new Date(row.submitted_at).toISOString(),
-      feedbackCycle: row.feedback_cycle as 'brainstorming' | 'finalization',
+      feedbackCycle: row.feedback_cycle as "brainstorming" | "finalization",
       peoNumber: row.peo_number != null ? Number(row.peo_number) : null,
       peoStatement: row.peo_statement ? String(row.peo_statement) : null,
     }));
@@ -207,7 +229,7 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
         statement: string;
         total: number;
         count: number;
-        comments: VmpeoCommentGroup['comments'];
+        comments: VmpeoCommentGroup["comments"];
       }
     >();
 
@@ -217,20 +239,21 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
         stakeholderMap.set(row.stakeholderId, row.stakeholderName);
       }
 
-      if (row.category === 'vision') {
+      if (row.category === "vision") {
         visionTotal += row.rating;
         visionCount += 1;
         if (row.rating >= 4) visionApproved += 1;
       }
 
-      if (row.category === 'mission') {
+      if (row.category === "mission") {
         missionTotal += row.rating;
         missionCount += 1;
       }
 
-      if (row.category === 'peo' && row.peoNumber != null) {
+      if (row.category === "peo" && row.peoNumber != null) {
         const existing = peoMap.get(row.peoNumber) || {
-          statement: row.peoStatement || `PEO-${String(row.peoNumber).padStart(2, '0')}`,
+          statement:
+            row.peoStatement || `PEO-${String(row.peoNumber).padStart(2, "0")}`,
           total: 0,
           count: 0,
           comments: [],
@@ -258,7 +281,8 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
       .map(([peoNumber, group]) => ({
         peoNumber,
         peoStatement: group.statement,
-        averageRating: group.count > 0 ? roundToTwo(group.total / group.count) : 0,
+        averageRating:
+          group.count > 0 ? roundToTwo(group.total / group.count) : 0,
         totalResponses: group.count,
       }));
 
@@ -267,7 +291,8 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
       .map(([peoNumber, group]) => ({
         peoNumber,
         peoStatement: group.statement,
-        averageRating: group.count > 0 ? roundToTwo(group.total / group.count) : 0,
+        averageRating:
+          group.count > 0 ? roundToTwo(group.total / group.count) : 0,
         totalResponses: group.count,
         comments: group.comments.sort((a, b) => b.date.localeCompare(a.date)),
       }))
@@ -276,9 +301,12 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
     const summary: VmpeoSummary = {
       totalEntries: rows.length,
       totalSubmissions: submissionIds.size,
-      averageVision: visionCount > 0 ? roundToTwo(visionTotal / visionCount) : null,
-      averageMission: missionCount > 0 ? roundToTwo(missionTotal / missionCount) : null,
-      visionApprovalPercentage: visionCount > 0 ? roundToTwo((visionApproved / visionCount) * 100) : 0,
+      averageVision:
+        visionCount > 0 ? roundToTwo(visionTotal / visionCount) : null,
+      averageMission:
+        missionCount > 0 ? roundToTwo(missionTotal / missionCount) : null,
+      visionApprovalPercentage:
+        visionCount > 0 ? roundToTwo((visionApproved / visionCount) * 100) : 0,
       averagePeoScores,
     };
 
@@ -286,9 +314,15 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
       program: {
         id: String(program.id),
         name: String(program.program_name),
-        timelineStartAt: program.vmpeo_feedback_start_at ? new Date(program.vmpeo_feedback_start_at).toISOString() : null,
-        timelineEndAt: program.vmpeo_feedback_end_at ? new Date(program.vmpeo_feedback_end_at).toISOString() : null,
-        feedbackCycle: (program.vmpeo_feedback_cycle || 'brainstorming') as 'brainstorming' | 'finalization',
+        timelineStartAt: program.vmpeo_feedback_start_at
+          ? new Date(program.vmpeo_feedback_start_at).toISOString()
+          : null,
+        timelineEndAt: program.vmpeo_feedback_end_at
+          ? new Date(program.vmpeo_feedback_end_at).toISOString()
+          : null,
+        feedbackCycle: (program.vmpeo_feedback_cycle || "brainstorming") as
+          | "brainstorming"
+          | "finalization",
       },
       filters: {
         category,
@@ -299,10 +333,12 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
       rows,
       summary,
       commentsByPeo,
-      availableStakeholders: Array.from(stakeholderMap.entries()).map(([stakeholderId, stakeholderName]) => ({
-        stakeholderId,
-        stakeholderName,
-      })),
+      availableStakeholders: Array.from(stakeholderMap.entries()).map(
+        ([stakeholderId, stakeholderName]) => ({
+          stakeholderId,
+          stakeholderName,
+        }),
+      ),
     };
   } finally {
     client.release();
@@ -312,7 +348,9 @@ export async function fetchVmpeoFeedbackReport(input: VmpeoReportFilters): Promi
 export function buildVmpeoReportCsv(report: VmpeoReportResult): string {
   const lines: string[] = [];
 
-  lines.push('Institute Name,Stakeholder ID,Stakeholder Name,Category,Rating,Comment,Date,Feedback Cycle');
+  lines.push(
+    "Institute Name,Stakeholder ID,Stakeholder Name,Category,Rating,Comment,Date,Feedback Cycle",
+  );
   report.rows.forEach((row) => {
     const escaped = [
       row.instituteName,
@@ -320,42 +358,48 @@ export function buildVmpeoReportCsv(report: VmpeoReportResult): string {
       row.stakeholderName,
       row.categoryLabel,
       String(row.rating),
-      row.comment || '',
+      row.comment || "",
       new Date(row.date).toISOString(),
       row.feedbackCycle,
     ].map((value) => `"${String(value).replace(/"/g, '""')}"`);
-    lines.push(escaped.join(','));
+    lines.push(escaped.join(","));
   });
 
-  lines.push('');
-  lines.push(`"Average Vision Rating","${report.summary.averageVision ?? 'NA'}"`);
-  lines.push(`"Average Mission Rating","${report.summary.averageMission ?? 'NA'}"`);
-  lines.push(`"Vision Approval Percentage","${report.summary.visionApprovalPercentage}%"`);
+  lines.push("");
+  lines.push(
+    `"Average Vision Rating","${report.summary.averageVision ?? "NA"}"`,
+  );
+  lines.push(
+    `"Average Mission Rating","${report.summary.averageMission ?? "NA"}"`,
+  );
+  lines.push(
+    `"Vision Approval Percentage","${report.summary.visionApprovalPercentage}%"`,
+  );
 
   if (report.summary.averagePeoScores.length > 0) {
-    lines.push('');
-    lines.push('PEO Number,PEO Statement,Average Rating,Total Responses');
+    lines.push("");
+    lines.push("PEO Number,PEO Statement,Average Rating,Total Responses");
     report.summary.averagePeoScores.forEach((peo) => {
       const escaped = [
-        `PEO-${String(peo.peoNumber).padStart(2, '0')}`,
+        `PEO-${String(peo.peoNumber).padStart(2, "0")}`,
         peo.peoStatement,
         String(peo.averageRating),
         String(peo.totalResponses),
       ].map((value) => `"${String(value).replace(/"/g, '""')}"`);
-      lines.push(escaped.join(','));
+      lines.push(escaped.join(","));
     });
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 function escapeHtml(value: string): string {
   return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export function buildVmpeoPrintableHtml(report: VmpeoReportResult): string {
@@ -367,19 +411,19 @@ export function buildVmpeoPrintableHtml(report: VmpeoReportResult): string {
         <td>${escapeHtml(row.stakeholderId)}</td>
         <td>${escapeHtml(row.categoryLabel)}</td>
         <td style="text-align:center;">${row.rating}</td>
-        <td>${escapeHtml(row.comment || '-')}</td>
+        <td>${escapeHtml(row.comment || "-")}</td>
         <td>${escapeHtml(new Date(row.date).toLocaleString())}</td>
       </tr>
-    `
+    `,
     )
-    .join('');
+    .join("");
 
   const peoSummaryHtml = report.summary.averagePeoScores
     .map(
       (peo) =>
-        `<tr><td>PEO-${String(peo.peoNumber).padStart(2, '0')}</td><td>${escapeHtml(peo.peoStatement)}</td><td>${peo.averageRating}</td><td>${peo.totalResponses}</td></tr>`
+        `<tr><td>PEO-${String(peo.peoNumber).padStart(2, "0")}</td><td>${escapeHtml(peo.peoStatement)}</td><td>${peo.averageRating}</td><td>${peo.totalResponses}</td></tr>`,
     )
-    .join('');
+    .join("");
 
   return `
 <!doctype html>
@@ -406,12 +450,12 @@ export function buildVmpeoPrintableHtml(report: VmpeoReportResult): string {
     <h1>Vision, Mission and PEO Feedback Report</h1>
     <p><strong>Program:</strong> ${escapeHtml(report.program.name)}</p>
     <div class="meta">
-      <p><strong>Timeline:</strong> ${escapeHtml(report.program.timelineStartAt || 'Not Set')} to ${escapeHtml(report.program.timelineEndAt || 'Not Set')}</p>
+      <p><strong>Timeline:</strong> ${escapeHtml(report.program.timelineStartAt || "Not Set")} to ${escapeHtml(report.program.timelineEndAt || "Not Set")}</p>
       <p><strong>Feedback Cycle:</strong> ${escapeHtml(report.program.feedbackCycle)}</p>
       <p><strong>Total Submissions:</strong> ${report.summary.totalSubmissions}</p>
       <p><strong>Total Entries:</strong> ${report.summary.totalEntries}</p>
-      <p><strong>Average Vision Rating:</strong> ${report.summary.averageVision ?? 'NA'}</p>
-      <p><strong>Average Mission Rating:</strong> ${report.summary.averageMission ?? 'NA'}</p>
+      <p><strong>Average Vision Rating:</strong> ${report.summary.averageVision ?? "NA"}</p>
+      <p><strong>Average Mission Rating:</strong> ${report.summary.averageMission ?? "NA"}</p>
       <p><strong>Vision Approval Percentage:</strong> ${report.summary.visionApprovalPercentage}%</p>
     </div>
 

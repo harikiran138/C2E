@@ -1,13 +1,13 @@
-import InstitutionWorkspace from '@/components/institution/workspace/InstitutionWorkspace';
-import ProcessStepPanel from '@/components/institution/workspace/ProcessStepPanel';
-import { getProcessStep } from '@/lib/institution/process';
-import { notFound } from 'next/navigation';
+import InstitutionWorkspace from "@/components/institution/workspace/InstitutionWorkspace";
+import ProcessStepPanel from "@/components/institution/workspace/ProcessStepPanel";
+import { getProcessStep } from "@/lib/institution/process";
+import { notFound } from "next/navigation";
 
 interface ProcessPageProps {
   params: Promise<{ step: string }>;
 }
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function ProcessPage({ params }: ProcessPageProps) {
   const { step } = await params;
@@ -21,7 +21,7 @@ export default async function ProcessPage({ params }: ProcessPageProps) {
     <InstitutionWorkspace
       activeStepKey={processStep.key}
       title={processStep.title}
-      subtitle={processStep.description || ''}
+      subtitle={processStep.description || ""}
     >
       <ProcessStepPanel step={processStep} />
     </InstitutionWorkspace>

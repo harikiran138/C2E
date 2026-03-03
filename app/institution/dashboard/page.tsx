@@ -1,4 +1,4 @@
-import Dashboard from '@/components/institution/Dashboard';
+import Dashboard from "@/components/institution/Dashboard";
 
 // export const dynamic = 'force-dynamic';
 

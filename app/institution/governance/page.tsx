@@ -1,7 +1,7 @@
-import InstitutionWorkspace from '@/components/institution/workspace/InstitutionWorkspace';
-import Link from 'next/link';
+import InstitutionWorkspace from "@/components/institution/workspace/InstitutionWorkspace";
+import Link from "next/link";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function GovernancePage() {
   return (
@@ -13,8 +13,8 @@ export default function GovernancePage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-8 space-y-4">
         <h2 className="text-xl font-bold text-slate-900">Governance Scope</h2>
         <p className="text-slate-600">
-          Program execution governance is managed inside each program portal. Use Programs List to open the required
-          program workspace.
+          Program execution governance is managed inside each program portal.
+          Use Programs List to open the required program workspace.
         </p>
         <Link
           href="/institution/programs"

@@ -1,26 +1,26 @@
-import pool from '@/lib/postgres';
-import { NextResponse } from 'next/server';
+import pool from "@/lib/postgres";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const programId = searchParams.get('programId');
-    const memberId = searchParams.get('id'); // Use 'id' for DELETE query mainly, but consistent naming
+    const programId = searchParams.get("programId");
+    const memberId = searchParams.get("id"); // Use 'id' for DELETE query mainly, but consistent naming
 
     const client = await pool.connect();
     try {
-      let queryText = 'SELECT * FROM pac_members';
+      let queryText = "SELECT * FROM pac_members";
       const params: any[] = [];
 
       if (programId) {
-        queryText += ' WHERE program_id = $1';
+        queryText += " WHERE program_id = $1";
         params.push(programId);
       } else if (memberId) {
-        queryText += ' WHERE id = $1';
+        queryText += " WHERE id = $1";
         params.push(memberId);
       }
-      
-      queryText += ' ORDER BY created_at ASC';
+
+      queryText += " ORDER BY created_at ASC";
 
       const result = await client.query(queryText, params);
       return NextResponse.json({ data: result.rows });
@@ -28,8 +28,11 @@ export async function GET(request: Request) {
       client.release();
     }
   } catch (error: any) {
-    console.error('PAC API Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    console.error("PAC API Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -63,8 +66,8 @@ export async function POST(request: Request) {
           body.category,
           body.tenure_start_date || null,
           body.tenure_end_date || null,
-          body.linkedin_id
-        ]
+          body.linkedin_id,
+        ],
       );
 
       return NextResponse.json({ data: result.rows[0] });
@@ -72,24 +75,30 @@ export async function POST(request: Request) {
       client.release();
     }
   } catch (error: any) {
-    console.error('PAC API Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    console.error("PAC API Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, ...fields } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Member ID is required for update" },
+        { status: 400 },
+      );
+    }
+
+    const client = await pool.connect();
     try {
-      const body = await request.json();
-      const { id, ...fields } = body;
-
-      if (!id) {
-        return NextResponse.json({ error: 'Member ID is required for update' }, { status: 400 });
-      }
-
-      const client = await pool.connect();
-      try {
-        const result = await client.query(
-          `UPDATE pac_members SET
+      const result = await client.query(
+        `UPDATE pac_members SET
               member_name = $1,
               member_id = $2,
               organization = $3,
@@ -102,53 +111,62 @@ export async function PUT(request: Request) {
               linkedin_id = $10,
               updated_at = CURRENT_TIMESTAMP
            WHERE id = $11 RETURNING *`,
-          [
-            fields.member_name,
-            fields.member_id,
-            fields.organization,
-            fields.email,
-            fields.mobile_number,
-            fields.specialisation,
-            fields.category,
-            fields.tenure_start_date || null,
-            fields.tenure_end_date || null,
-            fields.linkedin_id,
-            id
-          ]
-        );
-  
-        if (result.rowCount === 0) {
-            return NextResponse.json({ error: 'Member not found' }, { status: 404 });
-        }
+        [
+          fields.member_name,
+          fields.member_id,
+          fields.organization,
+          fields.email,
+          fields.mobile_number,
+          fields.specialisation,
+          fields.category,
+          fields.tenure_start_date || null,
+          fields.tenure_end_date || null,
+          fields.linkedin_id,
+          id,
+        ],
+      );
 
-        return NextResponse.json({ data: result.rows[0] });
-      } finally {
-        client.release();
+      if (result.rowCount === 0) {
+        return NextResponse.json(
+          { error: "Member not found" },
+          { status: 404 },
+        );
       }
-    } catch (error: any) {
-      console.error('PAC API Error:', error);
-      return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+
+      return NextResponse.json({ data: result.rows[0] });
+    } finally {
+      client.release();
     }
+  } catch (error: any) {
+    console.error("PAC API Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function DELETE(request: Request) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
 
-        if (!id) {
-            return NextResponse.json({ error: 'ID is required' }, { status: 400 });
-        }
-
-        const client = await pool.connect();
-        try {
-            await client.query('DELETE FROM pac_members WHERE id = $1', [id]);
-            return NextResponse.json({ success: true });
-        } finally {
-            client.release();
-        }
-    } catch (error: any) {
-        console.error('PAC API Error:', error);
-        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
+
+    const client = await pool.connect();
+    try {
+      await client.query("DELETE FROM pac_members WHERE id = $1", [id]);
+      return NextResponse.json({ success: true });
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error("PAC API Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
+  }
 }

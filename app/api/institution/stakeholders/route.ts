@@ -1,10 +1,10 @@
-import pool from '@/lib/postgres';
-import bcrypt from 'bcrypt';
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import pool from "@/lib/postgres";
+import bcrypt from "bcrypt";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyToken } from "@/lib/auth";
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('institution_token')?.value;
+  const token = request.cookies.get("institution_token")?.value;
   if (!token) return null;
   const payload = await verifyToken(token);
   if (!payload?.id) return null;
@@ -62,26 +62,26 @@ const RETURNING_FIELDS_WITH_ALIAS = `
   rs.updated_at
 `;
 
-const DEFAULT_STAKEHOLDER_PASSWORD = 'apassword';
+const DEFAULT_STAKEHOLDER_PASSWORD = "apassword";
 
 function buildCode(value: string, fallback: string): string {
-  const safe = String(value || '').trim();
+  const safe = String(value || "").trim();
   if (!safe) return fallback;
 
   const words = safe
-    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
     .split(/\s+/)
     .filter(Boolean);
 
   if (words.length === 0) return fallback;
   if (words.length === 1) {
-    const token = words[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const token = words[0].replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
     return token.slice(0, 6) || fallback;
   }
 
   const acronym = words
-    .map((word) => word[0]?.toUpperCase() || '')
-    .join('')
+    .map((word) => word[0]?.toUpperCase() || "")
+    .join("")
     .slice(0, 6);
 
   return acronym || fallback;
@@ -91,10 +91,10 @@ async function generateStakeholderId(
   client: any,
   programId: string,
   institutionName: string,
-  programCode: string | null
+  programCode: string | null,
 ) {
-  const instCode = buildCode(institutionName, 'INST');
-  const progCode = buildCode(programCode || '', 'PROG');
+  const instCode = buildCode(institutionName, "INST");
+  const progCode = buildCode(programCode || "", "PROG");
   const prefix = `${instCode}-${progCode}`;
 
   const result = await client.query(
@@ -102,12 +102,12 @@ async function generateStakeholderId(
      FROM representative_stakeholders
      WHERE program_id = $1
        AND member_id LIKE $2`,
-    [programId, `${prefix}-%`]
+    [programId, `${prefix}-%`],
   );
 
   let maxCounter = 0;
   for (const row of result.rows) {
-    const memberId = String(row.member_id || '');
+    const memberId = String(row.member_id || "");
     const match = memberId.match(/-(\d+)$/);
     if (!match) continue;
     const value = Number(match[1]);
@@ -116,19 +116,19 @@ async function generateStakeholderId(
     }
   }
 
-  return `${prefix}-${String(maxCounter + 1).padStart(3, '0')}`;
+  return `${prefix}-${String(maxCounter + 1).padStart(3, "0")}`;
 }
 
 export async function GET(request: NextRequest) {
   try {
     const institutionId = await getInstitutionId(request);
     if (!institutionId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const programId = searchParams.get('programId');
-    const memberId = searchParams.get('id');
+    const programId = searchParams.get("programId");
+    const memberId = searchParams.get("id");
 
     const client = await pool.connect();
     try {
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
         queryText += ` AND rs.id = $${params.length}`;
       }
 
-      queryText += ' ORDER BY rs.created_at ASC';
+      queryText += " ORDER BY rs.created_at ASC";
 
       const result = await client.query(queryText, params);
       return NextResponse.json({ data: result.rows });
@@ -158,8 +158,11 @@ export async function GET(request: NextRequest) {
       client.release();
     }
   } catch (error: any) {
-    console.error('Stakeholders API Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    console.error("Stakeholders API Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -167,18 +170,21 @@ export async function POST(request: NextRequest) {
   try {
     const institutionId = await getInstitutionId(request);
     if (!institutionId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
 
     if (!body.program_id || !body.member_name || !body.email) {
-      return NextResponse.json({ error: 'program_id, member_name and email are required.' }, { status: 400 });
+      return NextResponse.json(
+        { error: "program_id, member_name and email are required." },
+        { status: 400 },
+      );
     }
 
     const client = await pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       const programRes = await client.query(
         `SELECT p.id, p.program_code, i.institution_name
@@ -186,12 +192,15 @@ export async function POST(request: NextRequest) {
          INNER JOIN institutions i ON i.id = p.institution_id
          WHERE p.id = $1 AND p.institution_id = $2
          LIMIT 1`,
-        [String(body.program_id), institutionId]
+        [String(body.program_id), institutionId],
       );
 
       if (programRes.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return NextResponse.json({ error: 'Program not found or unauthorized.' }, { status: 404 });
+        await client.query("ROLLBACK");
+        return NextResponse.json(
+          { error: "Program not found or unauthorized." },
+          { status: 404 },
+        );
       }
 
       const program = programRes.rows[0];
@@ -199,7 +208,7 @@ export async function POST(request: NextRequest) {
         client,
         String(body.program_id),
         String(program.institution_name),
-        program.program_code ? String(program.program_code) : null
+        program.program_code ? String(program.program_code) : null,
       );
 
       const passwordHash = await bcrypt.hash(DEFAULT_STAKEHOLDER_PASSWORD, 10);
@@ -230,10 +239,10 @@ export async function POST(request: NextRequest) {
           body.category ? String(body.category) : null,
           body.linkedin_id ? String(body.linkedin_id) : null,
           passwordHash,
-        ]
+        ],
       );
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       return NextResponse.json({
         data: result.rows[0],
@@ -242,14 +251,17 @@ export async function POST(request: NextRequest) {
         },
       });
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
   } catch (error: any) {
-    console.error('Stakeholders API Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    console.error("Stakeholders API Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -257,14 +269,17 @@ export async function PUT(request: NextRequest) {
   try {
     const institutionId = await getInstitutionId(request);
     if (!institutionId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
     const { id, ...fields } = body;
 
     if (!id) {
-      return NextResponse.json({ error: 'Stakeholder ID is required for update' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Stakeholder ID is required for update" },
+        { status: 400 },
+      );
     }
 
     const client = await pool.connect();
@@ -275,15 +290,21 @@ export async function PUT(request: NextRequest) {
          INNER JOIN programs p ON p.id = rs.program_id
          WHERE rs.id = $1 AND p.institution_id = $2
          LIMIT 1`,
-        [id, institutionId]
+        [id, institutionId],
       );
 
       if (existingRes.rows.length === 0) {
-        return NextResponse.json({ error: 'Stakeholder not found or unauthorized' }, { status: 404 });
+        return NextResponse.json(
+          { error: "Stakeholder not found or unauthorized" },
+          { status: 404 },
+        );
       }
 
       const existing = existingRes.rows[0];
-      const nextApproved = typeof fields.is_approved === 'boolean' ? fields.is_approved : Boolean(existing.is_approved);
+      const nextApproved =
+        typeof fields.is_approved === "boolean"
+          ? fields.is_approved
+          : Boolean(existing.is_approved);
 
       const result = await client.query(
         `UPDATE representative_stakeholders rs
@@ -312,11 +333,14 @@ export async function PUT(request: NextRequest) {
           nextApproved,
           id,
           institutionId,
-        ]
+        ],
       );
 
       if (result.rowCount === 0) {
-        return NextResponse.json({ error: 'Stakeholder not found' }, { status: 404 });
+        return NextResponse.json(
+          { error: "Stakeholder not found" },
+          { status: 404 },
+        );
       }
 
       return NextResponse.json({ data: result.rows[0] });
@@ -324,8 +348,11 @@ export async function PUT(request: NextRequest) {
       client.release();
     }
   } catch (error: any) {
-    console.error('Stakeholders API Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    console.error("Stakeholders API Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -333,14 +360,14 @@ export async function DELETE(request: NextRequest) {
   try {
     const institutionId = await getInstitutionId(request);
     if (!institutionId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
     const client = await pool.connect();
@@ -352,11 +379,14 @@ export async function DELETE(request: NextRequest) {
            AND p.id = rs.program_id
            AND p.institution_id = $2
          RETURNING rs.id`,
-        [id, institutionId]
+        [id, institutionId],
       );
 
       if (result.rowCount === 0) {
-        return NextResponse.json({ error: 'Stakeholder not found or unauthorized' }, { status: 404 });
+        return NextResponse.json(
+          { error: "Stakeholder not found or unauthorized" },
+          { status: 404 },
+        );
       }
 
       return NextResponse.json({ success: true });
@@ -364,7 +394,10 @@ export async function DELETE(request: NextRequest) {
       client.release();
     }
   } catch (error: any) {
-    console.error('Stakeholders API Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    console.error("Stakeholders API Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

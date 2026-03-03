@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/postgres';
+import { NextRequest, NextResponse } from "next/server";
+import pool from "@/lib/postgres";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const instituteId = searchParams.get('instituteId');
+    const instituteId = searchParams.get("instituteId");
 
     const client = await pool.connect();
     try {
@@ -14,14 +14,14 @@ export async function GET(request: NextRequest) {
            FROM programs
            WHERE institution_id = $1
            ORDER BY program_name ASC`,
-          [instituteId]
+          [instituteId],
         );
 
         return NextResponse.json({
           programs: programsRes.rows.map((row) => ({
             id: String(row.id),
             name: String(row.program_name),
-            code: row.program_code ? String(row.program_code) : '',
+            code: row.program_code ? String(row.program_code) : "",
           })),
         });
       }
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       const institutesRes = await client.query(
         `SELECT id, institution_name
          FROM institutions
-         ORDER BY institution_name ASC`
+         ORDER BY institution_name ASC`,
       );
 
       return NextResponse.json({
@@ -42,7 +42,10 @@ export async function GET(request: NextRequest) {
       client.release();
     }
   } catch (error: any) {
-    console.error('Stakeholder login options error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to load options' }, { status: 500 });
+    console.error("Stakeholder login options error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to load options" },
+      { status: 500 },
+    );
   }
 }

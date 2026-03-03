@@ -1,6 +1,6 @@
-import StakeholderFeedbackDashboard from '@/components/stakeholder/StakeholderFeedbackDashboard';
+import StakeholderFeedbackDashboard from "@/components/stakeholder/StakeholderFeedbackDashboard";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function StakeholderDashboardPage() {
   return <StakeholderFeedbackDashboard />;
