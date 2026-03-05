@@ -227,11 +227,13 @@ export default function PeoGenerator({
         body: JSON.stringify({
           priorities: selectedPriorities,
           count: peoCount,
+          vision: program?.program_vision || program?.vision || "",
+          missions: (program?.program_mission || program?.mission || "")
+            .split("\n")
+            .filter((m: string) => m.trim()),
           institutionContext: [
             `Institute Vision: ${institution?.vision || "Not specified"}.`,
             `Institute Mission: ${institution?.mission || "Not specified"}.`,
-            `Program Vision: ${program?.program_vision || program?.vision || "Not specified"}.`,
-            `Program Mission: ${program?.program_mission || program?.mission || "Not specified"}.`,
           ].join(" "),
           programName: program?.program_name || "Engineering Program",
         }),
@@ -555,11 +557,10 @@ export default function PeoGenerator({
                       onClick={() => togglePriority(item)}
                       className={`
                                             px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all
-                                            ${
-                                              selectedPriorities.includes(item)
-                                                ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-200"
-                                                : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600"
-                                            }
+                                            ${selectedPriorities.includes(item)
+                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-200"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600"
+                        }
                                         `}
                     >
                       {item}
@@ -658,11 +659,10 @@ export default function PeoGenerator({
                               {criteria.map((criterion) => (
                                 <div
                                   key={`${criterion.key}-${i}`}
-                                  className={`rounded-md px-2 py-1 text-[10px] font-semibold border ${
-                                    criterion.passed
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                      : "border-amber-200 bg-amber-50 text-amber-700"
-                                  }`}
+                                  className={`rounded-md px-2 py-1 text-[10px] font-semibold border ${criterion.passed
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-amber-200 bg-amber-50 text-amber-700"
+                                    }`}
                                   title={criterion.guidance || criterion.label}
                                 >
                                   {criterion.passed ? "OK" : "FIX"}{" "}

@@ -200,14 +200,14 @@ export default function VisionMissionGenerator() {
                   hasInitialVisionScore &&
                   Number.isFinite(initialVisionScore)
                   ? {
-                      [initialVision]: {
-                        score: initialVisionScore,
-                        ...(currentProgram.vision_analysis &&
+                    [initialVision]: {
+                      score: initialVisionScore,
+                      ...(currentProgram.vision_analysis &&
                         typeof currentProgram.vision_analysis === "object"
-                          ? currentProgram.vision_analysis
-                          : {}),
-                      },
-                    }
+                        ? currentProgram.vision_analysis
+                        : {}),
+                    },
+                  }
                   : {},
               );
               setMissionScores(
@@ -215,21 +215,21 @@ export default function VisionMissionGenerator() {
                   hasInitialMissionScore &&
                   Number.isFinite(initialMissionScore)
                   ? {
-                      [initialMission]: {
-                        score: initialMissionScore,
-                        ...(currentProgram.mission_analysis &&
+                    [initialMission]: {
+                      score: initialMissionScore,
+                      ...(currentProgram.mission_analysis &&
                         typeof currentProgram.mission_analysis === "object"
-                          ? currentProgram.mission_analysis
-                          : {}),
-                      },
-                    }
+                        ? currentProgram.mission_analysis
+                        : {}),
+                    },
+                  }
                   : {},
               );
               setIsVisionSelectionSaved(Boolean(initialVision));
               setIsVisionApproved(
                 hasInitialVisionScore &&
-                  Number.isFinite(initialVisionScore) &&
-                  initialVisionScore >= VISION_APPROVAL_THRESHOLD,
+                Number.isFinite(initialVisionScore) &&
+                initialVisionScore >= VISION_APPROVAL_THRESHOLD,
               );
 
               // Load saved priorities from used inputs if available, else fallback to vision_priorities
@@ -339,7 +339,7 @@ export default function VisionMissionGenerator() {
       return {
         score: existingScore,
         ...(program?.vision_analysis &&
-        typeof program.vision_analysis === "object"
+          typeof program.vision_analysis === "object"
           ? program.vision_analysis
           : {}),
       };
@@ -429,13 +429,13 @@ export default function VisionMissionGenerator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "vision",
-          program_name: program.program_name,
+          program_name: program.program_name || "Engineering Program",
           institute_vision: institution.vision || "",
           institute_mission: institution.mission || "",
-          vision_inputs: selectedVisionPriorities,
-          mission_inputs: selectedMissionPriorities,
-          vision_count: visionGenerateCount,
-          exclude_visions: excludedVisions,
+          vision_inputs: selectedVisionPriorities || [],
+          mission_inputs: selectedMissionPriorities || [],
+          vision_count: visionGenerateCount || 3,
+          exclude_visions: excludedVisions || [],
         }),
       });
 
@@ -467,8 +467,10 @@ export default function VisionMissionGenerator() {
 
         setIsAiGenerated(true);
       } else {
+        const errData = await response.json().catch(() => ({}));
+        console.error("AI backend error response:", errData);
         alert(
-          `Generation failed. Please ensure the AI backend is running at ${AI_API_URL}.`,
+          `Generation failed (${response.status}). ${errData.detail || JSON.stringify(errData)}`
         );
       }
     } catch (error) {
@@ -546,7 +548,7 @@ export default function VisionMissionGenerator() {
         const errorData = await response.json().catch(() => ({}));
         alert(
           errorData.error ||
-            "Mission generation failed. Please review inputs and try again.",
+          "Mission generation failed. Please review inputs and try again.",
         );
       }
     } catch (error) {
@@ -767,18 +769,16 @@ export default function VisionMissionGenerator() {
                     setSelectedVisionPriorities,
                   )
                 }
-                className={`h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${
-                  selectedVisionPriorities.includes(item)
-                    ? "bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm"
-                }`}
+                className={`h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${selectedVisionPriorities.includes(item)
+                  ? "bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm"
+                  }`}
               >
                 <div
-                  className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${
-                    selectedVisionPriorities.includes(item)
-                      ? "bg-purple-500 border-purple-500"
-                      : "border-slate-300"
-                  }`}
+                  className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${selectedVisionPriorities.includes(item)
+                    ? "bg-purple-500 border-purple-500"
+                    : "border-slate-300"
+                    }`}
                 >
                   {selectedVisionPriorities.includes(item) && (
                     <div className="size-1.5 rounded-full bg-white" />
@@ -799,18 +799,16 @@ export default function VisionMissionGenerator() {
                       setSelectedVisionPriorities,
                     )
                   }
-                  className={`w-full h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${
-                    selectedVisionPriorities.includes(item)
-                      ? "bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm"
-                  }`}
+                  className={`w-full h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${selectedVisionPriorities.includes(item)
+                    ? "bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 border-transparent shadow-[0_0_0_2px_rgba(168,85,247,0.4)] text-slate-900"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm"
+                    }`}
                 >
                   <div
-                    className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${
-                      selectedVisionPriorities.includes(item)
-                        ? "bg-purple-500 border-purple-500"
-                        : "border-slate-300"
-                    }`}
+                    className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${selectedVisionPriorities.includes(item)
+                      ? "bg-purple-500 border-purple-500"
+                      : "border-slate-300"
+                      }`}
                   >
                     {selectedVisionPriorities.includes(item) && (
                       <div className="size-1.5 rounded-full bg-white" />
@@ -964,54 +962,37 @@ export default function VisionMissionGenerator() {
 
       <div className="h-px bg-slate-200" />
 
-      {/* MISSION SECTION */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles className="size-5 text-blue-500" /> Program Mission
-          </h3>
+      {/* MISSION SECTION - Locked until Vision is approved */}
+      {!canGenerateMission ? (
+        <div className="p-8 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center text-center space-y-3 opacity-60">
+          <div className="p-3 bg-white rounded-full border border-slate-200 shadow-sm">
+            <Sparkles className="size-6 text-slate-300" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+              Program Mission Locked
+            </h3>
+            <p className="text-xs text-slate-400 max-w-sm mt-1">
+              Save a Vision statement with a score of [ {VISION_APPROVAL_THRESHOLD} ] or higher to unlock Mission generation.
+            </p>
+          </div>
         </div>
+      ) : (
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="size-5 text-blue-500" /> Program Mission
+            </h3>
+          </div>
 
-        <div className="space-y-3">
-          <label className="text-sm font-semibold text-slate-700">
-            Select Focus Areas
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {MISSION_PRIORITIES.map((item) => (
-              <button
-                key={item}
-                onClick={() =>
-                  togglePriority(
-                    item,
-                    selectedMissionPriorities,
-                    setSelectedMissionPriorities,
-                  )
-                }
-                className={`h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${
-                  selectedMissionPriorities.includes(item)
-                    ? "bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm"
-                }`}
-              >
-                <div
-                  className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${
-                    selectedMissionPriorities.includes(item)
-                      ? "bg-blue-500 border-blue-500"
-                      : "border-slate-300"
-                  }`}
-                >
-                  {selectedMissionPriorities.includes(item) && (
-                    <div className="size-1.5 rounded-full bg-white" />
-                  )}
-                </div>
-                <span className="line-clamp-2">{item}</span>
-              </button>
-            ))}
-
-            {/* Custom Mission Priorities */}
-            {customMissionPriorities.map((item) => (
-              <div key={item} className="relative group">
+          <div className="space-y-3">
+            <label className="text-sm font-semibold text-slate-700">
+              Select Focus Areas
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {MISSION_PRIORITIES.map((item) => (
                 <button
+                  key={item}
                   onClick={() =>
                     togglePriority(
                       item,
@@ -1019,150 +1000,172 @@ export default function VisionMissionGenerator() {
                       setSelectedMissionPriorities,
                     )
                   }
-                  className={`w-full h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${
-                    selectedMissionPriorities.includes(item)
-                      ? "bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm"
-                  }`}
+                  className={`h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${selectedMissionPriorities.includes(item)
+                    ? "bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm"
+                    }`}
                 >
                   <div
-                    className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${
-                      selectedMissionPriorities.includes(item)
-                        ? "bg-blue-500 border-blue-500"
-                        : "border-slate-300"
-                    }`}
+                    className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${selectedMissionPriorities.includes(item)
+                      ? "bg-blue-500 border-blue-500"
+                      : "border-slate-300"
+                      }`}
                   >
                     {selectedMissionPriorities.includes(item) && (
                       <div className="size-1.5 rounded-full bg-white" />
                     )}
                   </div>
-                  <span className="line-clamp-2 pr-6">{item}</span>
+                  <span className="line-clamp-2">{item}</span>
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCustomMissionPriorities((prev) =>
-                      prev.filter((p) => p !== item),
-                    );
-                    setSelectedMissionPriorities((prev) =>
-                      prev.filter((p) => p !== item),
-                    );
-                  }}
-                  className="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+              ))}
+
+              {/* Custom Mission Priorities */}
+              {customMissionPriorities.map((item) => (
+                <div key={item} className="relative group">
+                  <button
+                    onClick={() =>
+                      togglePriority(
+                        item,
+                        selectedMissionPriorities,
+                        setSelectedMissionPriorities,
+                      )
+                    }
+                    className={`w-full h-[52px] px-4 rounded-xl text-xs font-semibold transition-all border-2 text-left flex items-center gap-2 ${selectedMissionPriorities.includes(item)
+                      ? "bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border-transparent shadow-[0_0_0_2px_rgba(59,130,246,0.4)] text-slate-900"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm"
+                      }`}
                   >
-                    <path d="M18 6 6 18" />
-                    <path d="m6 6 12 12" />
-                  </svg>
+                    <div
+                      className={`shrink-0 size-4 rounded-full border-2 flex items-center justify-center ${selectedMissionPriorities.includes(item)
+                        ? "bg-blue-500 border-blue-500"
+                        : "border-slate-300"
+                        }`}
+                    >
+                      {selectedMissionPriorities.includes(item) && (
+                        <div className="size-1.5 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <span className="line-clamp-2 pr-6">{item}</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCustomMissionPriorities((prev) =>
+                        prev.filter((p) => p !== item),
+                      );
+                      setSelectedMissionPriorities((prev) =>
+                        prev.filter((p) => p !== item),
+                      );
+                    }}
+                    className="absolute top-1 right-1 p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+
+              <div className="h-[52px] flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newMissionPriority}
+                  onChange={(e) => setNewMissionPriority(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && addCustomPriority("mission")
+                  }
+                  placeholder="Add custom..."
+                  className="flex-1 h-full px-3 text-xs border-2 border-dashed border-slate-300 rounded-xl focus:border-blue-400 focus:outline-none"
+                />
+                <button
+                  onClick={() => addCustomPriority("mission")}
+                  disabled={!newMissionPriority.trim()}
+                  className="h-full aspect-square rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-30 flex items-center justify-center text-xl font-bold transition-all"
+                >
+                  +
                 </button>
               </div>
-            ))}
+            </div>
+          </div>
 
-            <div className="h-[52px] flex items-center gap-2">
-              <input
-                type="text"
-                value={newMissionPriority}
-                onChange={(e) => setNewMissionPriority(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" && addCustomPriority("mission")
-                }
-                placeholder="Add custom..."
-                className="flex-1 h-full px-3 text-xs border-2 border-dashed border-slate-300 rounded-xl focus:border-blue-400 focus:outline-none"
-              />
-              <button
-                onClick={() => addCustomPriority("mission")}
-                disabled={!newMissionPriority.trim()}
-                className="h-full aspect-square rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-30 flex items-center justify-center text-xl font-bold transition-all"
+          <div className="flex gap-4 items-end">
+            <div className="w-48">
+              <label className="text-xs font-semibold text-slate-500 mb-1 block">
+                No. of Mission Statements to be generated
+              </label>
+              <select
+                value={missionGenerateCount}
+                onChange={(e) => setMissionGenerateCount(Number(e.target.value))}
+                className="w-full h-12 rounded-xl border border-slate-200 px-3 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
               >
-                +
-              </button>
+                {Array.from({ length: 10 }, (_, idx) => idx + 1).map((count) => (
+                  <option key={`mission-count-${count}`} value={count}>
+                    {count}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
-        </div>
-
-        <div className="flex gap-4 items-end">
-          <div className="w-48">
-            <label className="text-xs font-semibold text-slate-500 mb-1 block">
-              No. of Mission Statements to be generated
-            </label>
-            <select
-              value={missionGenerateCount}
-              onChange={(e) => setMissionGenerateCount(Number(e.target.value))}
-              className="w-full h-12 rounded-xl border border-slate-200 px-3 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
+            <button
+              onClick={handleGenerateMissionOnly}
+              disabled={
+                generatingMission ||
+                !canGenerateMission ||
+                selectedMissionPriorities.length === 0
+              }
+              className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
             >
-              {Array.from({ length: 10 }, (_, idx) => idx + 1).map((count) => (
-                <option key={`mission-count-${count}`} value={count}>
-                  {count}
-                </option>
-              ))}
-            </select>
+              {generatingMission ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <RefreshCw className="size-5" />
+              )}
+              Generate Draft Mission
+            </button>
           </div>
-          <button
-            onClick={handleGenerateMissionOnly}
-            disabled={
-              generatingMission ||
-              !canGenerateMission ||
-              selectedMissionPriorities.length === 0
-            }
-            className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
-          >
-            {generatingMission ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <RefreshCw className="size-5" />
-            )}
-            Generate Draft Mission
-          </button>
-        </div>
-        {!canGenerateMission && (
-          <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            {!isVisionSelectionSaved
-              ? "Save one selected Vision statement to enable Mission generation."
-              : `Mission generation is blocked until the saved Vision score reaches ${VISION_APPROVAL_THRESHOLD}.`}
-          </p>
-        )}
 
-        {/* Mission Options List */}
-        {visibleMissionOptions.length > 0 && (
-          <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-              Pick a Mission Statement
-            </label>
-            <div className="space-y-3">
-              {visibleMissionOptions.map((opt, idx) => (
-                <OptionCard
-                  key={idx}
-                  text={opt}
-                  isSelected={programMission === opt}
-                  onSelect={() => setProgramMission(opt)}
-                  scoreInfo={findScoreInfo(missionScores, opt)}
-                  onEdit={(newVal) => {
-                    const newOpts = [...visibleMissionOptions];
-                    newOpts[idx] = newVal;
-                    setMissionOptions(newOpts);
-                    if (programMission === opt) setProgramMission(newVal);
-                  }}
-                />
-              ))}
-            </div>
-            {isAiGenerated && (
-              <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
-                <Sparkles className="size-3" /> Derived from Program Vision
+          {/* Mission Options List */}
+          {visibleMissionOptions.length > 0 && (
+            <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Pick a Mission Statement
+              </label>
+              <div className="space-y-3">
+                {visibleMissionOptions.map((opt, idx) => (
+                  <OptionCard
+                    key={idx}
+                    text={opt}
+                    isSelected={programMission === opt}
+                    onSelect={() => setProgramMission(opt)}
+                    scoreInfo={findScoreInfo(missionScores, opt)}
+                    onEdit={(newVal) => {
+                      const newOpts = [...visibleMissionOptions];
+                      newOpts[idx] = newVal;
+                      setMissionOptions(newOpts);
+                      if (programMission === opt) setProgramMission(newVal);
+                    }}
+                  />
+                ))}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+              {isAiGenerated && (
+                <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
+                  <Sparkles className="size-3" /> Derived from Program Vision
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex justify-end pt-6">
         <button
@@ -1175,23 +1178,39 @@ export default function VisionMissionGenerator() {
           ) : (
             <Save className="size-5" />
           )}
-          Save Choices
+          Save Choice and Unlock PEOs
         </button>
       </div>
 
       <div className="h-px bg-slate-200 my-8" />
 
-      {/* PEO SECTION - Merged from PeoGenerator */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles className="size-5 text-indigo-500" /> Program Educational
-            Objectives (PEOs)
-          </h3>
+      {/* PEO SECTION - Locked until Mission exists */}
+      {!programMission ? (
+        <div className="p-8 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center text-center space-y-3 opacity-60">
+          <div className="p-3 bg-white rounded-full border border-slate-200 shadow-sm">
+            <Sparkles className="size-6 text-slate-300" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+              Program Educational Objectives (PEOs) Locked
+            </h3>
+            <p className="text-xs text-slate-400 max-w-sm mt-1">
+              Select and save a Mission statement to unlock PEO generation and timeline management.
+            </p>
+          </div>
         </div>
-        {/* Render PeoGenerator with context hidden as it's already shown above */}
-        <PeoGenerator hideContext={true} isEmbedded={true} />
-      </div>
+      ) : (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="size-5 text-indigo-500" /> Program Educational
+              Objectives (PEOs)
+            </h3>
+          </div>
+          {/* Render PeoGenerator with context hidden as it's already shown above */}
+          <PeoGenerator hideContext={true} isEmbedded={true} />
+        </div>
+      )}
     </div>
   );
 }

@@ -157,10 +157,11 @@ export async function POST(request: NextRequest) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "mission",
-          program_name: ownedProgram.program_name,
-          institute_vision: institutionVision,
-          institute_mission: institutionMission,
+          program_name: ownedProgram.program_name || "Engineering Program",
+          institute_vision: institutionVision || "",
+          institute_mission: institutionMission || "",
           selected_program_vision: selectedVision.vision_text,
+          vision_inputs: [],
           mission_inputs: missionInputs,
           mission_count: missionCount,
           exclude_missions: excludedMissions,
@@ -182,8 +183,8 @@ export async function POST(request: NextRequest) {
       const missions =
         Array.isArray(aiPayload?.missions) && aiPayload.missions.length > 0
           ? aiPayload.missions
-              .map((item: unknown) => String(item || "").trim())
-              .filter(Boolean)
+            .map((item: unknown) => String(item || "").trim())
+            .filter(Boolean)
           : aiPayload?.mission
             ? [String(aiPayload.mission).trim()]
             : [];

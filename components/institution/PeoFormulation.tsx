@@ -51,34 +51,44 @@ export default function PeoFormulation() {
     fetchPrograms();
   }, []);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (!selectedProgramId) {
+      alert("Please select a program first.");
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
-      const sets = [
-        [
-          "Demonstrate technical leadership and innovation in engineering practices.",
-          "Excel in multidisciplinary research environments.",
-          "Maintain highest ethical standards in professional delivery.",
-        ],
-        [
-          "Lead multidisciplinary teams with ethical responsibility and global awareness.",
-          "Apply advanced computational methods to solve societal challenges.",
-          "Foster sustainable development through green engineering practices.",
-        ],
-        [
-          "Identify, formulate, and solve complex engineering problems.",
-          "Communicate effectively with engineering community and society.",
-          "Engage in lifelong learning and professional development.",
-        ],
-        [
-          "Design solutions for complex engineering problems with safety considerations.",
-          "Use research-based knowledge to provide valid conclusions.",
-          "Create, select, and apply appropriate techniques and tools.",
-        ],
-      ];
-      setGeneratedSets(sets);
+    try {
+      const resp = await fetch("/api/generate/peos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programId: selectedProgramId,
+          count: 4,
+          priorities: ["Institute Vision", "Professional Practice", "Life-long Learning"],
+        }),
+      });
+      if (!resp.ok) throw new Error("Failed to generate PEOs");
+      const data = await resp.json();
+
+      // The API returns 'results' as a flat list, but this UI expects 'sets' (sets of PEOs)
+      // For simplicity in this old UI, we'll slice the results into a single set or multiple sets if possible
+      const results = data.results || [];
+      if (results.length > 0) {
+        // Group them into sets of 3 or 4
+        const sets: string[][] = [];
+        for (let i = 0; i < results.length; i += 4) {
+          sets.push(results.slice(i, i + 4));
+        }
+        setGeneratedSets(sets);
+      } else {
+        alert("No PEOs generated. Try again.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Generation failed: " + e.message);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const handleSelectSet = (index: number) => {

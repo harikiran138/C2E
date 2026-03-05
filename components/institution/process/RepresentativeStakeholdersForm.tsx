@@ -19,6 +19,8 @@ import {
   Award,
   Info,
   UserCog,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -184,6 +186,25 @@ function StakeholdersFormContent() {
     }
   };
 
+  const handleToggleApproval = async (member: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const newStatus = !member.is_approved;
+    try {
+      const response = await fetch("/api/institution/stakeholders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: member.id, is_approved: newStatus }),
+      });
+      if (response.ok) {
+        fetchMembers();
+      } else {
+        alert("Failed to update approval status");
+      }
+    } catch (error) {
+      console.error("Approval toggle error:", error);
+    }
+  };
+
   const handlePrintPDF = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -217,8 +238,8 @@ function StakeholdersFormContent() {
             </thead>
             <tbody>
               ${members
-                .map(
-                  (m, i) => `
+        .map(
+          (m, i) => `
                 <tr>
                   <td>${i + 1}</td>
                   <td>
@@ -233,8 +254,8 @@ function StakeholdersFormContent() {
                   </td>
                 </tr>
               `,
-                )
-                .join("")}
+        )
+        .join("")}
             </tbody>
           </table>
         </body>
@@ -734,21 +755,38 @@ function StakeholdersFormContent() {
                           </span>
                         </div>
                       </div>
-
-                      <div className="md:col-span-4 hidden md:flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="md:col-span-4 hidden md:flex items-center justify-end gap-3 transition-opacity">
+                        <div className="flex flex-col items-center gap-1">
+                          <button
+                            onClick={(e) => handleToggleApproval(member, e)}
+                            className={cn(
+                              "h-8 px-3 rounded-lg flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm",
+                              member.is_approved
+                                ? "bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100"
+                                : "bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100"
+                            )}
+                            title={member.is_approved ? "Revoke Approval" : "Grant Approval"}
+                          >
+                            {member.is_approved ? (
+                              <><XCircle className="size-3.5" /> Revoke</>
+                            ) : (
+                              <><CheckCircle2 className="size-3.5" /> Approve</>
+                            )}
+                          </button>
+                        </div>
                         <button
                           onClick={(e) => handleEdit(member, e)}
-                          className="size-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                          className="size-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all"
                           title="Edit"
                         >
-                          <Edit2 className="size-4" />
+                          <Edit2 className="size-3.5" />
                         </button>
                         <button
                           onClick={(e) => handleDelete(member.id, e)}
-                          className="size-9 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          className="size-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
                           title="Delete"
                         >
-                          <Trash2 className="size-4" />
+                          <Trash2 className="size-3.5" />
                         </button>
                       </div>
                     </div>
@@ -839,7 +877,7 @@ function StakeholdersFormContent() {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 

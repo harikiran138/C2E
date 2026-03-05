@@ -12,6 +12,9 @@ import ProgramOutcomesForm from "@/components/institution/process/ProgramOutcome
 import PsoGenerator from "@/components/institution/process/PsoGenerator";
 import AcademicCouncilForm from "@/components/institution/process/AcademicCouncilForm";
 import OBEFrameworkForm from "@/components/institution/process/OBEFrameworkForm";
+import IdentifyOBECoursesPanel from "@/components/institution/process/IdentifyOBECoursesPanel";
+import CourseOutcomesPanel from "@/components/institution/process/CourseOutcomesPanel";
+import CurriculumFeedbackPanel from "@/components/institution/process/CurriculumFeedbackPanel";
 import VMPEOFeedbackDashboard from "@/components/institution/VMPEOFeedbackDashboard";
 import { Save, Loader2 } from "lucide-react";
 
@@ -746,8 +749,20 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
     return <CurriculumStructurePanel />;
   }
 
+  if (step.key === "process-13") {
+    return <IdentifyOBECoursesPanel />;
+  }
+
   if (step.key === "process-14") {
+    return <CourseOutcomesPanel />;
+  }
+
+  if (step.key === "process-15") {
     return <DevelopCurriculumPanel />;
+  }
+
+  if (step.key === "process-16") {
+    return <CurriculumFeedbackPanel />;
   }
 
   if (step.kind === "action" || step.kind === "info") {
@@ -766,7 +781,10 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
       "process-9",
       "process-10",
       "process-12",
+      "process-13",
       "process-14",
+      "process-15",
+      "process-16",
     ].includes(step.key)
   ) {
     return <SharedForm step={step} />;

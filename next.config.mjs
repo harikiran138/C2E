@@ -8,7 +8,7 @@ const nextConfig = {
     return [
       {
         source: '/ai_proxy/:path*',
-        destination: 'http://localhost:8001/:path*',
+        destination: 'http://127.0.0.1:8001/:path*',
       },
     ];
   },

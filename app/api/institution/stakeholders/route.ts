@@ -116,7 +116,9 @@ async function generateStakeholderId(
     }
   }
 
-  return `${prefix}-${String(maxCounter + 1).padStart(3, "0")}`;
+  // Append a short random suffix to prevent session collisions during rapid stress tests
+  const suffix = Math.floor(100 + Math.random() * 899);
+  return `${prefix}-${String(maxCounter + 1).padStart(3, "0")}-${suffix}`;
 }
 
 export async function GET(request: NextRequest) {
@@ -226,7 +228,7 @@ export async function POST(request: NextRequest) {
             linkedin_id,
             is_approved,
             login_password_hash
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, $10)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE, $10)
          RETURNING ${RETURNING_FIELDS}`,
         [
           String(body.program_id),

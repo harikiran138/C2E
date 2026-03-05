@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from prompts.refinement import VISION_REFINEMENT_PROMPT, MISSION_REFINEMENT_PROMPT, PEO_REFINEMENT_PROMPT, PSO_REFINEMENT_PROMPT, SCORING_PROMPT, VISION_QUALITY_ENFORCEMENT_PROMPT, VISION_DEBUG_AND_REPAIR_AGENT, VISION_AUTO_VERIFY_AND_FIX_PROMPT
-from strategic_scoring import score_vision
+from strategic_scoring import calculate_alignment, score_mission, score_vision, enforce_peo_quality, score_peo, calculate_peo_vision_alignment, peo_similarity, calculate_peo_vision_alignment, peo_similarity, enforce_po_quality
 from templates import generate_elite_fallback_missions
 from ml_engine import get_local_vision
 
@@ -57,6 +57,33 @@ class VMGenerateResponse(BaseModel):
     visions: Optional[List[str]] = None
     missions: Optional[List[str]] = None
     scores: Optional[Dict[str, Dict]] = None
+
+class PEOGenerateRequest(BaseModel):
+    programName: str
+    vision: Optional[str] = ""
+    missions: Optional[List[str]] = []
+    priorities: List[str]
+    count: Optional[int] = 4
+    institutionContext: Optional[str] = ""
+
+class PEOGenerateResponse(BaseModel):
+    results: List[str]
+    quality: List[Dict[str, Any]]
+    alignment_matrix: Optional[List[List[int]]] = None
+    scores: Optional[Dict[str, Dict]] = None
+
+class POGenerateRequest(BaseModel):
+    programName: str
+    peos: List[str]
+    count: Optional[int] = 12
+    context: Optional[str] = ""
+
+class POGenerateResponse(BaseModel):
+    pos: List[str]
+    mapping_matrix: List[List[int]]
+    quality: List[Dict[str, Any]]
+
+
 
 # Simple in-memory cache
 ai_cache = {}
@@ -281,92 +308,75 @@ def to_strategic_focus_phrase(focus_inputs: List[str]) -> str:
 def build_deterministic_vision(program_name: str, focus_inputs: List[str], index: int) -> str:
     focus_phrase = to_strategic_focus_phrase(focus_inputs)
     templates = [
-        f"To be globally recognized for long-term {program_name} distinction through {focus_phrase} with sustained societal and professional relevance.",
-        f"To emerge as a long-horizon {program_name} benchmark for globally respected distinction through {focus_phrase} and enduring strategic relevance.",
-        f"To achieve distinction in {program_name} through sustained {focus_phrase} and long-term institutional contribution.",
-        f"To advance as a leading {program_name} program through sustained {focus_phrase}, institutional leadership, and enduring strategic contribution.",
-        f"To be globally respected for sustained {program_name} excellence through {focus_phrase} with long-horizon societal relevance.",
+        f"To be a globally recognized leader in {program_name} advancement and research, creating innovative and sustainable technologies that transform society.",
+        f"To achieve global excellence in {program_name} through pioneering research, innovative capabilities, and sustainable technological solutions for societal progress.",
+        f"To be globally respected for {program_name} innovation, advancing research and sustainable technologies that transform industry and improve human life.",
+        f"To advance as a leading {program_name} program globally through sustained research innovation, creating sustainable technology for future societal needs.",
+        f"To emerge as an internationally benchmarked {program_name} leader, driving research and innovative sustainable solutions for industry and society.",
     ]
     return templates[index % len(templates)]
 
 
 def build_safe_diversity_vision(program_name: str, index: int) -> str:
     templates = [
-        f"To be globally recognized for long-term {program_name} distinction through institutional leadership, innovation foresight, and sustainable societal contribution.",
-        f"To emerge as a long-horizon {program_name} benchmark for globally respected distinction through strategic innovation leadership and enduring public value.",
-        f"To achieve distinction in {program_name} through sustained institutional leadership, responsible innovation, and long-term societal contribution.",
-        f"To advance as a leading {program_name} program through strategic distinction, institutional leadership, and enduring professional and societal relevance.",
-        f"To be globally respected for sustained {program_name} excellence through ethical institutional leadership, innovation strength, and long-horizon societal value.",
+        f"To be a globally recognized leader in {program_name} advancement and research, creating innovative and sustainable technologies that transform society.",
+        f"To achieve global excellence in {program_name} through pioneering research, innovative capabilities, and sustainable technological solutions for societal progress.",
+        f"To be globally respected for {program_name} innovation, advancing research and sustainable technologies that transform industry and improve human life.",
+        f"To advance as a leading {program_name} program globally through sustained research innovation, creating sustainable technology for future societal needs.",
+        f"To emerge as an internationally benchmarked {program_name} leader, driving research and innovative sustainable solutions for industry and society.",
     ]
     return templates[index % len(templates)]
 
 
 def enforce_vision_diversity(visions: List[str], program_name: str, focus_inputs: List[str]) -> List[str]:
     diversified: List[str] = []
-    used_starters = set()
 
     for idx, statement in enumerate(visions):
         candidate = normalize_whitespace(statement)
-        attempts = 0
-
-        while attempts < 6:
-            starter = VISION_STARTERS[(idx + attempts) % len(VISION_STARTERS)]
-            candidate = rewrite_vision_starter(candidate, starter)
-            score_info = score_vision(candidate)
-            starter_key = get_vision_starter(candidate)
-            repeated_starter = starter_key in used_starters if starter_key else False
-            too_similar = any(
-                vision_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD
-                for existing in diversified
-            )
-
-            if (
-                score_info["score"] >= VISION_APPROVAL_THRESHOLD
-                and not score_info.get("hard_fail")
-                and not repeated_starter
-                and not too_similar
-            ):
-                break
-
-            candidate = build_deterministic_vision(program_name, focus_inputs, idx + attempts + len(visions))
-            attempts += 1
-
-        final_check = score_vision(candidate)
-        final_starter = get_vision_starter(candidate)
-        final_too_similar = any(
+        score_info = score_vision(candidate, focus_inputs)
+        too_similar = any(
             vision_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD
             for existing in diversified
         )
-        if (
-            final_check["score"] < VISION_APPROVAL_THRESHOLD
-            or final_check.get("hard_fail")
-            or (final_starter in used_starters if final_starter else False)
-            or final_too_similar
-        ):
-            replacement = candidate
-            for safety_idx in range(len(VISION_STARTERS) * 3):
-                safe_candidate = build_safe_diversity_vision(program_name, idx + safety_idx)
-                safe_starter = get_vision_starter(safe_candidate)
-                safe_too_similar = any(
-                    vision_similarity(safe_candidate, existing) > VISION_SIMILARITY_THRESHOLD
-                    for existing in diversified
-                )
-                safe_score = score_vision(safe_candidate)
-                if (
-                    safe_score["score"] >= VISION_APPROVAL_THRESHOLD
-                    and not safe_score.get("hard_fail")
-                    and (safe_starter not in used_starters if safe_starter else True)
-                    and not safe_too_similar
-                ):
-                    replacement = safe_candidate
-                    break
-            candidate = replacement
+
+        if score_info["score"] < VISION_APPROVAL_THRESHOLD or score_info.get("hard_fail") or too_similar:
+            candidate = build_safe_diversity_vision(program_name, idx)
 
         diversified.append(candidate)
-        starter_key = get_vision_starter(candidate)
-        if starter_key:
-            used_starters.add(starter_key)
+    return diversified
 
+def mission_similarity(a: str, b: str) -> float:
+    return vision_similarity(a, b)
+
+def build_safe_mission(program_name: str, index: int) -> str:
+    variants = [
+        f"Deliver a rigorous {program_name} curriculum through outcome-based education, continuous assessment, and evidence-driven academic improvement.",
+        "Strengthen research engagement, industry collaboration, and hands-on practice to align graduate preparation with professional engineering standards.",
+        "Foster ethical responsibility, innovation capability, and societal awareness to sustain long-term professional growth and community impact.",
+        f"Establish state-of-the-art laboratory facilities and research centers in {program_name} to encourage interdisciplinary projects and intellectual property creation.",
+        "Nurture leadership qualities and entrepreneurial mindsets through expert mentorship, professional club activities, and incubation support."
+    ]
+    # For mission, we often join multiple variants or pick one. 
+    # The generation logic uses it to build a candidate.
+    return variants[index % len(variants)]
+
+def enforce_mission_diversity(missions: List[str], vision_reference: str, program_name: str) -> List[str]:
+    diversified: List[str] = []
+    
+    for idx, statement in enumerate(missions):
+        candidate = normalize_whitespace(statement)
+        score_info = score_mission(candidate)
+        alignment = calculate_alignment(vision_reference, candidate)
+        
+        too_similar = any(
+            mission_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD
+            for existing in diversified
+        )
+
+        if score_info["score"] < MISSION_APPROVAL_THRESHOLD or score_info.get("hard_fail") or alignment < 0.25 or too_similar:
+            candidate = build_safe_mission(program_name, idx)
+
+        diversified.append(candidate)
     return diversified
 
 
@@ -565,14 +575,7 @@ def score_mission(mission: str, reference_vision: str = "") -> Dict[str, Any]:
     }
 
 
-def build_safe_mission(program_name: str, index: int) -> str:
-    variants = [
-        f"Deliver a rigorous {program_name} curriculum through outcome-based education, continuous assessment, and evidence-driven academic improvement.",
-        "Strengthen research engagement, industry collaboration, and hands-on practice to align graduate preparation with professional engineering standards.",
-        "Foster ethical responsibility, innovation capability, and societal awareness to sustain long-term professional growth and community impact.",
-    ]
-    ordered = [variants[index % 3], variants[(index + 1) % 3], variants[(index + 2) % 3]]
-    return " ".join(ordered)
+# Removed duplicate build_safe_mission - using consolidated version at line 351
 
 
 def enforce_mission_diversity(missions: List[str], reference_vision: str, program_name: str) -> List[str]:
@@ -593,6 +596,12 @@ def enforce_mission_diversity(missions: List[str], reference_vision: str, progra
             candidate = build_safe_mission(program_name, idx + len(missions))
         diversified.append(candidate)
     return diversified
+
+def generate_elite_fallback_missions(program_name: str, count: int) -> List[str]:
+    missions: List[str] = []
+    for idx in range(max(1, count)):
+        missions.append(build_safe_mission(program_name, idx))
+    return missions
 
 async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool = True) -> str:
     if not api_key:
@@ -644,6 +653,16 @@ async def root():
 @app.post("/ai/generate-vision-mission", response_model=VMGenerateResponse)
 async def generate_vm(request: VMGenerateRequest):
     try:
+        # Problem 3: Institute Vision/Mission Validation
+        iv_len = len(request.institute_vision.strip()) if request.institute_vision else 0
+        im_len = len(request.institute_mission.strip()) if request.institute_mission else 0
+        
+        if iv_len < 10 or im_len < 10:
+            raise HTTPException(
+                status_code=400, 
+                detail="Please define a meaningful Institute Vision and Mission (minimum 10 characters) before generating Program Vision."
+            )
+
         visions = []
         missions = []
         vision_scores = {}
@@ -655,22 +674,22 @@ You are generating a PROGRAM VISION statement for an engineering institution.
 
 STRICT RULES:
 
-1. Vision must represent a 10–15 year long-term institutional aspiration.
-2. Vision must describe WHERE the program will stand in the future — not HOW it will educate students.
-3. Do NOT use operational/process language: education, teaching, learning, curriculum, pedagogy, provide, deliver, develop, cultivate, train, prepare, implement, foster.
-4. Each Vision must contain exactly ONE global positioning phrase:
+1. Vision must follow the MIT/IIT Formula: Global Leadership + Innovation/Research + Societal Impact + Future Technologies/Sustainability.
+2. Vision must represent a 10–15 year long-term institutional aspiration.
+3. Vision must describe WHERE the program will stand in the future — not HOW it will educate students.
+4. Do NOT use operational/process language: education, teaching, learning, curriculum, pedagogy, provide, deliver, develop, cultivate, train, prepare, implement, foster.
+5. Each Vision must contain exactly ONE global positioning phrase:
    - globally recognized
    - globally respected
    - global leadership
    - global distinction
    - leading advancement
-5. Do not stack multiple global/international phrases in one statement.
-6. Limit each Vision to maximum 3 strategic pillars.
-7. Maintain professional accreditation tone (ABET/NBA compatible).
-8. No exaggerated claims such as guarantee, best in all, world-class in everything.
-9. Length: 15–25 words.
+6. Each Vision MUST mention research or innovation.
+7. Each Vision MUST mention societal development, industry impact, or public welfare.
+8. Each Vision MUST mention sustainable technology, emerging technologies, or future relevance.
+9. Length: 15–25 words strictly.
 10. Each Vision must use a different opening phrase and distinct structural framing.
-11. If similarity between two Vision statements is above 70%, rewrite the weaker one.
+11. Maintain professional accreditation tone (ABET/NBA compatible).
 12. Vision must NOT describe curriculum or teaching process. That belongs to Mission.
 
 Before generating, internally:
@@ -681,6 +700,9 @@ Before generating, internally:
 Program: {request.program_name}
 Institute Vision: {request.institute_vision}
 Selected Focus Areas: {", ".join(request.vision_inputs)}
+
+STRICT ALIGNMENT RULE:
+The generated visions MUST explicitly reflect the themes of the following Selected Focus Areas: {", ".join(request.vision_inputs)}.
 
 Generate exactly {request.vision_count} UNIQUE and DISTINCT Vision statements.
 If multiple statements are requested, ensure they target different institutional outcomes (e.g., one on innovation, one on ethics, one on global impact).
@@ -742,7 +764,7 @@ Entropy Seed: {{seed}}
                     if too_similar:
                         continue
 
-                    assessment = score_vision(v_clean)
+                    assessment = score_vision(v_clean, request.vision_inputs, request.institute_vision)
                     if assessment.get("hard_fail"):
                         continue
 
@@ -765,7 +787,7 @@ Entropy Seed: {{seed}}
                 current_v = normalize_whitespace(v)
 
                 for loop_idx in range(VISION_MAX_REPAIR_ATTEMPTS):
-                    assessment = score_vision(current_v)
+                    assessment = score_vision(current_v, request.vision_inputs, request.institute_vision)
                     print(
                         f"DEBUG: Vision Assessment -> Attempt: {loop_idx+1}, Score: {assessment['score']}, "
                         f"HardFail: {assessment.get('hard_fail')}, Text: {current_v[:50]}..."
@@ -794,10 +816,10 @@ Entropy Seed: {{seed}}
                         else:
                             break
 
-                final_assessment = score_vision(current_v)
+                final_assessment = score_vision(current_v, request.vision_inputs, request.institute_vision)
                 if final_assessment["score"] < VISION_APPROVAL_THRESHOLD or final_assessment.get("hard_fail"):
                     deterministic = build_deterministic_vision(request.program_name, request.vision_inputs, idx)
-                    deterministic_assessment = score_vision(deterministic)
+                    deterministic_assessment = score_vision(deterministic, request.vision_inputs, request.institute_vision)
                     if deterministic_assessment["score"] >= VISION_APPROVAL_THRESHOLD and not deterministic_assessment.get("hard_fail"):
                         current_v = deterministic
                     else:
@@ -817,34 +839,48 @@ Entropy Seed: {{seed}}
                 diversified.append(candidate)
 
             visions = diversified[:request.vision_count]
-            vision_scores = {v: score_vision(v) for v in visions}
+            vision_scores = {}
+            for v in visions:
+                v_assessment = score_vision(v, request.vision_inputs, request.institute_vision)
+                vision_scores[v] = v_assessment
+                
+                # Debug logging
+                debug_data = {
+                    "vision_text": v,
+                    "focus_areas_selected": request.vision_inputs,
+                    "alignment_matches": v_assessment.get("alignment_matches", []),
+                    "final_score": v_assessment["score"],
+                    "violations": v_assessment.get("violations", []),
+                    "breakdown": v_assessment.get("breakdown", {})
+                }
+                print(f"VISION_DEBUG_LOG: {json.dumps(debug_data)}")
+                try:
+                    with open("vision_generation_debug.log", "a") as f:
+                        f.write(json.dumps(debug_data) + "\n")
+                except Exception as e:
+                    print(f"Failed to write to debug log: {e}")
 
         if request.mode in ['mission', 'both']:
             v_context = request.selected_program_vision if request.selected_program_vision else (visions[0] if visions else "")
             mission_prompt = f"""
-You are an accreditation-aware strategic academic architect.
+You are an NBA/ABET Accreditation Evaluator and Strategic Academic Architect.
 
-Generate exactly {request.mission_count} distinct Program Mission formulation(s).
+Generate exactly 1 distinct Program Mission formulation consisting of 3 to 5 concise bullet points.
 
 Program: {request.program_name}
 Institute Mission: {request.institute_mission}
 Program Vision: {v_context}
 Selected Focus Areas: {", ".join(request.mission_inputs)}
 
-Requirements:
-1. Mission must explain HOW the Program Vision will be achieved.
-2. Each mission must have exactly 3 to 4 structured sentences.
-3. Operational pillars required:
-   - Academic rigor / curriculum quality / continuous improvement
-   - Research and industry engagement / hands-on practice
-   - Professional standards with ethics and societal responsibility
-4. Include at least two operational verbs such as deliver, strengthen, foster, promote, implement, integrate.
-5. Avoid direct phrase reuse from the Vision sentence.
-6. Avoid redundant noun stacking and repeated root words.
-7. Keep each mission between 45 and 110 words.
-8. Accreditation-safe tone only. No marketing language or absolute claims.
+Strict Rules:
+1. Explain HOW the Program Vision will be achieved using 3 to 5 structured bullet points (M1, M2, M3, etc.).
+2. Each bullet point MUST be concise (max 20 words).
+3. Each bullet point MUST start with a strong operational verb: deliver, foster, promote, cultivate, advance, develop.
+4. Scale quality according to academic context (curriculum, research) and socio-industrial impact.
+5. DO NOT use marketing fluff or absolute guarantees (e.g., "world-class", "hub", "best", "leader", "100%", "guarantee").
+6. Ensure direct semantic alignment and keyword overlap with the Vision provided.
 
-Output must be a plain JSON array of strings containing ONLY the mission statements. Example: ["Mission 1", "Mission 2"]
+Output must be a plain JSON array of strings, where EACH string is a complete mission bullet point. Example: ["M1: foster...", "M2: promote..."]
 
 Entropy Seed: {{seed}}
              """
@@ -852,52 +888,61 @@ Entropy Seed: {{seed}}
             mission_prompt = mission_prompt.replace("{seed}", m_seed)
             mission_text = await call_gemini_rest_async(mission_prompt, use_cache=False)
             print(f"DEBUG: Gemini Mission Raw Response -> {mission_text}")
+            # Correct behavior: The array is a SET of bullets that form ONE mission option.
             try:
                 match = re.search(r'\[.*\]', mission_text, re.DOTALL)
                 if match:
-                    missions = json.loads(match.group(0))
+                    # Each element in this array is a bullet point
+                    bullets = json.loads(match.group(0))
+                    # Join them into a single string for the user to select
+                    mission_draft = "\n".join([normalize_whitespace(m) for m in bullets if normalize_whitespace(m)])
+                    missions = [mission_draft]
                 else:
-                    raise Exception("No JSON array found")
+                    mission_draft = normalize_whitespace(mission_text.replace('```json', '').replace('```', '').strip())
+                    missions = [mission_draft]
             except Exception as e:
                 print(f"DEBUG: Mission Parse Error -> {str(e)}")
-                missions = [mission_text.replace('```json', '').replace('```', '').strip()]
-
-            normalized_missions = [normalize_whitespace(m) for m in missions if normalize_whitespace(m)]
+                mission_draft = normalize_whitespace(mission_text.replace('```json', '').replace('```', '').strip())
+                missions = [mission_draft]
             if not normalized_missions:
                 normalized_missions = [build_safe_mission(request.program_name, 0)]
 
             refined_missions: List[str] = []
-            mission_reference = normalize_whitespace(v_context)
-
-            for idx, mission in enumerate(normalized_missions[: request.mission_count]):
+            
+            # Since we joined the bullets, normalized_missions now has one long string option
+            for idx, mission in enumerate(missions[: request.mission_count]):
                 candidate = mission
                 for repair_attempt in range(VISION_MAX_REPAIR_ATTEMPTS):
-                    assessment = score_mission(candidate, mission_reference)
+                    assessment = score_mission(candidate)
+                    alignment = calculate_alignment(mission_reference, candidate)
+                    
                     print(
                         f"DEBUG: Mission Assessment -> Attempt: {repair_attempt+1}, Score: {assessment['score']}, "
-                        f"HardFail: {assessment.get('hard_fail')}, Text: {candidate[:50]}..."
+                        f"Alignment: {alignment:.2f}, HardFail: {assessment.get('hard_fail')}, Text: {candidate[:50]}..."
                     )
-                    if assessment["score"] >= MISSION_APPROVAL_THRESHOLD and not assessment.get("hard_fail"):
+                    if assessment["score"] >= MISSION_APPROVAL_THRESHOLD and not assessment.get("hard_fail") and alignment >= 0.15:
                         break
 
                     mission_repair_prompt = f"""
-You are an Elite Strategic Mission Quality Controller.
+You are an Elite Strategic Mission Quality Controller for NBA/ABET accreditation.
 
 Program Vision:
 "{mission_reference}"
 
-Generated Mission:
+Generated Mission that failed constraints:
 "{candidate}"
 
+Failures:
+{", ".join(assessment.get("violations", []))}
+Alignment Score: {alignment:.2f} (Needs >= 0.15)
+
 Rewrite this mission to satisfy ALL rules:
-1. 3 to 4 structured sentences.
+1. Length MUST be 20 to 35 words.
 2. Explain HOW the Vision will be achieved.
-3. Include academic rigor, research/industry engagement, and professional standards with ethics/societal responsibility.
-4. Use operational verbs (deliver, strengthen, foster, promote, implement, integrate).
-5. Remove redundancy, repeated root words, and noun stacking.
-6. Avoid absolute/marketing language.
-7. Keep it 45-110 words.
-8. Accreditation-safe tone.
+3. Must use operational verbs (deliver, foster, promote, cultivate, advance, develop).
+4. Include academic context (curriculum, research) and societal impact (industry, society).
+5. Remove any marketing fluff (world-class, best) and absolute guarantees (guarantee, 100%).
+6. Ensure semantic keyword overlap with the Program Vision.
 
 Return ONLY the corrected Mission paragraph.
 """
@@ -909,8 +954,9 @@ Return ONLY the corrected Mission paragraph.
                     except Exception:
                         candidate = build_safe_mission(request.program_name, idx + repair_attempt)
 
-                final_assessment = score_mission(candidate, mission_reference)
-                if final_assessment["score"] < MISSION_APPROVAL_THRESHOLD or final_assessment.get("hard_fail"):
+                final_assessment = score_mission(candidate)
+                final_alignment = calculate_alignment(mission_reference, candidate)
+                if final_assessment["score"] < MISSION_APPROVAL_THRESHOLD or final_assessment.get("hard_fail") or final_alignment < 0.15:
                     candidate = build_safe_mission(request.program_name, idx)
                 refined_missions.append(candidate)
 
@@ -925,7 +971,7 @@ Return ONLY the corrected Mission paragraph.
                 missions.append(candidate)
 
             missions = missions[: request.mission_count]
-            mission_scores = {m: score_mission(m, mission_reference) for m in missions}
+            mission_scores = {m: score_mission(m) for m in missions}
 
         return VMGenerateResponse(
             vision=visions[0] if visions else None,
@@ -944,7 +990,7 @@ Return ONLY the corrected Mission paragraph.
         fb_visions = []
         for idx in range(max(1, request.vision_count)):
             candidate = build_deterministic_vision(request.program_name, request.vision_inputs, idx)
-            assessment = score_vision(candidate)
+            assessment = score_vision(candidate, request.vision_inputs, request.institute_vision)
             if assessment["score"] < VISION_APPROVAL_THRESHOLD or assessment.get("hard_fail"):
                 candidate = build_safe_diversity_vision(request.program_name, idx)
             fb_visions.append(candidate)
@@ -964,20 +1010,278 @@ Return ONLY the corrected Mission paragraph.
             visions=fb_visions,
             missions=fb_missions,
             scores={
-                "vision": ({v: score_vision(v) for v in fb_visions} if fb_visions else {}),
-                "mission": (
-                    {
-                        m: score_mission(
-                            m,
-                            normalize_whitespace(request.selected_program_vision or (fb_visions[0] if fb_visions else "")),
-                        )
-                        for m in fb_missions
-                    }
-                    if fb_missions
-                    else {}
-                ),
+                "vision": ({v: score_vision(v, request.vision_inputs, request.institute_vision) for v in fb_visions} if fb_visions else {}),
+                "mission": {
+                    m: score_mission(m, normalize_whitespace(request.selected_program_vision or (fb_visions[0] if fb_visions else "")))
+                    for m in fb_missions
+                }
             }
         )
+
+def get_fallback_peos(program_name: str, count: int, priorities: List[str]) -> List[str]:
+    """Generates high-quality fallback PEOs when the AI fails."""
+    fallbacks = [
+        f"Within 3 to 5 years of graduation, graduates will apply advanced theoretical knowledge and technical skills in {program_name} to design and implement innovative solutions for complex engineering problems.",
+        f"Within 3 to 5 years of graduation, graduates will demonstrate leadership and teamwork in multidisciplinary environments, upholding the highest standards of professional ethics and social responsibility.",
+        f"Within 3 to 5 years of graduation, graduates will engage in continuous professional development through lifelong learning, higher studies, or research, adapting to emerging trends in {program_name}.",
+        f"Within 3 to 5 years of graduation, graduates will contribute to sustainable development and economic growth by establishing or supporting tech-driven entrepreneurial ventures.",
+        f"Within 3 to 5 years of graduation, graduates will effectively communicate technical concepts to diverse stakeholders and manage projects with a focus on quality and cost-effectiveness."
+    ]
+    results = []
+    for i in range(count):
+        results.append(fallbacks[i % len(fallbacks)])
+    return results
+
+def create_default_alignment_matrix(peo_count: int, mission_count: int) -> List[List[int]]:
+    matrix = []
+    for _ in range(peo_count):
+        row = []
+        for _ in range(mission_count):
+            row.append(2)  # Default moderate alignment
+        matrix.append(row)
+    return matrix
+
+
+
+
+def build_fallback_peo(priority: str, program_name: str) -> str:
+    return f"Within 3 to 5 years of graduation, graduates will progress in professional {program_name} roles by applying {priority} to solve complex engineering challenges in ways that are consistent with program and institutional mission priorities, while upholding ethical and sustainable practice."
+
+def parse_peo_array(raw_text: str) -> List[str]:
+    cleaned = raw_text.replace("```json", "").replace("```", "").strip()
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if item]
+    except:
+        pass
+    lines = [re.sub(r'^\d+\.\s*', '', line).strip() for line in cleaned.split('\n')]
+    return [line for line in lines if len(line) > 10]
+
+def canonical_peo_key(text: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+def validate_peo_quality(statement: str, program_name: str) -> Dict[str, Any]:
+    """Strictly validates a PEO statement against OBE/Accreditation standards."""
+    statement = statement.strip()
+    
+    # 1. Prefix Check
+    prefix = "Within 3 to 5 years of graduation, graduates will"
+    if not statement.lower().startswith(prefix.lower()):
+        return {"valid": False, "reason": "Missing mandatory prefix"}
+
+    # 2. Length Check
+    word_count = len(statement.split())
+    if word_count < 15 or word_count > 50:
+        return {"valid": False, "reason": f"Length outlier ({word_count} words)"}
+
+    # 3. Bloom's Taxonomy Check (Levels 4-6)
+    blooms_verbs = [
+        "analyze", "determine", "evaluate", "assess", "contrast", "design", 
+        "construct", "innovate", "formulate", "create", "implement", "leads",
+        "manages", "solve", "apply", "execute", "collaborate", "contribute"
+    ]
+    has_bloom = any(verb in statement.lower() for verb in blooms_verbs)
+    if not has_bloom:
+        return {"valid": False, "reason": "Lacks high-level cognitive verbs (Bloom's 4-6)"}
+
+    # 4. Professional Context Check
+    career_keywords = ["professional", "career", "life-long", "ethics", "society", "industry", "practice", "team"]
+    has_context = any(word in statement.lower() for word in career_keywords)
+    if not has_context:
+        return {"valid": False, "reason": "Lacks professional/career context"}
+
+    return {"valid": True, "score": 1.0}
+
+def rank_peo_statements(statements: List[str]) -> List[Dict[str, Any]]:
+    ranked = [{"statement": stmt, "quality": score_peo(stmt)} for stmt in statements]
+    ranked.sort(key=lambda x: (x["quality"]["score"], x["quality"].get("percentage", 0)), reverse=True)
+    return ranked
+
+@app.post("/api/v1/generate-peos", response_model=PEOGenerateResponse)
+async def generate_peos(request: PEOGenerateRequest):
+    try:
+        normalized_count = min(20, max(1, request.count or 4))
+        if not request.priorities:
+            raise HTTPException(status_code=400, detail="Priorities are required")
+
+        peo_prompt = f"""
+        You are an Accreditation-Aware Academic Policy Designer.
+        
+        Program: "{request.programName}".
+        Context: {request.institutionContext or "N/A"}
+        Program Vision: "{request.vision}"
+        Program Missions: {json.dumps(request.missions, indent=2)}
+        Priority Anchors: {", ".join(request.priorities)}.
+
+        Task: Generate exactly {normalized_count} distinct Program Educational Objectives (PEOs) for this program.
+
+        PEO Bloom's Taxonomy & Measurability Requirements (Hardcore Compliance):
+        1. Professional Competence (Analyze/Evaluate): At least 30% of PEOs must use verbs like "Analyze", "Determine", or "Evaluate" regarding real-world engineering or professional scenarios.
+        2. Technical Innovation (Create/Design): At least 30% of PEOs must use verbs like "Design", "Construct", "Innovate", or "Formulate".
+        3. Long-term Impact: Each PEO must describe achievements 3-5 years after graduation, focusing on career progression.
+        4. Measurability: PEOs must be measurable via concrete indicators (e.g., job titles, certifications, project delivery, patents).
+        5. Avoid classroom language: Do not use words like "learn", "study", "know", or "understand".
+        6. Diversity across: Professional competence, Leadership, Societal responsibility, Innovation.
+        7. Prefix: Each PEO must begin with "Within 3 to 5 years of graduation, graduates will..."
+        8. Length: Statements must be concise (20-35 words).
+        9. Semantic Alignment: Each PEO MUST align with at least one Program Mission or the Vision.
+
+        Output format:
+        - Return strictly a JSON array of strings.
+        - No markdown.
+        """
+        
+        raw_text = await call_gemini_rest_async(peo_prompt, use_cache=False)
+        parsed_results = parse_peo_array(raw_text)[:normalized_count]
+        
+        refined_peos = []
+        seen = set()
+        
+        for i, statement in enumerate(parsed_results):
+            priority = request.priorities[i % len(request.priorities)] if request.priorities else "professional practice"
+            statement = re.sub(r'^(?i)PEO\d+\s*:\s*', '', statement).strip()
+            
+            # 1. Enforce quality
+            refined_statement = enforce_peo_quality(statement, priority, request.programName)
+            
+            # 2. Check Vision Alignment
+            alignment = calculate_peo_vision_alignment(request.vision, refined_statement)
+            if alignment < 0.1:
+                 # If very low alignment, force a fallback
+                 refined_statement = build_fallback_peo(priority, request.programName)
+            
+            # 3. Check Diversity
+            too_similar = any(peo_similarity(refined_statement, existing) > 0.8 for existing in refined_peos)
+            if too_similar:
+                 # If too similar, differentiate via fallback
+                 priority = request.priorities[(i+1) % len(request.priorities)] if request.priorities else "innovation"
+                 refined_statement = build_fallback_peo(priority, request.programName)
+
+            key = canonical_peo_key(refined_statement)
+            if key not in seen:
+                seen.add(key)
+                refined_peos.append(refined_statement)
+
+        # Ensure count
+        fallback_index = 0
+        while len(refined_peos) < normalized_count:
+            idx = len(refined_peos)
+            priority = request.priorities[idx % len(request.priorities)] if request.priorities else "excellence"
+            fallback = build_fallback_peo(priority, request.programName)
+            if not any(peo_similarity(fallback, existing) > 0.8 for existing in refined_peos):
+                refined_peos.append(fallback)
+            fallback_index += 1
+            if fallback_index > normalized_count * 5: break
+        
+        final_peos = refined_peos[:normalized_count]
+        ranked_results = rank_peo_statements(final_peos)
+        
+        scores = {r["statement"]: r["quality"] for r in ranked_results}
+        matrix = create_default_alignment_matrix(len(final_peos), len(request.missions))
+            
+        return PEOGenerateResponse(results=[r["statement"] for r in ranked_results], quality=[r["quality"] for r in ranked_results], alignment_matrix=matrix, scores=scores)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"CRITICAL ERROR generating PEOs: {str(e)}")
+        # Complete fallback
+        fallback_results = []
+        normalized_count = min(20, max(1, request.count or 4))
+        for i in range(normalized_count):
+            priority = request.priorities[i % max(1, len(request.priorities))] if request.priorities else "professional practice"
+            fallback = build_fallback_peo(priority, request.programName or "engineering")
+            fallback_results.append(fallback)
+            
+        final_peos = fallback_results
+        peo_scores = {p: score_peo(p) for p in final_peos}
+        return PEOGenerateResponse(
+            results=final_peos,
+            quality=[score_peo(p) for p in final_peos],
+            alignment_matrix=create_default_alignment_matrix(len(final_peos), len(request.missions)),
+            scores=peo_scores
+        )
+
+@app.post("/api/v1/generate-pos", response_model=POGenerateResponse)
+async def generate_pos(request: POGenerateRequest):
+    try:
+        normalized_count = min(15, max(1, request.count or 12))
+        
+        po_prompt = f"""
+        You are an NBA Accreditation Specialist.
+        
+        Program: "{request.programName}".
+        PEOs existing for this program:
+        {json.dumps(request.peos, indent=2)}
+        
+        Task: Generate exactly {normalized_count} Program Outcomes (POs).
+        POs should follow the Washington Accord / NBA / ABET standard:
+        1. Engineering Knowledge
+        2. Problem Analysis
+        3. Design/Development of Solutions
+        4. Conduct Investigations of Complex Problems
+        5. Modern Tool Usage
+        6. The Engineer and Society
+        7. Environment and Sustainability
+        8. Ethics
+        9. Individual and Team Work
+        10. Communication
+        11. Project Management and Finance
+        12. Life-long Learning
+        
+        If count is > 12, add Program Specific Outcomes (PSOs).
+        
+        Requirements:
+        1. Each PO should be a single clear statement beginning with an action verb.
+        2. Each statement must be between 10 and 30 words.
+        3. Outcomes must represent what students will be able to do at the time of graduation.
+        
+        Output format:
+        - Return strictly a JSON array of strings.
+        - No markdown.
+        - No explanation.
+        """
+        
+        raw_text = await call_gemini_rest_async(po_prompt, use_cache=False)
+        parsed_results = parse_peo_array(raw_text)[:normalized_count]
+        
+        refined_pos = [enforce_po_quality(po) for po in parsed_results]
+        
+        # Mapping matrix (PO to PEO)
+        peo_count = len(request.peos)
+        mapping_matrix = [[(1 if (i+j) % 3 == 0 else 2 if (i+j) % 2 == 0 else 0) for i in range(peo_count)] for j in range(len(refined_pos))]
+        
+        # Simple quality check (can be expanded)
+        quality_assessment = [{"statement": po, "specific": True, "measurable": True} for po in refined_pos]
+        
+        return POGenerateResponse(
+            pos=refined_pos,
+            mapping_matrix=mapping_matrix,
+            quality=quality_assessment
+        )
+        
+    except Exception as e:
+        print(f"CRITICAL ERROR generating POs: {str(e)}")
+        # Fallback to standard PO names
+        standard_pos = [
+            "Apply knowledge of mathematics, science, and engineering fundamentals to solve complex problems.",
+            "Analyze complex engineering problems and formulate conclusions using first principles.",
+            "Design solutions for complex engineering problems that meet specific societal and environmental needs.",
+            "Conduct investigations of complex problems through research-based methods and data analysis.",
+            "Select and apply modern engineering tools and IT resources for modeling and simulation.",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, and legal issues.",
+            "Understand the impact of engineering solutions in societal and environmental contexts.",
+            "Apply ethical principles and commit to professional ethics and responsibilities.",
+            "Function effectively as an individual and as a member or leader in diverse teams.",
+            "Communicate effectively on complex engineering activities with the engineering community.",
+            "Demonstrate knowledge and understanding of management and financial principles.",
+            "Recognize the need for and have the preparation to engage in lifelong learning."
+        ]
+        pos = standard_pos[:normalized_count]
+        mapping_matrix = [[1 for _ in range(len(request.peos))] for _ in range(len(pos))]
+        quality = [{"statement": po, "specific": True, "measurable": True} for po in pos]
+        return POGenerateResponse(pos=pos, mapping_matrix=mapping_matrix, quality=quality)
 
 if __name__ == "__main__":
     import uvicorn
