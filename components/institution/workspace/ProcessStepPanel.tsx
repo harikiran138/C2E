@@ -59,6 +59,18 @@ const CURRICULUM_STRUCTURE_ROWS = [
   { category: "Projects, Internships & Seminar", code: "PR", min: 8, max: 10 },
 ];
 
+const CONVENTIONAL_ELECTIVE_OPTIONS = [
+  "None",
+  "BS",
+  "ES",
+  "HSS",
+  "PC",
+  "OE",
+  "MC",
+  "AE",
+  "SE",
+];
+
 const TRANS_DISCIPLINARY_OPTIONS = [
   "None",
   "Technology & Management",
@@ -124,6 +136,33 @@ const SEMESTER_CATEGORY_COLUMNS = [
   "OTHERS",
 ];
 
+const SAMPLE_TOTAL_CREDITS = 160;
+const SAMPLE_CATEGORY_PERCENTAGES: Record<string, number> = {
+  BS: 22,
+  ES: 18,
+  HSS: 12,
+  PC: 28,
+  PE: 10,
+  OE: 5,
+  MC: 0,
+  AE: 3,
+  SE: 1,
+  PR: 1,
+};
+
+const ZEROED_CATEGORY_FIELDS = {
+  courses_t: 0,
+  courses_p: 0,
+  courses_tu: 0,
+  courses_ll: 0,
+  hours_ci: 0,
+  hours_t: 0,
+  hours_li: 0,
+  hours_twd: 0,
+  hours_total: 0,
+  credit: 0,
+};
+
 function buildSemesterLabels(durationYears: number): string[] {
   const semesters = Math.max(2, Math.min(12, Math.floor(durationYears * 2)));
   return Array.from(
@@ -188,6 +227,40 @@ function getPoPsoMapping(category: string): string {
 function formatNumeric(value: number): string {
   if (!Number.isFinite(value)) return "0";
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function normalizePercentagesToHundred(
+  values: Array<{ code: string; value: number }>,
+): Record<string, number> {
+  const active = values.filter((item) => item.code !== "MC");
+  if (active.length === 0) return {};
+
+  const rounded = active.map((item) => ({
+    code: item.code,
+    value: Number(item.value.toFixed(2)),
+  }));
+  const total = rounded.reduce((sum, item) => sum + item.value, 0);
+  const delta = Number((100 - total).toFixed(2));
+
+  if (Math.abs(delta) <= 0.001) {
+    return rounded.reduce(
+      (acc, item) => ({ ...acc, [item.code]: item.value }),
+      {} as Record<string, number>,
+    );
+  }
+
+  const target =
+    [...rounded].sort((left, right) => right.value - left.value)[0] || rounded[0];
+  const normalized = rounded.map((item) =>
+    item.code === target.code
+      ? { ...item, value: Number((item.value + delta).toFixed(2)) }
+      : item,
+  );
+
+  return normalized.reduce(
+    (acc, item) => ({ ...acc, [item.code]: item.value }),
+    {} as Record<string, number>,
+  );
 }
 
 function CurriculumStructurePanel() {
@@ -301,16 +374,6 @@ function CurriculumStructurePanel() {
                   ...row,
                   ...found,
                   design_percent: 0,
-                  courses_t: 0,
-                  courses_p: 0,
-                  courses_tu: 0,
-                  courses_ll: 0,
-                  hours_ci: 0,
-                  hours_t: 0,
-                  hours_li: 0,
-                  hours_twd: 0,
-                  hours_total: 0,
-                  credit: 0,
                 };
               }
               return { ...row, ...found };
@@ -346,6 +409,15 @@ function CurriculumStructurePanel() {
 
   const syncGeneratedData = (curriculum: GeneratedCurriculum) => {
     setTotalCredits(String(curriculum.totalCredits));
+    const normalizedDesignPercentages = normalizePercentagesToHundred(
+      curriculum.categorySummary.map((item) => ({
+        code: item.categoryCode,
+        value:
+          curriculum.totalCredits > 0
+            ? (item.credits / curriculum.totalCredits) * 100
+            : 0,
+      })),
+    );
 
     setCategoryCredits((prev) =>
       prev.map((row) => {
@@ -353,25 +425,12 @@ function CurriculumStructurePanel() {
           (item) => item.categoryCode === row.category_code,
         );
         if (!summary) return row;
-        if (row.category_code === "MC") {
-          return {
-            ...row,
-            design_percent: 0,
-            courses_t: 0,
-            courses_p: 0,
-            courses_tu: 0,
-            courses_ll: 0,
-            hours_ci: 0,
-            hours_t: 0,
-            hours_li: 0,
-            hours_twd: 0,
-            hours_total: 0,
-            credit: 0,
-          };
-        }
         return {
           ...row,
-          design_percent: Number(summary.percentage.toFixed(2)),
+          design_percent:
+            row.category_code === "MC"
+              ? 0
+              : Number(normalizedDesignPercentages[row.category_code] || 0),
           courses_t: summary.coursesT,
           courses_p: summary.coursesP,
           courses_tu: summary.coursesTU,
@@ -560,7 +619,7 @@ function CurriculumStructurePanel() {
     field: string,
     value: string,
   ) => {
-    if (code === "MC") return;
+    if (code === "MC" && field === "design_percent") return;
     setCategoryCredits((prev) =>
       prev.map((c) =>
         c.category_code === code ? { ...c, [field]: Number(value) } : c,
@@ -578,6 +637,135 @@ function CurriculumStructurePanel() {
         s.semester === semester ? { ...s, [field]: Number(value) } : s,
       ),
     );
+  };
+
+  const fillSampleData = () => {
+    const semesterCount = semesterLabels.length;
+    const baseCredits = Math.floor(SAMPLE_TOTAL_CREDITS / Math.max(1, semesterCount));
+    let remainder = SAMPLE_TOTAL_CREDITS - baseCredits * semesterCount;
+
+    setTotalCredits(String(SAMPLE_TOTAL_CREDITS));
+    setTotalCreditsError("");
+    setConventionalElective("None");
+    setTransDisciplinaryElective("None");
+    setGenerationErrors([]);
+    setGenerationWarnings([
+      "Sample data applied. You can edit table values or generate directly.",
+    ]);
+
+    setCategoryCredits((prev) =>
+      prev.map((row) => ({
+        ...row,
+        ...ZEROED_CATEGORY_FIELDS,
+        design_percent: Number(SAMPLE_CATEGORY_PERCENTAGES[row.category_code] || 0),
+      })),
+    );
+
+    setSemesterCategories((prev) =>
+      prev.map((row) => {
+        const additionalCredit = remainder > 0 ? 1 : 0;
+        if (remainder > 0) remainder -= 1;
+        return {
+          ...row,
+          no_of_credits: baseCredits + additionalCredit,
+          courses_bs: 0,
+          courses_es: 0,
+          courses_hss: 0,
+          courses_pc: 0,
+          courses_oe: 0,
+          courses_mc: 0,
+          courses_ae: 0,
+          courses_se: 0,
+          courses_int: 0,
+          courses_pro: 0,
+          courses_others: 0,
+        };
+      }),
+    );
+  };
+
+  const aiFillAndGenerate = async () => {
+    setGenerationErrors([]);
+    setGenerationWarnings([]);
+
+    let total = Number(totalCredits);
+    let categoryPercentages = buildCategoryPercentages();
+    const semesterCountsFromTable = buildSemesterCategoryCounts();
+    const hasTableSemesterAllocations = semesterCategories.some((row) =>
+      SEMESTER_CATEGORY_COLUMNS.some(
+        (column) => (Number(row?.[`courses_${column.toLowerCase()}`]) || 0) > 0,
+      ),
+    );
+    let semesterCategoryCounts = hasTableSemesterAllocations
+      ? semesterCountsFromTable
+      : [];
+    const shouldUseSample =
+      !Number.isInteger(total) ||
+      total <= 0 ||
+      !isDesignPercentValid;
+
+    if (shouldUseSample) {
+      total = SAMPLE_TOTAL_CREDITS;
+      categoryPercentages = {
+        BS: SAMPLE_CATEGORY_PERCENTAGES.BS,
+        ES: SAMPLE_CATEGORY_PERCENTAGES.ES,
+        HSS: SAMPLE_CATEGORY_PERCENTAGES.HSS,
+        PC: SAMPLE_CATEGORY_PERCENTAGES.PC,
+        PE: SAMPLE_CATEGORY_PERCENTAGES.PE,
+        OE: SAMPLE_CATEGORY_PERCENTAGES.OE,
+        MC: 0,
+        AE: SAMPLE_CATEGORY_PERCENTAGES.AE,
+        SE: SAMPLE_CATEGORY_PERCENTAGES.SE,
+        PR: SAMPLE_CATEGORY_PERCENTAGES.PR,
+      };
+      semesterCategoryCounts = [];
+      fillSampleData();
+    }
+
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/ai/generate-curriculum", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programName,
+          totalCredits: total,
+          semesterCount: semesterLabels.length,
+          categoryPercentages,
+          semesterCategoryCounts,
+          enableAiTitles: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setGenerationErrors(
+          Array.isArray(data.errors)
+            ? data.errors
+            : [data.error || "AI fill and generation failed."],
+        );
+        return;
+      }
+
+      const logicalIssues = validateGeneratedCurriculum(data.curriculum);
+      if (logicalIssues.length > 0) {
+        setGenerationErrors(logicalIssues);
+        return;
+      }
+
+      setGeneratedCurriculum(data.curriculum);
+      syncGeneratedData(data.curriculum);
+      setGenerationWarnings([
+        shouldUseSample
+          ? "AI used sample data and filled all semester allocations logically."
+          : "AI filled semester allocations from your table values logically.",
+        ...(Array.isArray(data.warnings) ? data.warnings : []),
+      ]);
+    } catch (error: any) {
+      setGenerationErrors([error.message || "AI fill and generation failed."]);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const generateCurriculum = async () => {
@@ -821,6 +1009,24 @@ function CurriculumStructurePanel() {
           </button>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={fillSampleData}
+            type="button"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Fill Sample Data
+          </button>
+          <button
+            onClick={aiFillAndGenerate}
+            type="button"
+            disabled={isGenerating}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {isGenerating ? "AI Filling..." : "AI Fill & Generate"}
+          </button>
+        </div>
+
         <p className="text-xs font-medium text-slate-600">
           Design percentage total:{" "}
           <span className={isDesignPercentValid ? "text-emerald-700" : "text-red-600"}>
@@ -947,7 +1153,7 @@ function CurriculumStructurePanel() {
                       key={`${row.code}-cell-${cellIndex}`}
                       className="border-b border-r border-slate-100 px-2 py-1.5"
                     >
-                      {row.code === "MC" ? (
+                      {row.code === "MC" && field === "design_percent" ? (
                         <input
                           type="number"
                           min={0}
@@ -982,7 +1188,38 @@ function CurriculumStructurePanel() {
         </table>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <fieldset className="rounded-2xl border border-slate-200 bg-white p-3">
+          <legend className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+            Select the type of Elective Category (Conventional)
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            {CONVENTIONAL_ELECTIVE_OPTIONS.map((option) => {
+              const id = `conventional-${option.toLowerCase()}`;
+              return (
+                <label
+                  key={option}
+                  htmlFor={id}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-2 py-2 text-xs text-slate-700 hover:bg-slate-50"
+                >
+                  <input
+                    id={id}
+                    type="radio"
+                    name="conventional-elective"
+                    value={option}
+                    checked={conventionalElective === option}
+                    onChange={(event) =>
+                      setConventionalElective(event.target.value)
+                    }
+                    className="h-3.5 w-3.5 accent-slate-900"
+                  />
+                  <span>{option}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
         <fieldset className="rounded-2xl border border-slate-200 bg-white p-3">
           <legend className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
             Select the type of Trans-Disciplinary Electives
@@ -1196,6 +1433,36 @@ function CurriculumStructurePanel() {
           {isGenerating ? "Generating..." : "Generate Curriculum"}
         </button>
 
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+            Start Semester
+          </label>
+          <select
+            value={regenerateSemester}
+            onChange={(event) => setRegenerateSemester(event.target.value)}
+            className="h-10 min-w-[160px] rounded-lg border border-slate-300 px-2 text-sm focus:border-slate-500 focus:outline-none"
+          >
+            {semesterLabels.map((semester) => (
+              <option key={semester} value={ROMAN_TO_NUMBER[semester]}>
+                Semester {semester}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          onClick={regenerateSemesterCourses}
+          disabled={!generatedCurriculum || isRegenerating}
+          className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {isRegenerating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCcw className="h-4 w-4" />
+          )}
+          {isRegenerating ? "Generating..." : "Generate From Semester"}
+        </button>
+
         <p className="text-xs text-slate-600">
           Fill values in tables, then use Create All Semesters or Generate Curriculum.
           Backend generation applies NEP-2020-first constraints with AICTE and UGC alignment.
@@ -1357,38 +1624,6 @@ function CurriculumStructurePanel() {
                 </div>
               );
             })}
-          </div>
-
-          <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
-                Select Semester for Regeneration
-              </label>
-              <select
-                value={regenerateSemester}
-                onChange={(event) => setRegenerateSemester(event.target.value)}
-                className="h-10 min-w-[180px] rounded-lg border border-slate-300 px-2 text-sm focus:border-slate-500 focus:outline-none"
-              >
-                {semesterLabels.map((semester) => (
-                  <option key={semester} value={ROMAN_TO_NUMBER[semester]}>
-                    Semester {semester}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={regenerateSemesterCourses}
-              disabled={isRegenerating}
-              className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isRegenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCcw className="h-4 w-4" />
-              )}
-              {isRegenerating ? "Regenerating..." : "Regenerate Semester"}
-            </button>
           </div>
         </div>
       )}

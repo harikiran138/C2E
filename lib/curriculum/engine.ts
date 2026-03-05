@@ -88,6 +88,8 @@ interface BuildCurriculumResult {
   warnings: string[];
 }
 
+type ProgramTrack = "CSE" | "ECE" | "EEE" | "MECH" | "CIVIL" | "GENERIC";
+
 const DEFAULT_CATEGORY_PERCENTAGES: Record<CategoryCode, number> = {
   BS: 22,
   ES: 18,
@@ -272,6 +274,204 @@ const CATEGORY_TITLE_LIBRARY: Record<CategoryCode, string[]> = {
   ],
 };
 
+const PROGRAM_TRACK_TITLE_LIBRARY: Record<
+  ProgramTrack,
+  Partial<Record<CategoryCode, string[]>>
+> = {
+  CSE: {
+    ES: [
+      "Programming Fundamentals",
+      "Data Structures",
+      "Digital Logic Design",
+      "Computer Organization",
+      "Object Oriented Programming",
+      "Software Tools and Practices",
+      "Web Programming Basics",
+      "Operating System Concepts",
+    ],
+    PC: [
+      "Database Management Systems",
+      "Operating Systems",
+      "Computer Networks",
+      "Design and Analysis of Algorithms",
+      "Software Engineering",
+      "Theory of Computation",
+      "Compiler Design",
+      "Information Security",
+      "Distributed Systems",
+      "Web Technologies",
+    ],
+    PE: [
+      "Artificial Intelligence",
+      "Machine Learning",
+      "Cloud Computing",
+      "Cyber Security",
+      "Natural Language Processing",
+      "Computer Vision",
+      "Big Data Analytics",
+      "Blockchain Technologies",
+    ],
+    SE: [
+      "Full Stack Development Lab",
+      "DevOps and Automation Lab",
+      "Mobile Application Development Lab",
+      "Data Analytics Practice",
+      "Cyber Security Practice Lab",
+    ],
+  },
+  ECE: {
+    ES: [
+      "Basic Electronics Engineering",
+      "Circuit Theory",
+      "Signals and Systems",
+      "Electronic Devices",
+      "Digital Electronics",
+      "Microprocessor Fundamentals",
+      "Analog Circuits",
+      "Communication Fundamentals",
+    ],
+    PC: [
+      "Analog Communication",
+      "Digital Communication",
+      "Microcontrollers and Interfacing",
+      "VLSI Design",
+      "Electromagnetic Theory",
+      "Control Systems",
+      "Digital Signal Processing",
+      "Embedded Systems",
+      "Antenna and Wave Propagation",
+    ],
+    PE: [
+      "Wireless Communication",
+      "IoT Systems",
+      "5G Communication Technologies",
+      "Advanced VLSI",
+      "RF Circuit Design",
+      "Image and Video Processing",
+      "Satellite Communication",
+    ],
+    SE: [
+      "Embedded Systems Lab",
+      "VLSI Design Lab",
+      "DSP Applications Lab",
+      "Communication Systems Lab",
+      "IoT Prototyping Lab",
+    ],
+  },
+  EEE: {
+    ES: [
+      "Basic Electrical Engineering",
+      "Electrical Circuits",
+      "Electromagnetic Fields",
+      "Electrical Machines I",
+      "Power Systems Basics",
+      "Control Engineering Fundamentals",
+      "Power Electronics",
+      "Measurements and Instrumentation",
+    ],
+    PC: [
+      "Electrical Machines II",
+      "Power System Analysis",
+      "Control Systems",
+      "Power Electronics and Drives",
+      "Switchgear and Protection",
+      "Renewable Energy Systems",
+      "Industrial Automation",
+      "High Voltage Engineering",
+    ],
+    PE: [
+      "Smart Grid Technologies",
+      "Electric Vehicle Systems",
+      "Advanced Power Electronics",
+      "Energy Storage Systems",
+      "Industrial IoT for Electrical Systems",
+      "Modern Control Applications",
+    ],
+    SE: [
+      "Electrical Machines Lab",
+      "Power Electronics Lab",
+      "Control Systems Lab",
+      "Electrical Drives Lab",
+      "Power System Simulation Lab",
+    ],
+  },
+  MECH: {
+    ES: [
+      "Engineering Mechanics",
+      "Engineering Thermodynamics",
+      "Manufacturing Processes",
+      "Fluid Mechanics",
+      "Strength of Materials",
+      "Material Science for Mechanical Engineers",
+      "Kinematics of Machines",
+      "Thermal Engineering Basics",
+    ],
+    PC: [
+      "Machine Design",
+      "Heat Transfer",
+      "Dynamics of Machinery",
+      "Manufacturing Technology",
+      "Refrigeration and Air Conditioning",
+      "Finite Element Methods",
+      "Automobile Engineering",
+      "Industrial Engineering",
+    ],
+    PE: [
+      "CAD/CAM",
+      "Robotics and Automation",
+      "Additive Manufacturing",
+      "Advanced Thermal Systems",
+      "Computational Fluid Dynamics",
+      "Mechatronics",
+    ],
+    SE: [
+      "Manufacturing Lab",
+      "Thermal Engineering Lab",
+      "CAD/CAM Lab",
+      "Automobile Systems Lab",
+      "Robotics Practice Lab",
+    ],
+  },
+  CIVIL: {
+    ES: [
+      "Engineering Geology",
+      "Surveying",
+      "Building Materials",
+      "Fluid Mechanics for Civil Engineering",
+      "Strength of Materials",
+      "Environmental Engineering Fundamentals",
+      "Transportation Engineering Basics",
+      "Construction Practices",
+    ],
+    PC: [
+      "Structural Analysis",
+      "Design of Reinforced Concrete Structures",
+      "Geotechnical Engineering",
+      "Water Resources Engineering",
+      "Transportation Engineering",
+      "Construction Planning and Management",
+      "Environmental Engineering",
+      "Foundation Engineering",
+    ],
+    PE: [
+      "Earthquake Engineering",
+      "Advanced Concrete Technology",
+      "Urban Infrastructure Planning",
+      "Smart and Sustainable Cities",
+      "Remote Sensing and GIS",
+      "Advanced Geotechnical Engineering",
+    ],
+    SE: [
+      "Surveying Lab",
+      "Concrete Technology Lab",
+      "Geotechnical Lab",
+      "Environmental Engineering Lab",
+      "Structural Design Studio",
+    ],
+  },
+  GENERIC: {},
+};
+
 export function normalizeCourseTitle(value: string): string {
   return String(value || "")
     .toLowerCase()
@@ -287,7 +487,7 @@ export function buildFallbackTitle(input: {
   semester: number;
   usedTitles?: Set<string>;
 }): string {
-  const categoryTitles = CATEGORY_TITLE_LIBRARY[input.category] || [];
+  const categoryTitles = getCategoryTitlePool(input.programName, input.category);
   const baseName =
     categoryTitles[(Math.max(1, input.semester) - 1) % Math.max(1, categoryTitles.length)] ||
     `${input.category} Course`;
@@ -304,6 +504,43 @@ export function buildFallbackTitle(input: {
 
   usedTitles.add(normalizeCourseTitle(candidate));
   return candidate;
+}
+
+function getCategoryTitlePool(programName: string, category: CategoryCode): string[] {
+  const track = detectProgramTrack(programName);
+  const trackTitles = PROGRAM_TRACK_TITLE_LIBRARY[track]?.[category];
+  if (trackTitles && trackTitles.length > 0) return trackTitles;
+  return CATEGORY_TITLE_LIBRARY[category] || [];
+}
+
+function detectProgramTrack(programName: string): ProgramTrack {
+  const normalized = String(programName || "").toUpperCase();
+  if (
+    normalized.includes("COMPUTER") ||
+    normalized.includes("CSE") ||
+    normalized.includes("INFORMATION TECHNOLOGY") ||
+    normalized.includes("DATA SCIENCE") ||
+    normalized.includes("AI")
+  ) {
+    return "CSE";
+  }
+  if (normalized.includes("ELECTRONICS") || normalized.includes("ECE")) {
+    return "ECE";
+  }
+  if (
+    normalized.includes("ELECTRICAL") ||
+    normalized.includes("EEE") ||
+    normalized.includes("POWER SYSTEM")
+  ) {
+    return "EEE";
+  }
+  if (normalized.includes("MECHANICAL") || normalized.includes("MECH")) {
+    return "MECH";
+  }
+  if (normalized.includes("CIVIL")) {
+    return "CIVIL";
+  }
+  return "GENERIC";
 }
 
 export function validateSemesterRegenerationRules(

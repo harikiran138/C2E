@@ -27,14 +27,6 @@ function getCategoryDesignPercent(
   return Number(row?.design_percent) || 0;
 }
 
-function getCategoryRow(categoryCredits: any[], categoryCode: string): any | null {
-  return (
-    categoryCredits.find(
-      (item) => String(item?.category_code || "").toUpperCase() === categoryCode,
-    ) || null
-  );
-}
-
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as SaveCurriculumRequest;
@@ -44,40 +36,12 @@ export async function POST(request: Request) {
     }
 
     if (Array.isArray(body.categoryCredits) && body.categoryCredits.length > 0) {
-      const mcRow = getCategoryRow(body.categoryCredits, "MC");
       const mcDesignPercent = getCategoryDesignPercent(body.categoryCredits, "MC");
       if (Math.abs(mcDesignPercent) > 0.01) {
         return NextResponse.json(
           { error: "Audit / Mandatory Courses (MC) Design % must be exactly 0." },
           { status: 400 },
         );
-      }
-
-      if (mcRow) {
-        const mcFields = [
-          "courses_t",
-          "courses_p",
-          "courses_tu",
-          "courses_ll",
-          "hours_ci",
-          "hours_t",
-          "hours_li",
-          "hours_twd",
-          "hours_total",
-          "credit",
-        ];
-        const invalidField = mcFields.find(
-          (field) => Math.abs(Number(mcRow?.[field] || 0)) > 0.01,
-        );
-        if (invalidField) {
-          return NextResponse.json(
-            {
-              error:
-                "Audit / Mandatory Courses (MC) must remain 0 in design section fields.",
-            },
-            { status: 400 },
-          );
-        }
       }
 
       const total = getDesignPercentTotal(body.categoryCredits);

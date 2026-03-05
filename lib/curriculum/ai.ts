@@ -20,6 +20,8 @@ interface AiPayload {
   courses?: AiMappedCourse[];
 }
 
+type ProgramTrack = "CSE" | "ECE" | "EEE" | "MECH" | "CIVIL" | "GENERIC";
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
@@ -57,6 +59,70 @@ const FORBIDDEN_FOUNDATION_TERMS = [
   "cyber security",
   "cybersecurity",
 ];
+
+const TRACK_KEYWORDS: Record<ProgramTrack, string[]> = {
+  CSE: [
+    "computer",
+    "programming",
+    "algorithm",
+    "database",
+    "software",
+    "network",
+    "operating system",
+    "data",
+    "web",
+    "cyber",
+    "machine learning",
+    "artificial intelligence",
+  ],
+  ECE: [
+    "electronics",
+    "communication",
+    "signal",
+    "embedded",
+    "vlsi",
+    "microprocessor",
+    "antenna",
+    "wireless",
+    "dsp",
+    "circuit",
+  ],
+  EEE: [
+    "electrical",
+    "power",
+    "machine",
+    "drives",
+    "control",
+    "switchgear",
+    "renewable",
+    "high voltage",
+    "circuits",
+  ],
+  MECH: [
+    "mechanical",
+    "thermodynamics",
+    "manufacturing",
+    "fluid",
+    "machine design",
+    "heat transfer",
+    "automobile",
+    "cad",
+    "cam",
+    "robotics",
+  ],
+  CIVIL: [
+    "civil",
+    "structural",
+    "concrete",
+    "geotechnical",
+    "survey",
+    "transportation",
+    "hydrology",
+    "construction",
+    "environmental engineering",
+  ],
+  GENERIC: [],
+};
 
 export async function applyGeminiCourseTitles(
   curriculum: GeneratedCurriculum,
@@ -182,6 +248,7 @@ export async function applyGeminiCourseTitles(
     }
 
     const usedTitles = new Set<string>();
+    const programTrack = detectProgramTrack(updated.programName);
     for (const semester of updated.semesters) {
       for (const course of semester.courses) {
         const lookupKey = `${semester.semester}::${course.courseCode}`;
@@ -194,6 +261,14 @@ export async function applyGeminiCourseTitles(
         if (semester.semester <= 2 && violatesFoundationRule(proposed)) {
           warnings.push(
             `Semester ${semester.semester} suggested advanced title \"${proposed}\" was rejected to preserve foundation progression.`,
+          );
+          usedTitles.add(normalizeCourseTitle(course.courseTitle));
+          continue;
+        }
+
+        if (!isCourseAlignedWithProgram(programTrack, course.category, proposed)) {
+          warnings.push(
+            `Semester ${semester.semester} ${course.courseCode}: title "${proposed}" was rejected because it does not align with ${updated.programName}.`,
           );
           usedTitles.add(normalizeCourseTitle(course.courseTitle));
           continue;
@@ -310,4 +385,53 @@ function sanitizeTitle(value: string): string {
 function violatesFoundationRule(title: string): boolean {
   const normalized = normalizeCourseTitle(title);
   return FORBIDDEN_FOUNDATION_TERMS.some((term) => normalized.includes(term));
+}
+
+function detectProgramTrack(programName: string): ProgramTrack {
+  const normalized = String(programName || "").toUpperCase();
+  if (
+    normalized.includes("COMPUTER") ||
+    normalized.includes("CSE") ||
+    normalized.includes("INFORMATION TECHNOLOGY") ||
+    normalized.includes("DATA SCIENCE") ||
+    normalized.includes("AI")
+  ) {
+    return "CSE";
+  }
+  if (normalized.includes("ELECTRONICS") || normalized.includes("ECE")) return "ECE";
+  if (
+    normalized.includes("ELECTRICAL") ||
+    normalized.includes("EEE") ||
+    normalized.includes("POWER SYSTEM")
+  ) {
+    return "EEE";
+  }
+  if (normalized.includes("MECHANICAL") || normalized.includes("MECH")) return "MECH";
+  if (normalized.includes("CIVIL")) return "CIVIL";
+  return "GENERIC";
+}
+
+function isCourseAlignedWithProgram(
+  track: ProgramTrack,
+  category: CategoryCode,
+  title: string,
+): boolean {
+  if (track === "GENERIC") return true;
+  if (!["ES", "PC", "PE", "SE", "PR"].includes(category)) return true;
+
+  const normalized = normalizeCourseTitle(title);
+  const genericAllowedTerms = [
+    "engineering",
+    "project",
+    "internship",
+    "capstone",
+    "innovation",
+    "design",
+    "lab",
+  ];
+  if (genericAllowedTerms.some((term) => normalized.includes(term))) {
+    return true;
+  }
+
+  return TRACK_KEYWORDS[track].some((keyword) => normalized.includes(keyword));
 }
