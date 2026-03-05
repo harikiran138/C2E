@@ -8,14 +8,7 @@ import * as THREE from "three";
 type DottedSurfaceProps = Omit<React.ComponentProps<"div">, "ref">;
 
 export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
-  // Fallback if useTheme is not provided by a ThemeProvider
-  let themeObj;
-  try {
-    themeObj = useTheme();
-  } catch (e) {
-    themeObj = { theme: "light" };
-  }
-  const { theme } = themeObj;
+  const { theme = "light" } = useTheme();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
@@ -28,7 +21,8 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
   } | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     const SEPARATION = 150;
     const AMOUNTX = 40;
@@ -55,7 +49,7 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(scene.fog.color, 0);
 
-    containerRef.current.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
     // Create particles
     const positions: number[] = [];
@@ -133,7 +127,6 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 
     // Handle window resize
     const handleResize = () => {
-      if (!containerRef.current) return;
       const width = window.innerWidth;
       const height = window.innerHeight;
       camera.aspect = width / height;
@@ -177,10 +170,8 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 
         sceneRef.current.renderer.dispose();
 
-        if (containerRef.current && sceneRef.current.renderer.domElement) {
-          containerRef.current.removeChild(
-            sceneRef.current.renderer.domElement,
-          );
+        if (sceneRef.current.renderer.domElement.parentNode === container) {
+          container.removeChild(sceneRef.current.renderer.domElement);
         }
       }
     };

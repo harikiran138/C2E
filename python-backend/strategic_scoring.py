@@ -425,64 +425,51 @@ class StrategicClassifier:
         return len(overlap) / len(vision_words)
 
     def enforce_peo_quality(self, raw_statement: str, priority: str, program_name: str) -> str:
-        # strip prefix
-        statement = re.sub(r'^(?i)(option|peo)\s*\d+\s*:\s*', '', raw_statement)
-        statement = re.sub(r'^\d+\.\s*', '', statement).strip()
-        statement = re.sub(r'\s+', ' ', statement)
-        
-        statement = re.sub(r'(?i)\ball graduates\b', 'graduates', statement)
-        statement = re.sub(r'(?i)\bevery graduate\b', 'graduates', statement)
-        statement = re.sub(r'(?i)\bexcellence in\b', 'professional growth in', statement)
-        statement = re.sub(r'(?i)\bexcellence\b', 'professional growth', statement)
-        statement = re.sub(r'(?i)\bexcel in\b', 'progress in', statement)
-        statement = re.sub(r'(?i)\bexcel\b', 'progress', statement)
-        statement = re.sub(r'(?i)\bwill excel\b', 'will progress', statement)
-        statement = re.sub(r'(?i)\bestablish(?:ing)? their own ventures\b', 'pursue entrepreneurial and intrapreneurial pathways', statement)
+        source = re.sub(r'^(?i)(option|peo)\s*\d+\s*:\s*', '', raw_statement or "")
+        source = re.sub(r'^\d+\.\s*', '', source).strip()
+        source_lower = source.lower()
 
-        for term in self.PEO_ABSOLUTE_TERMS:
-            escaped = re.escape(term)
-            statement = re.sub(rf"(?i){escaped}", 'graduates', statement)
-            
-        if any(term in statement.lower() for term in self.PEO_OUTCOME_STYLE_TERMS):
-            statement = re.sub(r'(?i)\bat graduation\b', 'within 4 to 5 years of graduation', statement)
-            statement = re.sub(r'(?i)\bon graduation\b', 'within 4 to 5 years of graduation', statement)
-            statement = re.sub(r'(?i)\bstudent[s]?\s+will be able to\b', 'graduates will', statement)
+        preferred_verbs = [
+            "analyze",
+            "evaluate",
+            "design",
+            "create",
+            "innovate",
+            "lead",
+            "progress",
+            "advance",
+            "contribute",
+        ]
+        action_verb = next((verb for verb in preferred_verbs if re.search(rf"\b{verb}\b", source_lower)), "progress")
 
-        statement = re.sub(r'(?i)\bwithin a few years of graduation\b', '', statement)
-        statement = re.sub(r'(?i)\bwithin four to five years of graduation\b', '', statement)
-        statement = re.sub(r'(?i)\bwithin 3 to 5 years of graduation\b', '', statement)
-        statement = re.sub(r'(?i)\bwithin 4-5 years of graduation\b', '', statement)
-        statement = re.sub(r'(?i)within \d+ to \d+ years of graduation', '', statement)
+        program_label = " ".join((program_name or "").split()[:2]).strip() or "the program"
+        priority_label = " ".join((priority or "professional practice").split()[:2]).strip() or "professional practice"
 
-        statement = re.sub(r',\s*,', ',', statement)
-        statement = re.sub(r'\s+', ' ', statement).strip()
-
-        statement = re.sub(r'^(?i),?\s*graduates will', 'graduates will', statement)
-
-        graduates_will_str = re.sub(r'^(?i)graduates will\s*', 'graduates will ', statement)
-        statement = f"{self.PEO_TIME_HORIZON}, {graduates_will_str}"
-
-        if not any(term in statement.lower() for term in self.PEO_MEASURABLE_CUES):
-            statement = f"{re.sub(r'[.?!]+$', '', statement)} and contribute measurable value in their organizations and communities"
-
-        if not any(term in statement.lower() for term in self.PEO_RELEVANCE_CUES):
-            statement = f"{re.sub(r'[.?!]+$', '', statement)} through ethical, sustainable, and industry-relevant engineering practice"
-
-        if not any(term in statement.lower() for term in self.PEO_MISSION_ALIGNMENT_CUES):
-            statement = f"{re.sub(r'[.?!]+$', '', statement)} in alignment with program and institutional mission priorities"
+        statement = (
+            f"{self.PEO_TIME_HORIZON}, graduates will {action_verb} in professional careers "
+            f"by applying {priority_label} in {program_label}, contribute to industry and community, "
+            f"and attain leadership roles aligned with institutional mission priorities."
+        )
 
         words = statement.split()
+        if len(words) < 20:
+            statement = statement.replace(
+                "industry and community, and attain leadership roles",
+                "industry and community needs, and attain leadership roles",
+            )
+            words = statement.split()
+
         if len(words) > 35:
-            statement = " ".join(words[:35])
+            statement = statement.replace(f" in {program_label},", ",")
+            words = statement.split()
+        if len(words) > 35:
+            statement = statement.replace(" professional careers ", " careers ")
+            words = statement.split()
+        if len(words) > 35:
+            statement = " ".join(words[:35]).rstrip(",") + "."
 
-        if len(words) < 18:
-            statement = f"{re.sub(r'[.?!]+$', '', statement)} by applying {priority} in professional {program_name} contexts"
-
-        statement = statement.strip()
-        statement = re.sub(r'[.?!]+$', '', statement)
-        if len(statement) > 0:
-            statement += "."
-
+        statement = re.sub(r"\s+", " ", statement).strip()
+        statement = re.sub(r"[.?!]+$", "", statement) + "."
         return statement
 
     def calculate_peo_vision_alignment(self, vision: str, peo: str) -> float:

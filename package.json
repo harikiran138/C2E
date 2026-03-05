@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint . --max-warnings=0"
   },
   "repository": {
     "type": "git",
@@ -69,6 +69,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "eslint": "^9.39.3",
+    "eslint-config-next": "^16.1.6",
     "playwright": "^1.58.2"
   }
 }

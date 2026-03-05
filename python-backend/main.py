@@ -1044,8 +1044,32 @@ def create_default_alignment_matrix(peo_count: int, mission_count: int) -> List[
 
 
 
-def build_fallback_peo(priority: str, program_name: str) -> str:
-    return f"Within 3 to 5 years of graduation, graduates will progress in professional {program_name} roles by applying {priority} to solve complex engineering challenges in ways that are consistent with program and institutional mission priorities, while upholding ethical and sustainable practice."
+def build_fallback_peo(priority: str, program_name: str, variant: int = 0) -> str:
+    program_label = " ".join((program_name or "").split()[:2]).strip() or "the program"
+    priority_label = " ".join((priority or "professional practice").split()[:2]).strip() or "professional practice"
+    templates = [
+        (
+            f"Within 3 to 5 years of graduation, graduates will advance in professional careers "
+            f"by applying {priority_label} in {program_label}, contribute to industry and community, "
+            f"and attain leadership roles aligned with institutional mission priorities."
+        ),
+        (
+            f"Within 3 to 5 years of graduation, graduates will lead professional careers in {program_label} "
+            f"through {priority_label}, deliver innovation for industry and community needs, "
+            f"and achieve leadership roles aligned with institutional mission priorities."
+        ),
+        (
+            f"Within 3 to 5 years of graduation, graduates will progress in professional careers "
+            f"through {priority_label} practice in {program_label}, contribute measurable value to industry and community, "
+            f"and attain leadership roles aligned with institutional mission priorities."
+        ),
+        (
+            f"Within 3 to 5 years of graduation, graduates will advance career growth in {program_label} "
+            f"by integrating {priority_label}, support industry and community outcomes, "
+            f"and attain recognized leadership roles aligned with institutional mission priorities."
+        ),
+    ]
+    return templates[variant % len(templates)]
 
 def parse_peo_array(raw_text: str) -> List[str]:
     cleaned = raw_text.replace("```json", "").replace("```", "").strip()
@@ -1149,14 +1173,14 @@ async def generate_peos(request: PEOGenerateRequest):
             alignment = calculate_peo_vision_alignment(request.vision, refined_statement)
             if alignment < 0.1:
                  # If very low alignment, force a fallback
-                 refined_statement = build_fallback_peo(priority, request.programName)
+                 refined_statement = build_fallback_peo(priority, request.programName, i)
             
             # 3. Check Diversity
             too_similar = any(peo_similarity(refined_statement, existing) > 0.8 for existing in refined_peos)
             if too_similar:
                  # If too similar, differentiate via fallback
                  priority = request.priorities[(i+1) % len(request.priorities)] if request.priorities else "innovation"
-                 refined_statement = build_fallback_peo(priority, request.programName)
+                 refined_statement = build_fallback_peo(priority, request.programName, i + 1)
 
             key = canonical_peo_key(refined_statement)
             if key not in seen:
@@ -1168,8 +1192,11 @@ async def generate_peos(request: PEOGenerateRequest):
         while len(refined_peos) < normalized_count:
             idx = len(refined_peos)
             priority = request.priorities[idx % len(request.priorities)] if request.priorities else "excellence"
-            fallback = build_fallback_peo(priority, request.programName)
+            fallback = build_fallback_peo(priority, request.programName, fallback_index)
             if not any(peo_similarity(fallback, existing) > 0.8 for existing in refined_peos):
+                refined_peos.append(fallback)
+            elif fallback_index >= normalized_count * 3:
+                # Ensure we return the requested count even when similarity remains high.
                 refined_peos.append(fallback)
             fallback_index += 1
             if fallback_index > normalized_count * 5: break
@@ -1191,7 +1218,7 @@ async def generate_peos(request: PEOGenerateRequest):
         normalized_count = min(20, max(1, request.count or 4))
         for i in range(normalized_count):
             priority = request.priorities[i % max(1, len(request.priorities))] if request.priorities else "professional practice"
-            fallback = build_fallback_peo(priority, request.programName or "engineering")
+            fallback = build_fallback_peo(priority, request.programName or "engineering", i)
             fallback_results.append(fallback)
             
         final_peos = fallback_results

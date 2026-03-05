@@ -115,8 +115,11 @@ async function stressTest() {
             throw new Error(`Stakeholder creation failed: ${JSON.stringify(stalkData)}`);
         }
 
-        // Fix: Use 'stakeholder' key as returned by the API
-        const stakeholderMemberId = stalkData.stakeholder.member_id;
+        // Use canonical API payload shape
+        const stakeholderMemberId = stalkData?.data?.member_id;
+        if (!stakeholderMemberId) {
+            throw new Error(`Stakeholder member_id missing in response: ${JSON.stringify(stalkData)}`);
+        }
         console.log(`✅ Stakeholder Created: ${stakeholderMemberId} (Needs Approval)`);
 
         // Attempt Login as Unapproved

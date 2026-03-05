@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { ProcessStep } from "@/lib/institution/process";
 import ProgramAdvisoryCommitteeForm from "@/components/institution/process/ProgramAdvisoryCommitteeForm";
@@ -16,7 +16,12 @@ import IdentifyOBECoursesPanel from "@/components/institution/process/IdentifyOB
 import CourseOutcomesPanel from "@/components/institution/process/CourseOutcomesPanel";
 import CurriculumFeedbackPanel from "@/components/institution/process/CurriculumFeedbackPanel";
 import VMPEOFeedbackDashboard from "@/components/institution/VMPEOFeedbackDashboard";
-import { Save, Loader2 } from "lucide-react";
+import {
+  CATEGORY_CODES,
+  CategoryCode,
+  GeneratedCurriculum,
+} from "@/lib/curriculum/engine";
+import { Save, Loader2, WandSparkles, RefreshCcw } from "lucide-react";
 
 const CATEGORY_CELL_FIELDS = [
   "design_percent",
@@ -54,17 +59,6 @@ const CURRICULUM_STRUCTURE_ROWS = [
   { category: "Projects, Internships & Seminar", code: "PR", min: 8, max: 10 },
 ];
 
-const CONVENTIONAL_ELECTIVE_OPTIONS = [
-  "None",
-  "BS",
-  "ES",
-  "HSS",
-  "PC",
-  "OE",
-  "MC",
-  "AE",
-  "SE",
-];
 const TRANS_DISCIPLINARY_OPTIONS = [
   "None",
   "Technology & Management",
@@ -88,7 +82,34 @@ const TRANS_DISCIPLINARY_OPTIONS = [
   "Technology & Education & Learning Sciences",
   "Technology & Media, Communication & Storytelling",
 ];
-const SEMESTERS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+const ROMAN_NUMERALS = [
+  "I",
+  "II",
+  "III",
+  "IV",
+  "V",
+  "VI",
+  "VII",
+  "VIII",
+  "IX",
+  "X",
+  "XI",
+  "XII",
+];
+const ROMAN_TO_NUMBER: Record<string, number> = {
+  I: 1,
+  II: 2,
+  III: 3,
+  IV: 4,
+  V: 5,
+  VI: 6,
+  VII: 7,
+  VIII: 8,
+  IX: 9,
+  X: 10,
+  XI: 11,
+  XII: 12,
+};
 const SEMESTER_CATEGORY_COLUMNS = [
   "BS",
   "ES",
@@ -103,6 +124,72 @@ const SEMESTER_CATEGORY_COLUMNS = [
   "OTHERS",
 ];
 
+function buildSemesterLabels(durationYears: number): string[] {
+  const semesters = Math.max(2, Math.min(12, Math.floor(durationYears * 2)));
+  return Array.from(
+    { length: semesters },
+    (_, index) => ROMAN_NUMERALS[index] || `S${index + 1}`,
+  );
+}
+
+function classifySemester(semesterNumber: number, semesterCount: number): string {
+  if (semesterNumber <= 0) return "Unassigned";
+  const position =
+    semesterCount <= 1
+      ? 1
+      : (semesterNumber - 1) / Math.max(1, semesterCount - 1);
+  if (position < 0.25) return "Foundation";
+  if (position < 0.5) return "Engineering Base";
+  if (position < 0.75) return "Professional Core";
+  if (position < 0.9) return "Specialization";
+  return "Capstone";
+}
+
+function getSemesterLabelFromNumber(semesterNumber: number): string {
+  if (semesterNumber >= 1 && semesterNumber <= ROMAN_NUMERALS.length) {
+    return ROMAN_NUMERALS[semesterNumber - 1];
+  }
+  return String(semesterNumber);
+}
+
+function getCategoryDisplayLabel(category: string): string {
+  if (category === "HSS") return "HS";
+  if (category === "SE") return "SEC";
+  return category;
+}
+
+function getCategoryColorClass(category: string): string {
+  if (category === "BS") return "bg-blue-600 text-white";
+  if (category === "ES") return "bg-sky-500 text-white";
+  if (category === "HSS") return "bg-green-600 text-white";
+  if (category === "PC") return "bg-indigo-900 text-white";
+  if (category === "PE") return "bg-purple-700 text-white";
+  if (category === "OE") return "bg-cyan-700 text-white";
+  if (category === "AE") return "bg-orange-600 text-white";
+  if (category === "SE") return "bg-lime-600 text-white";
+  if (category === "PR") return "bg-rose-700 text-white";
+  if (category === "MC") return "bg-yellow-400 text-slate-900";
+  return "bg-slate-300 text-slate-900";
+}
+
+function getPoPsoMapping(category: string): string {
+  if (category === "BS") return "1,2,5,11/1";
+  if (category === "HSS") return "1,9,11/1,3";
+  if (category === "ES") return "1,2,3,11/1,2";
+  if (category === "PC") return "1,2,3,11/1,2";
+  if (category === "PE") return "1,2,4,5/1,2";
+  if (category === "OE") return "6,7,8/2";
+  if (category === "AE") return "9,10/3";
+  if (category === "SE") return "2,3,5/1,2";
+  if (category === "PR") return "1,2,3,4,5/1,2,3";
+  return "-";
+}
+
+function formatNumeric(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 function CurriculumStructurePanel() {
   const [categoryCredits, setCategoryCredits] = useState<any[]>([]);
   const [conventionalElective, setConventionalElective] = useState("None");
@@ -111,12 +198,57 @@ function CurriculumStructurePanel() {
   const [totalCredits, setTotalCredits] = useState("");
   const [totalCreditsError, setTotalCreditsError] = useState("");
   const [semesterCategories, setSemesterCategories] = useState<any[]>([]);
+  const [programDurationYears, setProgramDurationYears] = useState(4);
+  const [generatedCurriculum, setGeneratedCurriculum] =
+    useState<GeneratedCurriculum | null>(null);
+  const [generationWarnings, setGenerationWarnings] = useState<string[]>([]);
+  const [generationErrors, setGenerationErrors] = useState<string[]>([]);
+  const [regenerateSemester, setRegenerateSemester] = useState("1");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId");
+  const programName =
+    searchParams.get("programName") || "B.Tech Computer Science";
+  const semesterLabels = useMemo(
+    () => buildSemesterLabels(programDurationYears),
+    [programDurationYears],
+  );
 
   useEffect(() => {
-    // Initialize default structures
+    if (!programId) return;
+    let isMounted = true;
+    fetch("/api/institution/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        const programs = Array.isArray(data?.programs) ? data.programs : [];
+        const selected = programs.find(
+          (item: any) => String(item.id) === String(programId),
+        );
+        const years = Number(selected?.duration || 4);
+        if (Number.isFinite(years) && years > 0) {
+          setProgramDurationYears(years);
+        }
+      })
+      .catch(() => {
+        // keep default
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [programId]);
+
+  useEffect(() => {
+    const maxSemester = semesterLabels.length;
+    const current = Number(regenerateSemester);
+    if (!Number.isFinite(current) || current < 1 || current > maxSemester) {
+      setRegenerateSemester("1");
+    }
+  }, [regenerateSemester, semesterLabels]);
+
+  useEffect(() => {
     setCategoryCredits(
       CURRICULUM_STRUCTURE_ROWS.map((r) => ({
         category_code: r.code,
@@ -135,7 +267,7 @@ function CurriculumStructurePanel() {
     );
 
     setSemesterCategories(
-      SEMESTERS.map((s) => ({
+      semesterLabels.map((s) => ({
         semester: s,
         no_of_credits: 0,
         courses_bs: 0,
@@ -152,44 +284,267 @@ function CurriculumStructurePanel() {
       })),
     );
 
-    if (programId) {
-      fetch(`/api/curriculum/structure?programId=${programId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.categoryCredits?.length > 0) {
-            setCategoryCredits((prev) =>
-              prev.map((row) => {
-                const found = data.categoryCredits.find(
-                  (c: any) => c.category_code === row.category_code,
-                );
-                return found ? { ...row, ...found } : row;
-              }),
-            );
-          }
-          if (data.electivesSettings) {
-            setConventionalElective(
-              data.electivesSettings.conventional_elective || "None",
-            );
-            setTransDisciplinaryElective(
-              data.electivesSettings.trans_disciplinary_elective || "None",
-            );
-            setTotalCredits(
-              data.electivesSettings.total_credits?.toString() || "",
-            );
-          }
-          if (data.semesterCategories?.length > 0) {
-            setSemesterCategories((prev) =>
-              prev.map((row) => {
-                const found = data.semesterCategories.find(
-                  (s: any) => s.semester === row.semester,
-                );
-                return found ? { ...row, ...found } : row;
-              }),
-            );
-          }
-        });
+    if (!programId) return;
+
+    fetch(`/api/curriculum/structure?programId=${programId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.categoryCredits?.length > 0) {
+          setCategoryCredits((prev) =>
+            prev.map((row) => {
+              const found = data.categoryCredits.find(
+                (c: any) => c.category_code === row.category_code,
+              );
+              if (!found) return row;
+              if (row.category_code === "MC") {
+                return {
+                  ...row,
+                  ...found,
+                  design_percent: 0,
+                  courses_t: 0,
+                  courses_p: 0,
+                  courses_tu: 0,
+                  courses_ll: 0,
+                  hours_ci: 0,
+                  hours_t: 0,
+                  hours_li: 0,
+                  hours_twd: 0,
+                  hours_total: 0,
+                  credit: 0,
+                };
+              }
+              return { ...row, ...found };
+            }),
+          );
+        }
+
+        if (data.electivesSettings) {
+          setConventionalElective(
+            data.electivesSettings.conventional_elective || "None",
+          );
+          setTransDisciplinaryElective(
+            data.electivesSettings.trans_disciplinary_elective || "None",
+          );
+          setTotalCredits(data.electivesSettings.total_credits?.toString() || "");
+        }
+
+        if (data.semesterCategories?.length > 0) {
+          setSemesterCategories((prev) =>
+            prev.map((row) => {
+              const found = data.semesterCategories.find(
+                (s: any) => s.semester === row.semester,
+              );
+              return found ? { ...row, ...found } : row;
+            }),
+          );
+        }
+      })
+      .catch(() => {
+        // ignore load failure, user can still fill table
+      });
+  }, [programId, semesterLabels]);
+
+  const syncGeneratedData = (curriculum: GeneratedCurriculum) => {
+    setTotalCredits(String(curriculum.totalCredits));
+
+    setCategoryCredits((prev) =>
+      prev.map((row) => {
+        const summary = curriculum.categorySummary.find(
+          (item) => item.categoryCode === row.category_code,
+        );
+        if (!summary) return row;
+        if (row.category_code === "MC") {
+          return {
+            ...row,
+            design_percent: 0,
+            courses_t: 0,
+            courses_p: 0,
+            courses_tu: 0,
+            courses_ll: 0,
+            hours_ci: 0,
+            hours_t: 0,
+            hours_li: 0,
+            hours_twd: 0,
+            hours_total: 0,
+            credit: 0,
+          };
+        }
+        return {
+          ...row,
+          design_percent: Number(summary.percentage.toFixed(2)),
+          courses_t: summary.coursesT,
+          courses_p: summary.coursesP,
+          courses_tu: summary.coursesTU,
+          courses_ll: summary.coursesLL,
+          hours_ci: summary.hoursCI,
+          hours_t: summary.hoursT,
+          hours_li: summary.hoursLI,
+          hours_twd: summary.hoursTWD,
+          hours_total: summary.hoursTotal,
+          credit: summary.credits,
+        };
+      }),
+    );
+
+    setSemesterCategories((prev) =>
+      prev.map((row) => {
+        const semNo =
+          ROMAN_TO_NUMBER[row.semester] ||
+          Number(String(row.semester).replace(/\D+/g, "")) ||
+          0;
+        const sem = curriculum.semesters.find((item) => item.semester === semNo);
+        if (!sem) return row;
+        return {
+          ...row,
+          no_of_credits: sem.totalCredits,
+          courses_bs: sem.categoryCourseCounts.BS,
+          courses_es: sem.categoryCourseCounts.ES,
+          courses_hss: sem.categoryCourseCounts.HSS,
+          courses_pc: sem.categoryCourseCounts.PC,
+          courses_oe: sem.categoryCourseCounts.OE,
+          courses_mc: sem.categoryCourseCounts.MC,
+          courses_ae: sem.categoryCourseCounts.AE,
+          courses_se: sem.categoryCourseCounts.SE,
+          courses_pro: sem.categoryCourseCounts.PR,
+          courses_int: 0,
+          courses_others: sem.categoryCourseCounts.PE,
+        };
+      }),
+    );
+  };
+
+  const buildCategoryPercentages = () => {
+    const percentages: Partial<Record<CategoryCode, number>> = {};
+    for (const row of categoryCredits) {
+      if (!CATEGORY_CODES.includes(row.category_code as CategoryCode)) continue;
+      if (row.category_code === "MC") {
+        percentages.MC = 0;
+        continue;
+      }
+      percentages[row.category_code as CategoryCode] =
+        Number(row.design_percent) || 0;
     }
-  }, [programId]);
+    return percentages;
+  };
+
+  const buildSemesterCategoryCounts = () => {
+    return semesterCategories.map((row) => ({
+      semester:
+        ROMAN_TO_NUMBER[row.semester] ||
+        Number(String(row.semester).replace(/\D+/g, "")) ||
+        0,
+      counts: {
+        BS: Number(row.courses_bs) || 0,
+        ES: Number(row.courses_es) || 0,
+        HSS: Number(row.courses_hss) || 0,
+        PC: Number(row.courses_pc) || 0,
+        PE: Number(row.courses_others) || 0,
+        OE: Number(row.courses_oe) || 0,
+        MC: Number(row.courses_mc) || 0,
+        AE: Number(row.courses_ae) || 0,
+        SE: Number(row.courses_se) || 0,
+        PR: (Number(row.courses_pro) || 0) + (Number(row.courses_int) || 0),
+      },
+    }));
+  };
+
+  const currentDesignPercentTotal = categoryCredits.reduce(
+    (acc, row) =>
+      acc + (row.category_code === "MC" ? 0 : Number(row.design_percent) || 0),
+    0,
+  );
+  const designDelta = Number((100 - currentDesignPercentTotal).toFixed(2));
+  const isDesignPercentValid = Math.abs(currentDesignPercentTotal - 100) <= 0.01;
+
+  const semesterCreditTotal = semesterCategories.reduce(
+    (acc, semester) => acc + (Number(semester?.no_of_credits) || 0),
+    0,
+  );
+
+  const semesterColumnTotals = SEMESTER_CATEGORY_COLUMNS.reduce(
+    (acc, column) => {
+      const fieldName = `courses_${column.toLowerCase()}`;
+      acc[column] = semesterCategories.reduce(
+        (sum, semester) => sum + (Number(semester?.[fieldName]) || 0),
+        0,
+      );
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  const semesterGrandCourseTotal = Object.values(semesterColumnTotals).reduce(
+    (acc, value) => acc + value,
+    0,
+  );
+
+  const getSemesterCourseTotal = (semData: any) =>
+    SEMESTER_CATEGORY_COLUMNS.reduce((acc, column) => {
+      const fieldName = `courses_${column.toLowerCase()}`;
+      return acc + (Number(semData?.[fieldName]) || 0);
+    }, 0);
+
+  const getSemesterNumber = (semesterLabel: string) =>
+    ROMAN_TO_NUMBER[semesterLabel] ||
+    Number(String(semesterLabel).replace(/\D+/g, "")) ||
+    0;
+
+  const getSemesterLevelLabel = (semesterLabel: string) => {
+    const semesterNumber = getSemesterNumber(semesterLabel);
+    const generatedLevel = generatedCurriculum?.semesters.find(
+      (item) => item.semester === semesterNumber,
+    )?.level;
+    return generatedLevel || classifySemester(semesterNumber, semesterLabels.length);
+  };
+
+  const validateGeneratedCurriculum = (curriculum: GeneratedCurriculum): string[] => {
+    const issues: string[] = [];
+    const totalFromSemesters = curriculum.semesters.reduce(
+      (acc, semester) => acc + semester.totalCredits,
+      0,
+    );
+    if (totalFromSemesters !== curriculum.totalCredits) {
+      issues.push(
+        `Credit mismatch: semester totals (${totalFromSemesters}) != program total (${curriculum.totalCredits}).`,
+      );
+    }
+
+    for (const semester of curriculum.semesters) {
+      const sumCourseCredits = semester.courses.reduce(
+        (acc, course) => acc + course.credits,
+        0,
+      );
+      if (sumCourseCredits !== semester.totalCredits) {
+        issues.push(
+          `Semester ${semester.semester}: credits mismatch (${sumCourseCredits} vs ${semester.totalCredits}).`,
+        );
+      }
+
+      for (const course of semester.courses) {
+        const expectedHours = course.credits * 30;
+        if (course.totalHours !== expectedHours) {
+          issues.push(
+            `Semester ${semester.semester} ${course.courseCode}: total hours (${course.totalHours}) must equal credits x 30 (${expectedHours}).`,
+          );
+        }
+      }
+
+      for (const [category, expectedCount] of Object.entries(
+        semester.categoryCourseCounts,
+      )) {
+        const actualCount = semester.courses.filter(
+          (course) => course.category === category,
+        ).length;
+        if (actualCount !== Number(expectedCount)) {
+          issues.push(
+            `Semester ${semester.semester} ${category}: allocated count (${expectedCount}) does not match generated courses (${actualCount}).`,
+          );
+        }
+      }
+    }
+
+    return issues;
+  };
 
   const handleTotalCreditsChange = (value: string) => {
     if (/^\d*$/.test(value)) {
@@ -205,6 +560,7 @@ function CurriculumStructurePanel() {
     field: string,
     value: string,
   ) => {
+    if (code === "MC") return;
     setCategoryCredits((prev) =>
       prev.map((c) =>
         c.category_code === code ? { ...c, [field]: Number(value) } : c,
@@ -224,32 +580,215 @@ function CurriculumStructurePanel() {
     );
   };
 
+  const generateCurriculum = async () => {
+    setGenerationErrors([]);
+    setGenerationWarnings([]);
+
+    const total = Number(totalCredits);
+    if (!Number.isInteger(total) || total <= 0) {
+      setGenerationErrors(["Total credits must be a positive whole number."]);
+      return;
+    }
+    if (!isDesignPercentValid) {
+      setGenerationErrors([
+        `Category percentage total must be 100. Current total is ${currentDesignPercentTotal.toFixed(
+          2,
+        )}.`,
+      ]);
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/ai/generate-curriculum", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programName,
+          totalCredits: total,
+          semesterCount: semesterLabels.length,
+          categoryPercentages: buildCategoryPercentages(),
+          semesterCategoryCounts: buildSemesterCategoryCounts(),
+          enableAiTitles: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setGenerationErrors(
+          Array.isArray(data.errors)
+            ? data.errors
+            : [data.error || "Curriculum generation failed."],
+        );
+        return;
+      }
+
+      const logicalIssues = validateGeneratedCurriculum(data.curriculum);
+      if (logicalIssues.length > 0) {
+        setGenerationErrors(logicalIssues);
+        return;
+      }
+
+      setGeneratedCurriculum(data.curriculum);
+      syncGeneratedData(data.curriculum);
+      setGenerationWarnings(Array.isArray(data.warnings) ? data.warnings : []);
+    } catch (error: any) {
+      setGenerationErrors([error.message || "Curriculum generation failed."]);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const createAllSemesters = async () => {
+    setGenerationErrors([]);
+    setGenerationWarnings([]);
+
+    const total = Number(totalCredits);
+    if (!Number.isInteger(total) || total <= 0) {
+      setGenerationErrors(["Total credits must be a positive whole number."]);
+      return;
+    }
+    if (!isDesignPercentValid) {
+      setGenerationErrors([
+        `Category percentage total must be 100. Current total is ${currentDesignPercentTotal.toFixed(
+          2,
+        )}.`,
+      ]);
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/ai/generate-curriculum", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programName,
+          totalCredits: total,
+          semesterCount: semesterLabels.length,
+          categoryPercentages: buildCategoryPercentages(),
+          semesterCategoryCounts: [],
+          enableAiTitles: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setGenerationErrors(
+          Array.isArray(data.errors)
+            ? data.errors
+            : [data.error || "Semester structure generation failed."],
+        );
+        return;
+      }
+
+      const logicalIssues = validateGeneratedCurriculum(data.curriculum);
+      if (logicalIssues.length > 0) {
+        setGenerationErrors(logicalIssues);
+        return;
+      }
+
+      setGeneratedCurriculum(data.curriculum);
+      syncGeneratedData(data.curriculum);
+      setGenerationWarnings(
+        Array.isArray(data.warnings)
+          ? data.warnings
+          : [
+              "All semesters and subject allocations were created logically using AICTE rules.",
+            ],
+      );
+    } catch (error: any) {
+      setGenerationErrors([error.message || "Semester creation failed."]);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const regenerateSemesterCourses = async () => {
+    if (!generatedCurriculum) {
+      setGenerationErrors([
+        "Generate curriculum first before regenerating a semester.",
+      ]);
+      return;
+    }
+
+    setGenerationErrors([]);
+    setGenerationWarnings([]);
+    setIsRegenerating(true);
+
+    try {
+      const res = await fetch("/api/ai/regenerate-semester", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          semester: Number(regenerateSemester),
+          curriculum: generatedCurriculum,
+          enableAiTitles: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGenerationErrors(
+          Array.isArray(data.errors)
+            ? data.errors
+            : [data.error || "Semester regeneration failed."],
+        );
+        return;
+      }
+
+      const logicalIssues = validateGeneratedCurriculum(data.curriculum);
+      if (logicalIssues.length > 0) {
+        setGenerationErrors(logicalIssues);
+        return;
+      }
+
+      setGeneratedCurriculum(data.curriculum);
+      syncGeneratedData(data.curriculum);
+      setGenerationWarnings(Array.isArray(data.warnings) ? data.warnings : []);
+    } catch (error: any) {
+      setGenerationErrors([error.message || "Semester regeneration failed."]);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   const saveCurriculum = async () => {
     if (!programId) {
       alert("No Program Selected");
       return;
     }
+    if (!isDesignPercentValid) {
+      setGenerationErrors([
+        `Category percentage total must be exactly 100. Current total is ${currentDesignPercentTotal.toFixed(
+          2,
+        )}.`,
+      ]);
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const res = await fetch(
-        `/api/curriculum/structure?programId=${programId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            categoryCredits,
-            electivesSettings: {
-              conventional_elective: conventionalElective,
-              trans_disciplinary_elective: transDisciplinaryElective,
-              total_credits: Number(totalCredits) || 0,
-            },
-            semesterCategories,
-          }),
-        },
-      );
-      if (!res.ok) throw new Error("Failed to save");
-      // Replace alert with a robust toast once one is integrated, but alert works for this MVP step.
-      alert("Curriculum details saved successfully!");
+      const res = await fetch("/api/curriculum/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programId,
+          categoryCredits,
+          electivesSettings: {
+            conventional_elective: conventionalElective,
+            trans_disciplinary_elective: transDisciplinaryElective,
+            total_credits: Number(totalCredits) || 0,
+          },
+          semesterCategories,
+          curriculum: generatedCurriculum,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to save");
+      if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+        setGenerationWarnings(data.warnings);
+      }
+      alert("Curriculum details saved successfully.");
     } catch (e) {
       console.error(e);
       alert("Error saving curriculum details");
@@ -260,27 +799,58 @@ function CurriculumStructurePanel() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2 flex justify-between items-center pr-2">
-        <div>
-          <h3 className="text-xl font-semibold">
-            Generate Curriculum Structure
-          </h3>
-          <p className="text-sm text-slate-600">
-            Curriculum Structure, Learning Hours & Credits
-          </p>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 pr-2">
+          <div>
+            <h3 className="text-xl font-semibold">Generate Curriculum Structure</h3>
+            <p className="text-sm text-slate-600">
+              Curriculum Structure, Learning Hours & Credits
+            </p>
+          </div>
+          <button
+            onClick={saveCurriculum}
+            disabled={isSaving || !isDesignPercentValid}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all disabled:opacity-50"
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {isSaving ? "Saving..." : "Save Curriculum"}
+          </button>
         </div>
-        <button
-          onClick={saveCurriculum}
-          disabled={isSaving}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all disabled:opacity-50"
-        >
-          {isSaving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {isSaving ? "Saving..." : "Save Curriculum"}
-        </button>
+
+        <p className="text-xs font-medium text-slate-600">
+          Design percentage total:{" "}
+          <span className={isDesignPercentValid ? "text-emerald-700" : "text-red-600"}>
+            {currentDesignPercentTotal.toFixed(2)}%
+          </span>
+        </p>
+
+        {!isDesignPercentValid && (
+          <p className="text-xs font-medium text-red-600">
+            {designDelta < 0
+              ? `Your Design % is over by ${Math.abs(designDelta).toFixed(2)}%. Decrease some categories to reach exactly 100.00%.`
+              : `Your Design % is short by ${Math.abs(designDelta).toFixed(2)}%. Increase some categories to reach exactly 100.00%.`} Higher values are allowed while editing.
+          </p>
+        )}
+
+        {generationErrors.length > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {generationErrors.map((item, index) => (
+              <p key={`error-${index}`}>{item}</p>
+            ))}
+          </div>
+        )}
+
+        {generationWarnings.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            {generationWarnings.map((item, index) => (
+              <p key={`warning-${index}`}>{item}</p>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -292,12 +862,6 @@ function CurriculumStructurePanel() {
                 className="border-b border-r border-slate-200 px-3 py-3 text-left font-semibold"
               >
                 Category
-              </th>
-              <th
-                rowSpan={2}
-                className="border-b border-r border-slate-200 px-3 py-3 text-left font-semibold"
-              >
-                Code
               </th>
               <th
                 colSpan={2}
@@ -372,9 +936,6 @@ function CurriculumStructurePanel() {
                   <td className="border-b border-r border-slate-100 px-3 py-2 font-medium text-slate-700">
                     {row.category}
                   </td>
-                  <td className="border-b border-r border-slate-100 px-3 py-2 text-slate-600">
-                    {row.code}
-                  </td>
                   <td className="border-b border-r border-slate-100 px-3 py-2 text-center text-slate-600">
                     {row.min}
                   </td>
@@ -386,21 +947,32 @@ function CurriculumStructurePanel() {
                       key={`${row.code}-cell-${cellIndex}`}
                       className="border-b border-r border-slate-100 px-2 py-1.5"
                     >
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.1}
-                        value={rowData[field] || ""}
-                        onChange={(e) =>
-                          handleCategoryCreditChange(
-                            row.code,
-                            field,
-                            e.target.value,
-                          )
-                        }
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-right text-xs focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                        placeholder="0"
-                      />
+                      {row.code === "MC" ? (
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          value={0}
+                          disabled
+                          className="w-full rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-right text-xs text-slate-500 focus:outline-none"
+                        />
+                      ) : (
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          value={rowData[field] || ""}
+                          onChange={(e) =>
+                            handleCategoryCreditChange(
+                              row.code,
+                              field,
+                              e.target.value,
+                            )
+                          }
+                          className="w-full rounded-md border border-slate-200 px-2 py-1 text-right text-xs focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          placeholder="0"
+                        />
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -410,41 +982,39 @@ function CurriculumStructurePanel() {
         </table>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-            Select the type of Elective Category (Conventional)
-          </label>
-          <select
-            value={conventionalElective}
-            onChange={(event) => setConventionalElective(event.target.value)}
-            className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm focus:border-slate-500 focus:outline-none"
-          >
-            {CONVENTIONAL_ELECTIVE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+      <div className="grid grid-cols-1 gap-4">
+        <fieldset className="rounded-2xl border border-slate-200 bg-white p-3">
+          <legend className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
             Select the type of Trans-Disciplinary Electives
-          </label>
-          <select
-            value={transDisciplinaryElective}
-            onChange={(event) =>
-              setTransDisciplinaryElective(event.target.value)
-            }
-            className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm focus:border-slate-500 focus:outline-none"
-          >
-            {TRANS_DISCIPLINARY_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
+          </legend>
+          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {TRANS_DISCIPLINARY_OPTIONS.map((option) => {
+              const id = `trans-${option
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")}`;
+              return (
+                <label
+                  key={option}
+                  htmlFor={id}
+                  className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 px-2 py-2 text-xs text-slate-700 hover:bg-slate-50"
+                >
+                  <input
+                    id={id}
+                    type="radio"
+                    name="trans-disciplinary-elective"
+                    value={option}
+                    checked={transDisciplinaryElective === option}
+                    onChange={(event) =>
+                      setTransDisciplinaryElective(event.target.value)
+                    }
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-slate-900"
+                  />
+                  <span>{option}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
       </div>
 
       <div className="space-y-2">
@@ -463,9 +1033,7 @@ function CurriculumStructurePanel() {
             placeholder="Whole number"
           />
           {totalCreditsError && (
-            <p className="mt-1 text-xs font-medium text-red-600">
-              {totalCreditsError}
-            </p>
+            <p className="mt-1 text-xs font-medium text-red-600">{totalCreditsError}</p>
           )}
         </div>
       </div>
@@ -484,10 +1052,16 @@ function CurriculumStructurePanel() {
                 rowSpan={2}
                 className="border-b border-r border-slate-200 px-3 py-3 text-left font-semibold"
               >
+                Semester Level
+              </th>
+              <th
+                rowSpan={2}
+                className="border-b border-r border-slate-200 px-3 py-3 text-left font-semibold"
+              >
                 No. of Credits
               </th>
               <th
-                colSpan={SEMESTER_CATEGORY_COLUMNS.length}
+                colSpan={SEMESTER_CATEGORY_COLUMNS.length + 1}
                 className="border-b border-slate-200 px-3 py-3 text-center font-semibold"
               >
                 Number of Courses
@@ -502,16 +1076,22 @@ function CurriculumStructurePanel() {
                   {column}
                 </th>
               ))}
+              <th className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold">
+                Total
+              </th>
             </tr>
           </thead>
           <tbody>
-            {SEMESTERS.map((semester) => {
+            {semesterLabels.map((semester) => {
               const semData =
                 semesterCategories.find((s) => s.semester === semester) || {};
               return (
                 <tr key={semester} className="hover:bg-slate-50/50">
                   <td className="border-b border-r border-slate-100 px-3 py-2 font-semibold text-slate-700">
                     {semester}
+                  </td>
+                  <td className="border-b border-r border-slate-100 px-3 py-2 text-slate-600">
+                    {getSemesterLevelLabel(semester)}
                   </td>
                   <td className="border-b border-r border-slate-100 px-2 py-1.5">
                     <input
@@ -555,24 +1135,269 @@ function CurriculumStructurePanel() {
                       </td>
                     );
                   })}
+                  <td className="border-b border-slate-100 bg-slate-50 px-2 py-1.5 text-right text-xs font-semibold text-slate-700">
+                    {getSemesterCourseTotal(semData)}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
+          <tfoot>
+            <tr className="bg-slate-100 text-slate-800">
+              <td
+                colSpan={2}
+                className="border-t border-r border-slate-200 px-3 py-2 text-right font-semibold"
+              >
+                Total
+              </td>
+              <td className="border-t border-r border-slate-200 px-2 py-2 text-right font-semibold">
+                {semesterCreditTotal}
+              </td>
+              {SEMESTER_CATEGORY_COLUMNS.map((column) => (
+                <td
+                  key={`total-${column}`}
+                  className="border-t border-r border-slate-200 px-2 py-2 text-right font-semibold"
+                >
+                  {semesterColumnTotals[column] || 0}
+                </td>
+              ))}
+              <td className="border-t border-slate-200 px-2 py-2 text-right font-semibold">
+                {semesterGrandCourseTotal}
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </div>
+
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3">
+        <button
+          onClick={createAllSemesters}
+          disabled={isGenerating || !isDesignPercentValid}
+          className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {isGenerating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <WandSparkles className="h-4 w-4" />
+          )}
+          {isGenerating ? "Creating..." : "Create All Semesters"}
+        </button>
+
+        <button
+          onClick={generateCurriculum}
+          disabled={isGenerating || !isDesignPercentValid}
+          className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60 flex items-center justify-center gap-2"
+        >
+          {isGenerating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <WandSparkles className="h-4 w-4" />
+          )}
+          {isGenerating ? "Generating..." : "Generate Curriculum"}
+        </button>
+
+        <p className="text-xs text-slate-600">
+          Fill values in tables, then use Create All Semesters or Generate Curriculum.
+          Backend generation applies NEP-2020-first constraints with AICTE and UGC alignment.
+        </p>
+      </div>
+
+      {generatedCurriculum && (
+        <div className="space-y-3">
+          <h4 className="text-base font-semibold text-slate-900">
+            Generated Curriculum Result
+          </h4>
+          <div className="space-y-4">
+            {generatedCurriculum.semesters.map((semester) => {
+              const subCi = semester.courses.reduce(
+                (acc, course) => acc + course.tHours,
+                0,
+              );
+              const subT = semester.courses.reduce(
+                (acc, course) => acc + course.tuHours,
+                0,
+              );
+              const subLi = semester.courses.reduce(
+                (acc, course) => acc + course.llHours,
+                0,
+              );
+              const subTw = semester.courses.reduce(
+                (acc, course) => acc + course.twHours,
+                0,
+              );
+              const subTotal = semester.courses.reduce(
+                (acc, course) => acc + course.totalHours,
+                0,
+              );
+              const subCredit = semester.courses.reduce(
+                (acc, course) => acc + course.credits,
+                0,
+              );
+
+              return (
+                <div
+                  key={`generated-semester-${semester.semester}`}
+                  className="overflow-x-auto rounded-2xl border border-slate-200 bg-white"
+                >
+                  <table className="w-full min-w-[1300px] border-collapse text-xs">
+                    <thead>
+                      <tr>
+                        <th
+                          colSpan={10}
+                          className="border-b border-slate-300 bg-slate-50 px-3 py-2 text-left text-lg font-semibold text-slate-800"
+                        >
+                          Semester {getSemesterLabelFromNumber(semester.semester)} (
+                          {semester.level})
+                        </th>
+                      </tr>
+                      <tr className="bg-slate-50 text-slate-700">
+                        <th className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold">
+                          No.
+                        </th>
+                        <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">
+                          Course Title
+                        </th>
+                        <th className="border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">
+                          POs / PSOs
+                        </th>
+                        <th className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold">
+                          CI
+                        </th>
+                        <th className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold">
+                          T
+                        </th>
+                        <th className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold">
+                          LI
+                        </th>
+                        <th className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold">
+                          TW+SL
+                        </th>
+                        <th className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold">
+                          Total
+                        </th>
+                        <th className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold">
+                          Credit
+                        </th>
+                        <th className="border-b border-slate-200 px-3 py-2 text-left font-semibold">
+                          Category
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {semester.courses.map((course, index) => (
+                        <tr
+                          key={`${course.courseCode}-${course.semester}-${index}`}
+                          className="hover:bg-slate-50/60"
+                        >
+                          <td className="border-b border-r border-slate-100 px-2 py-2 text-center text-slate-700">
+                            {index + 1}
+                          </td>
+                          <td className="border-b border-r border-slate-100 px-3 py-2 text-slate-700">
+                            {course.courseTitle}
+                          </td>
+                          <td className="border-b border-r border-slate-100 px-3 py-2 text-slate-600">
+                            {getPoPsoMapping(course.category)}
+                          </td>
+                          <td className="border-b border-r border-slate-100 px-2 py-2 text-center text-slate-700">
+                            {formatNumeric(course.tHours)}
+                          </td>
+                          <td className="border-b border-r border-slate-100 px-2 py-2 text-center text-slate-700">
+                            {formatNumeric(course.tuHours)}
+                          </td>
+                          <td className="border-b border-r border-slate-100 px-2 py-2 text-center text-slate-700">
+                            {formatNumeric(course.llHours)}
+                          </td>
+                          <td className="border-b border-r border-slate-100 px-2 py-2 text-center text-slate-700">
+                            {formatNumeric(course.twHours)}
+                          </td>
+                          <td className="border-b border-r border-slate-100 px-2 py-2 text-center text-slate-700">
+                            {formatNumeric(course.totalHours)}
+                          </td>
+                          <td className="border-b border-r border-slate-100 px-2 py-2 text-center text-slate-700">
+                            {formatNumeric(course.credits)}
+                          </td>
+                          <td
+                            className={`border-b border-slate-100 px-3 py-2 font-semibold ${getCategoryColorClass(
+                              course.category,
+                            )}`}
+                          >
+                            {getCategoryDisplayLabel(course.category)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-slate-50">
+                        <td
+                          colSpan={3}
+                          className="border-b border-r border-slate-200 px-3 py-2 text-right font-semibold text-slate-700"
+                        >
+                          Sub-total
+                        </td>
+                        <td className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold text-slate-700">
+                          {formatNumeric(subCi)}
+                        </td>
+                        <td className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold text-slate-700">
+                          {formatNumeric(subT)}
+                        </td>
+                        <td className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold text-slate-700">
+                          {formatNumeric(subLi)}
+                        </td>
+                        <td className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold text-slate-700">
+                          {formatNumeric(subTw)}
+                        </td>
+                        <td className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold text-slate-700">
+                          {formatNumeric(subTotal)}
+                        </td>
+                        <td className="border-b border-r border-slate-200 px-2 py-2 text-center font-semibold text-slate-700">
+                          {formatNumeric(subCredit)}
+                        </td>
+                        <td className="border-b border-slate-200 px-3 py-2" />
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                Select Semester for Regeneration
+              </label>
+              <select
+                value={regenerateSemester}
+                onChange={(event) => setRegenerateSemester(event.target.value)}
+                className="h-10 min-w-[180px] rounded-lg border border-slate-300 px-2 text-sm focus:border-slate-500 focus:outline-none"
+              >
+                {semesterLabels.map((semester) => (
+                  <option key={semester} value={ROMAN_TO_NUMBER[semester]}>
+                    Semester {semester}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={regenerateSemesterCourses}
+              disabled={isRegenerating}
+              className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isRegenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="h-4 w-4" />
+              )}
+              {isRegenerating ? "Regenerating..." : "Regenerate Semester"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function DevelopCurriculumPanel() {
-  const headers = [
-    "Semester",
-    "Course Code",
-    "Course Title",
-    "Credits",
-    "Category",
-  ];
+  const headers = ["Semester", "Course Title", "Credits", "Category"];
 
   return (
     <div className="space-y-5">

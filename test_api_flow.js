@@ -77,6 +77,7 @@ async function runE2E() {
 
     // step 3: Create a new Stakeholder
     let newStakeholderId = '';
+    let newStakeholderRow = null;
     try {
         const stRes = await fetch(`${baseUrl}/api/institution/stakeholders`, {
             method: 'POST',
@@ -97,9 +98,39 @@ async function runE2E() {
         if (!stRes.ok) throw new Error(JSON.stringify(data));
 
         newStakeholderId = data.data.member_id;
+        newStakeholderRow = data.data;
         console.log('✅ PASS: Stakeholder Created successfully. Stakeholder ID:', newStakeholderId);
     } catch (e) {
         console.error('❌ FAIL: Creating Stakeholder:', e);
+        return;
+    }
+
+    // Approve stakeholder so login is expected to succeed
+    try {
+        const approveRes = await fetch(`${baseUrl}/api/institution/stakeholders`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Cookie': institutionCookie
+            },
+            body: JSON.stringify({
+                id: newStakeholderRow.id,
+                member_name: newStakeholderRow.member_name,
+                organization: newStakeholderRow.organization,
+                email: newStakeholderRow.email,
+                mobile_number: newStakeholderRow.mobile_number,
+                specialisation: newStakeholderRow.specialisation,
+                category: newStakeholderRow.category,
+                linkedin_id: newStakeholderRow.linkedin_id,
+                is_approved: true
+            })
+        });
+        if (!approveRes.ok) {
+            throw new Error(`Stakeholder approval failed: ${approveRes.status} ${await approveRes.text()}`);
+        }
+        console.log('✅ PASS: Stakeholder Approved');
+    } catch (e) {
+        console.error('❌ FAIL: Approving Stakeholder:', e);
         return;
     }
 
@@ -120,6 +151,8 @@ async function runE2E() {
         const data = await loginRes.json();
         if (loginRes.ok) {
             console.log('✅ PASS: Stakeholder Logged in successfully! Response data:', data.stakeholder);
+        } else if (loginRes.status === 403 && data?.requires_password_change) {
+            console.log('✅ PASS: Stakeholder requires first password change before access (expected security flow).');
         } else {
             console.log('❌ FAIL: Stakeholder Login Failed!', data);
         }

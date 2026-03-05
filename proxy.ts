@@ -47,9 +47,13 @@ function attachSecurityHeaders(response: NextResponse) {
   response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const ip = (request as any).ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
+  const forwardedIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const ip = String((request as any).ip || forwardedIp || '127.0.0.1');
+  const isLocalDev =
+    process.env.NODE_ENV !== 'production' &&
+    (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === 'localhost');
 
   const requestHeaders = new Headers(request.headers);
 
@@ -65,11 +69,12 @@ export async function middleware(request: NextRequest) {
   }
 
   const isApiRoute = pathname.startsWith('/api');
-  const isAuthRoute = pathname.includes('/login') || pathname.includes('/register');
+  const isAuthRoute = (pathname.includes('/login') || pathname.includes('/register')) && !pathname.includes('/options');
 
-  if (isApiRoute) {
+  if (isApiRoute && !isLocalDev) {
     const limitInfo = isAuthRoute ? { limit: 10, windowMs: 60 * 1000 } : { limit: 100, windowMs: 60 * 1000 };
-    const allowed = checkRateLimit({ ip: String(ip), ...limitInfo });
+    const rateLimitKey = isAuthRoute ? `${ip}:${pathname}` : ip;
+    const allowed = checkRateLimit({ ip: rateLimitKey, ...limitInfo });
     if (!allowed) {
       return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
     }
@@ -263,4 +268,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
-
