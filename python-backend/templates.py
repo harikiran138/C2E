@@ -18,6 +18,26 @@ MISSION_TEMPLATES = [
     "To drive advancement in {program} education by integrating sustainable practices, academic distinction, and world-class research initiatives."
 ]
 
+PSO_TEMPLATES = [
+    "Graduates will be able to design and develop scalable {program} systems using modern engineering practices and advanced programming technologies.",
+    "Graduates will be able to apply artificial intelligence, data analytics, and emerging {program} technologies to solve complex domain-specific problems.",
+    "Graduates will be able to integrate {program} solutions with real-world systems while addressing societal, ethical, and sustainability implications.",
+    "Graduates will be able to implement and evaluate {program} architectures using contemporary tools, frameworks, and professional engineering standards.",
+    "Graduates will be able to analyze and optimize {program} systems through research-driven experimentation and evidence-based technical decision making.",
+]
+
+
+def generate_elite_fallback_psos(program_name: str, count: int) -> List[str]:
+    psos = []
+    available = PSO_TEMPLATES.copy()
+    random.seed(time.time_ns())
+    random.shuffle(available)
+    for i in range(max(1, count)):
+        template = available[i % len(available)]
+        psos.append(template.format(program=program_name))
+    return psos
+
+
 def generate_elite_fallback_visions(program_name: str, count: int) -> List[str]:
     visions = []
     available = VISION_TEMPLATES.copy()

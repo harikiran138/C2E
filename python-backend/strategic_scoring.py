@@ -145,6 +145,25 @@ class StrategicClassifier:
         "program", "engineering", "institutional", "strategic", "global", "globally", "international", "internationally", "future", "long", "term", "sustained",
     }
     
+    # ── PSO scoring constants ─────────────────────────────────────────────────
+    PSO_PREFIX_LOWER = "graduates will be able to"
+    PSO_TECHNICAL_VERBS = [
+        "design", "develop", "implement", "analyze", "evaluate", "apply",
+        "integrate", "construct", "formulate", "optimize", "architect", "engineer",
+        "create", "solve", "execute", "demonstrate", "produce", "model",
+        "synthesize", "deploy", "configure", "simulate", "validate", "assess",
+    ]
+    PSO_GENERIC_PHRASES = [
+        "understand basics", "understand the basics", "learn fundamentals",
+        "learn the fundamentals", "know the", "have knowledge of",
+        "be familiar with", "gain knowledge", "comprehend", "grasp the concept",
+        "gain an understanding",
+    ]
+    PSO_BANNED_TERMS = [
+        "world-class", "best", "premier", "guarantee", "100%",
+        "all graduates", "every graduate", "always",
+    ]
+
     PEO_TIME_HORIZON = "Within 3 to 5 years of graduation"
     PEO_TIME_HORIZON_LOWER = PEO_TIME_HORIZON.lower()
     PEO_ABSOLUTE_TERMS = ["all graduates", "every graduate", "always", "guarantee", "100%"]
@@ -542,6 +561,78 @@ class StrategicClassifier:
         if not s1 or not s2: return 0.0
         return len(s1 & s2) / max(len(s1), len(s2))
 
+    def score_pso(self, statement: str) -> Dict[str, Any]:
+        """
+        Scores a Program Specific Outcome against OBE/accreditation standards.
+        PSOs describe domain-specific technical capabilities at graduation.
+        """
+        normalized = " ".join((statement or "").split())
+        lower = normalized.lower()
+        words = re.findall(r"\b[\w-]+\b", normalized)
+        word_count = len(words)
+
+        violations: List[str] = []
+        hard_fail = False
+        score = 100
+
+        # 1. Prefix check (25 pts) — hard fail
+        if not lower.startswith(self.PSO_PREFIX_LOWER):
+            violations.append('PSO must start with "Graduates will be able to..."')
+            score -= 25
+            hard_fail = True
+
+        # 2. Word count check (20 pts): 15-25 words — hard fail
+        if word_count < 10 or word_count > 35:
+            violations.append(f"PSO word count must be 15-25 words (found {word_count})")
+            score -= 20
+            hard_fail = True
+
+        # 3. Technical verb (30 pts)
+        has_technical_verb = any(
+            re.search(rf"\b{re.escape(v)}\b", lower) for v in self.PSO_TECHNICAL_VERBS
+        )
+        if not has_technical_verb:
+            violations.append(
+                "PSO must include a technical action verb (design, implement, analyze, evaluate, etc.)"
+            )
+            score -= 30
+
+        # 4. Generic phrases (15 pts) — hard fail
+        generic_hits = [p for p in self.PSO_GENERIC_PHRASES if p in lower]
+        if generic_hits:
+            violations.append(f"Avoid generic phrases: {', '.join(generic_hits)}")
+            score -= 15
+            hard_fail = True
+
+        # 5. Banned terms (10 pts)
+        banned_hits = [t for t in self.PSO_BANNED_TERMS if t in lower]
+        if banned_hits:
+            violations.append(f"Avoid absolute/marketing language: {', '.join(banned_hits)}")
+            score -= 10
+
+        final_score = max(0, min(100, score))
+        if hard_fail:
+            final_score = min(final_score, 65)
+
+        if final_score < 85 and not any("below threshold" in v for v in violations):
+            violations.append(f"PSO score below elite threshold: {final_score}/100")
+
+        return {
+            "score": final_score,
+            "violations": violations,
+            "is_elite": final_score >= 85,
+            "hard_fail": hard_fail,
+        }
+
+    def pso_similarity(self, pso1: str, pso2: str) -> float:
+        """PSO-specific Jaccard similarity excluding PSO prefix tokens."""
+        prefix_words = {"graduates", "will", "be", "able", "to"}
+        s1 = set(w for w in self._tokenize_and_clean(pso1) if w not in prefix_words)
+        s2 = set(w for w in self._tokenize_and_clean(pso2) if w not in prefix_words)
+        if not s1 or not s2:
+            return 0.0
+        return len(s1 & s2) / max(len(s1), len(s2))
+
     def enforce_po_quality(self, raw_po: str) -> str:
         # Basic cleanup
         po = " ".join(raw_po.split()).strip()
@@ -649,3 +740,9 @@ def enforce_po_quality(raw_po: str) -> str:
 
 def score_peo(statement: str) -> Dict[str, Any]:
     return classifier.score_smart_abet(statement)
+
+def score_pso(statement: str) -> Dict[str, Any]:
+    return classifier.score_pso(statement)
+
+def pso_similarity(pso1: str, pso2: str) -> float:
+    return classifier.pso_similarity(pso1, pso2)
