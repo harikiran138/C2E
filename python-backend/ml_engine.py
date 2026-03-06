@@ -48,6 +48,8 @@ class LocalMLEngine:
         print("DEBUG: Dedicated Local Model Loaded Successfully.")
 
     def generate_vision(self, program_name: str, focus_areas: List[str]) -> str:
+        if self.is_serverless:
+            return ""
         if not self.pipe:
             self.load_model()
             

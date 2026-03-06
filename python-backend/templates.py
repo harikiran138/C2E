@@ -35,7 +35,7 @@ def generate_elite_fallback_missions(program_name: str, count: int) -> List[str]
     # Use time_ns for higher resolution randomness seed
     random.seed(time.time_ns())
     random.shuffle(available)
-    for i in range(count):
+    for i in range(max(1, count)):
         template = available[i % len(available)]
         missions.append(template.format(program=program_name))
     return missions

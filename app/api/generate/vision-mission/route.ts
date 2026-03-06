@@ -456,7 +456,7 @@ function buildDeterministicVision(
       normalizeWhitespace(String(p).toLowerCase())
         .replace(
           /\b(outcome based|outcome-based|outcome oriented|outcome-oriented)\b/g,
-          "institutional leadership",
+          "institutional standards",
         )
         .replace(
           /\b(education|teaching|learning|curriculum|pedagogy|classroom)\b/g,
@@ -479,14 +479,14 @@ function buildDeterministicVision(
   const pillarText =
     selected.length > 0
       ? selected.join(", ").replace(/, ([^,]*)$/, ", and $1")
-      : "institutional leadership, innovation capability, and sustainable societal contribution";
+      : "institutional standards, innovation capability, and sustainable societal contribution";
 
   const templates = [
     `To be globally recognized for long-term ${programName} distinction through ${pillarText} with sustained societal and professional relevance.`,
-    `To emerge as a long-horizon ${programName} benchmark for globally respected distinction through ${pillarText} and enduring strategic relevance.`,
+    `To emerge as a long-term ${programName} benchmark for globally respected distinction through ${pillarText} and enduring strategic relevance.`,
     `To achieve distinction in ${programName} through sustained ${pillarText} and long-term institutional contribution.`,
-    `To advance as a leading ${programName} program through sustained ${pillarText}, institutional leadership, and enduring strategic contribution.`,
-    `To be globally respected for sustained ${programName} excellence through ${pillarText} with long-horizon societal relevance.`,
+    `To advance as a leading ${programName} program through sustained ${pillarText}, institutional standards, and enduring strategic contribution.`,
+    `To be globally respected for sustained ${programName} excellence through ${pillarText} with long-term societal relevance.`,
   ];
 
   return templates[index % templates.length];
@@ -506,13 +506,21 @@ function buildDeterministicMission(programName: string, index: number) {
   return rotated.join(" ");
 }
 
+// Pre-validated safe templates — each scores 100/100 on scoreVisionCandidate() for 2+ word program names
+// Rules verified: 18-24 words, 1 global concept, 0 banned terms, ≤3 pillars, no synonym stacking
+// See config/vision-profile.yaml for full specification
 function buildSafeVisionVariant(programName: string, index: number) {
   const templates = [
-    `To be globally recognized for long-term ${programName} distinction through institutional leadership, innovation foresight, and sustainable societal contribution.`,
-    `To emerge as a long-horizon ${programName} benchmark for globally respected distinction through strategic innovation leadership and enduring public value.`,
-    `To achieve distinction in ${programName} through sustained institutional leadership, responsible innovation, and long-term societal contribution.`,
-    `To advance as a leading ${programName} program through strategic distinction, institutional standards, and enduring professional and societal relevance.`,
-    `To be globally respected for sustained ${programName} excellence through ethical institutional standards, innovation strength, and long-horizon societal value.`,
+    // T1 — "globally recognized": cluster-1 words = recognized(1) + distinction(2) = 2 → safe
+    `To be globally recognized for long-term ${programName} distinction through institutional standards, technological innovation, and sustainable societal contribution.`,
+    // T2 — "globally respected": cluster-1 = respected(1) + distinction(2) = 2 → safe; no "leadership"
+    `To emerge as a long-term ${programName} benchmark for globally respected distinction through strategic innovation and enduring public value.`,
+    // T3 — "distinction in": cluster-1 = distinction(1) = 1 → safe; body has 12 words for 18 total with 2-word name
+    `To achieve distinction in ${programName} through sustained institutional standards, responsible innovation practice, and long-term professional societal contribution.`,
+    // T4 — "advance as a leading": cluster-1 = leading(1) + distinction(2) = 2 → safe; 1 "and" + 2 commas = 3 pillars
+    `To advance as a leading ${programName} program through strategic institutional distinction, ethical standards, and enduring professional relevance.`,
+    // T5 — "globally respected": cluster-1 = respected(1) + excellence(2) = 2 → safe
+    `To be globally respected for sustained ${programName} excellence through ethical institutional standards, research impact, and long-term societal value.`,
   ];
   return templates[index % templates.length];
 }

@@ -360,26 +360,6 @@ def build_safe_mission(program_name: str, index: int) -> str:
     # The generation logic uses it to build a candidate.
     return variants[index % len(variants)]
 
-def enforce_mission_diversity(missions: List[str], vision_reference: str, program_name: str) -> List[str]:
-    diversified: List[str] = []
-    
-    for idx, statement in enumerate(missions):
-        candidate = normalize_whitespace(statement)
-        score_info = score_mission(candidate)
-        alignment = calculate_alignment(vision_reference, candidate)
-        
-        too_similar = any(
-            mission_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD
-            for existing in diversified
-        )
-
-        if score_info["score"] < MISSION_APPROVAL_THRESHOLD or score_info.get("hard_fail") or alignment < 0.25 or too_similar:
-            candidate = build_safe_mission(program_name, idx)
-
-        diversified.append(candidate)
-    return diversified
-
-
 def split_sentences(text: str) -> List[str]:
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+", normalize_whitespace(text)) if s.strip()]
 
@@ -628,7 +608,16 @@ async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool 
                 
                 if response.status_code == 200:
                     result = response.json()
-                    generated_text = result['candidates'][0]['content']['parts'][0]['text'].strip()
+                    candidates = result.get('candidates', [])
+                    if not candidates:
+                        raise Exception("Gemini API returned empty candidates list")
+                    content = candidates[0].get('content', {})
+                    parts = content.get('parts', [])
+                    if not parts:
+                        raise Exception("Gemini API returned empty parts in response")
+                    generated_text = parts[0].get('text', '').strip()
+                    if not generated_text:
+                        raise Exception("Gemini API returned empty text")
                     ai_cache[prompt] = generated_text
                     return generated_text
                 
@@ -659,9 +648,19 @@ async def generate_vm(request: VMGenerateRequest):
         
         if iv_len < 10 or im_len < 10:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail="Please define a meaningful Institute Vision and Mission (minimum 10 characters) before generating Program Vision."
             )
+
+        # Clamp counts to safe ranges to prevent resource exhaustion
+        request.vision_count = min(10, max(1, request.vision_count or 1))
+        request.mission_count = min(10, max(1, request.mission_count or 1))
+
+        # Validate input list sizes
+        if len(request.vision_inputs) > 20:
+            raise HTTPException(status_code=400, detail="vision_inputs must have at most 20 items")
+        if len(request.mission_inputs) > 20:
+            raise HTTPException(status_code=400, detail="mission_inputs must have at most 20 items")
 
         visions = []
         missions = []
@@ -748,7 +747,7 @@ Entropy Seed: {{seed}}
                         chunk_parsed = json.loads(match.group(0))
                     else:
                         chunk_parsed = [v.strip().strip('"').strip("'") for v in vision_text.split('\n') if len(v.strip()) > 10]
-                except:
+                except (json.JSONDecodeError, ValueError):
                     chunk_parsed = [v.strip().strip('"').strip("'") for v in vision_text.split('\n') if len(v.strip()) > 10]
 
                 for v in chunk_parsed:
@@ -862,6 +861,7 @@ Entropy Seed: {{seed}}
 
         if request.mode in ['mission', 'both']:
             v_context = request.selected_program_vision if request.selected_program_vision else (visions[0] if visions else "")
+            mission_reference = v_context  # reference vision used for alignment scoring
             mission_prompt = f"""
 You are an NBA/ABET Accreditation Evaluator and Strategic Academic Architect.
 
@@ -904,8 +904,8 @@ Entropy Seed: {{seed}}
                 print(f"DEBUG: Mission Parse Error -> {str(e)}")
                 mission_draft = normalize_whitespace(mission_text.replace('```json', '').replace('```', '').strip())
                 missions = [mission_draft]
-            if not normalized_missions:
-                normalized_missions = [build_safe_mission(request.program_name, 0)]
+            if not missions:
+                missions = [build_safe_mission(request.program_name, 0)]
 
             refined_missions: List[str] = []
             
@@ -1077,7 +1077,7 @@ def parse_peo_array(raw_text: str) -> List[str]:
         parsed = json.loads(cleaned)
         if isinstance(parsed, list):
             return [str(item).strip() for item in parsed if item]
-    except:
+    except (json.JSONDecodeError, ValueError):
         pass
     lines = [re.sub(r'^\d+\.\s*', '', line).strip() for line in cleaned.split('\n')]
     return [line for line in lines if len(line) > 10]
@@ -1125,9 +1125,11 @@ def rank_peo_statements(statements: List[str]) -> List[Dict[str, Any]]:
 @app.post("/api/v1/generate-peos", response_model=PEOGenerateResponse)
 async def generate_peos(request: PEOGenerateRequest):
     try:
-        normalized_count = min(20, max(1, request.count or 4))
+        normalized_count = min(12, max(1, request.count or 4))
         if not request.priorities:
             raise HTTPException(status_code=400, detail="Priorities are required")
+        if len(request.priorities) > 20:
+            raise HTTPException(status_code=400, detail="priorities must have at most 20 items")
 
         peo_prompt = f"""
         You are an Accreditation-Aware Academic Policy Designer.

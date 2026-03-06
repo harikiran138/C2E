@@ -16,12 +16,63 @@ class StrategicClassifier:
     }
 
     FOCUS_AREA_MAPPING = {
-        "Future-ready engineers": ["future engineers", "engineers", "graduates", "professional engineers", "engineering professionals"],
-        "Outcome-oriented education": ["education", "learning", "training", "academic excellence", "engineering education"],
-        "Ethics and integrity": ["ethics", "integrity", "responsibility", "professional values"],
-        "Sustainable development": ["sustainable", "sustainability", "green technology"],
-        "Innovation-driven education": ["innovation", "research", "advanced technology"],
-        "Engineering for societal impact": ["society", "societal impact", "community", "human welfare"]
+        # ── Core OBE / Professional priorities ───────────────────────────────────
+        "Future-ready engineers": [
+            "future engineers", "engineers", "graduates", "professional engineers",
+            "engineering professionals", "future-ready", "workforce", "industry-ready"
+        ],
+        "Outcome-oriented education": [
+            "education", "learning", "training", "academic excellence",
+            "engineering education", "outcome-based", "competencies", "outcomes"
+        ],
+        "Ethics and integrity": [
+            "ethics", "integrity", "responsibility", "professional values",
+            "ethical", "professional ethics", "responsible"
+        ],
+        "Sustainable development": [
+            "sustainable", "sustainability", "green technology",
+            "sustainable development", "environmental", "eco-friendly", "conservation"
+        ],
+        "Innovation-driven education": [
+            "innovation", "research", "advanced technology", "innovative",
+            "pioneering", "cutting-edge", "advancement", "technological"
+        ],
+        "Engineering for societal impact": [
+            "society", "societal impact", "community", "human welfare",
+            "transform society", "societal", "public good", "social impact"
+        ],
+        # ── Global / competitive positioning ─────────────────────────────────────
+        "Global Engineering Excellence": [
+            "global", "globally recognized", "globally respected", "excellence",
+            "world-class", "international", "internationally", "globally competitive",
+            "benchmark", "recognition"
+        ],
+        "Internationally benchmarked": [
+            "international", "internationally", "benchmark", "benchmarked",
+            "global standards", "standards", "globally", "recognized", "accredited"
+        ],
+        "Globally competitive graduates": [
+            "globally competitive", "competitive", "graduates", "global",
+            "internationally competitive", "industry-competitive", "world-ready"
+        ],
+        # ── Innovation / technology ───────────────────────────────────────────────
+        "Technology with purpose": [
+            "technology", "technological", "purpose", "meaningful", "purposeful",
+            "applied technology", "technology-driven", "purposeful innovation"
+        ],
+        "Responsible innovation": [
+            "responsible", "innovation", "innovative", "ethical innovation",
+            "responsible technology", "sustainable innovation", "purposeful innovation"
+        ],
+        # ── Standards / human focus ───────────────────────────────────────────────
+        "Professional engineering standards": [
+            "professional", "standards", "engineering standards", "professional standards",
+            "rigorous", "quality standards", "best practices", "accreditation"
+        ],
+        "Human-centric engineering": [
+            "human", "human-centric", "people", "welfare", "quality of life",
+            "communities", "human welfare", "humanistic", "inclusive", "life"
+        ],
     }
 
     STRATEGIC_THEMES = {
@@ -265,6 +316,8 @@ class StrategicClassifier:
         Simple grammar and clarity check (up to 5 points).
         """
         score = 5
+        if not vision:
+            return 0
         # Deduction for multiple punctuation errors or start/end issues
         if not vision[0].isupper(): score -= 1
         if not vision.endswith('.'): score -= 1
