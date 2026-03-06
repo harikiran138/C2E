@@ -172,7 +172,7 @@ const CATEGORY_FOCUS_PHRASES: Record<ThemeCategory, string> = {
 
 const VISION_PILLAR_PHRASES: Record<ThemeCategory, string> = {
   global_positioning: "benchmark-quality global standards",
-  innovation_technology: "transformative innovation leadership",
+  innovation_technology: "technological innovation and research impact",
   sustainability_society: "sustainable societal contribution",
   professional_values: "ethical professional standards",
   educational_philosophy: "scholarly excellence and lifelong growth",
@@ -2411,10 +2411,10 @@ function buildVisionFallbackStatement(
   );
   const variants = [
     `To be globally recognized for long-term ${programName} distinction through ${focusPhrase} with sustained institutional and societal impact`,
-    `To emerge as a long-horizon ${programName} benchmark for globally respected distinction through ${focusPhrase} and enduring strategic relevance`,
+    `To emerge as a long-term ${programName} benchmark for globally respected distinction through ${focusPhrase} and enduring strategic relevance`,
     `To achieve distinction in ${programName} through sustained ${focusPhrase} and long-term institutional contribution`,
-    `To advance as a leading ${programName} program through sustained ${focusPhrase}, institutional leadership, and enduring strategic contribution`,
-    `To be globally respected for sustained ${programName} excellence through ${focusPhrase} with long-horizon societal relevance`,
+    `To advance as a leading ${programName} program through sustained ${focusPhrase}, institutional standards, and enduring strategic contribution`,
+    `To be globally respected for sustained ${programName} excellence through ${focusPhrase} with long-term societal relevance`,
   ];
 
   return ensureSentence(variants[index % variants.length]);

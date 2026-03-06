@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { computeSemanticSimilarity, calculateLexicalRichness } from "@/lib/ai-validation";
+import { visionAgent } from "@/lib/ai/vision-agent";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const API_URL =
@@ -426,7 +427,7 @@ function scoreVisionCandidate(statement: string) {
   ];
 
   let score = 100;
-  if (words.length < 15 || words.length > 25) score -= 20;
+  if (words.length < 18 || words.length > 24) score -= 20;
   if (
     !VISION_STARTERS.some((starter) => lower.startsWith(starter.toLowerCase()))
   )
@@ -454,9 +455,10 @@ function buildDeterministicVision(
     .slice(0, 3)
     .map((p) =>
       normalizeWhitespace(String(p).toLowerCase())
+        // Replace outcome-oriented phrases — avoid "leadership" (it's in the synonym cluster)
         .replace(
           /\b(outcome based|outcome-based|outcome oriented|outcome-oriented)\b/g,
-          "institutional leadership",
+          "institutional standards",
         )
         .replace(
           /\b(education|teaching|learning|curriculum|pedagogy|classroom)\b/g,
@@ -473,19 +475,24 @@ function buildDeterministicVision(
         .replace(
           /\b(develop|provide|deliver|cultivate|train|prepare|implement|foster)\b/g,
           "advance",
-        ),
+        )
+        // Remove cluster-1 words that cause synonym stacking when combined with template phrases
+        .replace(/\b(leadership|excellence|premier|distinction)\b/g, "standards"),
     )
     .filter(Boolean);
   const pillarText =
     selected.length > 0
       ? selected.join(", ").replace(/, ([^,]*)$/, ", and $1")
-      : "institutional leadership, innovation capability, and sustainable societal contribution";
+      : "institutional standards, innovation capability, and sustainable societal contribution";
 
+  // Templates: fixed text must not contain 2+ cluster-1 words (recognized/respected/distinction/leadership/excellence/premier)
+  // so that pillarText can safely add up to 2 cluster-1 words before stacking triggers at 3
   const templates = [
     `To be globally recognized for long-term ${programName} distinction through ${pillarText} with sustained societal and professional relevance.`,
     `To emerge as a long-horizon ${programName} benchmark for globally respected distinction through ${pillarText} and enduring strategic relevance.`,
     `To achieve distinction in ${programName} through sustained ${pillarText} and long-term institutional contribution.`,
-    `To advance as a leading ${programName} program through sustained ${pillarText}, institutional leadership, and enduring strategic contribution.`,
+    // T4: "advance as a leading" has "leading" (cluster-1) — keep suffix cluster-free
+    `To advance as a leading ${programName} program through sustained ${pillarText} and enduring strategic contribution.`,
     `To be globally respected for sustained ${programName} excellence through ${pillarText} with long-horizon societal relevance.`,
   ];
 
@@ -506,13 +513,21 @@ function buildDeterministicMission(programName: string, index: number) {
   return rotated.join(" ");
 }
 
+// Pre-validated safe templates — each scores 100/100 on scoreVisionCandidate() for 2+ word program names
+// Rules verified: 18-24 words, 1 global concept, 0 banned terms, ≤3 pillars, no synonym stacking
+// See config/vision-profile.yaml for full specification
 function buildSafeVisionVariant(programName: string, index: number) {
   const templates = [
-    `To be globally recognized for long-term ${programName} distinction through institutional leadership, innovation foresight, and sustainable societal contribution.`,
-    `To emerge as a long-horizon ${programName} benchmark for globally respected distinction through strategic innovation leadership and enduring public value.`,
-    `To achieve distinction in ${programName} through sustained institutional leadership, responsible innovation, and long-term societal contribution.`,
-    `To advance as a leading ${programName} program through strategic distinction, institutional standards, and enduring professional and societal relevance.`,
-    `To be globally respected for sustained ${programName} excellence through ethical institutional standards, innovation strength, and long-horizon societal value.`,
+    // T1 — "globally recognized": cluster-1 words = recognized(1) + distinction(2) = 2 → safe
+    `To be globally recognized for long-term ${programName} distinction through institutional standards, technological innovation, and sustainable societal contribution.`,
+    // T2 — "globally respected": cluster-1 = respected(1) + distinction(2) = 2 → safe; no "leadership"
+    `To emerge as a long-term ${programName} benchmark for globally respected distinction through strategic innovation and enduring public value.`,
+    // T3 — "distinction in": cluster-1 = distinction(1) = 1 → safe; body has 12 words for 18 total with 2-word name
+    `To achieve distinction in ${programName} through sustained institutional standards, responsible innovation practice, and long-term professional societal contribution.`,
+    // T4 — "advance as a leading": cluster-1 = leading(1) + distinction(2) = 2 → safe; 1 "and" + 2 commas = 3 pillars
+    `To advance as a leading ${programName} program through strategic institutional distinction, ethical standards, and enduring professional relevance.`,
+    // T5 — "globally respected": cluster-1 = respected(1) + excellence(2) = 2 → safe
+    `To be globally respected for sustained ${programName} excellence through ethical institutional standards, research impact, and long-term societal value.`,
   ];
   return templates[index % templates.length];
 }
@@ -540,225 +555,120 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fallback/Safety Check
-    if (!GEMINI_API_KEY) {
-      if (process.env.NODE_ENV === "production") {
-        throw new Error(
-          "CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.",
-        );
-      }
-      console.warn("GEMINI_API_KEY is missing. Using mock generation.");
-      const mockResults = Array.from({ length: count }).map((_, i) => {
-        const p1 = priorities[i % priorities.length];
-        const p2 = priorities[(i + 1) % priorities.length] || priorities[0];
-        if (type === "vision") {
-          return `To be a global leader in ${programName} education, fostering ${p1} and ${p2} to transform society.`;
-        } else {
-          return `To provide ${p1} through ${p2} in ${programName}, ensuring holistic development of students.`;
-        }
-      });
-      return NextResponse.json({ results: mockResults });
-    }
-
-    // Call Gemini API via Fetch
-    const prompt = `
-      You are an expert academic consultant for NBA/ABET accreditation.
-      Context: The institution has the following Vision: "${institutionContext || "N/A"}".
-      Program Name: "${programName}".
-      Task: Generate ${count} distinct and professional ${type} statements for this program.
-      Focus Areas (Priorities): ${priorities.join(", ")}.
-      
-      Strategic Constraints for ${type.toUpperCase()}:
-      ${type === "vision"
-        ? `
-      1. Vision must represent institutional STANDING (WHERE), not the teaching PROCESS (HOW).
-      2. Mandatory Starts: Every Vision MUST begin with one of:
-         "To be globally recognized for", "To emerge as", "To achieve distinction in",
-         "To advance as a leading", "To be globally respected for".
-      3. Use exactly ONE global positioning concept per statement. Do not stack additional global/international phrases.
-      4. Banned terms in Vision: education, teaching, learning, curriculum, pedagogy, provide, deliver, cultivate, develop, train, implement.
-      5. Limit each Vision statement to maximum 3 strategic pillars.
-      6. Each Vision must use a different opening phrase and unique framing.
-      7. If similarity between two statements exceeds 70%, rewrite the weaker one.
-      `
-        : `
-      1. Mission must represent the implementable action (HOW) the program achieves its vision.
-      2. Use exactly 3 to 4 structured sentences.
-      3. Include curriculum quality, research/industry engagement, and professional standards with ethical/societal responsibility.
-      4. Include at least two operational verbs (deliver, strengthen, foster, promote, implement, integrate).
-      5. Avoid direct phrase reuse from the Vision context.
-      6. Avoid redundant noun stacking and repeated root words.
-      7. Keep each mission 45-110 words.
-      `
-      }
-      8. Professional, academic tone.
-      9. Align with the provided priorities.
-      10. Output strictly as a JSON array of strings, e.g., ["Statement 1", "Statement 2"]. Do not include markdown formatting or extra text.
-    `;
-
-    const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API Error:", errorText);
-      throw new Error(`Gemini API Failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!generatedText) {
-      throw new Error("No content generated");
-    }
-
-    // Clean up and parse the array
-    let cleanedText = generatedText
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
     let results: string[] = [];
 
-    try {
-      const parsed = JSON.parse(cleanedText);
-      if (Array.isArray(parsed)) {
-        results = parsed;
-      } else {
-        results = [cleanedText];
-      }
-    } catch (e) {
-      results = cleanedText
-        .split("\n")
-        .filter((l: string) => l.trim().length > 10)
-        .map((l: string) => l.replace(/^\d+\.\s*/, "").trim());
-    }
-
+    // ── Vision path: AI Agent architecture (Template + Gemini + Mutation) ─────
     if (type === "vision") {
-      const normalizedCandidates = Array.from({ length: count }).map(
-        (_, index) => normalizeWhitespace(results[index] || ""),
-      );
-      const diversified: string[] = [];
-      const usedStarters = new Set<string>();
+      const agentResult = await visionAgent({
+        programName,
+        priorities,
+        count,
+        institutionName: institutionContext?.name,
+        existingVisions: [],
+        geminiApiKey:    GEMINI_API_KEY,
+      });
+      results = agentResult.visions;
 
-      for (let index = 0; index < count; index += 1) {
-        let candidate = normalizedCandidates[index] || "";
-        let attempts = 0;
-
-        while (attempts < 6) {
-          const targetStarter =
-            VISION_STARTERS[(index + attempts) % VISION_STARTERS.length];
-          candidate = rewriteVisionStarter(
-            candidate ||
-            buildDeterministicVision(
-              programName,
-              priorities,
-              index + attempts,
-            ),
-            targetStarter,
-          );
-          const quality = scoreVisionCandidate(candidate);
-          const starter = getVisionStarter(candidate);
-          const repeatedStarter = !!starter && usedStarters.has(starter);
-
-          let tooSimilar = false;
-          for (const existing of diversified) {
-            if (await computeSemanticSimilarity(existing, candidate) > VISION_SIMILARITY_THRESHOLD) {
-              tooSimilar = true;
-              break;
-            }
-          }
-
-          if (
-            quality.score >= VISION_APPROVAL_THRESHOLD &&
-            quality.hardFailures.length === 0 &&
-            !repeatedStarter &&
-            !tooSimilar
-          ) {
-            break;
-          }
-
-          candidate = buildDeterministicVision(
-            programName,
-            priorities,
-            index + attempts + count,
-          );
-          attempts += 1;
-        }
-
-        const finalQuality = scoreVisionCandidate(candidate);
-        if (
-          finalQuality.score < VISION_APPROVAL_THRESHOLD ||
-          finalQuality.hardFailures.length > 0
-        ) {
-          candidate = buildSafeVisionVariant(programName, index);
-          const safeQuality = scoreVisionCandidate(candidate);
-          if (
-            safeQuality.score < VISION_APPROVAL_THRESHOLD ||
-            safeQuality.hardFailures.length > 0
-          ) {
-            candidate = buildSafeVisionVariant(programName, index + count);
-          }
-        }
-
-        const starter = getVisionStarter(candidate);
-        if (starter) usedStarters.add(starter);
-        diversified.push(candidate);
-      }
-
-      results = diversified;
+    // ── Mission path: Gemini + deterministic fallback ──────────────────────────
     } else if (type === "mission") {
-      const referenceVision = normalizeWhitespace(
-        String(institutionContext || ""),
-      );
-      const diversified: string[] = [];
+      if (!GEMINI_API_KEY) {
+        if (process.env.NODE_ENV === "production") {
+          throw new Error(
+            "CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.",
+          );
+        }
+        console.warn("GEMINI_API_KEY is missing. Using deterministic mission fallback.");
+        results = Array.from({ length: count }, (_, i) =>
+          buildDeterministicMission(programName, i),
+        );
+      } else {
+        const missionPrompt = `
+You are an accreditation consultant. Generate exactly ${count} mission statements for the ${programName} program.
 
-      for (let index = 0; index < count; index += 1) {
-        let candidate = normalizeWhitespace(results[index] || "");
-        let attempts = 0;
+=== MISSION SCORING RUBRIC ===
+1. Mission describes HOW the program delivers value (process, not position).
+2. EXACTLY 3–4 structured sentences.
+3. Include ALL pillars: curriculum quality, research/industry engagement, professional standards, ethical/societal responsibility.
+4. MINIMUM 2 operational verbs from: deliver, strengthen, foster, promote, advance, implement, integrate, enable, support, sustain, build.
+5. NO direct phrase reuse from the Vision context: "${institutionContext || "N/A"}"
+6. NO repeated root words or synonym stacking.
+7. Length: 45–110 words.
+8. NO marketing terms: destination, hub, world-class, best-in-class, unmatched, guarantee, 100%, ensure all.
 
-        while (attempts < 6) {
-          const quality = await scoreMissionCandidate(candidate, referenceVision);
-          let tooSimilar = false;
-          for (const existing of diversified) {
-            if (await computeSemanticSimilarity(existing, candidate) > VISION_SIMILARITY_THRESHOLD) {
-              tooSimilar = true;
-              break;
+Focus Areas: ${priorities.join(", ")}
+
+Output ONLY a JSON array of exactly ${count} strings. No markdown, no explanation.
+["Statement 1", "Statement 2", ...]
+        `.trim();
+
+        const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: missionPrompt }] }],
+            generationConfig: { responseMimeType: "application/json" },
+          }),
+        });
+
+        if (!response.ok) {
+          console.error("Gemini API Error:", await response.text());
+          throw new Error(`Gemini API Failed: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const generatedText: string =
+          data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+        let rawCandidates: string[] = [];
+        try {
+          const cleaned = generatedText.replace(/```json|```/g, "").trim();
+          const parsed  = JSON.parse(cleaned);
+          rawCandidates = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          rawCandidates = generatedText
+            .split("\n")
+            .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())
+            .filter((l: string) => l.length > 10);
+        }
+
+        const referenceVision = normalizeWhitespace(String(institutionContext || ""));
+        const diversified: string[] = [];
+
+        for (let index = 0; index < count; index += 1) {
+          let candidate = normalizeWhitespace(rawCandidates[index] || "");
+          let attempts  = 0;
+
+          while (attempts < 6) {
+            const quality = await scoreMissionCandidate(candidate, referenceVision);
+            let tooSimilar = false;
+            for (const existing of diversified) {
+              if (await computeSemanticSimilarity(existing, candidate) > VISION_SIMILARITY_THRESHOLD) {
+                tooSimilar = true;
+                break;
+              }
             }
+            if (
+              quality.score >= MISSION_APPROVAL_THRESHOLD &&
+              quality.hardFailures.length === 0 &&
+              !tooSimilar
+            ) break;
+
+            candidate = buildDeterministicMission(programName, index + attempts);
+            attempts += 1;
           }
-          if (
-            quality.score >= MISSION_APPROVAL_THRESHOLD &&
-            quality.hardFailures.length === 0 &&
-            !tooSimilar
-          ) {
-            break;
+
+          const finalQuality = await scoreMissionCandidate(candidate, referenceVision);
+          if (finalQuality.score < MISSION_APPROVAL_THRESHOLD || finalQuality.hardFailures.length > 0) {
+            candidate = buildDeterministicMission(programName, index + count);
           }
-          candidate = buildDeterministicMission(programName, index + attempts);
-          attempts += 1;
+
+          diversified.push(candidate);
         }
 
-        const finalQuality = await scoreMissionCandidate(candidate, referenceVision);
-        if (
-          finalQuality.score < MISSION_APPROVAL_THRESHOLD ||
-          finalQuality.hardFailures.length > 0
-        ) {
-          candidate = buildDeterministicMission(programName, index + count);
-        }
-
-        diversified.push(candidate);
+        results = diversified;
       }
-
-      results = diversified;
     }
 
-    // Cache the results
     aiCache.set(cacheKey, results);
     return NextResponse.json({ results });
   } catch (error: any) {
