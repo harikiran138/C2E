@@ -1,0 +1,316 @@
+# ============================================================
+# VISION STATEMENT GENERATION PROFILE
+# Single source of truth for NBA/ABET Vision Statement AI
+# Target: 100/100 accreditation-grade statements
+# ============================================================
+
+meta:
+  version: "2.0.0"
+  purpose: "Vision statement generation — NBA/ABET accreditation quality"
+  target_score: 100
+  approval_threshold: 90
+  horizon: "10–15 years"
+  tone: institutional
+
+# ============================================================
+# STRUCTURAL REQUIREMENTS
+# ============================================================
+structure:
+  word_count:
+    min: 18
+    max: 24
+    note: "Count hyphenated words (e.g. long-term) as ONE word"
+  pillar_count:
+    max: 3
+    detection: "count commas + 'and' occurrences"
+  global_concept_count:
+    exact: 1
+    violation: hard_failure
+
+# ============================================================
+# MANDATORY STARTERS
+# Every vision MUST begin with exactly one of these phrases
+# ============================================================
+starters:
+  - "To be globally recognized for"
+  - "To emerge as"
+  - "To achieve distinction in"
+  - "To advance as a leading"
+  - "To be globally respected for"
+
+# ============================================================
+# GLOBAL POSITIONING CONCEPTS
+# Exactly ONE must appear per vision statement.
+# ============================================================
+global_concepts:
+  - label: "globally recognized"
+    regex: "\\bglobally recognized\\b"
+    token_count: 1   # 'globally' counts toward global token limit
+
+  - label: "globally respected"
+    regex: "\\bglobally respected\\b"
+    token_count: 1
+
+  - label: "internationally benchmarked"
+    regex: "\\binternationally benchmarked\\b"
+    token_count: 1   # 'internationally' counts toward global token limit
+
+  - label: "global leadership"
+    regex: "\\bglobal leadership\\b"
+    token_count: 1   # 'global' counts
+
+  - label: "achieve/global distinction"
+    regex: "\\b(global distinction|achieve distinction|distinction in)\\b"
+    token_count: 0   # no global/globally/internationally/world token needed
+
+  - label: "advance as a leading"
+    regex: "\\badvance as a leading\\b"
+    token_count: 0
+
+global_token_limit: 1   # Only 1 occurrence of global/globally/international/internationally/world allowed
+
+# ============================================================
+# BANNED TERMS — HARD FAILURE (score capped at 79)
+# ============================================================
+banned:
+  operational:
+    - education
+    - teaching
+    - learning
+    - curriculum
+    - pedagogy
+    - classroom
+    - provide
+    - deliver
+    - cultivate
+    - train
+    - prepare
+    - implement
+    - foster
+    - develop
+    reason: "Operational/process language describes HOW not WHERE"
+
+  marketing:
+    - destination
+    - hub
+    - world-class
+    - best-in-class
+    - unmatched
+    reason: "Promotional tone violates institutional framing"
+
+# ============================================================
+# SYNONYM STACKING GROUPS
+# Having 3+ terms from the same cluster = hard failure
+# ============================================================
+synonym_groups:
+  - label: "distinction_cluster"
+    terms: [distinction, excellence, premier, leading, leadership, recognized, respected]
+    max_allowed: 2
+
+  - label: "innovation_cluster"
+    terms: [innovation, innovative, transformative, foresight, advancement]
+    max_allowed: 2
+
+# ============================================================
+# SCORING BREAKDOWN (100 POINTS TOTAL)
+# ============================================================
+scoring:
+  dimensions:
+    - name: word_count_compliance
+      points: 20
+      rule: "Must be 18–24 words; deduct 20 if outside range"
+
+    - name: starter_compliance
+      points: 20
+      rule: "Must begin with an approved starter phrase; deduct 20 if missing"
+
+    - name: global_concept_compliance
+      points: 20
+      rule: "Exactly 1 global concept required; deduct 20 if count ≠ 1"
+
+    - name: no_operational_terms
+      points: 30
+      rule: "Zero banned operational terms; deduct 30 if any found"
+
+    - name: no_marketing_terms
+      points: 20
+      rule: "Zero marketing terms; deduct 20 if any found"
+
+    - name: pillar_discipline
+      points: 15
+      rule: "≤3 pillars; deduct 15 if more than 3"
+
+    - name: no_repeated_roots
+      points: 15
+      rule: "No repeated root words; deduct 15 per repeated root (max 30)"
+
+    - name: no_synonym_stacking
+      points: 20
+      rule: "No cluster of 3+ synonyms; deduct 20 if stacking detected"
+
+  total: 100
+  hard_failure_cap: 79
+  hard_failure_triggers:
+    - operational_leakage
+    - marketing_language
+    - global_concept_count_mismatch
+    - global_phrase_stacking
+    - pillar_overflow
+    - repeated_roots
+    - synonym_stacking
+
+# ============================================================
+# AI GENERATION PROMPT RULES
+# These rules are injected verbatim into the Gemini prompt
+# ============================================================
+prompt_rules:
+  system_role: >
+    You are an Elite NBA/ABET Accreditation Strategic Vision Architect.
+    Your output will be scored on a 100-point rubric. Every rule below is
+    a scoring criterion. Violations lose points. Your goal is 100/100.
+
+  vision_constraints:
+    - id: R1
+      rule: "Vision describes WHERE the institution stands in 10–15 years, NEVER how it operates"
+      penalty: "−30 for any process/operational language"
+
+    - id: R2
+      rule: "MUST begin with exactly one approved starter (see starters list)"
+      penalty: "−20 if missing"
+
+    - id: R3
+      rule: "Length: EXACTLY 18–24 words (count hyphenated words as 1)"
+      penalty: "−20 if outside range"
+
+    - id: R4
+      rule: "EXACTLY ONE global positioning phrase allowed per statement"
+      penalty: "−20 if count ≠ 1; hard failure if stacked"
+
+    - id: R5
+      rule: "MAXIMUM 3 strategic pillars (commas + 'and' ≤ 3)"
+      penalty: "−15 for overflow"
+
+    - id: R6
+      rule: "ZERO banned operational terms: education, teaching, learning, curriculum, pedagogy, classroom, provide, deliver, cultivate, train, prepare, implement, foster, develop"
+      penalty: "−30 and hard failure (cap 79)"
+
+    - id: R7
+      rule: "ZERO marketing terms: destination, hub, world-class, best-in-class, unmatched"
+      penalty: "−20 and hard failure (cap 79)"
+
+    - id: R8
+      rule: "No repeated root words"
+      penalty: "−15 per root"
+
+    - id: R9
+      rule: "No synonym stacking: do NOT use 3+ of [distinction, excellence, premier, leading, leadership, recognized, respected] in one statement"
+      penalty: "−20"
+
+# ============================================================
+# PRE-VALIDATED SAFE TEMPLATES (score 100/100)
+# Used as deterministic fallbacks when AI fails validation
+# ============================================================
+safe_templates:
+  - id: T1
+    starter: "To be globally recognized for"
+    template: "To be globally recognized for long-term {program} distinction through institutional standards, technological innovation, and sustainable societal contribution."
+    pillars: [institutional standards, technological innovation, sustainable societal contribution]
+    word_count: 18  # + program name words
+    global_token_count: 1
+    expected_score: 100
+    validated: true
+    notes: "recognized(1)+distinction(2)=2 cluster-1 words → safe (NOT 'leadership' which would make 3)"
+
+  - id: T2
+    starter: "To emerge as"
+    template: "To emerge as a long-term {program} benchmark for globally respected distinction through strategic innovation and enduring public value."
+    pillars: [strategic innovation, enduring public value]
+    word_count: 18  # + program name words
+    global_token_count: 1
+    expected_score: 100
+    validated: true
+
+  - id: T3
+    starter: "To achieve distinction in"
+    template: "To achieve distinction in {program} through sustained institutional standards, responsible innovation practice, and long-term professional societal contribution."
+    pillars: [institutional standards, responsible innovation practice, long-term professional societal contribution]
+    word_count: 18  # + program name words (18 for 2-word program)
+    global_token_count: 0
+    expected_score: 100
+    validated: true
+    notes: "distinction=1 cluster-1 word → safe; 'practice' adds needed word count"
+
+  - id: T4
+    starter: "To advance as a leading"
+    template: "To advance as a leading {program} program through strategic institutional distinction, ethical standards, and enduring professional relevance."
+    pillars: [strategic institutional distinction, ethical standards, enduring professional relevance]
+    word_count: 18  # + program name words
+    global_token_count: 0
+    expected_score: 100
+    validated: true
+    notes: "leading(1)+distinction(2)=2 cluster-1 words → safe; 3 pillars exactly"
+
+  - id: T5
+    starter: "To be globally respected for"
+    template: "To be globally respected for sustained {program} excellence through ethical institutional standards, research impact, and long-term societal value."
+    pillars: [ethical institutional standards, research impact, long-term societal value]
+    word_count: 19  # + program name words
+    global_token_count: 1
+    expected_score: 100
+    validated: true
+
+# ============================================================
+# VALIDATION TEST CASES
+# ============================================================
+test_cases:
+  passing:
+    - id: TC_P1
+      statement: "To be globally recognized for long-term Computer Engineering distinction through institutional standards, technological innovation, and sustainable societal contribution."
+      min_expected_score: 100
+      notes: "T1 template with 2-word program name — 20 words total"
+
+    - id: TC_P2
+      statement: "To emerge as a long-term Electronics Engineering benchmark for globally respected distinction through strategic innovation and enduring public value."
+      min_expected_score: 100
+      notes: "T2 template with 2-word program — 20 words total"
+
+    - id: TC_P3
+      statement: "To achieve distinction in Mechanical Engineering through sustained institutional standards, responsible innovation practice, and long-term professional societal contribution."
+      min_expected_score: 100
+      notes: "T3 template — 18 words"
+
+    - id: TC_P4
+      statement: "To advance as a leading Civil Engineering program through strategic distinction, institutional standards, and enduring professional relevance."
+      min_expected_score: 100
+      notes: "T4 template — 18 words"
+
+    - id: TC_P5
+      statement: "To be globally respected for sustained Chemical Engineering excellence through ethical institutional standards, research impact, and long-term societal value."
+      min_expected_score: 100
+      notes: "T5 template — 21 words"
+
+  failing:
+    - id: TC_F1
+      statement: "To provide excellent engineering education through innovative teaching and curriculum development."
+      max_expected_score: 40
+      reason: "operational_leakage: provide, education, teaching, curriculum, development"
+
+    - id: TC_F2
+      statement: "To be a world-class hub for engineering education and learning excellence."
+      max_expected_score: 40
+      reason: "marketing: world-class, hub; operational: education, learning"
+
+    - id: TC_F3
+      statement: "To be globally recognized and internationally benchmarked for engineering excellence and global distinction."
+      max_expected_score: 69
+      reason: "global_phrase_stacking: globally + internationally + global = 3 tokens; global_concept_count > 1"
+
+    - id: TC_F4
+      statement: "To deliver outstanding educational outcomes through innovative curriculum delivery and student-centered teaching."
+      max_expected_score: 40
+      reason: "operational_leakage: deliver, educational, curriculum, delivery, teaching; no valid starter"
+
+    - id: TC_F5
+      statement: "To foster innovation, cultivate leadership, develop excellence, and train future-ready engineers."
+      max_expected_score: 40
+      reason: "operational: foster, cultivate, develop, train; no valid starter; no global concept"
