@@ -47,19 +47,22 @@ graph TD
     J --> L(curriculum_semester_categories)
     K -.-> M{AICTE/NEP Validator}
     L -.-> M
+    M --> TT[Technology Integration Engine]
     end
 
     subgraph Phase 5: Course Generation
-    M --> N[Generate Courses]
+    TT --> N[Generate Courses]
     N --> O(curriculum_generated_courses)
     O --> P[AI Course Outcomes Agent]
-    P --> Q(curriculum_course_outcomes with PO/PSO integer map)
+    P --> Q(curriculum_course_outcomes w/ PO mapping)
     end
 
-    subgraph Phase 6: Accreditation
+    subgraph Phase 6: Accreditation & Progression
     Q --> R[Accreditation Reporting Engine]
+    Q --> LPV[Learning Progression Validator]
     R --> S[NBA/NAAC Matrix UI]
     R --> T[CSV/PDF Exports]
+    LPV --> U[Alignment Reports]
     end
 ```
 
@@ -205,156 +208,26 @@ As identified in the Master Prompt Audit, the system requires the following to h
 
 ## 11. Student Learning Progression & Technology Alignment Framework
 
-The Curriculum Engine now enforces a layered learning model to balance:
+The Curriculum Engine enforces a **layered learning model** ensuring that students build strong **fundamentals first**, followed by **advanced technologies**, while maintaining alignment with **industry evolution**.
 
-1. Strong fundamentals  
-2. Core disciplinary backbone  
-3. Emerging technology integration
+The system implements a **3-Layer Curriculum Model**.
 
-This is implemented in both:
-
-- AI generation prompts (`lib/curriculum/ai-guardrails.ts`)
-- Blocking validation rules (`lib/curriculum/validator.ts`)
+---
 
 ### 11.1 Layer 1 — Fundamental Backbone
 
-The first phase of curriculum (Year 1) must preserve foundation subjects that remain stable across versions:
+- **Focus:** Basic Sciences, Mathematics, and Engineering Fundamentals.
+- **Timing:** Semesters 1-3.
+- **Objective:** Establish the foundational theoretical knowledge required for advanced engineering concepts.
 
-- Engineering Mathematics
-- Engineering Physics
-- Engineering Chemistry
-- Basic Engineering Foundations (for example, Engineering Mechanics / Basic Electrical / Engineering Drawing / Programming Fundamentals)
+### 11.2 Layer 2 — Core Discipline Knowledge
 
-Validator enforcement:
+- **Focus:** Professional Core subjects specific to the engineering branch.
+- **Timing:** Semesters 4-6.
+- **Objective:** Deepen subject matter expertise sequentially. No advanced technology subjects are introduced here unless strictly preceded by their fundamental prerequisites.
 
-- Blocks curricula missing mandatory foundation groups.
-- Blocks Year-1 structures that skip foundational title coverage.
+### 11.3 Layer 3 — Emerging Technologies
 
-### 11.2 Layer 2 — Core Program Knowledge
-
-The second phase preserves discipline-specific core competencies.
-
-Example backbone checks:
-
-- Computer Science: Data Structures, Operating Systems, Computer Networks, Database Systems, Algorithms
-- Mechanical: Thermodynamics, Fluid Mechanics, Machine Design, Manufacturing, Strength of Materials
-
-Validator enforcement:
-
-- Missing discipline backbone courses are hard errors.
-
-### 11.3 Layer 3 — Emerging Technologies Integration
-
-The upper semesters integrate program-relevant modern technologies through PE/OE/SE/PR pathways.
-
-Examples:
-
-- CSE: AI, ML, Cloud, Cybersecurity, Blockchain, Generative AI
-- MECH: Robotics, Advanced Manufacturing, Digital Twin, Additive Manufacturing, Autonomous Systems
-
-Validator enforcement:
-
-- Requires emerging technology coverage in higher semesters.
-- Blocks advanced technology concentration in Year 1.
-
-### 11.4 Learning Progression Model
-
-Progression rule enforced:
-
-```text
-Year 1  -> Fundamentals
-Year 2  -> Core Engineering
-Year 3  -> Advanced Domain
-Year 4  -> Specialization + Emerging Tech + Capstone
-```
-
-Bloom progression target:
-
-```text
-Understanding -> Application -> Design -> Innovation
-```
-
-### 11.5 AI Curriculum Validation (Blocking Rules)
-
-The validator now blocks curriculum structures that violate:
-
-1. Fundamental presence checks (Math/Science/Basic Engineering)
-2. Domain-core knowledge presence
-3. Emerging technology integration in upper semesters
-4. Prerequisite progression ordering
-5. Program-domain integrity (restricted unrelated topics in core categories)
-
-### 11.6 Program-Specific AI Alignment
-
-All AI generation layers use strict guardrails derived from program context:
-
-- Domain detection: `CSE / ECE / EEE / MECH / CIVIL / GENERIC`
-- Allowed backbone and modern topic sets
-- Restricted topic sets per discipline
-- Progression-aware generation constraints
-
-This prompt policy is centralized in:
-
-- `lib/curriculum/ai-guardrails.ts`
-
-### 11.7 Standard Guardrail Prompt (Applied in AI Flows)
-
-```text
-You are generating curriculum content for an engineering program.
-
-Program Name: {PROGRAM_NAME}
-Program Domain: {DOMAIN}
-
-STRICT RULES
-1. Maintain a balance between:
-   - Fundamental engineering subjects
-   - Core discipline subjects
-   - Emerging technologies
-2. Follow progression:
-   Year 1 -> Fundamentals
-   Year 2 -> Core Engineering
-   Year 3 -> Advanced Domain
-   Year 4 -> Specialization + Emerging Technologies + Capstone
-3. Do not remove essential foundations (Mathematics, Physics, Basic Engineering).
-4. Preserve domain backbone.
-5. Integrate modern technologies relevant to domain.
-6. Align COs with POs and PEOs.
-7. Enforce Bloom's taxonomy in generated outcomes.
-8. Reject unrelated discipline topics.
-```
-
-### 11.8 TechnologyTrendEngine Module
-
-A dedicated module has been added:
-
-- `lib/curriculum/technology-trend-engine.ts`
-
-Purpose:
-
-- Track high-demand domain skills
-- Inject trend-aligned electives and skill modules
-- Provide source-attributed trend snapshots for advisor recommendations
-
-Current source groups modeled:
-
-- IEEE
-- ACM
-- World Economic Forum
-- GitHub Trends
-- Stack Overflow Insights
-
-### 11.9 Updated Logical Architecture
-
-```text
-Program Setup
-   -> Mission
-   -> PEO
-   -> PO/PSO
-   -> Curriculum Structure
-   -> Learning Progression Validator
-   -> Course Generator
-   -> CO Generator
-   -> CO-PO Mapping
-   -> TechnologyTrendEngine
-   -> Accreditation Reports
-```
+- **Focus:** Advanced topics and modern industry skills.
+- **Timing:** Semesters 6-8.
+- **Objective:** Introduce cutting-edge tools and frameworks (e.g., AI, Blockchain, Cloud Computing) as electives or specializations, ensuring they complement rather than replace core foundational knowledge.

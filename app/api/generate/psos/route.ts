@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const API_URL =
@@ -134,6 +135,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ results: mockResults });
     }
 
+    const guardrails = buildCurriculumAIGuardrailsPrompt(program_name);
+
     // Call Gemini API via Fetch
     // Constructing a detailed prompt based on the specific requirements
     const prompt = `
@@ -167,6 +170,9 @@ export async function POST(request: Request) {
       4. Structure: Each PSO should be a single, complex sentence (30-50 words).
       5. Tone: Professional, technical, and implementation-oriented.
       6. Output strictly as a JSON array of strings.
+
+      Program-Specific Guardrails:
+      ${guardrails}
       
       Example Output Format:
       ["Apply advanced principles...", "Design and conduct experiments..."]

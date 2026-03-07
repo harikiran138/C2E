@@ -2,6 +2,7 @@
  * lib/ai/peo-prompt-builder.ts
  * Structured Gemini prompt for PEO generation with full rubric embedded.
  */
+import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
 
 export interface PEOPromptParams {
   programName:      string;
@@ -20,6 +21,8 @@ export function buildPEOAgentPrompt(params: PEOPromptParams): string {
   const attemptNote = attempt > 0
     ? `\n[Attempt ${attempt + 1}: Generate MORE DIVERSE statements — use different action verbs and domains.]`
     : "";
+
+  const guardrails = buildCurriculumAIGuardrailsPrompt(programName);
 
   return `
 You are an NBA/ABET accreditation consultant. Generate exactly ${count} Program Educational Objective(s) (PEOs) for the ${programName} program.${institutionName ? ` at ${institutionName}` : ""}${attemptNote}
@@ -46,6 +49,9 @@ SCORING:
 - Length (15 pts): 20–35 words
 
 FOCUS AREAS (use these as themes): ${priorities.join(", ")}
+
+Program-Specific Guardrails:
+${guardrails}
 
 === OUTPUT REQUIREMENTS ===
 - Each PEO: 1 sentence, 20–35 words

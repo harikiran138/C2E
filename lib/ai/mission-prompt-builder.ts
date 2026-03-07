@@ -1,7 +1,4 @@
-/**
- * lib/ai/mission-prompt-builder.ts
- * Structured Gemini prompt for mission generation with full rubric embedded.
- */
+import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
 
 export interface MissionPromptParams {
   programName:     string;
@@ -26,6 +23,8 @@ export function buildMissionAgentPrompt(params: MissionPromptParams): string {
   const visionContext = visionRef
     ? `\nVision Reference (avoid paraphrasing this in the mission): "${visionRef}"`
     : "";
+
+  const guardrails = buildCurriculumAIGuardrailsPrompt(programName);
 
   return `
 You are an NBA/ABET accreditation consultant. Generate exactly ${count} mission statement(s) for the ${programName} program.${institutionName ? ` at ${institutionName}` : ""}${attemptNote}${visionContext}
@@ -57,6 +56,9 @@ SCORING DIMENSIONS:
 - Coherence (20 pts): 3–4 sentences, 45–110 words total, no vision leakage
 
 FOCUS AREAS: ${priorities.join(", ")}
+
+Program-Specific Guardrails:
+${guardrails}
 
 === OUTPUT REQUIREMENTS ===
 - Each mission: 3–4 sentences, 45–110 words

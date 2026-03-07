@@ -8,6 +8,7 @@
 
 import { scorePO, POScore, PO_APPROVAL_THRESHOLD }           from "./po-scoring";
 import { buildStandardPO, STANDARD_PO_STATEMENTS, getCustomPOs } from "./po-template-engine";
+import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
 
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
@@ -85,6 +86,8 @@ function buildPOPrompt(params: POAgentParams, attempt: number): string {
     ? `\nFocus themes: ${priorities.join(", ")}`
     : "";
 
+  const guardrails = buildCurriculumAIGuardrailsPrompt(programName);
+
   return `
 You are an NBA/ABET accreditation consultant. Generate exactly ${count} Program Outcome(s) (POs) for the ${programName} program.${institutionName ? ` at ${institutionName}` : ""}${attemptNote}${themeNote}
 
@@ -102,6 +105,9 @@ REQUIREMENTS:
 - ≤25 words total
 - No first-person pronouns (I, my, we, our)
 - No vague terms: excellent, outstanding, world-class, best
+
+Program-Specific Guardrails:
+${guardrails}
 
 === OUTPUT REQUIREMENTS ===
 - Each PO: 1 sentence, ≤25 words
