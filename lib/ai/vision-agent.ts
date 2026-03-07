@@ -17,6 +17,23 @@ import { scoreVision, VisionScore, VISION_APPROVAL_THRESHOLD } from "./scoring";
 import { deduplicateVisions }                      from "./similarity";
 import { rankVisions, RankedVision }               from "./ranking-engine";
 import { getAllGrammarVariants }                    from "./template-engine";
+import { computeSemanticSimilarity }               from "@/lib/ai-validation";
+
+/** Remove near-paraphrase duplicates using Google embedding cosine similarity. */
+async function semanticDedup(candidates: string[], threshold = 0.82): Promise<string[]> {
+  const kept: string[] = [];
+  for (const c of candidates) {
+    let tooClose = false;
+    for (const k of kept) {
+      if (await computeSemanticSimilarity(c, k) >= threshold) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (!tooClose) kept.push(c);
+  }
+  return kept;
+}
 
 export interface AgentParams {
   programName:        string;
@@ -59,6 +76,7 @@ export async function visionAgent(params: AgentParams): Promise<AgentResult> {
       priorities,
       count,
       institutionName,
+      // Self-improvement: pass accepted statements as style references on retry (improvement 1C)
       existingVisions: [...existingVisions, ...qualifiedStatements],
       attempt,
       geminiApiKey,
@@ -86,34 +104,38 @@ export async function visionAgent(params: AgentParams): Promise<AgentResult> {
     if (qualifiedStatements.length >= count) break;
   }
 
-  // Lexical dedup in case some near-duplicates slipped through
+  // Lexical dedup (Jaccard bigram, threshold 0.75)
   const deduped = deduplicateVisions(qualifiedStatements);
   const dedupedScores = deduped.map((s) => {
     const idx = qualifiedStatements.indexOf(s);
     return qualifiedScores[idx];
   });
 
+  // Semantic dedup: remove near-paraphrase duplicates using Google text-embedding-004 (threshold 0.82)
+  const semanticDeduped = await semanticDedup(deduped, 0.82);
+  const semanticDedupedScores = semanticDeduped.map((s) => dedupedScores[deduped.indexOf(s)]);
+
   // Guarantee: fill with grammar templates if still short
   let is_fallback = false;
-  if (deduped.length < count) {
+  if (semanticDeduped.length < count) {
     is_fallback = true;
     const fallbacks = getAllGrammarVariants(programName, priorities);
     for (const fb of fallbacks) {
-      if (deduped.length >= count) break;
-      if (!deduped.some((d) => d.toLowerCase() === fb.toLowerCase())) {
-        deduped.push(fb);
-        dedupedScores.push(scoreVision(fb));
+      if (semanticDeduped.length >= count) break;
+      if (!semanticDeduped.some((d) => d.toLowerCase() === fb.toLowerCase())) {
+        semanticDeduped.push(fb);
+        semanticDedupedScores.push(scoreVision(fb));
       }
     }
   }
 
-  const ranked = rankVisions(deduped, dedupedScores, count);
+  const ranked = rankVisions(semanticDeduped, semanticDedupedScores, count);
   const finalVisions = ranked.map((r) => r.statement);
 
   // Build scores map (keyed by statement for easy frontend lookup)
   const scoresMap: Record<string, VisionScore> = {};
-  for (let i = 0; i < deduped.length; i++) {
-    scoresMap[deduped[i]] = dedupedScores[i];
+  for (let i = 0; i < semanticDeduped.length; i++) {
+    scoresMap[semanticDeduped[i]] = semanticDedupedScores[i];
   }
 
   return {

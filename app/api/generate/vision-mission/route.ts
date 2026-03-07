@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { computeSemanticSimilarity, calculateLexicalRichness } from "@/lib/ai-validation";
-import { visionAgent } from "@/lib/ai/vision-agent";
+import { visionAgent }  from "@/lib/ai/vision-agent";
+import { missionAgent } from "@/lib/ai/mission-agent";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const API_URL =
@@ -569,104 +570,17 @@ export async function POST(request: Request) {
       });
       results = agentResult.visions;
 
-    // ── Mission path: Gemini + deterministic fallback ──────────────────────────
+    // ── Mission path: Mission Agent (Template + Gemini + fallback) ────────────
     } else if (type === "mission") {
-      if (!GEMINI_API_KEY) {
-        if (process.env.NODE_ENV === "production") {
-          throw new Error(
-            "CRITICAL SECURITY ERROR: GEMINI_API_KEY environment variable is missing.",
-          );
-        }
-        console.warn("GEMINI_API_KEY is missing. Using deterministic mission fallback.");
-        results = Array.from({ length: count }, (_, i) =>
-          buildDeterministicMission(programName, i),
-        );
-      } else {
-        const missionPrompt = `
-You are an accreditation consultant. Generate exactly ${count} mission statements for the ${programName} program.
-
-=== MISSION SCORING RUBRIC ===
-1. Mission describes HOW the program delivers value (process, not position).
-2. EXACTLY 3–4 structured sentences.
-3. Include ALL pillars: curriculum quality, research/industry engagement, professional standards, ethical/societal responsibility.
-4. MINIMUM 2 operational verbs from: deliver, strengthen, foster, promote, advance, implement, integrate, enable, support, sustain, build.
-5. NO direct phrase reuse from the Vision context: "${institutionContext || "N/A"}"
-6. NO repeated root words or synonym stacking.
-7. Length: 45–110 words.
-8. NO marketing terms: destination, hub, world-class, best-in-class, unmatched, guarantee, 100%, ensure all.
-
-Focus Areas: ${priorities.join(", ")}
-
-Output ONLY a JSON array of exactly ${count} strings. No markdown, no explanation.
-["Statement 1", "Statement 2", ...]
-        `.trim();
-
-        const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: missionPrompt }] }],
-            generationConfig: { responseMimeType: "application/json" },
-          }),
-        });
-
-        if (!response.ok) {
-          console.error("Gemini API Error:", await response.text());
-          throw new Error(`Gemini API Failed: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        const generatedText: string =
-          data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-        let rawCandidates: string[] = [];
-        try {
-          const cleaned = generatedText.replace(/```json|```/g, "").trim();
-          const parsed  = JSON.parse(cleaned);
-          rawCandidates = Array.isArray(parsed) ? parsed : [];
-        } catch {
-          rawCandidates = generatedText
-            .split("\n")
-            .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())
-            .filter((l: string) => l.length > 10);
-        }
-
-        const referenceVision = normalizeWhitespace(String(institutionContext || ""));
-        const diversified: string[] = [];
-
-        for (let index = 0; index < count; index += 1) {
-          let candidate = normalizeWhitespace(rawCandidates[index] || "");
-          let attempts  = 0;
-
-          while (attempts < 6) {
-            const quality = await scoreMissionCandidate(candidate, referenceVision);
-            let tooSimilar = false;
-            for (const existing of diversified) {
-              if (await computeSemanticSimilarity(existing, candidate) > VISION_SIMILARITY_THRESHOLD) {
-                tooSimilar = true;
-                break;
-              }
-            }
-            if (
-              quality.score >= MISSION_APPROVAL_THRESHOLD &&
-              quality.hardFailures.length === 0 &&
-              !tooSimilar
-            ) break;
-
-            candidate = buildDeterministicMission(programName, index + attempts);
-            attempts += 1;
-          }
-
-          const finalQuality = await scoreMissionCandidate(candidate, referenceVision);
-          if (finalQuality.score < MISSION_APPROVAL_THRESHOLD || finalQuality.hardFailures.length > 0) {
-            candidate = buildDeterministicMission(programName, index + count);
-          }
-
-          diversified.push(candidate);
-        }
-
-        results = diversified;
-      }
+      const agentResult = await missionAgent({
+        programName,
+        priorities,
+        count,
+        visionRef:       normalizeWhitespace(String(institutionContext || "")),
+        institutionName: institutionContext?.name,
+        geminiApiKey:    GEMINI_API_KEY,
+      });
+      results = agentResult.missions;
     }
 
     aiCache.set(cacheKey, results);

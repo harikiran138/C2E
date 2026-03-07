@@ -17,6 +17,15 @@ import { visionAgent }                                                       fro
 import { areTooSimilar, lexicalSimilarity, deduplicateVisions }             from "../lib/ai/similarity";
 import { rankVisions }                                                       from "../lib/ai/ranking-engine";
 import { mutateVisionStarter }                                               from "../lib/ai/mutation-engine";
+import { scoreMission, MISSION_APPROVAL_THRESHOLD }                         from "../lib/ai/mission-scoring";
+import { getAllGrammarMissions, MISSION_TEMPLATE_COUNT }                     from "../lib/ai/mission-template-engine";
+import { missionAgent }                                                      from "../lib/ai/mission-agent";
+import { scorePEO, PEO_APPROVAL_THRESHOLD }                                  from "../lib/ai/peo-scoring";
+import { buildPEOGrammar, PEO_PRIORITY_BANK }                                from "../lib/ai/peo-template-engine";
+import { peoAgent }                                                          from "../lib/ai/peo-agent";
+import { scorePO, PO_APPROVAL_THRESHOLD }                                    from "../lib/ai/po-scoring";
+import { STANDARD_PO_STATEMENTS }                                            from "../lib/ai/po-template-engine";
+import { poAgent }                                                           from "../lib/ai/po-agent";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -64,7 +73,7 @@ for (const prog of PROGRAMS) {
     }
   }
 }
-assert(gridFailed === 0, `All ${PROGRAMS.length * 15} grid variants score ≥95`, `${gridFailed} failed`);
+assert(gridFailed === 0, `All ${PROGRAMS.length * 30} grid variants score ≥95`, `${gridFailed} failed`);
 
 // ────────────────────────────────────────────────────────────────────────────
 // 2. Individual rule tests
@@ -272,11 +281,144 @@ async function testLiveAPI() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// 9. Mission Agent — template-only mode
+
+section("9. Mission Agent — template-only (no Gemini key)");
+
+async function testMissionAgent() {
+  const result = await missionAgent({
+    programName:  "Computer Engineering",
+    priorities:   ["Innovation-driven education", "Ethics and integrity"],
+    count:        3,
+    visionRef:    "",
+    geminiApiKey: undefined,
+  });
+
+  assert(result.missions.length === 3, `Mission Agent returns 3 missions (got ${result.missions.length})`);
+  assert(result.ranked.length === 3, `Mission ranked list has 3 entries`);
+  assert(
+    result.ranked[0].finalScore >= result.ranked[result.ranked.length - 1].finalScore,
+    "Missions ranked in descending order",
+  );
+
+  for (const m of result.missions) {
+    const sentences = m.split(/(?<=[.!?])\s+/).filter(Boolean).length;
+    assert(sentences >= 3 && sentences <= 4, `Mission has 3-4 sentences (got ${sentences})`);
+  }
+
+  // Grammar template completeness
+  const missionTemplates = getAllGrammarMissions("Computer Engineering");
+  let missionGridFailed = 0;
+  const missionScorePromises = missionTemplates.map((m) => scoreMission(m, ""));
+  const missionScores = await Promise.all(missionScorePromises);
+  for (let i = 0; i < missionTemplates.length; i++) {
+    if (missionScores[i].score < MISSION_APPROVAL_THRESHOLD || missionScores[i].hardFailures.length > 0) {
+      missionGridFailed++;
+      console.error(`    FAIL template=${i}: ${missionTemplates[i].slice(0, 80)}…`);
+      console.error(`         score=${missionScores[i].score} failures=${missionScores[i].hardFailures.join(", ")}`);
+    }
+  }
+  assert(missionGridFailed === 0, `All ${MISSION_TEMPLATE_COUNT} mission templates score ≥${MISSION_APPROVAL_THRESHOLD} (${missionGridFailed} failed)`);
+
+  console.log("\n  Mission outputs:");
+  result.missions.forEach((m, i) => console.log(`    [${i + 1}] "${m.slice(0, 70)}…"`));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 10. PEO Agent — template-only mode
+
+section("10. PEO Agent — template-only (no Gemini key)");
+
+async function testPEOAgent() {
+  const result = await peoAgent({
+    programName:  "Computer Engineering",
+    priorities:   ["Professional Practice", "Ethics and Society", "Leadership and Teamwork"],
+    count:        3,
+    geminiApiKey: undefined,
+  });
+
+  assert(result.peos.length === 3, `PEO Agent returns 3 PEOs (got ${result.peos.length})`);
+  assert(result.ranked.length === 3, `PEO ranked list has 3 entries`);
+
+  for (const peo of result.peos) {
+    assert(
+      peo.toLowerCase().startsWith("within 3 to 5 years of graduation"),
+      `PEO starts with required prefix: "${peo.slice(0, 50)}…"`,
+    );
+    const words = peo.replace(/[.?!]+$/, "").split(/\s+/).filter(Boolean).length;
+    assert(words >= 20 && words <= 35, `PEO 20–35 words (got ${words})`);
+    const s = scorePEO(peo);
+    assert(s.score >= PEO_APPROVAL_THRESHOLD, `PEO scores ≥${PEO_APPROVAL_THRESHOLD} (got ${s.score})`);
+  }
+
+  // Spot-check: all PEO_PRIORITY_BANK variants score ≥85
+  let peoGridFailed = 0;
+  for (const [priority, phrases] of Object.entries(PEO_PRIORITY_BANK)) {
+    for (let v = 0; v < phrases.length; v++) {
+      const peo = buildPEOGrammar(priority, v);
+      const s   = scorePEO(peo);
+      if (s.score < PEO_APPROVAL_THRESHOLD || s.hardFailures.length > 0) {
+        peoGridFailed++;
+        console.error(`    FAIL priority="${priority}" v=${v}: score=${s.score} failures=${s.hardFailures.join(", ")}`);
+      }
+    }
+  }
+  const totalPEOVariants = Object.values(PEO_PRIORITY_BANK).reduce((n, p) => n + p.length, 0);
+  assert(peoGridFailed === 0, `All ${totalPEOVariants} PEO grammar variants score ≥${PEO_APPROVAL_THRESHOLD} (${peoGridFailed} failed)`);
+
+  console.log("\n  PEO outputs:");
+  result.peos.forEach((p, i) => console.log(`    [${i + 1}] score=${scorePEO(p).score} "${p.slice(0, 70)}…"`));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 11. PO Agent — template-only mode
+
+section("11. PO Agent — template-only (no Gemini key)");
+
+async function testPOAgent() {
+  const result = await poAgent({
+    programName:  "Computer Engineering",
+    count:        5,
+    geminiApiKey: undefined,
+  });
+
+  assert(result.pos.length === 5, `PO Agent returns 5 POs (got ${result.pos.length})`);
+
+  for (const po of result.pos) {
+    assert(
+      po.toLowerCase().startsWith("ability to") || po.toLowerCase().startsWith("an ability to"),
+      `PO starts with valid prefix: "${po.slice(0, 50)}…"`,
+    );
+    const words = po.replace(/[.?!]+$/, "").split(/\s+/).filter(Boolean).length;
+    assert(words <= 25, `PO ≤25 words (got ${words})`);
+    const s = scorePO(po);
+    assert(s.score >= PO_APPROVAL_THRESHOLD, `PO scores ≥${PO_APPROVAL_THRESHOLD} (got ${s.score})`);
+  }
+
+  // All 12 standard POs score ≥85
+  let poGridFailed = 0;
+  for (let i = 0; i < STANDARD_PO_STATEMENTS.length; i++) {
+    const s = scorePO(STANDARD_PO_STATEMENTS[i]);
+    if (s.score < PO_APPROVAL_THRESHOLD || s.hardFailures.length > 0) {
+      poGridFailed++;
+      console.error(`    FAIL standard PO ${i + 1}: score=${s.score} failures=${s.hardFailures.join(", ")}`);
+    }
+  }
+  assert(poGridFailed === 0, `All ${STANDARD_PO_STATEMENTS.length} standard POs score ≥${PO_APPROVAL_THRESHOLD} (${poGridFailed} failed)`);
+
+  console.log("\n  PO outputs:");
+  result.pos.forEach((p, i) => console.log(`    [${i + 1}] score=${scorePO(p).score} "${p}"`));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Run async tests then summarize
 
 async function main() {
   await testAgent();
   await testLiveAPI();
+  await testMissionAgent();
+  await testPEOAgent();
+  await testPOAgent();
 
   console.log(`\n${"═".repeat(60)}`);
   console.log(`  Results: ${totalPassed} passed, ${totalFailed} failed / ${totalPassed + totalFailed} total`);

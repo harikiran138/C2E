@@ -284,15 +284,35 @@ export function buildGrammarVision(
   return GRAMMAR_TEMPLATES[idx](prog, pillars);
 }
 
-/** Total number of template × pillar-variant combinations available. */
-export const TOTAL_GRAMMAR_VARIANTS = GRAMMAR_TEMPLATES.length * 3; // 15
+/** Total number of template × pillar-variant × shuffle combinations available. */
+export const TOTAL_GRAMMAR_VARIANTS = GRAMMAR_TEMPLATES.length * 3 * 2; // 30
 
-/** Returns all 15 pre-validated grammar variants for a program + priorities. */
+/**
+ * Build a grammar vision with optional priority-order rotation for added diversity.
+ * shuffleSeed=0 is identical to buildGrammarVision; shuffleSeed=1 rotates priorities by 1.
+ */
+export function buildGrammarVisionWithOrder(
+  programName:  string,
+  priorities:   string[],
+  templateIdx:  number,
+  pillarVariant = 0,
+  shuffleSeed   = 0,
+): string {
+  const rotated =
+    shuffleSeed > 0 && priorities.length > 1
+      ? [...priorities.slice(shuffleSeed % priorities.length), ...priorities.slice(0, shuffleSeed % priorities.length)]
+      : priorities;
+  return buildGrammarVision(programName, rotated, templateIdx, pillarVariant);
+}
+
+/** Returns all 30 pre-validated grammar variants for a program + priorities (5 templates × 3 pillar-variants × 2 shuffle seeds). */
 export function getAllGrammarVariants(programName: string, priorities: string[]): string[] {
   const result: string[] = [];
   for (let ti = 0; ti < GRAMMAR_TEMPLATES.length; ti++) {
     for (let pv = 0; pv < 3; pv++) {
-      result.push(buildGrammarVision(programName, priorities, ti, pv));
+      for (let ss = 0; ss < 2; ss++) {
+        result.push(buildGrammarVisionWithOrder(programName, priorities, ti, pv, ss));
+      }
     }
   }
   return result;
