@@ -10,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from prompts.refinement import VISION_REFINEMENT_PROMPT, MISSION_REFINEMENT_PROMPT, PEO_REFINEMENT_PROMPT, PSO_REFINEMENT_PROMPT, SCORING_PROMPT, VISION_QUALITY_ENFORCEMENT_PROMPT, VISION_DEBUG_AND_REPAIR_AGENT, VISION_AUTO_VERIFY_AND_FIX_PROMPT
-from strategic_scoring import calculate_alignment, score_mission, score_vision, enforce_peo_quality, score_peo, calculate_peo_vision_alignment, peo_similarity, calculate_peo_vision_alignment, peo_similarity, enforce_po_quality
-from templates import generate_elite_fallback_missions
+from strategic_scoring import calculate_alignment, score_mission, score_vision, enforce_peo_quality, score_peo, calculate_peo_vision_alignment, peo_similarity, enforce_po_quality, score_pso, pso_similarity
+from templates import generate_elite_fallback_missions, generate_elite_fallback_psos
 from ml_engine import get_local_vision
 
 load_dotenv()
@@ -83,6 +83,19 @@ class POGenerateResponse(BaseModel):
     mapping_matrix: List[List[int]]
     quality: List[Dict[str, Any]]
 
+class PSOGenerateRequest(BaseModel):
+    programName: str
+    vision: Optional[str] = ""
+    missions: Optional[List[str]] = []
+    peos: Optional[List[str]] = []
+    priorities: List[str]
+    count: Optional[int] = 3
+    institutionContext: Optional[str] = ""
+
+class PSOGenerateResponse(BaseModel):
+    results: List[str]
+    quality: List[Dict[str, Any]]
+    scores: Optional[Dict[str, Any]] = None
 
 
 # Simple in-memory cache
@@ -92,6 +105,10 @@ VISION_APPROVAL_THRESHOLD = 90
 VISION_MAX_REPAIR_ATTEMPTS = 3
 VISION_SIMILARITY_THRESHOLD = 0.75
 MISSION_APPROVAL_THRESHOLD = 90
+PSO_APPROVAL_THRESHOLD = 65
+PSO_SIMILARITY_THRESHOLD = 0.70
+PSO_MAX_REPAIR_ATTEMPTS = 3
+PSO_PREFIX = "graduates will be able to"
 VISION_STARTERS = [
     "To be globally recognized for",
     "To emerge as",
@@ -1018,6 +1035,33 @@ Return ONLY the corrected Mission paragraph.
             }
         )
 
+def build_fallback_pso(priority: str, program_name: str, variant: int = 0) -> str:
+    program_label = " ".join((program_name or "").split()[:3]).strip() or "the program"
+    priority_label = " ".join((priority or "technical computing").split()[:3]).strip() or "technical computing"
+    templates = [
+        f"Graduates will be able to design and implement advanced {program_label} systems applying {priority_label} principles to address complex engineering challenges.",
+        f"Graduates will be able to analyze, evaluate, and optimize {program_label} solutions using {priority_label} methodologies and professional engineering standards.",
+        f"Graduates will be able to integrate {priority_label} techniques with {program_label} frameworks to address real-world societal and industry requirements.",
+        f"Graduates will be able to develop and deploy {program_label} applications incorporating {priority_label} and modern software engineering practices.",
+    ]
+    return templates[variant % len(templates)]
+
+
+def enforce_pso_diversity(psos: List[str], program_name: str) -> List[str]:
+    diversified: List[str] = []
+    for idx, pso in enumerate(psos):
+        candidate = normalize_whitespace(pso)
+        assessment = score_pso(candidate)
+        too_similar = any(
+            pso_similarity(candidate, existing) > PSO_SIMILARITY_THRESHOLD
+            for existing in diversified
+        )
+        if assessment.get("hard_fail") or too_similar:
+            candidate = build_fallback_pso(f"technical domain {idx}", program_name, idx)
+        diversified.append(candidate)
+    return diversified
+
+
 def get_fallback_peos(program_name: str, count: int, priorities: List[str]) -> List[str]:
     """Generates high-quality fallback PEOs when the AI fails."""
     fallbacks = [
@@ -1311,6 +1355,138 @@ async def generate_pos(request: POGenerateRequest):
         mapping_matrix = [[1 for _ in range(len(request.peos))] for _ in range(len(pos))]
         quality = [{"statement": po, "specific": True, "measurable": True} for po in pos]
         return POGenerateResponse(pos=pos, mapping_matrix=mapping_matrix, quality=quality)
+
+@app.post("/api/v1/generate-psos", response_model=PSOGenerateResponse)
+async def generate_psos(request: PSOGenerateRequest):
+    try:
+        normalized_count = min(10, max(1, request.count or 3))
+        if not request.priorities:
+            raise HTTPException(status_code=400, detail="Priorities are required for PSO generation")
+        if len(request.priorities) > 20:
+            raise HTTPException(status_code=400, detail="priorities must have at most 20 items")
+
+        pso_prompt = PSO_REFINEMENT_PROMPT.format(
+            program_name=request.programName,
+            vision=request.vision or "N/A",
+            mission_list=json.dumps(request.missions or [], indent=2),
+            peos=json.dumps(request.peos or [], indent=2),
+            priorities=", ".join(request.priorities),
+            pso_count=normalized_count,
+            seed=f"{time.time()}_pso",
+        )
+
+        raw_text = await call_gemini_rest_async(pso_prompt, use_cache=False)
+        parsed_results = parse_peo_array(raw_text)[:normalized_count]
+
+        refined_psos: List[str] = []
+        seen_keys: set = set()
+
+        for i, statement in enumerate(parsed_results):
+            priority = request.priorities[i % len(request.priorities)]
+            # Strip PSO label prefixes if Gemini added them
+            statement = re.sub(r'^(?i)(PSO\d*\s*[:.\-]?\s*)', '', statement).strip()
+
+            # Enforce "Graduates will be able to" prefix
+            if not statement.lower().startswith(PSO_PREFIX):
+                if statement:
+                    statement = f"Graduates will be able to {statement[0].lower() + statement[1:]}"
+                else:
+                    statement = build_fallback_pso(priority, request.programName, i)
+
+            # Governance repair loop
+            for repair_attempt in range(PSO_MAX_REPAIR_ATTEMPTS):
+                assessment = score_pso(statement)
+                print(
+                    f"DEBUG PSO: Attempt {repair_attempt+1}, Score: {assessment['score']}, "
+                    f"HardFail: {assessment.get('hard_fail')}, Text: {statement[:60]}..."
+                )
+                if assessment["score"] >= PSO_APPROVAL_THRESHOLD and not assessment.get("hard_fail"):
+                    break
+
+                pso_repair_prompt = f"""You are a PSO quality repair agent for {request.programName}.
+
+Failed PSO: "{statement}"
+Violations: {", ".join(assessment.get("violations", []))}
+
+Rewrite following ALL rules:
+1. MUST start with "Graduates will be able to..."
+2. Word count: 15-25 words.
+3. Include a technical verb: design, implement, analyze, evaluate, create, integrate, optimize.
+4. Focus on domain-specific technical capability of {request.programName}.
+5. Related to specialization: {priority}.
+6. NO generic phrases ("understand basics", "learn fundamentals", "know the", "be familiar with").
+7. NO marketing terms.
+
+Return ONLY the corrected PSO statement. No explanation. No markdown."""
+                try:
+                    repaired = await call_gemini_rest_async(pso_repair_prompt, use_cache=False)
+                    repaired = normalize_whitespace(repaired.strip().strip('"').strip("'"))
+                    if repaired and not repaired.lower().startswith(PSO_PREFIX):
+                        repaired = f"Graduates will be able to {repaired[0].lower() + repaired[1:]}"
+                    if repaired:
+                        statement = repaired
+                except Exception:
+                    statement = build_fallback_pso(priority, request.programName, i + repair_attempt)
+
+            # Final quality gate: hard_fail → use template fallback
+            final_assessment = score_pso(statement)
+            if final_assessment.get("hard_fail"):
+                statement = build_fallback_pso(priority, request.programName, i)
+
+            # Diversity gate
+            too_similar = any(
+                pso_similarity(statement, existing) > PSO_SIMILARITY_THRESHOLD
+                for existing in refined_psos
+            )
+            if too_similar:
+                next_priority = request.priorities[(i + 1) % len(request.priorities)]
+                statement = build_fallback_pso(next_priority, request.programName, i + 1)
+
+            key = re.sub(r"[^a-z0-9]", "", statement.lower())[:60]
+            if key not in seen_keys:
+                seen_keys.add(key)
+                refined_psos.append(statement)
+
+        # Ensure count is met with diverse fallbacks
+        fallback_idx = 0
+        while len(refined_psos) < normalized_count:
+            idx = len(refined_psos)
+            priority = request.priorities[idx % len(request.priorities)]
+            fallback = build_fallback_pso(priority, request.programName, fallback_idx)
+            if not any(pso_similarity(fallback, existing) > PSO_SIMILARITY_THRESHOLD for existing in refined_psos):
+                refined_psos.append(fallback)
+            elif fallback_idx >= normalized_count * 3:
+                refined_psos.append(fallback)
+            fallback_idx += 1
+            if fallback_idx > normalized_count * 5:
+                break
+
+        final_psos = enforce_pso_diversity(refined_psos[:normalized_count], request.programName)
+
+        # Score, rank, return
+        scored = [{"statement": p, "quality": score_pso(p)} for p in final_psos]
+        scored.sort(key=lambda x: x["quality"]["score"], reverse=True)
+        pso_scores = {s["statement"]: s["quality"] for s in scored}
+
+        return PSOGenerateResponse(
+            results=[s["statement"] for s in scored],
+            quality=[s["quality"] for s in scored],
+            scores=pso_scores,
+        )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"CRITICAL ERROR generating PSOs: {str(e)}")
+        normalized_count = min(10, max(1, request.count or 3))
+        fallback_results = generate_elite_fallback_psos(request.programName or "engineering", normalized_count)
+        pso_scores = {p: score_pso(p) for p in fallback_results}
+        return PSOGenerateResponse(
+            results=fallback_results,
+            quality=[score_pso(p) for p in fallback_results],
+            scores=pso_scores,
+        )
+
 
 if __name__ == "__main__":
     import uvicorn

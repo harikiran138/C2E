@@ -94,8 +94,46 @@ No markdown.
 No numbering.
 """
 
-# Placeholders for future prompts
-MISSION_REFINEMENT_PROMPT = ""
+MISSION_REFINEMENT_PROMPT = """
+You are an Elite NBA/ABET Accreditation Consultant and Strategic Mission Architect.
+
+Your objective is to repair a Program Mission statement so it passes strict accreditation governance.
+
+Program Vision (reference alignment target):
+"{reference_vision}"
+
+Failed Mission:
+"{failed_mission}"
+
+Violations to fix:
+{violations}
+
+---
+MISSION GOVERNANCE RULES
+---
+
+1. A Mission explains HOW the program achieves its Vision — not WHERE it aspires to stand.
+2. Structure: 3 to 4 concise sentences, each starting with a strong operational verb.
+   Required operational verbs: deliver, foster, promote, cultivate, advance, develop, integrate, strengthen, enable, sustain.
+3. Each sentence MUST cover one of these strategic pillars:
+   - Academic Excellence (curriculum, research, learning, outcome-based)
+   - Industry Collaboration (industry, internship, innovation, collaboration)
+   - Professional Ethics (ethics, responsibility, integrity, professionalism)
+   - Societal Responsibility (society, community, sustainability, impact)
+4. Word count: 45 to 110 words total (across all sentences).
+5. BANNED: "world-class", "hub", "best", "leader", "guarantee", "100%", "ensure all", "premier".
+6. BANNED: Immediate-outcome language ("at graduation", "students will be able to").
+7. Mission MUST semantically align with the Vision (share key themes and terminology).
+8. Do NOT repeat the Vision verbatim — operationalize its themes.
+
+---
+OUTPUT RULE
+---
+
+Return ONLY the repaired Mission paragraph (3-4 sentences).
+No explanation. No markdown. No numbering. No prefixes.
+"""
+
 PEO_REFINEMENT_PROMPT = """
 You are an Elite NBA/ABET Accreditation Consultant and Academic Strategist.
 
@@ -120,7 +158,61 @@ Output must be a plain JSON array of strings containing ONLY the PEO statements.
 
 Entropy Seed: {seed}
 """
-PSO_REFINEMENT_PROMPT = ""
+PSO_REFINEMENT_PROMPT = """
+You are an Elite NBA/ABET Accreditation Consultant specializing in Outcome-Based Education (OBE) frameworks.
+
+Your task is to generate Program Specific Outcomes (PSOs) that align with the Program Vision, Missions, and PEOs.
+
+PSOs describe the specialized technical skills that students of this specific program will acquire by graduation.
+
+---
+INPUTS
+---
+
+Program Name: {program_name}
+Program Vision: {vision}
+Program Missions:
+{mission_list}
+Program Educational Objectives (PEOs):
+{peos}
+Specialization Priorities / Themes: {priorities}
+
+---
+PSO GOVERNANCE RULES
+---
+
+1. Each PSO MUST start with exactly: "Graduates will be able to..."
+2. Word count: 15 to 25 words per PSO.
+3. Focus ONLY on domain-specific technical capabilities — NOT generic graduate attributes.
+4. Use high-order cognitive verbs (Bloom's Level 4-6):
+   design, develop, implement, analyze, evaluate, apply, integrate,
+   construct, formulate, optimize, architect, engineer, synthesize, deploy.
+5. AVOID generic phrases:
+   "understand basics", "learn fundamentals", "know the", "have knowledge of",
+   "be familiar with", "gain knowledge", "comprehend".
+6. AVOID marketing language: "world-class", "best", "leader", "guarantee", "100%".
+7. Each PSO must represent a DISTINCT technical domain capability.
+8. PSOs must be measurable — they describe skills verifiable at the time of graduation.
+9. PSOs must NOT duplicate PEO language (PEOs are post-graduation; PSOs are at-graduation).
+
+---
+QUALITY REQUIREMENTS
+---
+
+Before returning the output, internally verify:
+- Each PSO starts with "Graduates will be able to..."
+- Word count is 15-25 per PSO
+- No generic phrases present
+- Each PSO covers a distinct specialization domain from: {priorities}
+- Statements are technically specific to {program_name}
+
+Generate exactly {pso_count} distinct PSO statements.
+
+Output must be a plain JSON array of strings. Example:
+["Graduates will be able to design...", "Graduates will be able to implement..."]
+
+Entropy Seed: {seed}
+"""
 
 VISION_QUALITY_ENFORCEMENT_PROMPT = """
 You are an Elite Strategic Accreditation Quality Controller.
