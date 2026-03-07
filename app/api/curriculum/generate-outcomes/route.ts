@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import pool from "@/lib/postgres";
+import type { PoolClient } from "pg";
 import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -31,6 +31,8 @@ interface CourseOutcome {
 interface GenerateOutcomesRequest {
   programId: string;
   programName?: string;
+  curriculumId?: string;
+  versionId?: string;
   courses: CourseInput[];
 }
 
@@ -350,11 +352,412 @@ function deduplicateOutcomes(rows: CourseOutcome[]): CourseOutcome[] {
   });
 }
 
+function normalizeOptionalId(value: unknown): string | null {
+  const normalized = String(value || "").trim();
+  return normalized || null;
+}
+
+function toStrengthNumber(value: string): number {
+  const parsed = Math.floor(Number(value || 0));
+  if (!Number.isFinite(parsed)) return 2;
+  return Math.min(3, Math.max(1, parsed));
+}
+
+async function resolveCurriculumId(
+  client: PoolClient,
+  input: { programId: string; curriculumId: string | null; versionId: string | null },
+): Promise<{ curriculumId: string | null; warnings: string[] }> {
+  const warnings: string[] = [];
+
+  if (input.curriculumId) {
+    try {
+      const result = await client.query<{ id: string; program_id: string }>(
+        `SELECT id, program_id
+         FROM curriculums
+         WHERE id = $1
+         LIMIT 1`,
+        [input.curriculumId],
+      );
+
+      if (result.rows.length === 0 || String(result.rows[0].program_id) !== input.programId) {
+        throw new Error("Invalid curriculumId for the selected program.");
+      }
+      return { curriculumId: result.rows[0].id, warnings };
+    } catch (error: any) {
+      if (String(error?.code) === "42P01") {
+        warnings.push("curriculums table not found; curriculum_id linkage was skipped.");
+        return { curriculumId: null, warnings };
+      }
+      throw error;
+    }
+  }
+
+  if (!input.versionId) {
+    return { curriculumId: null, warnings };
+  }
+
+  const versionResult = await client.query<{
+    id: string;
+    program_id: string;
+    year: number;
+    version: string;
+  }>(
+    `SELECT id, program_id, year, version
+     FROM curriculum_versions
+     WHERE id = $1
+     LIMIT 1`,
+    [input.versionId],
+  );
+
+  if (versionResult.rows.length === 0) {
+    throw new Error("Invalid versionId: curriculum version not found.");
+  }
+
+  const versionRow = versionResult.rows[0];
+  if (String(versionRow.program_id) !== input.programId) {
+    throw new Error("Invalid versionId: version does not belong to selected program.");
+  }
+
+  try {
+    const curriculumResult = await client.query<{ id: string }>(
+      `INSERT INTO curriculums (
+          program_id,
+          regulation_year,
+          version,
+          approval_status,
+          updated_at
+       ) VALUES ($1, $2, $3, 'draft', NOW())
+       ON CONFLICT (program_id, regulation_year, version)
+       DO UPDATE SET updated_at = NOW()
+       RETURNING id`,
+      [input.programId, Number(versionRow.year), String(versionRow.version || "Version")],
+    );
+    return { curriculumId: curriculumResult.rows[0]?.id || null, warnings };
+  } catch (error: any) {
+    if (String(error?.code) === "42P01") {
+      warnings.push("curriculums table not found; curriculum_id linkage was skipped.");
+      return { curriculumId: null, warnings };
+    }
+    throw error;
+  }
+}
+
+async function persistOutcomesAndMappings(args: {
+  programId: string;
+  curriculumId: string | null;
+  outcomes: CourseOutcome[];
+}): Promise<{ warnings: string[]; errors: string[] }> {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  if (args.outcomes.length === 0) return { warnings, errors };
+
+  const courseCodes = Array.from(new Set(args.outcomes.map((outcome) => outcome.course_code)));
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    let outcomesHasCurriculumColumn = true;
+    try {
+      await client.query("SELECT curriculum_id FROM curriculum_course_outcomes LIMIT 1");
+    } catch (error: any) {
+      if (String(error?.code) === "42703") {
+        outcomesHasCurriculumColumn = false;
+      } else {
+        throw error;
+      }
+    }
+
+    if (outcomesHasCurriculumColumn) {
+      if (args.curriculumId) {
+        await client.query(
+          `DELETE FROM curriculum_course_outcomes
+           WHERE program_id = $1
+             AND curriculum_id = $2
+             AND course_code = ANY($3::text[])`,
+          [args.programId, args.curriculumId, courseCodes],
+        );
+      } else {
+        await client.query(
+          `DELETE FROM curriculum_course_outcomes
+           WHERE program_id = $1
+             AND curriculum_id IS NULL
+             AND course_code = ANY($2::text[])`,
+          [args.programId, courseCodes],
+        );
+      }
+    } else {
+      await client.query(
+        `DELETE FROM curriculum_course_outcomes
+         WHERE program_id = $1
+           AND course_code = ANY($2::text[])`,
+        [args.programId, courseCodes],
+      );
+      warnings.push(
+        "curriculum_course_outcomes.curriculum_id is unavailable; outcomes were saved without curriculum_id linkage.",
+      );
+    }
+
+    const coIdByKey = new Map<string, string>();
+    for (const outcome of args.outcomes) {
+      const insertResult = outcomesHasCurriculumColumn
+        ? await client.query<{ id: string; course_code: string; co_code: string }>(
+            `INSERT INTO curriculum_course_outcomes (
+                program_id,
+                curriculum_id,
+                course_code,
+                course_title,
+                co_number,
+                co_code,
+                statement,
+                rbt_level,
+                po_mapping,
+                pso_mapping,
+                strength,
+                updated_at
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+             RETURNING id, course_code, co_code`,
+            [
+              args.programId,
+              args.curriculumId,
+              outcome.course_code,
+              outcome.course_title || null,
+              outcome.co_number,
+              outcome.co_code,
+              outcome.statement,
+              outcome.rbt_level,
+              outcome.po_mapping,
+              outcome.pso_mapping,
+              outcome.strength,
+            ],
+          )
+        : await client.query<{ id: string; course_code: string; co_code: string }>(
+            `INSERT INTO curriculum_course_outcomes (
+                program_id,
+                course_code,
+                course_title,
+                co_number,
+                co_code,
+                statement,
+                rbt_level,
+                po_mapping,
+                pso_mapping,
+                strength,
+                updated_at
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+             RETURNING id, course_code, co_code`,
+            [
+              args.programId,
+              outcome.course_code,
+              outcome.course_title || null,
+              outcome.co_number,
+              outcome.co_code,
+              outcome.statement,
+              outcome.rbt_level,
+              outcome.po_mapping,
+              outcome.pso_mapping,
+              outcome.strength,
+            ],
+          );
+
+      const row = insertResult.rows[0];
+      if (row?.id) {
+        coIdByKey.set(`${row.course_code}::${row.co_code}`, row.id);
+      }
+    }
+
+    const courseIdByCode = new Map<string, string>();
+    let coursesHasCurriculumColumn = true;
+    try {
+      await client.query("SELECT curriculum_id FROM curriculum_generated_courses LIMIT 1");
+    } catch (error: any) {
+      if (String(error?.code) === "42703") {
+        coursesHasCurriculumColumn = false;
+      } else {
+        throw error;
+      }
+    }
+
+    const courseLookup = coursesHasCurriculumColumn
+      ? args.curriculumId
+        ? await client.query<{ id: string; course_code: string }>(
+            `SELECT id, course_code
+             FROM curriculum_generated_courses
+             WHERE program_id = $1
+               AND curriculum_id = $2
+               AND course_code = ANY($3::text[])`,
+            [args.programId, args.curriculumId, courseCodes],
+          )
+        : await client.query<{ id: string; course_code: string }>(
+            `SELECT id, course_code
+             FROM curriculum_generated_courses
+             WHERE program_id = $1
+               AND curriculum_id IS NULL
+               AND course_code = ANY($2::text[])`,
+            [args.programId, courseCodes],
+          )
+      : await client.query<{ id: string; course_code: string }>(
+          `SELECT id, course_code
+           FROM curriculum_generated_courses
+           WHERE program_id = $1
+             AND course_code = ANY($2::text[])`,
+          [args.programId, courseCodes],
+        );
+
+    for (const row of courseLookup.rows) {
+      courseIdByCode.set(String(row.course_code), String(row.id));
+    }
+
+    let hasCoPoMappingTable = true;
+    let hasCoPsoMappingTable = true;
+    try {
+      await client.query("SELECT id FROM co_po_mapping LIMIT 1");
+    } catch (error: any) {
+      if (String(error?.code) === "42P01") {
+        hasCoPoMappingTable = false;
+        warnings.push(
+          "co_po_mapping table not found; normalized CO-PO mapping persistence was skipped.",
+        );
+      } else {
+        throw error;
+      }
+    }
+
+    try {
+      await client.query("SELECT id FROM co_pso_mapping LIMIT 1");
+    } catch (error: any) {
+      if (String(error?.code) === "42P01") {
+        hasCoPsoMappingTable = false;
+        warnings.push(
+          "co_pso_mapping table not found; normalized CO-PSO mapping persistence was skipped.",
+        );
+      } else {
+        throw error;
+      }
+    }
+
+    if (hasCoPoMappingTable) {
+      if (args.curriculumId) {
+        await client.query(
+          `DELETE FROM co_po_mapping
+           WHERE program_id = $1
+             AND curriculum_id = $2
+             AND course_code = ANY($3::text[])`,
+          [args.programId, args.curriculumId, courseCodes],
+        );
+      } else {
+        await client.query(
+          `DELETE FROM co_po_mapping
+           WHERE program_id = $1
+             AND curriculum_id IS NULL
+             AND course_code = ANY($2::text[])`,
+          [args.programId, courseCodes],
+        );
+      }
+    }
+
+    if (hasCoPsoMappingTable) {
+      if (args.curriculumId) {
+        await client.query(
+          `DELETE FROM co_pso_mapping
+           WHERE program_id = $1
+             AND curriculum_id = $2
+             AND course_code = ANY($3::text[])`,
+          [args.programId, args.curriculumId, courseCodes],
+        );
+      } else {
+        await client.query(
+          `DELETE FROM co_pso_mapping
+           WHERE program_id = $1
+             AND curriculum_id IS NULL
+             AND course_code = ANY($2::text[])`,
+          [args.programId, courseCodes],
+        );
+      }
+    }
+
+    if (hasCoPoMappingTable || hasCoPsoMappingTable) {
+      for (const outcome of args.outcomes) {
+        const coId = coIdByKey.get(`${outcome.course_code}::${outcome.co_code}`) || null;
+        const courseId = courseIdByCode.get(outcome.course_code) || null;
+        const strength = toStrengthNumber(outcome.strength);
+
+        if (hasCoPoMappingTable) {
+          for (const po of outcome.po_mapping) {
+            await client.query(
+              `INSERT INTO co_po_mapping (
+                  program_id,
+                  curriculum_id,
+                  course_id,
+                  co_id,
+                  course_code,
+                  co_code,
+                  po_id,
+                  strength,
+                  updated_at
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+              [
+                args.programId,
+                args.curriculumId,
+                courseId,
+                coId,
+                outcome.course_code,
+                outcome.co_code,
+                po,
+                strength,
+              ],
+            );
+          }
+        }
+
+        if (hasCoPsoMappingTable) {
+          for (const pso of outcome.pso_mapping) {
+            await client.query(
+              `INSERT INTO co_pso_mapping (
+                  program_id,
+                  curriculum_id,
+                  course_id,
+                  co_id,
+                  course_code,
+                  co_code,
+                  pso_id,
+                  strength,
+                  updated_at
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+              [
+                args.programId,
+                args.curriculumId,
+                courseId,
+                coId,
+                outcome.course_code,
+                outcome.co_code,
+                pso,
+                strength,
+              ],
+            );
+          }
+        }
+      }
+    }
+
+    await client.query("COMMIT");
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    errors.push(error?.message || "Failed to persist generated outcomes.");
+  } finally {
+    client.release();
+  }
+
+  return { warnings, errors };
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as GenerateOutcomesRequest;
     const programId = String(body.programId || "").trim();
     const requestedProgramName = String(body.programName || "").trim();
+    const requestedCurriculumId = normalizeOptionalId(body.curriculumId);
+    const versionId = normalizeOptionalId(body.versionId);
     const courses = Array.isArray(body.courses)
       ? body.courses.map(normalizeCourseInput).filter((c) => !!c.courseCode)
       : [];
@@ -387,10 +790,28 @@ export async function POST(request: Request) {
     }
 
     const references = await fetchOutcomeReferences(programId);
-    const supabase = await createClient();
     const allOutcomes: CourseOutcome[] = [];
     const errors: string[] = [];
     const warnings: string[] = [...contextResult.warnings, ...references.warnings];
+
+    const resolutionClient = await pool.connect();
+    let resolvedCurriculumId: string | null = null;
+    try {
+      const curriculumResolution = await resolveCurriculumId(resolutionClient, {
+        programId,
+        curriculumId: requestedCurriculumId,
+        versionId,
+      });
+      resolvedCurriculumId = curriculumResolution.curriculumId;
+      warnings.push(...curriculumResolution.warnings);
+    } catch (error: any) {
+      return NextResponse.json(
+        { error: error?.message || "Failed to resolve curriculum context.", warnings },
+        { status: 400 },
+      );
+    } finally {
+      resolutionClient.release();
+    }
 
     // Process in batches of 5 to stay within Gemini token limits
     const BATCH_SIZE = 5;
@@ -498,21 +919,21 @@ export async function POST(request: Request) {
 
     const uniqueOutcomes = deduplicateOutcomes(allOutcomes);
 
-    // Upsert outcomes to database
-    if (uniqueOutcomes.length > 0) {
-      const { error: upsertError } = await supabase
-        .from("curriculum_course_outcomes")
-        .upsert(uniqueOutcomes, {
-          onConflict: "program_id, course_code, co_number",
-        });
+    const persistence = await persistOutcomesAndMappings({
+      programId,
+      curriculumId: resolvedCurriculumId,
+      outcomes: uniqueOutcomes,
+    });
 
-      if (upsertError) {
-        console.error("Upsert error:", upsertError);
-        errors.push(`Database upsert failed: ${upsertError.message}`);
-      }
-    }
+    warnings.push(...persistence.warnings);
+    errors.push(...persistence.errors);
 
-    return NextResponse.json({ outcomes: uniqueOutcomes, errors, warnings });
+    return NextResponse.json({
+      outcomes: uniqueOutcomes,
+      curriculumId: resolvedCurriculumId,
+      errors,
+      warnings,
+    });
   } catch (error: any) {
     console.error("Generate outcomes error:", error);
     return NextResponse.json(

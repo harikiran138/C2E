@@ -207,23 +207,23 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
   {
     key: "process-17",
-    title: "Intimate BoS & ACM",
+    title: "Accreditation Analytics Dashboard",
     section: "process",
     processNumber: 16,
     kind: "action",
     phase: "Approval & Closure",
-    description: "Record communication sent to BoS and ACM.",
-    icon: "Send",
+    description:
+      "Visualize PO attainment, CO attainment, stakeholder feedback, and credit distribution.",
+    icon: "BarChart3",
   },
   {
     key: "process-18",
-    title: "Finalise Curriculum",
+    title: "Accreditation Report Generator",
     section: "process",
     processNumber: 17,
     kind: "action",
     phase: "Approval & Closure",
-    description:
-      "Finalize curriculum after approvals and communication closure.",
+    description: "Generate NBA / NAAC / ABET report matrices and export artifacts.",
     icon: "FileCheck",
   },
 ];

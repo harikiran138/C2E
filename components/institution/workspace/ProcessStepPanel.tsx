@@ -15,8 +15,8 @@ import OBEFrameworkForm from "@/components/institution/process/OBEFrameworkForm"
 import IdentifyOBECoursesPanel from "@/components/institution/process/IdentifyOBECoursesPanel";
 import CourseOutcomesPanel from "@/components/institution/process/CourseOutcomesPanel";
 import CurriculumFeedbackPanel from "@/components/institution/process/CurriculumFeedbackPanel";
-import CurriculumVisualizationPanel from "@/components/institution/process/CurriculumVisualizationPanel";
 import AccreditationReportPanel from "@/components/institution/process/AccreditationReportPanel";
+import AccreditationAnalyticsPanel from "@/components/institution/process/AccreditationAnalyticsPanel";
 import CurriculumAdvisorPanel from "@/components/institution/process/CurriculumAdvisorPanel";
 import VMPEOFeedbackDashboard from "@/components/institution/VMPEOFeedbackDashboard";
 import {
@@ -1922,7 +1922,7 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
   }
 
   if (step.key === "process-17") {
-    return <CurriculumVisualizationPanel />;
+    return <AccreditationAnalyticsPanel />;
   }
 
   if (step.key === "process-18") {

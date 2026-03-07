@@ -58,6 +58,8 @@ function strengthSymbol(str: string) {
 function CourseOutcomesPanelContent() {
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId") ?? "";
+  const versionId = searchParams.get("versionId") ?? "";
+  const curriculumId = searchParams.get("curriculumId") ?? "";
   const [programName, setProgramName] = useState("");
 
   const [courses, setCourses] = useState<Course[]>([]);
@@ -107,7 +109,14 @@ function CourseOutcomesPanelContent() {
     const load = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/curriculum/courses?programId=${programId}`);
+        const params = new URLSearchParams({ programId });
+        if (curriculumId) {
+          params.set("curriculumId", curriculumId);
+        } else if (versionId) {
+          params.set("versionId", versionId);
+        }
+
+        const res = await fetch(`/api/curriculum/courses?${params.toString()}`);
         if (!res.ok) throw new Error("Failed to fetch courses");
         const data = await res.json();
         const fetchedCourses: Course[] = data.courses ?? [];
@@ -128,7 +137,7 @@ function CourseOutcomesPanelContent() {
       }
     };
     load();
-  }, [programId]);
+  }, [curriculumId, programId, versionId]);
 
   // ── Toast helper ─────────────────────────────────────────────────────────
   const showToast = (msg: string, ok: boolean) => {
@@ -150,6 +159,8 @@ function CourseOutcomesPanelContent() {
         body: JSON.stringify({
           programId,
           programName: programName || undefined,
+          versionId: versionId || undefined,
+          curriculumId: curriculumId || undefined,
           courses: courses.map((c) => ({
             courseCode: c.course_code,
             courseTitle: c.course_title,
@@ -222,6 +233,8 @@ function CourseOutcomesPanelContent() {
         body: JSON.stringify({
           programId,
           programName: programName || undefined,
+          versionId: versionId || undefined,
+          curriculumId: curriculumId || undefined,
           courses: courses.map((c) => ({
             courseCode: c.course_code,
             courseTitle: c.course_title,

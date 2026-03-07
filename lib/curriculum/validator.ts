@@ -22,6 +22,15 @@ const AICTE_RANGES: Readonly<Record<string, { min: number; max: number }>> = {
   PR:  { min:  8, max: 10 },
 } as const;
 
+// AICTE / NEP absolute credit checks used as hard guardrails.
+const CREDIT_RULES = {
+  BS: { min: 20, max: 30 },
+  ES: { min: 25, max: 35 },
+  PC: { min: 50, max: 70 },
+  ELECTIVES: { min: 15, max: 30 }, // PE + OE
+  HSS_MIN: 8,
+} as const;
+
 export interface ValidationResult {
   passed: boolean;
   errors: string[];
@@ -60,6 +69,72 @@ export class CurriculumValidator {
       }
     } else {
       errors.push("Curriculum totalCredits is 0 or invalid; cannot validate credit totals.");
+    }
+
+    return errors;
+  }
+
+  private getCreditsByCategory(): Record<string, number> {
+    return this.curriculum.semesters.reduce(
+      (acc, semester) => {
+        for (const course of semester.courses) {
+          acc[course.category] = (acc[course.category] || 0) + (Number(course.credits) || 0);
+        }
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+  }
+
+  /**
+   * Hard checks for absolute AICTE/NEP credit constraints.
+   */
+  validateCreditDistributionRules(): string[] {
+    const errors: string[] = [];
+    const creditsByCategory = this.getCreditsByCategory();
+
+    const bsCredits = creditsByCategory.BS || 0;
+    const esCredits = creditsByCategory.ES || 0;
+    const pcCredits = creditsByCategory.PC || 0;
+    const hssCredits = creditsByCategory.HSS || 0;
+    const electiveCredits = (creditsByCategory.PE || 0) + (creditsByCategory.OE || 0);
+    const prCredits = creditsByCategory.PR || 0;
+
+    if (bsCredits < CREDIT_RULES.BS.min || bsCredits > CREDIT_RULES.BS.max) {
+      errors.push(
+        `Basic Sciences credits (${bsCredits}) must be within ${CREDIT_RULES.BS.min}-${CREDIT_RULES.BS.max}.`,
+      );
+    }
+
+    if (esCredits < CREDIT_RULES.ES.min || esCredits > CREDIT_RULES.ES.max) {
+      errors.push(
+        `Engineering Sciences credits (${esCredits}) must be within ${CREDIT_RULES.ES.min}-${CREDIT_RULES.ES.max}.`,
+      );
+    }
+
+    if (pcCredits < CREDIT_RULES.PC.min || pcCredits > CREDIT_RULES.PC.max) {
+      errors.push(
+        `Professional Core credits (${pcCredits}) must be within ${CREDIT_RULES.PC.min}-${CREDIT_RULES.PC.max}.`,
+      );
+    }
+
+    if (
+      electiveCredits < CREDIT_RULES.ELECTIVES.min ||
+      electiveCredits > CREDIT_RULES.ELECTIVES.max
+    ) {
+      errors.push(
+        `Elective credits (PE + OE = ${electiveCredits}) must be within ${CREDIT_RULES.ELECTIVES.min}-${CREDIT_RULES.ELECTIVES.max}.`,
+      );
+    }
+
+    if (hssCredits < CREDIT_RULES.HSS_MIN) {
+      errors.push(
+        `Humanities & Social Sciences credits (${hssCredits}) must be at least ${CREDIT_RULES.HSS_MIN}.`,
+      );
+    }
+
+    if (prCredits <= 0) {
+      errors.push("Internship/Project credits are mandatory; PR credits cannot be zero.");
     }
 
     return errors;
@@ -336,6 +411,7 @@ export class CurriculumValidator {
 
     // Hard error checks
     allErrors.push(...this.validateCredits());
+    allErrors.push(...this.validateCreditDistributionRules());
     allErrors.push(...this.validateAICTERanges());
     allErrors.push(...this.validateNEPStructure());
     allErrors.push(...this.validateInternship());
