@@ -45,7 +45,7 @@ Typical navigation to the page:
 
 `/institution/process/process-12?programId=<PROGRAM_UUID>`
 
-Links from dashboard send `programId`. Current links do not include `programName`.
+Links from dashboard send `programId`. `programName` is now resolved from the selected program context and no longer depends on URL fallback.
 
 Sources:
 
@@ -56,18 +56,15 @@ Sources:
 
 The module uses query params:
 
-- `programId` (required for persistence)
-- `programName` (optional; defaults to `"B.Tech Computer Science"` if not present)
+- `programId` (required for generation/persistence)
+- `programName` (optional UI hint only)
 
 Behavior:
 
-1. `programId` is used to load and save structure data.
+1. `programId` is used to load, generate, validate, and save structure data.
 2. Program duration is fetched from `/api/institution/me` and used to compute semester count (`duration * 2`, clamped to 2..12).
-3. If duration fetch fails, default duration remains `4` years (8 semesters).
-
-Important current behavior:
-
-- if `programName` is missing in URL, generation uses fallback `"B.Tech Computer Science"` for course tags/titles context.
+3. Generation API resolves canonical program name from database (`programId`) and enforces upstream readiness checks (Vision, Mission, PEO/PO/PSO baseline).
+4. If duration fetch fails, default duration remains `4` years (8 semesters).
 
 Sources:
 
@@ -351,6 +348,7 @@ Request:
 
 ```json
 {
+  "programId": "PROGRAM_UUID",
   "programName": "Mechanical Engineering",
   "totalCredits": 160,
   "semesterCount": 8,
@@ -369,7 +367,8 @@ Request:
   "semesterCategoryCounts": [
     { "semester": 1, "counts": { "BS": 3, "ES": 2, "HSS": 1 } }
   ],
-  "enableAiTitles": true
+  "enableAiTitles": true,
+  "strictAcademicFlow": true
 }
 ```
 
@@ -378,6 +377,13 @@ Success response:
 ```json
 {
   "curriculum": { "...": "GeneratedCurriculum" },
+  "programContext": {
+    "programId": "PROGRAM_UUID",
+    "programName": "B.Tech Mechanical Engineering",
+    "peoCount": 4,
+    "poCount": 12,
+    "psoCount": 3
+  },
   "warnings": []
 }
 ```
@@ -510,9 +516,9 @@ Typical warnings:
 
 ## 14) Known Behavior Notes and Constraints
 
-1. Displayed min/max percentage ranges are advisory only; they are not hard-block validations.
-2. Elective settings are persisted but not yet used inside credit/hour allocation.
-3. `programName` defaults to `"B.Tech Computer Science"` when absent in URL; this can affect generated title context and course code tag.
+1. Displayed min/max percentage ranges are guidance in UI; validation engine now enforces additional hard/soft checks server-side.
+2. Elective settings are persisted but are still not directly used in credit/hour allocation math.
+3. Program name is resolved from `programId` in backend; legacy URL fallback dependency has been removed.
 4. Semester count is driven by program duration loaded from `/api/institution/me`; defaults to 8 semesters if unavailable.
 5. MC category is hard-forced to zero in generation flow.
 

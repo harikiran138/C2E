@@ -5,6 +5,8 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const programId = String(searchParams.get("programId") || "").trim();
+    const versionId = String(searchParams.get("versionId") || "").trim();
+    const curriculumId = String(searchParams.get("curriculumId") || "").trim();
 
     if (!programId) {
       return NextResponse.json({ error: "programId is required" }, { status: 400 });
@@ -12,10 +14,20 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
 
-    const { data: courses, error } = await supabase
+    let query = supabase
       .from("curriculum_generated_courses")
       .select("*")
-      .eq("program_id", programId)
+      .eq("program_id", programId);
+
+    if (curriculumId) {
+      query = query.eq("curriculum_id", curriculumId);
+    } else if (versionId) {
+      query = query.eq("version_id", versionId);
+    } else {
+      query = query.is("version_id", null);
+    }
+
+    const { data: courses, error } = await query
       .order("semester", { ascending: true })
       .order("course_code", { ascending: true });
 

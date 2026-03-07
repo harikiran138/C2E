@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   WandSparkles,
   Loader2,
@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Info,
 } from "lucide-react";
+import { saveCurriculumAdvisorSnapshot } from "@/lib/curriculum/advisor-integration";
 
 const PROGRAM_TYPES = ["CS/IT", "ECE", "MECH", "CIVIL", "EEE", "Other"] as const;
 const INDUSTRY_FOCUSES = [
@@ -73,6 +74,7 @@ interface AdvisorRecommendations {
 }
 
 export default function CurriculumAdvisorPanel() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId") ?? "";
 
@@ -167,7 +169,28 @@ export default function CurriculumAdvisorPanel() {
   }
 
   function handleApplyCurriculum() {
-    showToast("Curriculum advisor recommendations saved! Integration with curriculum designer coming soon.");
+    if (!programId) {
+      setError("Please select a program before applying curriculum recommendations.");
+      return;
+    }
+    if (!recommendations || !editedDistribution) {
+      setError("No recommendations available to apply.");
+      return;
+    }
+
+    saveCurriculumAdvisorSnapshot({
+      programId,
+      totalCredits,
+      semesterCount,
+      categoryDistribution: { ...editedDistribution },
+      recommendedElectives: Array.from(selectedElectives),
+      modernSubjects: recommendations.modernSubjects,
+      advisorNotes: recommendations.advisorNotes,
+      createdAt: new Date().toISOString(),
+    });
+
+    showToast("Recommendations applied. Opening Curriculum Structure...");
+    router.push(`/institution/process/process-12?programId=${programId}`);
   }
 
   const distributionSum = editedDistribution

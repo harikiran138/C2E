@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import pool from "@/lib/postgres";
+import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL =
@@ -16,6 +18,7 @@ interface CourseInput {
 interface CourseOutcome {
   program_id: string;
   course_code: string;
+  course_title?: string;
   co_number: number;
   co_code: string;
   statement: string;
@@ -27,7 +30,7 @@ interface CourseOutcome {
 
 interface GenerateOutcomesRequest {
   programId: string;
-  programName: string;
+  programName?: string;
   courses: CourseInput[];
 }
 
@@ -40,7 +43,21 @@ const RBT_LEVELS = [
   "L6 Creating",
 ];
 
-function buildOutcomesPrompt(programName: string, courses: CourseInput[]): string {
+function buildOutcomesPrompt(
+  programName: string,
+  courses: CourseInput[],
+  references: { pos: string[]; psos: string[] },
+): string {
+  const poReferenceText =
+    references.pos.length > 0
+      ? references.pos.map((po) => `- ${po}`).join("\n")
+      : "- Standard NBA POs (PO1 to PO12)";
+
+  const psoReferenceText =
+    references.psos.length > 0
+      ? references.psos.map((pso) => `- ${pso}`).join("\n")
+      : "- PSO1 to PSO3 (use only if relevant)";
+
   return `You are an expert in Outcome-Based Education (OBE) for engineering programs. Generate Course Outcomes (COs) for the following courses in the "${programName}" program.
 
 For each course, generate 4 to 6 Course Outcomes (COs). Each CO must have:
@@ -50,6 +67,12 @@ For each course, generate 4 to 6 Course Outcomes (COs). Each CO must have:
 - po_mapping: Array of 2 to 3 integers representing Program Outcome numbers (each in range 1-12)
 - pso_mapping: Array of 0 to 2 integers representing Program Specific Outcome numbers (each in range 1-3); use [] if none
 - strength: One of "1" (Low), "2" (Medium), "3" (High) indicating the correlation strength
+
+Program Outcome references:
+${poReferenceText}
+
+Program Specific Outcome references:
+${psoReferenceText}
 
 Courses:
 ${JSON.stringify(courses, null, 2)}
@@ -101,12 +124,13 @@ function safeJsonParse(raw: string): any | null {
 async function callGeminiForOutcomes(
   programName: string,
   courses: CourseInput[],
+  references: { pos: string[]; psos: string[] },
 ): Promise<{ parsed: any; error?: string }> {
   if (!GEMINI_API_KEY) {
     return { parsed: null, error: "GEMINI_API_KEY is not configured" };
   }
 
-  const prompt = buildOutcomesPrompt(programName, courses);
+  const prompt = buildOutcomesPrompt(programName, courses, references);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60000);
@@ -153,46 +177,258 @@ async function callGeminiForOutcomes(
   }
 }
 
+function normalizeCourseInput(course: CourseInput): CourseInput {
+  return {
+    courseCode: String(course.courseCode || "").trim(),
+    courseTitle: String(course.courseTitle || "").trim(),
+    category: String(course.category || "").trim().toUpperCase(),
+    semester: Math.max(1, Math.floor(Number(course.semester || 0) || 1)),
+    credits: Math.max(1, Math.floor(Number(course.credits || 0) || 1)),
+  };
+}
+
+function pickNumbers(pool: number[], offset: number, count: number): number[] {
+  if (pool.length === 0 || count <= 0) return [];
+  const values: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    values.push(pool[(offset + i) % pool.length]);
+  }
+  return Array.from(new Set(values)).sort((a, b) => a - b);
+}
+
+function seedFromText(value: string): number {
+  return String(value || "").split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+}
+
+function buildDeterministicOutcomes(
+  programId: string,
+  course: CourseInput,
+  availablePOs: number[],
+  availablePSOs: number[],
+): CourseOutcome[] {
+  const normalized = normalizeCourseInput(course);
+  const title = normalized.courseTitle || normalized.courseCode;
+  const seed = seedFromText(`${normalized.courseCode}|${normalized.courseTitle}`);
+  const poPool =
+    availablePOs.length > 0
+      ? availablePOs
+      : Array.from({ length: 12 }, (_, i) => i + 1);
+
+  const psoPool = availablePSOs.length > 0 ? availablePSOs : [];
+  const verbSet =
+    normalized.semester <= 2
+      ? ["Explain", "Identify", "Apply", "Demonstrate"]
+      : normalized.semester <= 4
+        ? ["Apply", "Analyze", "Implement", "Evaluate"]
+        : ["Design", "Develop", "Integrate", "Evaluate"];
+
+  return [1, 2, 3, 4].map((coNumber, idx) => {
+    const verb = verbSet[idx % verbSet.length];
+    const poMapping = pickNumbers(poPool, seed + idx, idx % 2 === 0 ? 3 : 2);
+    const psoMapping = psoPool.length > 0 ? pickNumbers(psoPool, seed + idx, 1) : [];
+    const rbtLevel =
+      idx <= 0
+        ? "L2 Understanding"
+        : idx === 1
+          ? "L3 Applying"
+          : idx === 2
+            ? "L4 Analyzing"
+            : "L5 Evaluating";
+
+    return {
+      program_id: programId,
+      course_code: normalized.courseCode,
+      course_title: normalized.courseTitle,
+      co_number: coNumber,
+      co_code: `CO${coNumber}`,
+      statement: `${verb} key concepts of ${title} to solve discipline-relevant academic and practical problems.`,
+      rbt_level: rbtLevel,
+      po_mapping: poMapping,
+      pso_mapping: psoMapping,
+      strength: idx >= 2 ? "3" : "2",
+    };
+  });
+}
+
+async function fetchOutcomeReferences(programId: string): Promise<{
+  pos: string[];
+  psos: string[];
+  poNumbers: number[];
+  psoNumbers: number[];
+  warnings: string[];
+}> {
+  const warnings: string[] = [];
+  const client = await pool.connect();
+  try {
+    const pos: string[] = [];
+    const psos: string[] = [];
+    const poNumbers: number[] = [];
+    const psoNumbers: number[] = [];
+
+    try {
+      const poResult = await client.query<{
+        po_code: string;
+        po_title: string | null;
+        po_description: string | null;
+      }>(
+        `SELECT po_code, po_title, po_description
+         FROM program_outcomes
+         WHERE program_id = $1
+         ORDER BY po_code ASC`,
+        [programId],
+      );
+
+      for (const row of poResult.rows) {
+        const code = String(row.po_code || "").trim().toUpperCase();
+        const number = Number(code.replace(/[^0-9]/g, ""));
+        if (Number.isFinite(number) && number >= 1 && number <= 12) {
+          poNumbers.push(number);
+        }
+        const label = [code, row.po_title, row.po_description]
+          .filter((item) => String(item || "").trim())
+          .join(" - ");
+        if (label) pos.push(label);
+      }
+    } catch (error: any) {
+      if (String(error?.code) === "42P01") {
+        warnings.push("program_outcomes table not found; using default PO references.");
+      } else {
+        throw error;
+      }
+    }
+
+    try {
+      const psoResult = await client.query<{
+        pso_number: number | null;
+        pso_statement: string | null;
+      }>(
+        `SELECT pso_number, pso_statement
+         FROM program_psos
+         WHERE program_id = $1
+         ORDER BY pso_number ASC`,
+        [programId],
+      );
+
+      for (const row of psoResult.rows) {
+        const number = Number(row.pso_number || 0);
+        if (Number.isFinite(number) && number >= 1 && number <= 3) {
+          psoNumbers.push(number);
+        }
+        const labelNumber = Number.isFinite(number) && number > 0 ? `PSO${number}` : "PSO";
+        const statement = String(row.pso_statement || "").trim();
+        psos.push(statement ? `${labelNumber} - ${statement}` : labelNumber);
+      }
+    } catch (error: any) {
+      if (String(error?.code) === "42P01") {
+        warnings.push("program_psos table not found; using default PSO references.");
+      } else {
+        throw error;
+      }
+    }
+
+    return {
+      pos,
+      psos,
+      poNumbers: Array.from(new Set(poNumbers)).sort((a, b) => a - b),
+      psoNumbers: Array.from(new Set(psoNumbers)).sort((a, b) => a - b),
+      warnings,
+    };
+  } finally {
+    client.release();
+  }
+}
+
+function deduplicateOutcomes(rows: CourseOutcome[]): CourseOutcome[] {
+  const map = new Map<string, CourseOutcome>();
+  for (const row of rows) {
+    const key = `${row.program_id}::${row.course_code}::${row.co_number}`;
+    map.set(key, row);
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.course_code === b.course_code) return a.co_number - b.co_number;
+    return a.course_code.localeCompare(b.course_code);
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as GenerateOutcomesRequest;
     const programId = String(body.programId || "").trim();
-    const programName = String(body.programName || "").trim();
-    const courses = Array.isArray(body.courses) ? body.courses : [];
+    const requestedProgramName = String(body.programName || "").trim();
+    const courses = Array.isArray(body.courses)
+      ? body.courses.map(normalizeCourseInput).filter((c) => !!c.courseCode)
+      : [];
 
     if (!programId) {
       return NextResponse.json({ error: "programId is required" }, { status: 400 });
-    }
-    if (!programName) {
-      return NextResponse.json({ error: "programName is required" }, { status: 400 });
     }
     if (courses.length === 0) {
       return NextResponse.json({ error: "courses array must not be empty" }, { status: 400 });
     }
 
+    const contextResult = await resolveProgramAcademicContext(programId);
+    if (!contextResult.context || contextResult.errors.length > 0) {
+      return NextResponse.json(
+        {
+          error: contextResult.errors[0] || "Unable to resolve program context.",
+          errors: contextResult.errors,
+          warnings: contextResult.warnings,
+        },
+        { status: 400 },
+      );
+    }
+
+    const programName = requestedProgramName || contextResult.context.displayName;
+    if (!programName) {
+      return NextResponse.json(
+        { error: "Program name could not be resolved for outcomes generation." },
+        { status: 400 },
+      );
+    }
+
+    const references = await fetchOutcomeReferences(programId);
     const supabase = await createClient();
     const allOutcomes: CourseOutcome[] = [];
     const errors: string[] = [];
+    const warnings: string[] = [...contextResult.warnings, ...references.warnings];
 
     // Process in batches of 5 to stay within Gemini token limits
     const BATCH_SIZE = 5;
     for (let i = 0; i < courses.length; i += BATCH_SIZE) {
       const batch = courses.slice(i, i + BATCH_SIZE);
-      const { parsed, error: geminiError } = await callGeminiForOutcomes(programName, batch);
+      const { parsed, error: geminiError } = await callGeminiForOutcomes(
+        programName,
+        batch,
+        references,
+      );
 
       if (geminiError || !parsed) {
         const batchCodes = batch.map((c) => c.courseCode).join(", ");
-        errors.push(`Batch [${batchCodes}]: ${geminiError ?? "Unknown error"}`);
+        warnings.push(
+          `Batch [${batchCodes}] used deterministic fallback outcomes (${geminiError ?? "Unknown Gemini error"}).`,
+        );
+        for (const course of batch) {
+          allOutcomes.push(
+            ...buildDeterministicOutcomes(
+              programId,
+              course,
+              references.poNumbers,
+              references.psoNumbers,
+            ),
+          );
+        }
         continue;
       }
 
       const parsedCourses = Array.isArray(parsed.courses) ? parsed.courses : [];
+      const parsedCourseCodes = new Set<string>();
 
       for (const parsedCourse of parsedCourses) {
         const courseCode = String(parsedCourse.courseCode || "").trim();
         if (!courseCode) continue;
 
         const outcomes = Array.isArray(parsedCourse.outcomes) ? parsedCourse.outcomes : [];
+        let hasValidOutcome = false;
 
         for (const outcome of outcomes) {
           const coCode = String(outcome.co_code || "").trim();
@@ -226,6 +462,8 @@ export async function POST(request: Request) {
           allOutcomes.push({
             program_id: programId,
             course_code: courseCode,
+            course_title:
+              batch.find((course) => course.courseCode === courseCode)?.courseTitle || "",
             co_number: coNumber,
             co_code: coCode,
             statement,
@@ -234,15 +472,37 @@ export async function POST(request: Request) {
             pso_mapping: psoMapping,
             strength,
           });
+          hasValidOutcome = true;
         }
+
+        if (hasValidOutcome) {
+          parsedCourseCodes.add(courseCode);
+        }
+      }
+
+      for (const course of batch) {
+        if (parsedCourseCodes.has(course.courseCode)) continue;
+        warnings.push(
+          `No AI outcomes were returned for ${course.courseCode}; deterministic fallback outcomes were used.`,
+        );
+        allOutcomes.push(
+          ...buildDeterministicOutcomes(
+            programId,
+            course,
+            references.poNumbers,
+            references.psoNumbers,
+          ),
+        );
       }
     }
 
+    const uniqueOutcomes = deduplicateOutcomes(allOutcomes);
+
     // Upsert outcomes to database
-    if (allOutcomes.length > 0) {
+    if (uniqueOutcomes.length > 0) {
       const { error: upsertError } = await supabase
         .from("curriculum_course_outcomes")
-        .upsert(allOutcomes, {
+        .upsert(uniqueOutcomes, {
           onConflict: "program_id, course_code, co_number",
         });
 
@@ -252,7 +512,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ outcomes: allOutcomes, errors });
+    return NextResponse.json({ outcomes: uniqueOutcomes, errors, warnings });
   } catch (error: any) {
     console.error("Generate outcomes error:", error);
     return NextResponse.json(

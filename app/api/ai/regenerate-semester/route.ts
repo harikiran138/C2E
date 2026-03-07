@@ -9,12 +9,19 @@ import {
   SemesterCategoryCountInput,
   validateSemesterRegenerationRules,
 } from "@/lib/curriculum/engine";
+import { CurriculumValidator } from "@/lib/curriculum/validator";
+import {
+  resolveProgramAcademicContext,
+  validateAcademicFlowReadiness,
+} from "@/lib/curriculum/program-context";
 
 interface RegenerateSemesterRequest {
   semester?: number;
   curriculum?: GeneratedCurriculum;
   enableAiTitles?: boolean;
+  programId?: string;
   programName?: string;
+  strictAcademicFlow?: boolean;
   totalCredits?: number;
   semesterCount?: number;
   categoryPercentages?: Partial<Record<CategoryCode, number>>;
@@ -49,9 +56,51 @@ export async function POST(request: Request) {
 
     if (body.curriculum) {
       curriculum = cloneCurriculum(body.curriculum);
+      if (!String(curriculum.programName || "").trim()) {
+        return NextResponse.json(
+          { error: "Existing curriculum is missing programName." },
+          { status: 400 },
+        );
+      }
     } else {
+      const programId = String(body.programId || "").trim();
+      if (!programId) {
+        return NextResponse.json(
+          { error: "programId is required when curriculum payload is not provided." },
+          { status: 400 },
+        );
+      }
+
+      const contextResult = await resolveProgramAcademicContext(programId);
+      warnings.push(...contextResult.warnings);
+      if (!contextResult.context || contextResult.errors.length > 0) {
+        return NextResponse.json(
+          {
+            errors: contextResult.errors.length
+              ? contextResult.errors
+              : ["Failed to resolve program context."],
+            warnings,
+          },
+          { status: 400 },
+        );
+      }
+
+      const readiness = validateAcademicFlowReadiness(contextResult.context, {
+        strict: body.strictAcademicFlow !== false,
+      });
+      warnings.push(...readiness.warnings);
+      if (readiness.errors.length > 0) {
+        return NextResponse.json(
+          {
+            errors: readiness.errors,
+            warnings,
+          },
+          { status: 400 },
+        );
+      }
+
       const result = buildCurriculum({
-        programName: String(body.programName || ""),
+        programName: contextResult.context.displayName,
         totalCredits: Number(body.totalCredits || 0),
         mode: "AICTE_MODEL",
         semesterCount: Number(body.semesterCount || 0) || undefined,
@@ -117,6 +166,18 @@ export async function POST(request: Request) {
       });
       curriculum = aiResult.curriculum;
       warnings.push(...aiResult.warnings);
+    }
+
+    const validation = new CurriculumValidator(curriculum).validate();
+    warnings.push(...validation.warnings);
+    if (!validation.passed) {
+      return NextResponse.json(
+        {
+          errors: validation.errors,
+          warnings,
+        },
+        { status: 400 },
+      );
     }
 
     return NextResponse.json({

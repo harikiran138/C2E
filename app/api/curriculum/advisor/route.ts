@@ -43,6 +43,43 @@ interface AdvisorRecommendations {
   advisorNotes: string;
 }
 
+function normalizeDistributionToHundred(
+  dist: CategoryDistribution,
+): CategoryDistribution {
+  const keys: Array<keyof CategoryDistribution> = [
+    "BS",
+    "ES",
+    "HSS",
+    "PC",
+    "PE",
+    "OE",
+    "AE",
+    "SE",
+    "PR",
+  ];
+
+  const normalized: CategoryDistribution = {
+    BS: Math.max(0, Math.round(Number(dist.BS || 0))),
+    ES: Math.max(0, Math.round(Number(dist.ES || 0))),
+    HSS: Math.max(0, Math.round(Number(dist.HSS || 0))),
+    PC: Math.max(0, Math.round(Number(dist.PC || 0))),
+    PE: Math.max(0, Math.round(Number(dist.PE || 0))),
+    OE: Math.max(0, Math.round(Number(dist.OE || 0))),
+    MC: 0,
+    AE: Math.max(0, Math.round(Number(dist.AE || 0))),
+    SE: Math.max(0, Math.round(Number(dist.SE || 0))),
+    PR: Math.max(0, Math.round(Number(dist.PR || 0))),
+  };
+
+  const currentTotal = keys.reduce((sum, key) => sum + normalized[key], 0);
+  const delta = 100 - currentTotal;
+  if (delta === 0) return normalized;
+
+  const largestKey = keys.sort((a, b) => normalized[b] - normalized[a])[0] || "PC";
+  normalized[largestKey] = Math.max(0, normalized[largestKey] + delta);
+  return normalized;
+}
+
 function buildUserPrompt(
   programType: string,
   industryFocus: string,
@@ -277,6 +314,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 502 },
       );
     }
+
+    recommendations.categoryDistribution = normalizeDistributionToHundred(
+      recommendations.categoryDistribution,
+    );
 
     return NextResponse.json({ recommendations }, { status: 200 });
   } catch (error: unknown) {

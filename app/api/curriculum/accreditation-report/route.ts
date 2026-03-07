@@ -6,6 +6,7 @@ type ReportType = "NBA" | "NAAC" | "ABET";
 interface AccreditationReportRequest {
   programId: string;
   reportType: ReportType;
+  versionId?: string;
 }
 
 interface CurriculumMatrixRow {
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as AccreditationReportRequest;
     const programId = String(body.programId || "").trim();
     const reportType = body.reportType as ReportType;
+    const versionId = String(body.versionId || "").trim();
 
     if (!programId) {
       return NextResponse.json({ error: "programId is required" }, { status: 400 });
@@ -75,13 +77,19 @@ export async function POST(request: Request) {
     const supabase = await createClient();
 
     // Fetch all data in parallel
+    let coursesQuery = supabase
+      .from("curriculum_generated_courses")
+      .select("*")
+      .eq("program_id", programId);
+
+    if (versionId) {
+      coursesQuery = coursesQuery.eq("version_id", versionId);
+    } else {
+      coursesQuery = coursesQuery.is("version_id", null);
+    }
+
     const [coursesResult, outcomesResult, categoryCreditsResult] = await Promise.all([
-      supabase
-        .from("curriculum_generated_courses")
-        .select("*")
-        .eq("program_id", programId)
-        .order("semester", { ascending: true })
-        .order("course_code", { ascending: true }),
+      coursesQuery.order("semester", { ascending: true }).order("course_code", { ascending: true }),
       supabase
         .from("curriculum_course_outcomes")
         .select("*")

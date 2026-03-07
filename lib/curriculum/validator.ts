@@ -239,6 +239,94 @@ export class CurriculumValidator {
   }
 
   /**
+   * Validates elective progression:
+   * - PE/OE courses should appear only after semester 4.
+   */
+  validateElectiveProgression(): string[] {
+    const errors: string[] = [];
+    const { semesters } = this.curriculum;
+
+    for (const semester of semesters) {
+      if (semester.semester <= 4) {
+        const earlyElectives = semester.courses.filter(
+          (course) => course.category === "PE" || course.category === "OE",
+        );
+        if (earlyElectives.length > 0) {
+          errors.push(
+            `Semester ${semester.semester} contains PE/OE courses (${earlyElectives
+              .map((c) => c.courseCode)
+              .join(", ")}). Electives should start only after semester 4.`,
+          );
+        }
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Soft check: recommends that OE and SE are distributed in a sustained way.
+   */
+  validateSkillAndMultidisciplinaryCoverage(): string[] {
+    const warnings: string[] = [];
+    const { semesters } = this.curriculum;
+
+    const semestersWithOE = semesters.filter((s) =>
+      s.courses.some((course) => course.category === "OE"),
+    );
+    if (semestersWithOE.length === 0) {
+      warnings.push(
+        "No OE (Open Elective) course found. NEP recommends multidisciplinary exposure via open electives.",
+      );
+    }
+
+    const semestersWithSE = semesters.filter((s) =>
+      s.courses.some((course) => course.category === "SE"),
+    );
+    if (semestersWithSE.length < 2) {
+      warnings.push(
+        `SE (Skill Enhancement) appears in ${semestersWithSE.length} semester(s). Recommended coverage is at least 2 semesters.`,
+      );
+    }
+
+    return warnings;
+  }
+
+  /**
+   * Soft check for internship/project progression:
+   * - Mini internship/project around semester 4
+   * - Industry internship around semester 6
+   * - Capstone in final semester (hard-checked separately)
+   */
+  validateInternshipMilestones(): string[] {
+    const warnings: string[] = [];
+    const { semesters } = this.curriculum;
+    const semesterCount = semesters.length;
+    if (semesterCount === 0) return warnings;
+
+    const hasPRNear = (targetSemester: number): boolean =>
+      semesters.some(
+        (semester) =>
+          Math.abs(semester.semester - targetSemester) <= 1 &&
+          semester.courses.some((course) => course.category === "PR"),
+      );
+
+    if (semesterCount >= 4 && !hasPRNear(4)) {
+      warnings.push(
+        "No PR milestone found around semester 4. Consider adding a mini internship/project.",
+      );
+    }
+
+    if (semesterCount >= 6 && !hasPRNear(6)) {
+      warnings.push(
+        "No PR milestone found around semester 6. Consider adding an industry internship.",
+      );
+    }
+
+    return warnings;
+  }
+
+  /**
    * Runs all validation checks and computes an overall score.
    * Score = 100 - (10 * errorCount) - (5 * warningCount), floored at 0.
    */
@@ -252,9 +340,12 @@ export class CurriculumValidator {
     allErrors.push(...this.validateNEPStructure());
     allErrors.push(...this.validateInternship());
     allErrors.push(...this.validateCapstone());
+    allErrors.push(...this.validateElectiveProgression());
 
     // Soft warning checks
     allWarnings.push(...this.validateCategoryRanges());
+    allWarnings.push(...this.validateSkillAndMultidisciplinaryCoverage());
+    allWarnings.push(...this.validateInternshipMilestones());
 
     const rawScore = 100 - allErrors.length * 10 - allWarnings.length * 5;
     const score = Math.max(0, rawScore);

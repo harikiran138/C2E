@@ -58,6 +58,7 @@ function strengthSymbol(str: string) {
 function CourseOutcomesPanelContent() {
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId") ?? "";
+  const [programName, setProgramName] = useState("");
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [outcomes, setOutcomes] = useState<OutcomesMap>({});
@@ -67,6 +68,38 @@ function CourseOutcomesPanelContent() {
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"courses" | "matrix">("courses");
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!programId) return;
+    let isMounted = true;
+
+    fetch("/api/institution/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        const programs = Array.isArray(data?.programs) ? data.programs : [];
+        const selected = programs.find(
+          (item: any) => String(item.id) === String(programId),
+        );
+        const resolvedProgram = String(selected?.program_name || "").trim();
+        const resolvedDegree = String(selected?.degree || "").trim();
+        if (resolvedProgram) {
+          setProgramName(
+            resolvedDegree &&
+              !resolvedProgram.toLowerCase().startsWith(resolvedDegree.toLowerCase())
+              ? `${resolvedDegree} ${resolvedProgram}`
+              : resolvedProgram,
+          );
+        }
+      })
+      .catch(() => {
+        // keep programName empty; backend will resolve it using programId
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [programId]);
 
   // ── Fetch courses on mount ────────────────────────────────────────────────
   useEffect(() => {
@@ -116,7 +149,7 @@ function CourseOutcomesPanelContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           programId,
-          programName: "Engineering Program",
+          programName: programName || undefined,
           courses: courses.map((c) => ({
             courseCode: c.course_code,
             courseTitle: c.course_title,
@@ -188,7 +221,7 @@ function CourseOutcomesPanelContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           programId,
-          programName: "Engineering Program",
+          programName: programName || undefined,
           courses: courses.map((c) => ({
             courseCode: c.course_code,
             courseTitle: c.course_title,

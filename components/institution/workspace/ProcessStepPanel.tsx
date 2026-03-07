@@ -25,6 +25,10 @@ import {
   GeneratedCurriculum,
 } from "@/lib/curriculum/engine";
 import { Save, Loader2, WandSparkles, RefreshCcw } from "lucide-react";
+import {
+  clearCurriculumAdvisorSnapshot,
+  readCurriculumAdvisorSnapshot,
+} from "@/lib/curriculum/advisor-integration";
 
 const CATEGORY_CELL_FIELDS = [
   "design_percent",
@@ -283,10 +287,11 @@ function CurriculumStructurePanel() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isStructureReady, setIsStructureReady] = useState(false);
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId");
-  const programName =
-    searchParams.get("programName") || "B.Tech Computer Science";
+  const requestedProgramName = String(searchParams.get("programName") || "").trim();
+  const [programName, setProgramName] = useState(requestedProgramName);
   const semesterLabels = useMemo(
     () => buildSemesterLabels(programDurationYears),
     [programDurationYears],
@@ -307,14 +312,35 @@ function CurriculumStructurePanel() {
         if (Number.isFinite(years) && years > 0) {
           setProgramDurationYears(years);
         }
+
+        const resolvedProgramName = String(selected?.program_name || "").trim();
+        const resolvedDegree = String(selected?.degree || "").trim();
+        if (resolvedProgramName) {
+          setProgramName(
+            resolvedDegree && !resolvedProgramName.toLowerCase().startsWith(resolvedDegree.toLowerCase())
+              ? `${resolvedDegree} ${resolvedProgramName}`
+              : resolvedProgramName,
+          );
+        } else if (requestedProgramName) {
+          setProgramName(requestedProgramName);
+        }
       })
       .catch(() => {
         // keep default
+        if (requestedProgramName) {
+          setProgramName(requestedProgramName);
+        }
       });
     return () => {
       isMounted = false;
     };
-  }, [programId]);
+  }, [programId, requestedProgramName]);
+
+  useEffect(() => {
+    if (requestedProgramName) {
+      setProgramName(requestedProgramName);
+    }
+  }, [requestedProgramName]);
 
   useEffect(() => {
     const maxSemester = semesterLabels.length;
@@ -325,6 +351,7 @@ function CurriculumStructurePanel() {
   }, [regenerateSemester, semesterLabels]);
 
   useEffect(() => {
+    setIsStructureReady(false);
     setCategoryCredits(
       CURRICULUM_STRUCTURE_ROWS.map((r) => ({
         category_code: r.code,
@@ -360,7 +387,10 @@ function CurriculumStructurePanel() {
       })),
     );
 
-    if (!programId) return;
+    if (!programId) {
+      setIsStructureReady(true);
+      return;
+    }
 
     fetch(`/api/curriculum/structure?programId=${programId}`)
       .then((res) => res.json())
@@ -404,11 +434,41 @@ function CurriculumStructurePanel() {
             }),
           );
         }
+        setIsStructureReady(true);
       })
       .catch(() => {
         // ignore load failure, user can still fill table
+        setIsStructureReady(true);
       });
   }, [programId, semesterLabels]);
+
+  useEffect(() => {
+    if (!programId || !isStructureReady) return;
+
+    const snapshot = readCurriculumAdvisorSnapshot(programId);
+    if (!snapshot) return;
+
+    const distribution = snapshot.categoryDistribution || {};
+    setTotalCredits(String(Math.max(0, Math.floor(Number(snapshot.totalCredits || 0)))));
+    setCategoryCredits((prev) =>
+      prev.map((row) => {
+        const rawPercent = Number(distribution[row.category_code] || 0);
+        return {
+          ...row,
+          ...ZEROED_CATEGORY_FIELDS,
+          design_percent:
+            row.category_code === "MC" ? 0 : Math.max(0, Number(rawPercent.toFixed(2))),
+        };
+      }),
+    );
+    setGenerationWarnings((prev) => [
+      `Applied AI Curriculum Advisor recommendation generated on ${new Date(
+        snapshot.createdAt || Date.now(),
+      ).toLocaleString()}.`,
+      ...prev,
+    ]);
+    clearCurriculumAdvisorSnapshot(programId);
+  }, [programId, isStructureReady]);
 
   const syncGeneratedData = (curriculum: GeneratedCurriculum) => {
     setTotalCredits(String(curriculum.totalCredits));
@@ -687,9 +747,25 @@ function CurriculumStructurePanel() {
     );
   };
 
+  const ensureProgramContext = (): boolean => {
+    if (!programId) {
+      setGenerationErrors(["Program ID is required. Please select a program."]);
+      return false;
+    }
+    if (!programName) {
+      setGenerationErrors([
+        "Program name could not be resolved. Reload the page or re-select the program.",
+      ]);
+      return false;
+    }
+    return true;
+  };
+
   const aiFillAndGenerate = async () => {
     setGenerationErrors([]);
     setGenerationWarnings([]);
+
+    if (!ensureProgramContext()) return;
 
     let total = Number(totalCredits);
     let categoryPercentages = buildCategoryPercentages();
@@ -731,12 +807,14 @@ function CurriculumStructurePanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          programId,
           programName,
           totalCredits: total,
           semesterCount: semesterLabels.length,
           categoryPercentages,
           semesterCategoryCounts,
           enableAiTitles: true,
+          strictAcademicFlow: true,
         }),
       });
 
@@ -775,6 +853,8 @@ function CurriculumStructurePanel() {
     setGenerationErrors([]);
     setGenerationWarnings([]);
 
+    if (!ensureProgramContext()) return;
+
     const total = Number(totalCredits);
     if (!Number.isInteger(total) || total <= 0) {
       setGenerationErrors(["Total credits must be a positive whole number."]);
@@ -795,12 +875,14 @@ function CurriculumStructurePanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          programId,
           programName,
           totalCredits: total,
           semesterCount: semesterLabels.length,
           categoryPercentages: buildCategoryPercentages(),
           semesterCategoryCounts: buildSemesterCategoryCounts(),
           enableAiTitles: true,
+          strictAcademicFlow: true,
         }),
       });
 
@@ -834,6 +916,8 @@ function CurriculumStructurePanel() {
     setGenerationErrors([]);
     setGenerationWarnings([]);
 
+    if (!ensureProgramContext()) return;
+
     const total = Number(totalCredits);
     if (!Number.isInteger(total) || total <= 0) {
       setGenerationErrors(["Total credits must be a positive whole number."]);
@@ -854,12 +938,14 @@ function CurriculumStructurePanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          programId,
           programName,
           totalCredits: total,
           semesterCount: semesterLabels.length,
           categoryPercentages: buildCategoryPercentages(),
           semesterCategoryCounts: [],
           enableAiTitles: true,
+          strictAcademicFlow: true,
         }),
       });
 
@@ -914,7 +1000,9 @@ function CurriculumStructurePanel() {
         body: JSON.stringify({
           semester: Number(regenerateSemester),
           curriculum: generatedCurriculum,
+          programId,
           enableAiTitles: true,
+          strictAcademicFlow: true,
         }),
       });
       const data = await res.json();
@@ -972,6 +1060,7 @@ function CurriculumStructurePanel() {
           },
           semesterCategories,
           curriculum: generatedCurriculum,
+          strictAcademicFlow: true,
         }),
       });
       const data = await res.json();

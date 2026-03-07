@@ -141,7 +141,7 @@ const CATEGORY_LEVEL_WEIGHTS: Record<CategoryCode, Record<SemesterLevel, number>
   },
   OE: {
     Foundation: 0,
-    "Engineering Base": 1,
+    "Engineering Base": 0,
     "Professional Core": 2,
     Specialization: 4,
     Capstone: 1,
@@ -576,10 +576,15 @@ export function buildCurriculum(input: BuildCurriculumInput): BuildCurriculumRes
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const programName = String(input.programName || "").trim() || "B.Tech Program";
+  const programName = String(input.programName || "").trim();
   const totalCredits = Math.floor(Number(input.totalCredits || 0));
   const semesterCount = sanitizeSemesterCount(input.semesterCount);
   const mode: CurriculumMode = input.mode || "AICTE_MODEL";
+
+  if (!programName) {
+    errors.push("programName is required.");
+    return { curriculum: null, errors, warnings };
+  }
 
   if (!Number.isInteger(totalCredits) || totalCredits <= 0) {
     errors.push("totalCredits must be a positive whole number.");
@@ -949,9 +954,28 @@ function normalizeSemesterCounts(input: {
       const raw = Number(row[category] || 0);
       if (raw <= 0) return 0;
       const level = classifySemester(semIndex + 1, semesterCount);
+      const semesterNumber = semIndex + 1;
+
+      if ((category === "PE" || category === "OE") && semesterNumber <= 4) {
+        warnings.push(
+          `${category} allocation in semester ${semesterNumber} was moved because electives are allowed only after semester 4.`,
+        );
+        return 0;
+      }
+
+      if (category === "PR" && semesterNumber < 4) {
+        warnings.push(
+          `PR allocation in semester ${semesterNumber} was moved because internship/project starts from semester 4.`,
+        );
+        return 0;
+      }
+      if (category === "PR" && semesterNumber >= 4) {
+        return raw;
+      }
+
       if (!isCategoryAllowedInLevel(category, level)) {
         warnings.push(
-          `${category} allocation in semester ${semIndex + 1} was moved to a valid semester level.`,
+          `${category} allocation in semester ${semesterNumber} was moved to a valid semester level.`,
         );
         return 0;
       }
@@ -986,8 +1010,23 @@ function autoDistributeByLevel(
     const level = classifySemester(sem, semesterCount);
     const baseWeight = CATEGORY_LEVEL_WEIGHTS[category][level] || 0;
 
+    if ((category === "PE" || category === "OE") && sem <= 4) {
+      weights.push(0);
+      continue;
+    }
+
+    if (category === "PR" && sem < 4) {
+      weights.push(0);
+      continue;
+    }
+
     if (category === "PR" && sem === semesterCount) {
-      weights.push(baseWeight + 3);
+      weights.push(baseWeight + 6);
+      continue;
+    }
+
+    if (category === "PR" && (sem === 4 || sem === 6)) {
+      weights.push(baseWeight + 2);
       continue;
     }
 

@@ -35,14 +35,27 @@ export async function POST(request: Request) {
     const body = await request.json();
     const programId = String(body.programId || "").trim();
     const version = String(body.version || "").trim();
-    const year = body.year !== undefined ? Number(body.year) : null;
+    const year = Number(body.year);
     const regulationName = String(body.regulationName || "").trim();
+    const status = String(body.status || "draft").trim().toLowerCase();
 
     if (!programId) {
       return NextResponse.json({ error: "programId is required" }, { status: 400 });
     }
     if (!version) {
       return NextResponse.json({ error: "version is required" }, { status: 400 });
+    }
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      return NextResponse.json(
+        { error: "year is required and must be a valid 4-digit year." },
+        { status: 400 },
+      );
+    }
+    if (!["draft", "active", "archived"].includes(status)) {
+      return NextResponse.json(
+        { error: "status must be one of: draft, active, archived." },
+        { status: 400 },
+      );
     }
 
     const supabase = await createClient();
@@ -52,14 +65,32 @@ export async function POST(request: Request) {
       .insert({
         program_id: programId,
         version,
-        year: year ?? null,
+        year,
         regulation_name: regulationName || null,
-        status: "draft",
+        status,
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    // Keep normalized curriculum catalog in sync for accreditation/version tracking.
+    const { error: curriculumSyncError } = await supabase
+      .from("curriculums")
+      .upsert(
+        {
+          program_id: programId,
+          regulation_year: year,
+          version,
+          total_credits: null,
+          approval_status: "draft",
+        },
+        { onConflict: "program_id, regulation_year, version" },
+      );
+
+    if (curriculumSyncError && (curriculumSyncError as any)?.code !== "42P01") {
+      console.warn("Curriculum catalog sync warning:", curriculumSyncError.message);
+    }
 
     return NextResponse.json({ version: newVersion }, { status: 201 });
   } catch (error: any) {
