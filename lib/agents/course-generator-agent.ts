@@ -6,6 +6,8 @@ import {
   GeneratedCurriculum,
 } from "@/lib/curriculum/engine";
 import { applyGeminiCourseTitles } from "@/lib/curriculum/ai";
+import { CurriculumValidator } from "@/lib/curriculum/validator";
+import { CurriculumRepairEngine } from "@/lib/curriculum/repair-engine";
 
 export interface CourseGeneratorInput {
   programName: string;
@@ -47,6 +49,29 @@ export async function runCourseGeneratorAgent(
     const aiResult = await applyGeminiCourseTitles(curriculum);
     curriculum = aiResult.curriculum;
     warnings.push(...aiResult.warnings);
+  }
+
+  let validation = new CurriculumValidator(curriculum).validate();
+  warnings.push(...validation.warnings);
+  if (!validation.passed) {
+    const repaired = CurriculumRepairEngine.repair(curriculum);
+    curriculum = repaired.curriculum;
+    warnings.push(...repaired.warnings);
+    warnings.push(
+      ...repaired.actions.map(
+        (action) => `CurriculumRepairEngine (${action.step}): ${action.detail}`,
+      ),
+    );
+    validation = new CurriculumValidator(curriculum).validate();
+    warnings.push(...validation.warnings);
+  }
+
+  if (!validation.passed) {
+    return {
+      data: { curriculum: null },
+      warnings,
+      errors: validation.errors,
+    };
   }
 
   return {

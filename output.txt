@@ -1,0 +1,10 @@
+Generate Status: 400
+Generate Error: {
+  errors: [
+    'Category percentage total must be exactly 100. Current total is 116.00.'
+  ],
+  warnings: [
+    'PEO-PO matrix is not configured yet. Add matrix mapping for full OBE traceability.',
+    'Consistency matrix is not configured yet. Add matrix validation for full academic pipeline integrity.'
+  ]
+}

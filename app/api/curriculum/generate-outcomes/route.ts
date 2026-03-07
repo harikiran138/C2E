@@ -46,6 +46,15 @@ const RBT_LEVELS = [
   "L6 Creating",
 ];
 
+const BLOOM_ALLOWED_VERBS = [
+  "Understand",
+  "Apply",
+  "Analyze",
+  "Design",
+  "Evaluate",
+  "Create",
+] as const;
+
 function buildOutcomesPrompt(
   programName: string,
   courses: CourseInput[],
@@ -67,11 +76,15 @@ function buildOutcomesPrompt(
 
 For each course, generate 4 to 6 Course Outcomes (COs). Each CO must have:
 - co_code: "CO1", "CO2", ... up to "CO6"
-- statement: A single sentence starting with a Bloom's Taxonomy action verb (e.g., "Apply", "Analyze", "Design", "Implement", "Evaluate", "Recall", "Explain", "Demonstrate")
+- statement: A single sentence starting with one of these verbs only: ${BLOOM_ALLOWED_VERBS.join(", ")}
 - rbt_level: One of exactly: "L1 Remembering", "L2 Understanding", "L3 Applying", "L4 Analyzing", "L5 Evaluating", "L6 Creating"
 - po_mapping: Array of 2 to 3 integers representing Program Outcome numbers (each in range 1-12)
 - pso_mapping: Array of 0 to 2 integers representing Program Specific Outcome numbers (each in range 1-3); use [] if none
 - strength: One of "1" (Low), "2" (Medium), "3" (High) indicating the correlation strength
+
+Hard constraints:
+- Do not use vague phrases like "Learn about".
+- Keep each CO specific, measurable, and assessment-ready.
 
 Program Outcome references:
 ${poReferenceText}
@@ -195,6 +208,22 @@ function normalizeCourseInput(course: CourseInput): CourseInput {
   };
 }
 
+function startsWithAllowedBloomVerb(statement: string): boolean {
+  const normalized = String(statement || "").trim().toLowerCase();
+  return BLOOM_ALLOWED_VERBS.some((verb) =>
+    normalized.startsWith(`${verb.toLowerCase()} `),
+  );
+}
+
+function isVagueStatement(statement: string): boolean {
+  const normalized = String(statement || "").trim().toLowerCase();
+  return (
+    normalized.includes("learn about") ||
+    normalized.includes("understand about") ||
+    normalized.includes("know about")
+  );
+}
+
 function pickNumbers(pool: number[], offset: number, count: number): number[] {
   if (pool.length === 0 || count <= 0) return [];
   const values: number[] = [];
@@ -225,10 +254,10 @@ function buildDeterministicOutcomes(
   const psoPool = availablePSOs.length > 0 ? availablePSOs : [];
   const verbSet =
     normalized.semester <= 2
-      ? ["Explain", "Identify", "Apply", "Demonstrate"]
+      ? ["Understand", "Apply", "Analyze", "Design"]
       : normalized.semester <= 4
-        ? ["Apply", "Analyze", "Implement", "Evaluate"]
-        : ["Design", "Develop", "Integrate", "Evaluate"];
+        ? ["Apply", "Analyze", "Design", "Evaluate"]
+        : ["Analyze", "Design", "Evaluate", "Create"];
 
   return [1, 2, 3, 4].map((coNumber, idx) => {
     const verb = verbSet[idx % verbSet.length];
@@ -865,6 +894,9 @@ export async function POST(request: Request) {
 
           const statement = String(outcome.statement || "").trim();
           if (!statement) continue;
+          if (!startsWithAllowedBloomVerb(statement) || isVagueStatement(statement)) {
+            continue;
+          }
 
           const rbtLevel = RBT_LEVELS.includes(outcome.rbt_level)
             ? outcome.rbt_level

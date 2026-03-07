@@ -5,7 +5,9 @@ import {
   CategoryCode,
   SemesterCategoryCountInput,
 } from "@/lib/curriculum/engine";
-import { CurriculumValidator } from "@/lib/curriculum/validator";
+import { CurriculumValidator, type ValidationResult } from "@/lib/curriculum/validator";
+import { CurriculumRepairEngine } from "@/lib/curriculum/repair-engine";
+import { OBEValidator } from "@/lib/curriculum/obe-validator";
 import {
   resolveProgramAcademicContext,
   validateAcademicFlowReadiness,
@@ -50,6 +52,7 @@ export async function POST(request: Request) {
 
     const readiness = validateAcademicFlowReadiness(contextResult.context, {
       strict: body.strictAcademicFlow !== false,
+      minPsos: 0,
     });
     warnings.push(...readiness.warnings);
     if (readiness.errors.length > 0) {
@@ -69,7 +72,36 @@ export async function POST(request: Request) {
       );
     }
 
-    const totalCredits = Number(body.totalCredits || 0);
+    const obeValidation = new OBEValidator(contextResult.context).validate();
+    warnings.push(...obeValidation.warnings);
+    if (obeValidation.blocked) {
+      if (body.strictAcademicFlow !== false) {
+        return NextResponse.json(
+          {
+            errors: obeValidation.errors,
+            warnings,
+            programContext: {
+              programId: contextResult.context.programId,
+              programName: contextResult.context.displayName,
+              peoCount: contextResult.context.peoCount,
+              poCount: contextResult.context.poCount,
+              psoCount: contextResult.context.psoCount,
+            },
+          },
+          { status: 400 },
+        );
+      } else {
+        warnings.push(...obeValidation.errors);
+      }
+    }
+
+    const requestedTotalCredits = Number(body.totalCredits || 160);
+    const totalCredits = 160;
+    if (requestedTotalCredits !== totalCredits) {
+      warnings.push(
+        `Total credits normalized to ${totalCredits} (requested ${requestedTotalCredits}).`,
+      );
+    }
 
     const result = buildCurriculum({
       programName: contextResult.context.displayName,
@@ -95,21 +127,33 @@ export async function POST(request: Request) {
 
     if (body.enableAiTitles !== false) {
       const aiResult = await applyGeminiCourseTitles(curriculum);
-      curriculum = aiResult.curriculum;
       warnings.push(...aiResult.warnings);
+      curriculum = aiResult.curriculum;
     }
 
-    const validation = new CurriculumValidator(curriculum).validate();
+    let repairActions: Array<{ step: string; detail: string }> = [];
+    let validation: ValidationResult = new CurriculumValidator(curriculum).validate();
     warnings.push(...validation.warnings);
 
     if (!validation.passed) {
-      return NextResponse.json(
-        {
-          errors: validation.errors,
-          warnings,
-        },
-        { status: 400 },
-      );
+      const repaired = CurriculumRepairEngine.repair(curriculum);
+      repairActions = repaired.actions;
+      warnings.push(...repaired.warnings);
+      curriculum = repaired.curriculum;
+
+      validation = new CurriculumValidator(curriculum).validate();
+      warnings.push(...validation.warnings);
+
+      if (!validation.passed) {
+        return NextResponse.json(
+          {
+            errors: validation.errors,
+            warnings,
+            repairActions,
+          },
+          { status: 400 },
+        );
+      }
     }
 
     return NextResponse.json({
@@ -121,6 +165,7 @@ export async function POST(request: Request) {
         poCount: contextResult.context.poCount,
         psoCount: contextResult.context.psoCount,
       },
+      repairActions,
       warnings,
     });
   } catch (error: any) {

@@ -1,0 +1,29 @@
+Generate Status: 400
+Generate Error: {
+  "errors": [
+    "Fundamental backbone violation: at least one course matching [engineering mechanics, basic electrical, engineering drawing, programming fundamentals] is required.",
+    "Progression violation: Programming Fundamentals -> Data Structures order is invalid (prerequisite semester 5, dependent semester 2).",
+    "Progression violation: Data Structures -> Algorithms order is invalid (prerequisite semester 2, dependent semester 2)."
+  ],
+  "warnings": [
+    "PEO-PO matrix is not configured yet. Add matrix mapping for full OBE traceability.",
+    "Consistency matrix is not configured yet. Add matrix validation for full academic pipeline integrity.",
+    "Semester 5 has 31 credits; rebalance may be needed around ideal 20.0 credits.",
+    "Semester 8 has 5 credits; rebalance may be needed around ideal 20.0 credits.",
+    "Semester 6 CSE06ES01: title \"DevOps and Agile Methodologies\" was rejected because it does not align with Computer Science and Engineering.",
+    "Semester 6 CSE06PC02: title \"Theory of Computation\" was rejected because it does not align with Computer Science and Engineering.",
+    "Semester 6 CSE06PC05: title \"Cloud Computing Fundamentals\" was rejected because it does not align with Computer Science and Engineering.",
+    "Semester 7 CSE07PC01: title \"Distributed Systems\" was rejected because it does not align with Computer Science and Engineering.",
+    "Semester 7 CSE07PC02: title \"Blockchain Technology and Applications\" was rejected because it does not align with Computer Science and Engineering.",
+    "Semester 7 CSE07PE04: title \"Natural Language Processing\" was rejected because it does not align with Computer Science and Engineering.",
+    "Semester 7 CSE07PE05: title \"Generative AI and Large Language Models\" was rejected because it does not align with Computer Science and Engineering.",
+    "Category BS is at 15.6% which is below the AICTE recommended minimum of 20%.",
+    "Category PC is at 31.3% which is above the AICTE recommended maximum of 30%.",
+    "Category OE is at 5.6% which is below the AICTE recommended minimum of 10%.",
+    "Category AE is at 3.1% which is below the AICTE recommended minimum of 5%.",
+    "Category SE is at 3.1% which is below the AICTE recommended minimum of 5%.",
+    "Category PR is at 3.1% which is below the AICTE recommended minimum of 8%.",
+    "No PR milestone found around semester 4. Consider adding a mini internship/project.",
+    "No PR milestone found around semester 6. Consider adding an industry internship."
+  ]
+}

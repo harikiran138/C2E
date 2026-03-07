@@ -14,6 +14,8 @@ import {
   resolveProgramAcademicContext,
   validateAcademicFlowReadiness,
 } from "@/lib/curriculum/program-context";
+import { OBEValidator } from "@/lib/curriculum/obe-validator";
+import { CurriculumRepairEngine } from "@/lib/curriculum/repair-engine";
 
 interface RegenerateSemesterRequest {
   semester?: number;
@@ -87,6 +89,7 @@ export async function POST(request: Request) {
 
       const readiness = validateAcademicFlowReadiness(contextResult.context, {
         strict: body.strictAcademicFlow !== false,
+        minPsos: 0,
       });
       warnings.push(...readiness.warnings);
       if (readiness.errors.length > 0) {
@@ -99,9 +102,32 @@ export async function POST(request: Request) {
         );
       }
 
+      const obeValidation = new OBEValidator(contextResult.context).validate();
+      warnings.push(...obeValidation.warnings);
+      if (obeValidation.blocked) {
+        if (body.strictAcademicFlow !== false) {
+          return NextResponse.json(
+            {
+              errors: obeValidation.errors,
+              warnings,
+            },
+            { status: 400 },
+          );
+        } else {
+          warnings.push(...obeValidation.errors);
+        }
+      }
+
+      const requestedTotalCredits = Number(body.totalCredits || 160);
+      if (requestedTotalCredits !== 160) {
+        warnings.push(
+          `Total credits normalized to 160 for semester regeneration (requested ${requestedTotalCredits}).`,
+        );
+      }
+
       const result = buildCurriculum({
         programName: contextResult.context.displayName,
-        totalCredits: Number(body.totalCredits || 0),
+        totalCredits: 160,
         mode: "AICTE_MODEL",
         semesterCount: Number(body.semesterCount || 0) || undefined,
         categoryPercentages: body.categoryPercentages || {},
@@ -168,20 +194,33 @@ export async function POST(request: Request) {
       warnings.push(...aiResult.warnings);
     }
 
-    const validation = new CurriculumValidator(curriculum).validate();
+    let repairActions: Array<{ step: string; detail: string }> = [];
+    let validation = new CurriculumValidator(curriculum).validate();
     warnings.push(...validation.warnings);
     if (!validation.passed) {
-      return NextResponse.json(
-        {
-          errors: validation.errors,
-          warnings,
-        },
-        { status: 400 },
-      );
+      const repaired = CurriculumRepairEngine.repair(curriculum);
+      repairActions = repaired.actions;
+      warnings.push(...repaired.warnings);
+      curriculum = repaired.curriculum;
+
+      validation = new CurriculumValidator(curriculum).validate();
+      warnings.push(...validation.warnings);
+
+      if (!validation.passed) {
+        return NextResponse.json(
+          {
+            errors: validation.errors,
+            warnings,
+            repairActions,
+          },
+          { status: 400 },
+        );
+      }
     }
 
     return NextResponse.json({
       curriculum,
+      repairActions,
       warnings,
     });
   } catch (error: any) {

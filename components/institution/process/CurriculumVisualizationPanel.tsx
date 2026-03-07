@@ -103,6 +103,8 @@ const renderCustomLabel = ({
 function CurriculumVisualizationPanelContent() {
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId") ?? "";
+  const versionId = searchParams.get("versionId") ?? "";
+  const curriculumId = searchParams.get("curriculumId") ?? "";
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -112,7 +114,14 @@ function CurriculumVisualizationPanelContent() {
     if (!programId) return;
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/curriculum/courses?programId=${programId}`);
+      const params = new URLSearchParams({ programId });
+      if (curriculumId) {
+        params.set("curriculumId", curriculumId);
+      } else if (versionId) {
+        params.set("versionId", versionId);
+      }
+
+      const res = await fetch(`/api/curriculum/courses?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setCourses(data.courses ?? []);
@@ -126,8 +135,7 @@ function CurriculumVisualizationPanelContent() {
 
   useEffect(() => {
     fetchCourses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [programId]);
+  }, [curriculumId, programId, versionId]);
 
   // ── Computed data ─────────────────────────────────────────────────────────
 

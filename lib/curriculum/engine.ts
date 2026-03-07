@@ -31,11 +31,13 @@ export interface GeneratedCourse {
   category: CategoryCode;
   courseCode: string;
   courseTitle: string;
+  prerequisites?: string[];
   tHours: number;
   tuHours: number;
   llHours: number;
   twHours: number;
   totalHours: number;
+  learningHours?: number;
   credits: number;
 }
 
@@ -685,11 +687,13 @@ export function buildCurriculum(input: BuildCurriculumInput): BuildCurriculumRes
             semesterCourseSequence[semIndex],
           ),
           courseTitle: title,
+          prerequisites: [],
           tHours: hourBreakdown.ci,
           tuHours: hourBreakdown.tutorial,
           llHours: hourBreakdown.lab,
           twHours: hourBreakdown.teamwork,
           totalHours: hourBreakdown.total,
+          learningHours: hourBreakdown.total,
           credits: courseCredits,
         });
       }
@@ -725,11 +729,13 @@ export function buildCurriculum(input: BuildCurriculumInput): BuildCurriculumRes
             semesterCourseSequence[semIndex],
           ),
           courseTitle: title,
+          prerequisites: [],
           tHours: hourBreakdown.ci,
           tuHours: hourBreakdown.tutorial,
           llHours: hourBreakdown.lab,
           twHours: hourBreakdown.teamwork,
           totalHours: hourBreakdown.total,
+          learningHours: hourBreakdown.total,
           credits: courseCredits,
         });
       }

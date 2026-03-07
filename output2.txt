@@ -1,0 +1,22 @@
+Generate Status: 400
+Generate Error: {
+  errors: [
+    'Basic Sciences credits (32) must be within 20-30.',
+    'Professional Core credits (48) must be within 50-70.',
+    'Core program backbone violation for CSE: missing operating systems, database.',
+    'Emerging technology integration violation for CSE: add at least 2 higher-semester emerging courses.'
+  ],
+  warnings: [
+    'PEO-PO matrix is not configured yet. Add matrix mapping for full OBE traceability.',
+    'Consistency matrix is not configured yet. Add matrix validation for full academic pipeline integrity.',
+    'Semester 5 has 31 credits; rebalance may be needed around ideal 20.0 credits.',
+    'Semester 8 has 3 credits; rebalance may be needed around ideal 20.0 credits.',
+    'Category OE is at 5.0% which is below the AICTE recommended minimum of 10%.',
+    'Category AE is at 3.1% which is below the AICTE recommended minimum of 5%.',
+    'Category SE is at 1.9% which is below the AICTE recommended minimum of 5%.',
+    'Category PR is at 1.9% which is below the AICTE recommended minimum of 8%.',
+    'SE (Skill Enhancement) appears in 1 semester(s). Recommended coverage is at least 2 semesters.',
+    'No PR milestone found around semester 4. Consider adding a mini internship/project.',
+    'No PR milestone found around semester 6. Consider adding an industry internship.'
+  ]
+}

@@ -17,7 +17,6 @@ import CourseOutcomesPanel from "@/components/institution/process/CourseOutcomes
 import CurriculumFeedbackPanel from "@/components/institution/process/CurriculumFeedbackPanel";
 import AccreditationReportPanel from "@/components/institution/process/AccreditationReportPanel";
 import AccreditationAnalyticsPanel from "@/components/institution/process/AccreditationAnalyticsPanel";
-import CurriculumAdvisorPanel from "@/components/institution/process/CurriculumAdvisorPanel";
 import VMPEOFeedbackDashboard from "@/components/institution/VMPEOFeedbackDashboard";
 import {
   CATEGORY_CODES,
@@ -145,16 +144,16 @@ const SEMESTER_CATEGORY_COLUMNS = [
 
 const SAMPLE_TOTAL_CREDITS = 160;
 const SAMPLE_CATEGORY_PERCENTAGES: Record<string, number> = {
-  BS: 22,
-  ES: 18,
-  HSS: 12,
-  PC: 28,
+  BS: 13.75,
+  ES: 16.25,
+  HSS: 8.75,
+  PC: 31.25,
   PE: 10,
   OE: 5,
   MC: 0,
-  AE: 3,
-  SE: 1,
-  PR: 1,
+  AE: 3.75,
+  SE: 2.5,
+  PR: 8.75,
 };
 
 const ZEROED_CATEGORY_FIELDS = {
@@ -703,9 +702,231 @@ function CurriculumStructurePanel() {
   };
 
   const fillSampleData = () => {
+    const allocateSampleCredits = (total: number): Record<string, number> => {
+      const rows = CURRICULUM_STRUCTURE_ROWS.map((item) => {
+        const percentage = Number(SAMPLE_CATEGORY_PERCENTAGES[item.code] || 0);
+        const raw = (total * percentage) / 100;
+        const floorValue = Math.floor(raw);
+        return {
+          code: item.code,
+          raw,
+          floorValue,
+          fraction: raw - floorValue,
+        };
+      });
+
+      const allocation = rows.reduce(
+        (acc, item) => ({ ...acc, [item.code]: item.floorValue }),
+        {} as Record<string, number>,
+      );
+
+      let remaining =
+        total - Object.values(allocation).reduce((sum, value) => sum + value, 0);
+
+      const sorted = [...rows]
+        .filter((item) => item.code !== "MC")
+        .sort((left, right) => {
+          if (right.fraction === left.fraction) return right.raw - left.raw;
+          return right.fraction - left.fraction;
+        });
+
+      let index = 0;
+      while (remaining > 0 && sorted.length > 0) {
+        const target = sorted[index % sorted.length];
+        allocation[target.code] = (allocation[target.code] || 0) + 1;
+        remaining -= 1;
+        index += 1;
+      }
+
+      allocation.MC = 0;
+      return allocation;
+    };
+
+    const buildCategorySampleMetrics = (
+      categoryCode: string,
+      credits: number,
+      courses: number,
+    ) => {
+      const totalHours = credits * 30;
+      const safeCourses = Math.max(0, courses);
+      if (categoryCode === "MC") {
+        return {
+          ...ZEROED_CATEGORY_FIELDS,
+          credit: 0,
+          hours_total: 0,
+        };
+      }
+
+      if (categoryCode === "PR") {
+        const hours_ci = credits * 4;
+        const hours_t = credits * 3;
+        const hours_li = credits * 14;
+        const hours_twd = totalHours - (hours_ci + hours_t + hours_li);
+        return {
+          courses_t: 0,
+          courses_p: 0,
+          courses_tu: 0,
+          courses_ll: safeCourses,
+          hours_ci,
+          hours_t,
+          hours_li,
+          hours_twd,
+          hours_total: totalHours,
+          credit: credits,
+        };
+      }
+
+      if (categoryCode === "SE") {
+        const hours_ci = credits * 6;
+        const hours_t = credits * 4;
+        const hours_li = credits * 14;
+        const hours_twd = totalHours - (hours_ci + hours_t + hours_li);
+        return {
+          courses_t: Math.max(0, Math.round(safeCourses * 0.25)),
+          courses_p: 0,
+          courses_tu: 0,
+          courses_ll: safeCourses,
+          hours_ci,
+          hours_t,
+          hours_li,
+          hours_twd,
+          hours_total: totalHours,
+          credit: credits,
+        };
+      }
+
+      if (categoryCode === "ES") {
+        const hours_ci = credits * 10;
+        const hours_t = credits * 10;
+        const hours_li = credits * 8;
+        const hours_twd = totalHours - (hours_ci + hours_t + hours_li);
+        return {
+          courses_t: safeCourses,
+          courses_p: 0,
+          courses_tu: Math.max(0, Math.round(safeCourses * 0.3)),
+          courses_ll: Math.max(0, Math.round(safeCourses * 0.4)),
+          hours_ci,
+          hours_t,
+          hours_li,
+          hours_twd,
+          hours_total: totalHours,
+          credit: credits,
+        };
+      }
+
+      if (categoryCode === "HSS" || categoryCode === "AE" || categoryCode === "OE") {
+        const hours_ci = credits * 12;
+        const hours_t = credits * 12;
+        const hours_li = credits * 6;
+        const hours_twd = totalHours - (hours_ci + hours_t + hours_li);
+        return {
+          courses_t: safeCourses,
+          courses_p: 0,
+          courses_tu: Math.max(0, Math.round(safeCourses * 0.5)),
+          courses_ll: 0,
+          hours_ci,
+          hours_t,
+          hours_li,
+          hours_twd,
+          hours_total: totalHours,
+          credit: credits,
+        };
+      }
+
+      const hours_ci = credits * 14;
+      const hours_t = credits * 10;
+      const hours_li = credits * 6;
+      const hours_twd = totalHours - (hours_ci + hours_t + hours_li);
+      return {
+        courses_t: safeCourses,
+        courses_p: 0,
+        courses_tu: Math.max(0, Math.round(safeCourses * 0.4)),
+        courses_ll: 0,
+        hours_ci,
+        hours_t,
+        hours_li,
+        hours_twd,
+        hours_total: totalHours,
+        credit: credits,
+      };
+    };
+
+    const buildGenericSemesterCounts = (
+      semesterLabel: string,
+      semesterCount: number,
+    ) => {
+      const semesterNo = getSemesterNumber(semesterLabel);
+      const level = classifySemester(semesterNo, semesterCount);
+      const base = {
+        courses_bs: 0,
+        courses_es: 0,
+        courses_hss: 0,
+        courses_pc: 0,
+        courses_oe: 0,
+        courses_mc: 0,
+        courses_ae: 0,
+        courses_se: 0,
+        courses_int: 0,
+        courses_pro: 0,
+        courses_others: 0,
+      };
+
+      if (level === "Foundation") {
+        return {
+          ...base,
+          courses_bs: 2,
+          courses_es: 2,
+          courses_hss: 1,
+          courses_ae: 1,
+          courses_mc: semesterNo === 1 ? 1 : 0,
+        };
+      }
+
+      if (level === "Engineering Base") {
+        return {
+          ...base,
+          courses_bs: 1,
+          courses_es: 2,
+          courses_hss: 1,
+          courses_pc: 2,
+          courses_ae: 1,
+        };
+      }
+
+      if (level === "Professional Core") {
+        return {
+          ...base,
+          courses_es: 1,
+          courses_pc: 3,
+          courses_se: 1,
+          courses_oe: 1,
+        };
+      }
+
+      if (level === "Specialization") {
+        return {
+          ...base,
+          courses_pc: 2,
+          courses_oe: 1,
+          courses_others: 1,
+          courses_se: 1,
+          courses_pro: 1,
+        };
+      }
+
+      return {
+        ...base,
+        courses_oe: 1,
+        courses_others: 1,
+        courses_pro: 2,
+        courses_int: 1,
+      };
+    };
+
     const semesterCount = semesterLabels.length;
     const baseCredits = Math.floor(SAMPLE_TOTAL_CREDITS / Math.max(1, semesterCount));
     let remainder = SAMPLE_TOTAL_CREDITS - baseCredits * semesterCount;
+    const sampleCategoryCredits = allocateSampleCredits(SAMPLE_TOTAL_CREDITS);
 
     setTotalCredits(String(SAMPLE_TOTAL_CREDITS));
     setTotalCreditsError("");
@@ -719,8 +940,12 @@ function CurriculumStructurePanel() {
     setCategoryCredits((prev) =>
       prev.map((row) => ({
         ...row,
-        ...ZEROED_CATEGORY_FIELDS,
         design_percent: Number(SAMPLE_CATEGORY_PERCENTAGES[row.category_code] || 0),
+        ...buildCategorySampleMetrics(
+          row.category_code,
+          Number(sampleCategoryCredits[row.category_code] || 0),
+          Math.max(0, Math.round(Number(sampleCategoryCredits[row.category_code] || 0) / 3)),
+        ),
       })),
     );
 
@@ -728,12 +953,20 @@ function CurriculumStructurePanel() {
       prev.map((row) => {
         const additionalCredit = remainder > 0 ? 1 : 0;
         if (remainder > 0) remainder -= 1;
+        const semIndex = getSemesterNumber(row.semester) - 1;
+        const genericCounts = buildGenericSemesterCounts(row.semester, semesterCount);
 
-        let courses_bs = 0, courses_es = 0, courses_hss = 0, courses_pc = 0;
-        let courses_oe = 0, courses_mc = 0, courses_ae = 0, courses_se = 0;
-        let courses_int = 0, courses_pro = 0, courses_others = 0;
-
-        const semIndex = row.semester - 1;
+        let courses_bs = genericCounts.courses_bs;
+        let courses_es = genericCounts.courses_es;
+        let courses_hss = genericCounts.courses_hss;
+        let courses_pc = genericCounts.courses_pc;
+        let courses_oe = genericCounts.courses_oe;
+        let courses_mc = genericCounts.courses_mc;
+        let courses_ae = genericCounts.courses_ae;
+        let courses_se = genericCounts.courses_se;
+        let courses_int = genericCounts.courses_int;
+        let courses_pro = genericCounts.courses_pro;
+        let courses_others = genericCounts.courses_others;
         if (semesterCount === 8) {
           if (semIndex === 0) { courses_bs = 3; courses_es = 2; courses_hss = 1; courses_mc = 1; }
           else if (semIndex === 1) { courses_bs = 2; courses_es = 3; courses_hss = 1; courses_ae = 1; }
@@ -834,7 +1067,7 @@ function CurriculumStructurePanel() {
           categoryPercentages,
           semesterCategoryCounts,
           enableAiTitles: true,
-          strictAcademicFlow: true,
+          strictAcademicFlow: false,
         }),
       });
 
@@ -902,7 +1135,7 @@ function CurriculumStructurePanel() {
           categoryPercentages: buildCategoryPercentages(),
           semesterCategoryCounts: buildSemesterCategoryCounts(),
           enableAiTitles: true,
-          strictAcademicFlow: true,
+          strictAcademicFlow: false,
         }),
       });
 
@@ -965,7 +1198,7 @@ function CurriculumStructurePanel() {
           categoryPercentages: buildCategoryPercentages(),
           semesterCategoryCounts: [],
           enableAiTitles: true,
-          strictAcademicFlow: true,
+          strictAcademicFlow: false,
         }),
       });
 
@@ -1022,7 +1255,7 @@ function CurriculumStructurePanel() {
           curriculum: generatedCurriculum,
           programId,
           enableAiTitles: true,
-          strictAcademicFlow: true,
+          strictAcademicFlow: false,
         }),
       });
       const data = await res.json();
@@ -1080,7 +1313,7 @@ function CurriculumStructurePanel() {
           },
           semesterCategories,
           curriculum: generatedCurriculum,
-          strictAcademicFlow: true,
+          strictAcademicFlow: false,
         }),
       });
       const data = await res.json();
@@ -1917,10 +2150,6 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
     return <PsoGenerator />;
   }
 
-  if (step.key === "curriculum-advisor") {
-    return <CurriculumAdvisorPanel />;
-  }
-
   if (step.key === "process-12") {
     return <CurriculumStructurePanel />;
   }
@@ -1964,7 +2193,6 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
       "process-7",
       "process-9",
       "process-10",
-      "curriculum-advisor",
       "process-12",
       "process-13",
       "process-14",

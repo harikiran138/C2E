@@ -496,7 +496,7 @@ export default function PeoGenerator({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* LEFT COLUMN: STRATEGY & AI */}
         <div className="lg:col-span-5 space-y-8">
-          {/* Institutional Context */}
+          {/* Institutional & Program Context */}
           {!hideContext && (
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
               <div className="flex items-center gap-3 mb-6">
@@ -504,26 +504,57 @@ export default function PeoGenerator({
                   <Layers className="size-4 text-slate-600" />
                 </div>
                 <h2 className="text-base font-bold text-slate-900">
-                  Institutional Anchor
+                  Strategic Context Anchor
                 </h2>
               </div>
 
               <div className="space-y-6">
-                <div className="relative pl-4 border-l-2 border-slate-100">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
-                    Vision
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed italic">
-                    "{institution?.vision || "Vision not defined."}"
-                  </p>
-                </div>
-                <div className="relative pl-4 border-l-2 border-slate-100">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
-                    Mission
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed italic">
-                    "{institution?.mission || "Mission not defined."}"
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Institution Level */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-500 border-b border-indigo-100 pb-2">
+                      Institution Level
+                    </h3>
+                    <div className="relative pl-4 border-l-2 border-indigo-100">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                        Vision
+                      </h4>
+                      <p className="text-sm text-slate-600 leading-relaxed italic">
+                        "{institution?.vision || "Vision not defined."}"
+                      </p>
+                    </div>
+                    <div className="relative pl-4 border-l-2 border-indigo-100">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                        Mission
+                      </h4>
+                      <p className="text-sm text-slate-600 leading-relaxed italic whitespace-pre-line">
+                        "{institution?.mission || "Mission not defined."}"
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Program Level */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-teal-500 border-b border-teal-100 pb-2">
+                      Program Level ({program?.program_name || "Program"})
+                    </h3>
+                    <div className="relative pl-4 border-l-2 border-teal-100">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                        Program Vision
+                      </h4>
+                      <p className="text-sm text-slate-600 leading-relaxed italic">
+                        "{program?.program_vision || program?.vision || "Program vision not defined. Please define it first."}"
+                      </p>
+                    </div>
+                    <div className="relative pl-4 border-l-2 border-teal-100">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                        Program Mission
+                      </h4>
+                      <p className="text-sm text-slate-600 leading-relaxed italic whitespace-pre-line">
+                        "{program?.program_mission || program?.mission || "Program mission not defined. Please define it first."}"
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

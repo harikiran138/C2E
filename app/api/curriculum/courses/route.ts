@@ -1,6 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+function isSchemaColumnError(error: any): boolean {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    String(error?.code || "") === "42703" ||
+    message.includes("schema cache") ||
+    message.includes("column")
+  );
+}
+
+function isMissingRelationError(error: any): boolean {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    String(error?.code || "") === "42P01" ||
+    (message.includes("relation") && message.includes("does not exist"))
+  );
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,10 +31,12 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
 
-    let query = supabase
+    const baseQuery = supabase
       .from("curriculum_generated_courses")
       .select("*")
       .eq("program_id", programId);
+
+    let query = baseQuery;
 
     if (curriculumId) {
       query = query.eq("curriculum_id", curriculumId);
@@ -27,9 +46,26 @@ export async function GET(request: Request) {
       query = query.is("version_id", null);
     }
 
-    const { data: courses, error } = await query
+    let { data: courses, error } = await query
       .order("semester", { ascending: true })
       .order("course_code", { ascending: true });
+
+    if (error && isSchemaColumnError(error)) {
+      const fallback = await baseQuery
+        .order("semester", { ascending: true })
+        .order("course_code", { ascending: true });
+      courses = fallback.data;
+      error = fallback.error;
+    }
+
+    if (error && isMissingRelationError(error)) {
+      return NextResponse.json({
+        courses: [],
+        warnings: [
+          "curriculum_generated_courses table not found; returning an empty course list.",
+        ],
+      });
+    }
 
     if (error) throw error;
 

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { GeneratedCurriculum } from "@/lib/curriculum/engine";
 import { CurriculumValidator } from "@/lib/curriculum/validator";
+import { CurriculumRepairEngine } from "@/lib/curriculum/repair-engine";
+import { OBEValidator } from "@/lib/curriculum/obe-validator";
 import {
   resolveProgramAcademicContext,
   validateAcademicFlowReadiness,
@@ -23,6 +25,47 @@ interface CurriculumVersionRow {
   program_id: string;
   year: number;
   version: string;
+}
+
+const GENERATED_COURSE_OPTIONAL_COLUMNS = [
+  "curriculum_id",
+  "version_id",
+  "curriculum_mode",
+  "generated_at",
+  "updated_at",
+] as const;
+
+function isSchemaColumnError(error: any): boolean {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    String(error?.code || "") === "42703" ||
+    message.includes("schema cache") ||
+    message.includes("column")
+  );
+}
+
+function inferMissingGeneratedCourseColumns(error: any): string[] {
+  const message = String(error?.message || "").toLowerCase();
+  return GENERATED_COURSE_OPTIONAL_COLUMNS.filter((column) =>
+    message.includes(`'${column}'`) ||
+    message.includes(`"${column}"`) ||
+    message.includes(`${column} column`) ||
+    message.includes(`${column} does not exist`),
+  );
+}
+
+function omitColumnsFromRows<T extends Record<string, any>>(
+  rows: T[],
+  columns: string[],
+): T[] {
+  if (!columns.length) return rows;
+  return rows.map((row) => {
+    const clone = { ...row };
+    for (const column of columns) {
+      delete clone[column];
+    }
+    return clone;
+  });
 }
 
 function getDesignPercentTotal(categoryCredits: any[]): number {
@@ -51,6 +94,7 @@ export async function POST(request: Request) {
     }
     const versionId = String(body.versionId || "").trim() || null;
     let curriculumId = String(body.curriculumId || "").trim() || null;
+    const repairActions: Array<{ step: string; detail: string }> = [];
 
     const contextResult = await resolveProgramAcademicContext(programId);
     const warnings: string[] = [...contextResult.warnings];
@@ -66,6 +110,7 @@ export async function POST(request: Request) {
 
     const readiness = validateAcademicFlowReadiness(contextResult.context, {
       strict: body.strictAcademicFlow !== false,
+      minPsos: 0,
     });
     warnings.push(...readiness.warnings);
     if (readiness.errors.length > 0) {
@@ -77,6 +122,23 @@ export async function POST(request: Request) {
         },
         { status: 400 },
       );
+    }
+
+    const obeValidation = new OBEValidator(contextResult.context).validate();
+    warnings.push(...obeValidation.warnings);
+    if (obeValidation.blocked) {
+      if (body.strictAcademicFlow !== false) {
+        return NextResponse.json(
+          {
+            error: obeValidation.errors[0],
+            errors: obeValidation.errors,
+            warnings,
+          },
+          { status: 400 },
+        );
+      } else {
+        warnings.push(...obeValidation.errors);
+      }
     }
 
     if (Array.isArray(body.categoryCredits) && body.categoryCredits.length > 0) {
@@ -152,7 +214,17 @@ export async function POST(request: Request) {
       const versionLabel =
         String(versionRow?.version || "").trim() ||
         String(body.curriculum?.mode || "Working Draft").trim();
-      const totalCredits = Number(body.curriculum?.totalCredits || 0) || null;
+      const providedCredits = Number(body.curriculum?.totalCredits || 0);
+      const totalCredits = body.curriculum
+        ? 160
+        : Number.isFinite(providedCredits) && providedCredits > 0
+          ? providedCredits
+          : null;
+      if (body.curriculum && providedCredits !== 160) {
+        warnings.push(
+          `Persisted curriculum credits were normalized to 160 (received ${providedCredits || 0}).`,
+        );
+      }
 
       try {
         const { data: ensuredCurriculum, error: ensuredError } = await supabase
@@ -219,30 +291,41 @@ export async function POST(request: Request) {
     }
 
     if (body.curriculum) {
-      const validator = new CurriculumValidator(body.curriculum);
-      const validation = validator.validate();
+      let curriculumToSave = body.curriculum;
+      let validation = new CurriculumValidator(curriculumToSave).validate();
       warnings.push(...validation.warnings);
+
+      if (!validation.passed) {
+        const repaired = CurriculumRepairEngine.repair(curriculumToSave);
+        repairActions.push(...repaired.actions);
+        warnings.push(...repaired.warnings);
+        curriculumToSave = repaired.curriculum;
+        validation = new CurriculumValidator(curriculumToSave).validate();
+        warnings.push(...validation.warnings);
+      }
+
       if (!validation.passed) {
         return NextResponse.json(
           {
             error: validation.errors[0] || "Curriculum validation failed.",
             errors: validation.errors,
             warnings,
+            repairActions,
           },
           { status: 400 },
         );
       }
 
       if (
-        normalizeLabel(body.curriculum.programName) !==
+        normalizeLabel(curriculumToSave.programName) !==
         normalizeLabel(contextResult.context.displayName)
       ) {
         warnings.push(
-          `Curriculum program name "${body.curriculum.programName}" did not match authoritative program name "${contextResult.context.displayName}".`,
+          `Curriculum program name "${curriculumToSave.programName}" did not match authoritative program name "${contextResult.context.displayName}".`,
         );
       }
 
-      const rows = body.curriculum.semesters.flatMap((semester) =>
+      const rows = curriculumToSave.semesters.flatMap((semester) =>
         semester.courses.map((course) => ({
           program_id: programId,
           curriculum_id: curriculumId,
@@ -256,9 +339,9 @@ export async function POST(request: Request) {
           tu_hours: course.tuHours,
           ll_hours: course.llHours,
           tw_hours: course.twHours,
-          total_hours: course.totalHours,
-          curriculum_mode: body.curriculum?.mode || "AICTE_MODEL",
-          generated_at: body.curriculum?.generatedAt || new Date().toISOString(),
+          total_hours: course.learningHours || course.totalHours,
+          curriculum_mode: curriculumToSave.mode || "AICTE_MODEL",
+          generated_at: curriculumToSave.generatedAt || new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })),
       );
@@ -278,28 +361,74 @@ export async function POST(request: Request) {
         }
 
         const { error: deleteError } = await deleteQuery;
-        if (deleteError && (deleteError as any)?.code !== "42P01") {
-          throw deleteError;
-        }
-
-        const { error } = await supabase
-          .from("curriculum_generated_courses")
-          .insert(rows);
-
-        if (error) {
-          if ((error as any)?.code === "42P01") {
+        if (deleteError) {
+          if ((deleteError as any)?.code === "42P01") {
             warnings.push(
               "Generated course table not found (curriculum_generated_courses). Structure saved without generated rows.",
+            );
+            return NextResponse.json({
+              success: true,
+              warnings,
+            });
+          }
+
+          if (isSchemaColumnError(deleteError)) {
+            warnings.push(
+              "Generated course table is on a legacy schema. Falling back to program-level replace.",
+            );
+            const { error: legacyDeleteError } = await supabase
+              .from("curriculum_generated_courses")
+              .delete()
+              .eq("program_id", programId);
+            if (legacyDeleteError && (legacyDeleteError as any)?.code !== "42P01") {
+              throw legacyDeleteError;
+            }
+          } else {
+            throw deleteError;
+          }
+        }
+
+        let insertRows = [...rows];
+        let { error } = await supabase
+          .from("curriculum_generated_courses")
+          .insert(insertRows);
+
+        if (error) {
+          if (isSchemaColumnError(error)) {
+            const missingColumns = inferMissingGeneratedCourseColumns(error);
+            if (missingColumns.length > 0) {
+              warnings.push(
+                `Generated course table is missing column(s): ${missingColumns.join(", ")}. Retrying with legacy payload.`,
+              );
+              insertRows = omitColumnsFromRows(rows, missingColumns);
+              const retry = await supabase
+                .from("curriculum_generated_courses")
+                .insert(insertRows);
+              error = retry.error;
+            }
+          }
+
+          if (!error) {
+            // retry succeeded
+          } else if ((error as any)?.code === "42P01") {
+            warnings.push(
+              "Generated course table not found (curriculum_generated_courses). Structure saved without generated rows.",
+            );
+          } else if (isSchemaColumnError(error)) {
+            warnings.push(
+              "Generated course rows could not be saved due to schema mismatch in curriculum_generated_courses.",
             );
           } else {
             throw error;
           }
         }
+
       }
     }
 
     return NextResponse.json({
       success: true,
+      repairActions,
       warnings,
     });
   } catch (error: any) {

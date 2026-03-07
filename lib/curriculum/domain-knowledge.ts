@@ -6,87 +6,213 @@ export interface ProgressionRule {
   label: string;
 }
 
+export interface DomainKnowledgeGraph {
+  coreTopics: string[];
+  relatedTopics: string[];
+  emergingTopics: string[];
+  disallowedTopics: string[];
+}
+
+export interface FundamentalBackboneRule {
+  id: string;
+  title: string;
+  keywords: string[];
+  categoryHint: "BS" | "ES";
+  preferredSemester: number;
+}
+
 export interface DomainKnowledgeProfile {
   domain: ProgramDomain;
   requiredCoreKeywords: string[];
   emergingKeywords: string[];
   restrictedKeywords: string[];
   progressionRules: ProgressionRule[];
+  knowledgeGraph: DomainKnowledgeGraph;
 }
 
-export const FUNDAMENTAL_KEYWORDS: string[][] = [
-  ["mathematics", "calculus", "linear algebra"],
-  ["physics", "engineering physics"],
-  [
-    "engineering mechanics",
-    "basic electrical",
-    "engineering drawing",
-    "programming fundamentals",
-  ],
+export interface DomainAlignmentResult {
+  isCore: boolean;
+  isRelated: boolean;
+  isEmerging: boolean;
+  isDisallowed: boolean;
+  isRelevant: boolean;
+}
+
+export const FUNDAMENTAL_BACKBONE_RULES: FundamentalBackboneRule[] = [
+  {
+    id: "math-calculus",
+    title: "Calculus",
+    keywords: ["calculus", "engineering mathematics"],
+    categoryHint: "BS",
+    preferredSemester: 1,
+  },
+  {
+    id: "math-linear-algebra",
+    title: "Linear Algebra",
+    keywords: ["linear algebra"],
+    categoryHint: "BS",
+    preferredSemester: 1,
+  },
+  {
+    id: "math-probability",
+    title: "Probability",
+    keywords: ["probability", "statistics"],
+    categoryHint: "BS",
+    preferredSemester: 2,
+  },
+  {
+    id: "math-discrete",
+    title: "Discrete Mathematics",
+    keywords: ["discrete mathematics", "discrete math"],
+    categoryHint: "BS",
+    preferredSemester: 2,
+  },
+  {
+    id: "science-physics",
+    title: "Engineering Physics",
+    keywords: ["engineering physics", "physics"],
+    categoryHint: "BS",
+    preferredSemester: 1,
+  },
+  {
+    id: "science-chemistry",
+    title: "Engineering Chemistry",
+    keywords: ["engineering chemistry", "chemistry"],
+    categoryHint: "BS",
+    preferredSemester: 1,
+  },
+  {
+    id: "basic-programming",
+    title: "Programming Fundamentals",
+    keywords: ["programming fundamentals", "introduction to programming", "programming"],
+    categoryHint: "ES",
+    preferredSemester: 1,
+  },
+  {
+    id: "basic-mechanics",
+    title: "Engineering Mechanics",
+    keywords: ["engineering mechanics", "mechanics"],
+    categoryHint: "ES",
+    preferredSemester: 1,
+  },
+  {
+    id: "basic-electrical",
+    title: "Basic Electrical Engineering",
+    keywords: ["basic electrical engineering", "basic electrical", "electrical engineering basics"],
+    categoryHint: "ES",
+    preferredSemester: 2,
+  },
+  {
+    id: "basic-drawing",
+    title: "Engineering Drawing",
+    keywords: ["engineering drawing", "engineering graphics"],
+    categoryHint: "ES",
+    preferredSemester: 2,
+  },
+];
+
+export const FUNDAMENTAL_KEYWORDS: string[][] = FUNDAMENTAL_BACKBONE_RULES.map(
+  (rule) => rule.keywords,
+);
+
+const AI_DS_CORE_TOPICS = [
+  "machine learning",
+  "deep learning",
+  "natural language processing",
+  "computer vision",
+  "reinforcement learning",
+  "data mining",
+  "big data",
+  "ai ethics",
+  "graph learning",
+  "generative ai",
+];
+
+const AI_DS_RELATED_TOPICS = [
+  "algorithms",
+  "operating systems",
+  "computer networks",
+  "database systems",
+  "software engineering",
+  "distributed systems",
+];
+
+const AI_DS_DISALLOWED_TOPICS = [
+  "mechanical design",
+  "thermodynamics",
+  "structural engineering",
+  "fluid mechanics",
+  "heat transfer",
+  "advanced welding",
 ];
 
 const DOMAIN_PROFILES: Record<ProgramDomain, DomainKnowledgeProfile> = {
   CSE: {
     domain: "CSE",
     requiredCoreKeywords: [
+      "programming fundamentals",
       "data structures",
+      "algorithms",
       "operating systems",
       "computer networks",
       "database",
-      "algorithms",
     ],
     emergingKeywords: [
       "artificial intelligence",
       "machine learning",
-      "cloud",
-      "cyber",
-      "blockchain",
+      "deep learning",
       "generative ai",
-      "edge computing",
+      "cloud computing",
+      "cybersecurity",
+      "edge ai",
     ],
-    restrictedKeywords: [
-      "advanced welding",
-      "heat transfer",
-      "fluid power",
-      "thermodynamics",
-      "manufacturing",
-    ],
+    restrictedKeywords: AI_DS_DISALLOWED_TOPICS,
     progressionRules: [
       {
         prerequisiteKeywords: ["programming fundamentals", "object oriented programming"],
         dependentKeywords: ["data structures"],
-        label: "Programming Fundamentals -> Data Structures",
+        label: "Programming -> Data Structures",
       },
       {
         prerequisiteKeywords: ["data structures"],
-        dependentKeywords: ["design and analysis of algorithms", "algorithms"],
+        dependentKeywords: ["algorithms", "design and analysis of algorithms"],
         label: "Data Structures -> Algorithms",
       },
       {
-        prerequisiteKeywords: ["design and analysis of algorithms", "algorithms"],
+        prerequisiteKeywords: ["algorithms", "design and analysis of algorithms"],
         dependentKeywords: ["machine learning", "artificial intelligence"],
         label: "Algorithms -> AI/ML",
       },
+      {
+        prerequisiteKeywords: ["machine learning", "artificial intelligence"],
+        dependentKeywords: ["deep learning"],
+        label: "Machine Learning -> Deep Learning",
+      },
     ],
+    knowledgeGraph: {
+      coreTopics: AI_DS_CORE_TOPICS,
+      relatedTopics: AI_DS_RELATED_TOPICS,
+      emergingTopics: [
+        "generative ai",
+        "edge ai",
+        "cloud computing",
+        "cybersecurity",
+        "graph learning",
+      ],
+      disallowedTopics: AI_DS_DISALLOWED_TOPICS,
+    },
   },
   ECE: {
     domain: "ECE",
     requiredCoreKeywords: [
-      "signals",
+      "signals and systems",
       "digital communication",
       "analog communication",
       "embedded systems",
       "vlsi",
     ],
-    emergingKeywords: [
-      "iot",
-      "5g",
-      "wireless",
-      "advanced vlsi",
-      "edge computing",
-      "ai",
-    ],
-    restrictedKeywords: ["thermodynamics", "machine design", "compiler design"],
+    emergingKeywords: ["5g", "wireless", "iot", "edge computing", "embedded ai"],
+    restrictedKeywords: ["thermodynamics", "machine design", "structural engineering"],
     progressionRules: [
       {
         prerequisiteKeywords: ["signals and systems"],
@@ -99,36 +225,54 @@ const DOMAIN_PROFILES: Record<ProgramDomain, DomainKnowledgeProfile> = {
         label: "Digital Electronics -> Embedded Systems",
       },
     ],
+    knowledgeGraph: {
+      coreTopics: [
+        "signals and systems",
+        "analog communication",
+        "digital communication",
+        "vlsi",
+        "embedded systems",
+      ],
+      relatedTopics: ["control systems", "microprocessor", "wireless communication"],
+      emergingTopics: ["iot", "5g", "embedded ai", "edge computing"],
+      disallowedTopics: ["thermodynamics", "machine design", "compiler design"],
+    },
   },
   EEE: {
     domain: "EEE",
     requiredCoreKeywords: [
+      "electrical circuits",
       "electrical machines",
       "power systems",
       "control systems",
       "power electronics",
-      "drives",
     ],
-    emergingKeywords: [
-      "smart grid",
-      "electric vehicle",
-      "renewable",
-      "energy storage",
-      "industrial iot",
-    ],
-    restrictedKeywords: ["compiler design", "operating systems", "thermodynamics"],
+    emergingKeywords: ["smart grid", "electric vehicle", "energy storage"],
+    restrictedKeywords: ["compiler design", "operating systems", "structural engineering"],
     progressionRules: [
       {
         prerequisiteKeywords: ["electrical circuits"],
         dependentKeywords: ["power system analysis"],
-        label: "Electrical Circuits -> Power System Analysis",
+        label: "Electrical Circuits -> Power Systems",
       },
       {
-        prerequisiteKeywords: ["control engineering", "control systems"],
+        prerequisiteKeywords: ["control systems"],
         dependentKeywords: ["industrial automation"],
-        label: "Control Systems -> Industrial Automation",
+        label: "Control Systems -> Automation",
       },
     ],
+    knowledgeGraph: {
+      coreTopics: [
+        "electrical circuits",
+        "electrical machines",
+        "power systems",
+        "control systems",
+        "power electronics",
+      ],
+      relatedTopics: ["drives", "measurements", "instrumentation"],
+      emergingTopics: ["smart grid", "electric vehicle", "renewable energy"],
+      disallowedTopics: ["compiler design", "distributed systems", "structural engineering"],
+    },
   },
   MECH: {
     domain: "MECH",
@@ -139,20 +283,8 @@ const DOMAIN_PROFILES: Record<ProgramDomain, DomainKnowledgeProfile> = {
       "manufacturing",
       "strength of materials",
     ],
-    emergingKeywords: [
-      "robotics",
-      "advanced manufacturing",
-      "additive manufacturing",
-      "digital twin",
-      "autonomous",
-    ],
-    restrictedKeywords: [
-      "operating systems",
-      "distributed computing",
-      "compiler design",
-      "database",
-      "computer networks",
-    ],
+    emergingKeywords: ["robotics", "digital twin", "additive manufacturing"],
+    restrictedKeywords: ["operating systems", "compiler design", "database systems"],
     progressionRules: [
       {
         prerequisiteKeywords: ["engineering mechanics"],
@@ -164,29 +296,30 @@ const DOMAIN_PROFILES: Record<ProgramDomain, DomainKnowledgeProfile> = {
         dependentKeywords: ["heat transfer"],
         label: "Thermodynamics -> Heat Transfer",
       },
-      {
-        prerequisiteKeywords: ["fluid mechanics"],
-        dependentKeywords: ["computational fluid dynamics"],
-        label: "Fluid Mechanics -> CFD",
-      },
     ],
+    knowledgeGraph: {
+      coreTopics: [
+        "thermodynamics",
+        "fluid mechanics",
+        "machine design",
+        "manufacturing",
+        "strength of materials",
+      ],
+      relatedTopics: ["cad", "cam", "automobile engineering"],
+      emergingTopics: ["robotics", "digital twin", "additive manufacturing"],
+      disallowedTopics: ["operating systems", "computer networks", "database systems"],
+    },
   },
   CIVIL: {
     domain: "CIVIL",
     requiredCoreKeywords: [
       "structural analysis",
-      "geotechnical",
+      "geotechnical engineering",
       "transportation engineering",
       "environmental engineering",
       "surveying",
     ],
-    emergingKeywords: [
-      "smart cities",
-      "gis",
-      "remote sensing",
-      "sustainable infrastructure",
-      "earthquake engineering",
-    ],
+    emergingKeywords: ["smart cities", "gis", "sustainable infrastructure"],
     restrictedKeywords: ["compiler design", "operating systems", "machine design"],
     progressionRules: [
       {
@@ -196,19 +329,81 @@ const DOMAIN_PROFILES: Record<ProgramDomain, DomainKnowledgeProfile> = {
       },
       {
         prerequisiteKeywords: ["fluid mechanics"],
-        dependentKeywords: ["water resources engineering", "hydrology"],
+        dependentKeywords: ["hydrology", "water resources engineering"],
         label: "Fluid Mechanics -> Water Resources",
       },
     ],
+    knowledgeGraph: {
+      coreTopics: [
+        "structural analysis",
+        "geotechnical engineering",
+        "transportation engineering",
+        "environmental engineering",
+        "surveying",
+      ],
+      relatedTopics: ["construction planning", "concrete technology"],
+      emergingTopics: ["smart cities", "gis", "remote sensing"],
+      disallowedTopics: ["compiler design", "distributed systems", "machine design"],
+    },
   },
   GENERIC: {
     domain: "GENERIC",
     requiredCoreKeywords: [],
-    emergingKeywords: ["ai", "cloud", "automation", "sustainability"],
+    emergingKeywords: ["ai", "cloud computing", "automation", "sustainability"],
     restrictedKeywords: [],
     progressionRules: [],
+    knowledgeGraph: {
+      coreTopics: [],
+      relatedTopics: [],
+      emergingTopics: ["ai", "cloud computing", "automation"],
+      disallowedTopics: [],
+    },
   },
 };
+
+export function normalizeKnowledgeText(value: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function keywordMatch(title: string, keywords: string[]): boolean {
+  const normalizedTitle = normalizeKnowledgeText(title);
+  return keywords.some((keyword) =>
+    normalizedTitle.includes(normalizeKnowledgeText(keyword)),
+  );
+}
+
+export function evaluateDomainAlignment(
+  profile: DomainKnowledgeProfile,
+  courseTitle: string,
+): DomainAlignmentResult {
+  const graph = profile.knowledgeGraph;
+  const isCore = keywordMatch(courseTitle, graph.coreTopics);
+  const isRelated = keywordMatch(courseTitle, graph.relatedTopics);
+  const isEmerging = keywordMatch(courseTitle, graph.emergingTopics);
+  const isDisallowed = keywordMatch(courseTitle, graph.disallowedTopics);
+
+  return {
+    isCore,
+    isRelated,
+    isEmerging,
+    isDisallowed,
+    isRelevant: !isDisallowed && (isCore || isRelated || isEmerging),
+  };
+}
+
+export function getAllowedTopicsForDomain(profile: DomainKnowledgeProfile): string[] {
+  return Array.from(
+    new Set([
+      ...profile.knowledgeGraph.coreTopics,
+      ...profile.knowledgeGraph.relatedTopics,
+      ...profile.knowledgeGraph.emergingTopics,
+    ]),
+  );
+}
 
 export function detectProgramDomain(programName: string): ProgramDomain {
   const normalized = String(programName || "").toUpperCase();
@@ -216,8 +411,8 @@ export function detectProgramDomain(programName: string): ProgramDomain {
     normalized.includes("COMPUTER") ||
     normalized.includes("CSE") ||
     normalized.includes("INFORMATION TECHNOLOGY") ||
-    normalized.includes("DATA SCIENCE") ||
-    normalized.includes("AI")
+    normalized.includes("AI") ||
+    normalized.includes("DATA SCIENCE")
   ) {
     return "CSE";
   }

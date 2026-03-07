@@ -1,82 +1,19 @@
-import { detectProgramDomain } from "@/lib/curriculum/domain-knowledge";
+import {
+  detectProgramDomain,
+  getAllowedTopicsForDomain,
+  getDomainKnowledgeProfile,
+} from "@/lib/curriculum/domain-knowledge";
 
-function domainBackboneText(programDomain: string): string {
-  if (programDomain === "MECH") {
-    return [
-      "Thermodynamics",
-      "Fluid Mechanics",
-      "Machine Design",
-      "Manufacturing",
-      "Strength of Materials",
-    ].join("\n");
-  }
-
-  if (programDomain === "CSE") {
-    return [
-      "Data Structures",
-      "Operating Systems",
-      "Computer Networks",
-      "Database Systems",
-      "Algorithms",
-    ].join("\n");
-  }
-
-  return [
-    "Program-specific discipline backbone courses",
-    "Core engineering competencies for the selected domain",
-  ].join("\n");
-}
-
-function domainEmergingText(programDomain: string): string {
-  if (programDomain === "MECH") {
-    return [
-      "Robotics",
-      "Advanced Manufacturing",
-      "Digital Twin Systems",
-      "Autonomous Systems",
-      "Additive Manufacturing",
-    ].join("\n");
-  }
-
-  if (programDomain === "CSE") {
-    return [
-      "Artificial Intelligence",
-      "Machine Learning",
-      "Cloud Computing",
-      "Cybersecurity",
-      "Blockchain",
-      "Generative AI",
-    ].join("\n");
-  }
-
-  return [
-    "Domain-relevant modern technologies",
-    "Industry-aligned emerging skills",
-  ].join("\n");
-}
-
-function domainRestrictionsText(programDomain: string): string {
-  if (programDomain === "MECH") {
-    return [
-      "Operating Systems",
-      "Distributed Computing",
-      "Compiler Design",
-    ].join("\n");
-  }
-
-  if (programDomain === "CSE") {
-    return [
-      "Advanced Welding Technology",
-      "Heat Transfer Analysis",
-      "Fluid Power Systems",
-    ].join("\n");
-  }
-
-  return "Topics unrelated to the selected program discipline.";
+function toBullets(items: string[], fallback: string): string {
+  if (!items.length) return fallback;
+  return items.map((item) => `- ${item}`).join("\n");
 }
 
 export function buildCurriculumAIGuardrailsPrompt(programName: string): string {
   const domain = detectProgramDomain(programName);
+  const profile = getDomainKnowledgeProfile(programName);
+  const graph = profile.knowledgeGraph;
+  const allowedTopics = getAllowedTopicsForDomain(profile);
 
   return `You are generating curriculum content for an engineering program.
 
@@ -119,7 +56,7 @@ Computer Networks
 Database Systems
 
 Domain Backbone for this program (${domain}):
-${domainBackboneText(domain)}
+${toBullets(graph.coreTopics, "- Program-specific discipline backbone courses")}
 
 5. Integrate modern technologies relevant to the program.
 
@@ -137,7 +74,10 @@ Digital Twin Systems
 Autonomous Machines
 
 Domain Emerging Technologies for this program (${domain}):
-${domainEmergingText(domain)}
+${toBullets(graph.emergingTopics, "- Domain-relevant modern technologies")}
+
+Allowed related topics for this program (${domain}):
+${toBullets(graph.relatedTopics, "- Domain-relevant supporting topics")}
 
 6. Ensure Course Outcomes align with:
 Program Outcomes (POs)
@@ -147,5 +87,8 @@ Program Educational Objectives (PEOs)
 
 8. Reject outputs that introduce courses unrelated to the program discipline.
 Restricted Topics for this program (${domain}):
-${domainRestrictionsText(domain)}`;
+${toBullets(graph.disallowedTopics, "Topics unrelated to the selected program discipline.")}
+
+9. Use only topics from this allowed set for core and elective engineering courses:
+${toBullets(allowedTopics, "- Program-specific allowed topics")}`;
 }

@@ -62,7 +62,7 @@ const RETURNING_FIELDS_WITH_ALIAS = `
   rs.updated_at
 `;
 
-const DEFAULT_STAKEHOLDER_PASSWORD = "apassword";
+const DEFAULT_STAKEHOLDER_PASSWORD = "password";
 
 function buildCode(value: string, fallback: string): string {
   const safe = String(value || "").trim();

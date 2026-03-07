@@ -101,6 +101,8 @@ function ToggleSwitch({
 function IdentifyOBECoursesPanelContent() {
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId") ?? "";
+  const versionId = searchParams.get("versionId") ?? "";
+  const curriculumId = searchParams.get("curriculumId") ?? "";
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -115,7 +117,14 @@ function IdentifyOBECoursesPanelContent() {
     const load = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/curriculum/courses?programId=${programId}`);
+        const params = new URLSearchParams({ programId });
+        if (curriculumId) {
+          params.set("curriculumId", curriculumId);
+        } else if (versionId) {
+          params.set("versionId", versionId);
+        }
+
+        const res = await fetch(`/api/curriculum/courses?${params.toString()}`);
         if (!res.ok) throw new Error("Failed to fetch courses");
         const data = await res.json();
         const fetched: Course[] = data.courses ?? [];
@@ -137,7 +146,7 @@ function IdentifyOBECoursesPanelContent() {
       }
     };
     load();
-  }, [programId]);
+  }, [curriculumId, programId, versionId]);
 
   const showToast = (msg: string, ok: boolean) => {
     setToast({ msg, ok });

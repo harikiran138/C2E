@@ -142,17 +142,6 @@ export const PROCESS_STEPS: ProcessStep[] = [
     icon: "Share2",
   },
   {
-    key: "curriculum-advisor",
-    title: "AI Curriculum Advisor",
-    section: "process",
-    processNumber: 11,
-    kind: "form",
-    aiDriven: true,
-    phase: "Curriculum Development",
-    description: "Get AI-powered curriculum distribution recommendations aligned with NEP 2020, AICTE guidelines, and industry trends.",
-    icon: "WandSparkles",
-  },
-  {
     key: "process-12",
     title: "Generate Curriculum Structure",
     section: "process",
