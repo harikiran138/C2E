@@ -1,0 +1,177 @@
+/**
+ * lib/ai/peo-agent.ts
+ * PEO Agent — orchestrates hybrid generation with max-3-attempt retry loop.
+ *
+ * Flow:
+ *   for attempt 0..2:
+ *     batch = Gemini candidates + grammar templates
+ *     scored = batch.map(scorePEO) [sync]
+ *     qualified += scored.filter(score ≥ 85).deduplicate()
+ *     if qualified.length >= count → break
+ *   Guarantee: fill remaining with grammar templates
+ *   return ranked PEOs
+ */
+
+import { scorePEO, PEOScore, PEO_APPROVAL_THRESHOLD }   from "./peo-scoring";
+import { buildPEOGrammar, getAllPEOVariants, PEO_PRIORITIES } from "./peo-template-engine";
+import { buildPEOAgentPrompt }                           from "./peo-prompt-builder";
+
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+const MAX_ATTEMPTS = 3;
+
+export interface PEOAgentParams {
+  programName:      string;
+  priorities?:      string[];
+  count:            number;
+  institutionName?: string;
+  geminiApiKey?:    string;
+}
+
+export interface RankedPEO {
+  statement:      string;
+  qualityScore:   number;
+  diversityBonus: number;
+  finalScore:     number;
+}
+
+export interface PEOAgentResult {
+  peos:        string[];
+  ranked:      RankedPEO[];
+  is_fallback: boolean;
+  attempts:    number;
+}
+
+function normalizeWhitespace(text: string) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function diversityBonus(candidate: string, selected: string[]): number {
+  if (selected.length === 0) return 1.0;
+  const cWords = new Set(
+    candidate.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter((w) => w.length >= 4),
+  );
+  let minOverlap = 1.0;
+  for (const s of selected) {
+    const sWords = new Set(
+      s.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter((w) => w.length >= 4),
+    );
+    const intersection = [...cWords].filter((w) => sWords.has(w)).length;
+    const union        = new Set([...cWords, ...sWords]).size;
+    minOverlap = Math.min(minOverlap, union > 0 ? intersection / union : 0);
+  }
+  return 1 - minOverlap;
+}
+
+function rankPEOs(candidates: string[], scores: PEOScore[], count: number): RankedPEO[] {
+  const ranked: RankedPEO[] = [];
+  const selected: string[] = [];
+
+  const withScores = candidates.map((s, i) => ({ statement: s, score: scores[i] }));
+  const sorted = withScores.sort((a, b) => b.score.score - a.score.score);
+
+  for (const { statement, score } of sorted) {
+    if (ranked.length >= count) break;
+    const db    = diversityBonus(statement, selected);
+    const final = 0.7 * score.score + 0.3 * db * 100;
+    ranked.push({ statement, qualityScore: score.score, diversityBonus: db, finalScore: final });
+    selected.push(statement);
+  }
+
+  return ranked.sort((a, b) => b.finalScore - a.finalScore);
+}
+
+async function fetchGeminiPEOs(params: PEOAgentParams, attempt: number): Promise<string[]> {
+  const { geminiApiKey, ...rest } = params;
+  if (!geminiApiKey) return [];
+
+  const priorities = rest.priorities?.length ? rest.priorities : PEO_PRIORITIES.slice(0, 5);
+  const prompt = buildPEOAgentPrompt({ ...rest, priorities, attempt });
+
+  try {
+    const res = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents:         [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.8 },
+      }),
+    });
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+    try {
+      const cleaned = text.replace(/```json|```/g, "").trim();
+      const parsed  = JSON.parse(cleaned);
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return text
+        .split("\n")
+        .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())
+        .filter((l: string) => l.length > 20);
+    }
+  } catch {
+    return [];
+  }
+}
+
+export async function peoAgent(params: PEOAgentParams): Promise<PEOAgentResult> {
+  const { programName, count } = params;
+  const priorities = params.priorities?.length ? params.priorities : PEO_PRIORITIES.slice(0, count * 2);
+
+  const qualifiedStatements: string[] = [];
+  const qualifiedScores:     PEOScore[] = [];
+  let attempts = 0;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    attempts = attempt + 1;
+
+    const aiCandidates       = await fetchGeminiPEOs({ ...params, priorities }, attempt);
+    const templateCandidates = getAllPEOVariants(priorities);
+    const batch              = [...aiCandidates, ...templateCandidates].map(normalizeWhitespace);
+
+    for (const candidate of batch) {
+      if (!candidate || candidate.length < 20) continue;
+
+      const scored = scorePEO(candidate);
+      if (scored.score >= PEO_APPROVAL_THRESHOLD && scored.hardFailures.length === 0) {
+        const isDuplicate = qualifiedStatements.some(
+          (q) => q.toLowerCase() === candidate.toLowerCase(),
+        );
+        if (!isDuplicate) {
+          qualifiedStatements.push(candidate);
+          qualifiedScores.push(scored);
+        }
+      }
+    }
+
+    if (qualifiedStatements.length >= count) break;
+  }
+
+  // Guarantee: fill with grammar templates
+  let is_fallback = false;
+  if (qualifiedStatements.length < count) {
+    is_fallback = true;
+    const allPriorities = [...priorities, ...PEO_PRIORITIES];
+    let pi = 0;
+    while (qualifiedStatements.length < count && pi < allPriorities.length * 2) {
+      const priority = allPriorities[pi % allPriorities.length];
+      const variant  = Math.floor(pi / allPriorities.length);
+      const fb       = buildPEOGrammar(priority, variant);
+      if (!qualifiedStatements.some((s) => s.toLowerCase() === fb.toLowerCase())) {
+        qualifiedStatements.push(fb);
+        qualifiedScores.push(scorePEO(fb));
+      }
+      pi++;
+    }
+  }
+
+  const ranked = rankPEOs(qualifiedStatements, qualifiedScores, count);
+  const peos   = ranked.map((r) => r.statement);
+
+  return { peos, ranked, is_fallback, attempts };
+}
