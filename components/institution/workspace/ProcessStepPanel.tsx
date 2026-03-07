@@ -728,20 +728,40 @@ function CurriculumStructurePanel() {
       prev.map((row) => {
         const additionalCredit = remainder > 0 ? 1 : 0;
         if (remainder > 0) remainder -= 1;
+
+        let courses_bs = 0, courses_es = 0, courses_hss = 0, courses_pc = 0;
+        let courses_oe = 0, courses_mc = 0, courses_ae = 0, courses_se = 0;
+        let courses_int = 0, courses_pro = 0, courses_others = 0;
+
+        const semIndex = row.semester - 1;
+        if (semesterCount === 8) {
+          if (semIndex === 0) { courses_bs = 3; courses_es = 2; courses_hss = 1; courses_mc = 1; }
+          else if (semIndex === 1) { courses_bs = 2; courses_es = 3; courses_hss = 1; courses_ae = 1; }
+          else if (semIndex === 2) { courses_bs = 1; courses_pc = 4; courses_hss = 1; }
+          else if (semIndex === 3) { courses_pc = 4; courses_ae = 1; courses_int = 1; }
+          else if (semIndex === 4) { courses_pc = 4; courses_se = 1; courses_oe = 1; }
+          else if (semIndex === 5) { courses_pc = 3; courses_se = 1; courses_oe = 1; }
+          else if (semIndex === 6) { courses_oe = 2; courses_pro = 1; courses_mc = 1; }
+          else if (semIndex === 7) { courses_oe = 2; courses_pro = 2; }
+        } else {
+          courses_bs = Math.floor(baseCredits / 6);
+          courses_pc = Math.floor(baseCredits / 4);
+        }
+
         return {
           ...row,
           no_of_credits: baseCredits + additionalCredit,
-          courses_bs: 0,
-          courses_es: 0,
-          courses_hss: 0,
-          courses_pc: 0,
-          courses_oe: 0,
-          courses_mc: 0,
-          courses_ae: 0,
-          courses_se: 0,
-          courses_int: 0,
-          courses_pro: 0,
-          courses_others: 0,
+          courses_bs,
+          courses_es,
+          courses_hss,
+          courses_pc,
+          courses_oe,
+          courses_mc,
+          courses_ae,
+          courses_se,
+          courses_int,
+          courses_pro,
+          courses_others,
         };
       }),
     );
