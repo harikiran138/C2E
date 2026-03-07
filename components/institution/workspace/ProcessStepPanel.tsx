@@ -15,6 +15,9 @@ import OBEFrameworkForm from "@/components/institution/process/OBEFrameworkForm"
 import IdentifyOBECoursesPanel from "@/components/institution/process/IdentifyOBECoursesPanel";
 import CourseOutcomesPanel from "@/components/institution/process/CourseOutcomesPanel";
 import CurriculumFeedbackPanel from "@/components/institution/process/CurriculumFeedbackPanel";
+import CurriculumVisualizationPanel from "@/components/institution/process/CurriculumVisualizationPanel";
+import AccreditationReportPanel from "@/components/institution/process/AccreditationReportPanel";
+import CurriculumAdvisorPanel from "@/components/institution/process/CurriculumAdvisorPanel";
 import VMPEOFeedbackDashboard from "@/components/institution/VMPEOFeedbackDashboard";
 import {
   CATEGORY_CODES,
@@ -1805,6 +1808,10 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
     return <PsoGenerator />;
   }
 
+  if (step.key === "curriculum-advisor") {
+    return <CurriculumAdvisorPanel />;
+  }
+
   if (step.key === "process-12") {
     return <CurriculumStructurePanel />;
   }
@@ -1825,6 +1832,14 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
     return <CurriculumFeedbackPanel />;
   }
 
+  if (step.key === "process-17") {
+    return <CurriculumVisualizationPanel />;
+  }
+
+  if (step.key === "process-18") {
+    return <AccreditationReportPanel />;
+  }
+
   if (step.kind === "action" || step.kind === "info") {
     return <ActionPanel step={step} />;
   }
@@ -1840,11 +1855,14 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
       "process-7",
       "process-9",
       "process-10",
+      "curriculum-advisor",
       "process-12",
       "process-13",
       "process-14",
       "process-15",
       "process-16",
+      "process-17",
+      "process-18",
     ].includes(step.key)
   ) {
     return <SharedForm step={step} />;
