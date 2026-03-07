@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/postgres";
 import type { PoolClient } from "pg";
 import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
+import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL =
@@ -60,6 +61,8 @@ function buildOutcomesPrompt(
       ? references.psos.map((pso) => `- ${pso}`).join("\n")
       : "- PSO1 to PSO3 (use only if relevant)";
 
+  const guardrails = buildCurriculumAIGuardrailsPrompt(programName);
+
   return `You are an expert in Outcome-Based Education (OBE) for engineering programs. Generate Course Outcomes (COs) for the following courses in the "${programName}" program.
 
 For each course, generate 4 to 6 Course Outcomes (COs). Each CO must have:
@@ -75,6 +78,9 @@ ${poReferenceText}
 
 Program Specific Outcome references:
 ${psoReferenceText}
+
+Program-specific generation guardrails:
+${guardrails}
 
 Courses:
 ${JSON.stringify(courses, null, 2)}

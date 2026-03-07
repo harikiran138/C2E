@@ -3,6 +3,7 @@ import {
   GeneratedCurriculum,
   normalizeCourseTitle,
 } from "@/lib/curriculum/engine";
+import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
 
 interface ApplyGeminiOptions {
   targetSemester?: number;
@@ -44,6 +45,10 @@ Mandatory constraints:
 - Keep titles realistic for Indian engineering programs.
 - Avoid duplicate titles across semesters.
 - Preserve the given category for each course.
+- Preserve a three-layer curriculum model:
+  1) fundamental backbone
+  2) core discipline backbone
+  3) emerging technology integration
 - Return JSON only.`;
 
 const FORBIDDEN_FOUNDATION_TERMS = [
@@ -311,6 +316,8 @@ function buildUserPrompt(
     ? `Regenerate only Semester ${targetSemester} titles.`
     : "Generate titles for all semesters.";
 
+  const guardrails = buildCurriculumAIGuardrailsPrompt(curriculum.programName);
+
   return `Task: ${semesterScope}
 
 Program: ${curriculum.programName}
@@ -325,6 +332,9 @@ Compliance Priority:
 
 Courses to rename (do not change code/category/credits):
 ${JSON.stringify(courses, null, 2)}
+
+Program-specific guardrails:
+${guardrails}
 
 Output format (JSON only):
 {

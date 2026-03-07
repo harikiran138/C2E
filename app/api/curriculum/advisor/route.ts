@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getTechnologyTrendSnapshot } from "@/lib/curriculum/technology-trend-engine";
+import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL =
@@ -41,6 +43,14 @@ interface AdvisorRecommendations {
   recommendedElectives: string[];
   modernSubjects: Record<string, string[]>;
   advisorNotes: string;
+  trendSnapshot?: {
+    domain: string;
+    generatedAt: string;
+    coreTrendSkills: Array<{ topic: string; relevance: "high" | "medium" }>;
+    suggestedElectives: string[];
+    suggestedSkillModules: string[];
+    sources: Array<{ name: string; note: string }>;
+  };
 }
 
 function normalizeDistributionToHundred(
@@ -87,6 +97,8 @@ function buildUserPrompt(
   totalCredits: number,
   semesterCount: number,
 ): string {
+  const guardrails = buildCurriculumAIGuardrailsPrompt(`${programType} ${specialization}`);
+
   return `Recommend a curriculum distribution for the following engineering program:
 
 Program Type: ${programType}
@@ -128,7 +140,10 @@ Requirements:
 - PC should be 25-35% for technical programs
 - PE should be 6-12%
 - PR should be 4-10%
-- Tailor recommendations to ${programType} program with ${industryFocus} industry focus`;
+- Tailor recommendations to ${programType} program with ${industryFocus} industry focus
+
+Program-specific curriculum guardrails:
+${guardrails}`;
 }
 
 function validateCategoryDistribution(dist: Record<string, unknown>): dist is CategoryDistribution & Record<string, number> {
@@ -318,6 +333,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     recommendations.categoryDistribution = normalizeDistributionToHundred(
       recommendations.categoryDistribution,
     );
+
+    const trendSnapshot = getTechnologyTrendSnapshot(`${programType} ${specialization}`);
+    const trendElectives = trendSnapshot.suggestedElectives.slice(0, 4);
+    const mergedElectives = Array.from(
+      new Set([...(recommendations.recommendedElectives || []), ...trendElectives]),
+    );
+
+    recommendations.recommendedElectives = mergedElectives.slice(0, 12);
+    recommendations.modernSubjects = {
+      ...recommendations.modernSubjects,
+      TRENDING: trendSnapshot.coreTrendSkills.map((item) => item.topic),
+      SE: Array.from(
+        new Set([
+          ...(recommendations.modernSubjects.SE || []),
+          ...trendSnapshot.suggestedSkillModules,
+        ]),
+      ).slice(0, 6),
+    };
+    recommendations.trendSnapshot = trendSnapshot;
 
     return NextResponse.json({ recommendations }, { status: 200 });
   } catch (error: unknown) {

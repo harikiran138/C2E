@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/postgres";
+import type { PoolClient } from "pg";
 import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -378,7 +379,7 @@ async function fetchExistingCourseOutcomes(
 }
 
 async function upsertSyllabusRow(
-  client: Awaited<ReturnType<typeof pool.connect>>,
+  client: PoolClient,
   args: {
     programId: string;
     curriculumId: string | null;

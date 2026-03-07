@@ -985,7 +985,7 @@ export async function POST(request: Request) {
 
     if (exportFormat === "pdf") {
       const pdfBuffer = buildSimplePdf(report);
-      return new NextResponse(pdfBuffer, {
+      return new NextResponse(new Uint8Array(pdfBuffer), {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `attachment; filename="${reportType.toLowerCase()}_accreditation_report.pdf"`,

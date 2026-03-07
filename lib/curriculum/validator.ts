@@ -5,6 +5,11 @@ import type {
   GeneratedCourse,
   CategorySummary,
 } from "@/lib/curriculum/engine";
+import {
+  FUNDAMENTAL_KEYWORDS,
+  getDomainKnowledgeProfile,
+  type ProgressionRule,
+} from "@/lib/curriculum/domain-knowledge";
 
 // Re-export engine types so consumers can import from this module if needed
 export type { CategoryCode, GeneratedCurriculum, GeneratedSemester, GeneratedCourse, CategorySummary };
@@ -401,6 +406,173 @@ export class CurriculumValidator {
     return warnings;
   }
 
+  private normalizeTitle(value: string): string {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private keywordMatch(title: string, keywords: string[]): boolean {
+    const normalizedTitle = this.normalizeTitle(title);
+    return keywords.some((keyword) => normalizedTitle.includes(this.normalizeTitle(keyword)));
+  }
+
+  private findEarliestSemesterForKeywords(
+    rule: ProgressionRule,
+    type: "prerequisite" | "dependent",
+  ): number | null {
+    const keywords =
+      type === "prerequisite" ? rule.prerequisiteKeywords : rule.dependentKeywords;
+    let foundSemester: number | null = null;
+
+    for (const semester of this.curriculum.semesters) {
+      const hasMatch = semester.courses.some((course) =>
+        this.keywordMatch(course.courseTitle, keywords),
+      );
+      if (!hasMatch) continue;
+      foundSemester = foundSemester === null ? semester.semester : Math.min(foundSemester, semester.semester);
+    }
+
+    return foundSemester;
+  }
+
+  /**
+   * Hard checks for layered curriculum integrity:
+   * 1) Fundamental backbone presence
+   * 2) Domain backbone presence
+   * 3) Emerging technology integration in later semesters
+   * 4) Prerequisite progression ordering
+   * 5) Program-domain integrity (restricted topics)
+   */
+  validateLearningProgressionAndTechnologyAlignment(): string[] {
+    const errors: string[] = [];
+    const profile = getDomainKnowledgeProfile(this.curriculum.programName);
+    const allCourses = this.curriculum.semesters.flatMap((semester) =>
+      semester.courses.map((course) => ({
+        ...course,
+        semester: semester.semester,
+      })),
+    );
+
+    if (allCourses.length === 0) {
+      errors.push("No courses found to validate learning progression and technology alignment.");
+      return errors;
+    }
+
+    // Layer 1: mandatory fundamentals must exist.
+    for (const group of FUNDAMENTAL_KEYWORDS) {
+      const hasGroup = allCourses.some((course) => this.keywordMatch(course.courseTitle, group));
+      if (!hasGroup) {
+        errors.push(
+          `Fundamental backbone violation: at least one course matching [${group.join(", ")}] is required.`,
+        );
+      }
+    }
+
+    for (const semester of this.curriculum.semesters.filter((row) => row.semester <= 2)) {
+      const hasFoundationTitle = semester.courses.some((course) =>
+        FUNDAMENTAL_KEYWORDS.some((group) => this.keywordMatch(course.courseTitle, group)),
+      );
+      if (!hasFoundationTitle) {
+        errors.push(
+          `Semester ${semester.semester} is missing explicit foundational titles (Math/Science/Basic Engineering).`,
+        );
+      }
+    }
+
+    // Layer 2: discipline backbone courses.
+    if (profile.requiredCoreKeywords.length > 0) {
+      const missingCore = profile.requiredCoreKeywords.filter(
+        (keyword) =>
+          !allCourses.some((course) => this.keywordMatch(course.courseTitle, [keyword])),
+      );
+      if (missingCore.length > 0) {
+        errors.push(
+          `Core program backbone violation for ${profile.domain}: missing ${missingCore.join(", ")}.`,
+        );
+      }
+    }
+
+    // Layer 3: emerging technologies should appear in higher semesters only.
+    const emergingCourses = allCourses.filter(
+      (course) =>
+        course.semester >= 5 &&
+        this.keywordMatch(course.courseTitle, profile.emergingKeywords),
+    );
+
+    if (profile.emergingKeywords.length > 0 && emergingCourses.length < 2) {
+      errors.push(
+        `Emerging technology integration violation for ${profile.domain}: add at least 2 higher-semester emerging courses.`,
+      );
+    }
+
+    const earlyAdvancedCourses = allCourses.filter(
+      (course) =>
+        course.semester <= 2 &&
+        this.keywordMatch(course.courseTitle, [
+          ...profile.emergingKeywords,
+          "machine learning",
+          "artificial intelligence",
+          "robotics",
+          "cloud",
+          "blockchain",
+          "digital twin",
+          "autonomous",
+          "cybersecurity",
+          "generative ai",
+        ]),
+    );
+
+    if (earlyAdvancedCourses.length > 0) {
+      errors.push(
+        `Learning progression violation: advanced technology topics found in Year 1 (${earlyAdvancedCourses
+          .map((course) => `${course.courseCode}:${course.courseTitle}`)
+          .join(", ")}).`,
+      );
+    }
+
+    // Prerequisite progression rules.
+    for (const rule of profile.progressionRules) {
+      const prerequisiteSemester = this.findEarliestSemesterForKeywords(rule, "prerequisite");
+      const dependentSemester = this.findEarliestSemesterForKeywords(rule, "dependent");
+
+      if (dependentSemester === null) continue;
+
+      if (prerequisiteSemester === null) {
+        errors.push(
+          `Progression violation: ${rule.label} requires prerequisite course(s) before semester ${dependentSemester}.`,
+        );
+        continue;
+      }
+
+      if (prerequisiteSemester >= dependentSemester) {
+        errors.push(
+          `Progression violation: ${rule.label} order is invalid (prerequisite semester ${prerequisiteSemester}, dependent semester ${dependentSemester}).`,
+        );
+      }
+    }
+
+    // Program-specific restrictions for core curriculum categories.
+    if (profile.restrictedKeywords.length > 0) {
+      const misalignedCoreCourses = allCourses.filter(
+        (course) =>
+          (course.category === "ES" || course.category === "PC" || course.category === "PE") &&
+          this.keywordMatch(course.courseTitle, profile.restrictedKeywords),
+      );
+      if (misalignedCoreCourses.length > 0) {
+        errors.push(
+          `Program-domain integrity violation for ${profile.domain}: unrelated topics detected (${misalignedCoreCourses
+            .map((course) => `${course.courseCode}:${course.courseTitle}`)
+            .join(", ")}).`,
+        );
+      }
+    }
+
+    return errors;
+  }
+
   /**
    * Runs all validation checks and computes an overall score.
    * Score = 100 - (10 * errorCount) - (5 * warningCount), floored at 0.
@@ -417,6 +589,7 @@ export class CurriculumValidator {
     allErrors.push(...this.validateInternship());
     allErrors.push(...this.validateCapstone());
     allErrors.push(...this.validateElectiveProgression());
+    allErrors.push(...this.validateLearningProgressionAndTechnologyAlignment());
 
     // Soft warning checks
     allWarnings.push(...this.validateCategoryRanges());

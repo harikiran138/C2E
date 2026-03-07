@@ -71,6 +71,14 @@ interface AdvisorRecommendations {
   recommendedElectives: string[];
   modernSubjects: Record<string, string[]>;
   advisorNotes: string;
+  trendSnapshot?: {
+    domain: string;
+    generatedAt: string;
+    coreTrendSkills: Array<{ topic: string; relevance: "high" | "medium" }>;
+    suggestedElectives: string[];
+    suggestedSkillModules: string[];
+    sources: Array<{ name: string; note: string }>;
+  };
 }
 
 export default function CurriculumAdvisorPanel() {
@@ -186,6 +194,7 @@ export default function CurriculumAdvisorPanel() {
       recommendedElectives: Array.from(selectedElectives),
       modernSubjects: recommendations.modernSubjects,
       advisorNotes: recommendations.advisorNotes,
+      trendSnapshot: recommendations.trendSnapshot,
       createdAt: new Date().toISOString(),
     });
 
@@ -557,6 +566,55 @@ export default function CurriculumAdvisorPanel() {
               <p className="text-sm text-indigo-800 leading-relaxed">
                 {recommendations.advisorNotes}
               </p>
+            </div>
+          )}
+
+          {/* Technology Trend Engine Snapshot */}
+          {recommendations.trendSnapshot && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-emerald-700" />
+                <h4 className="font-semibold text-emerald-900 text-sm">
+                  TechnologyTrendEngine Snapshot ({recommendations.trendSnapshot.domain})
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-emerald-800 mb-2">
+                    High-Demand Skills
+                  </p>
+                  <ul className="space-y-1.5">
+                    {recommendations.trendSnapshot.coreTrendSkills.map((skill) => (
+                      <li key={skill.topic} className="text-sm text-emerald-900 flex items-start gap-2">
+                        <span
+                          className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            skill.relevance === "high"
+                              ? "bg-emerald-200 text-emerald-900"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          {skill.relevance.toUpperCase()}
+                        </span>
+                        <span>{skill.topic}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-emerald-800 mb-2">
+                    Reference Sources
+                  </p>
+                  <ul className="space-y-1.5">
+                    {recommendations.trendSnapshot.sources.map((source) => (
+                      <li key={source.name} className="text-sm text-emerald-900">
+                        <span className="font-semibold">{source.name}:</span> {source.note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
 

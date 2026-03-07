@@ -18,6 +18,13 @@ interface SaveCurriculumRequest {
   curriculum?: GeneratedCurriculum | null;
 }
 
+interface CurriculumVersionRow {
+  id: string;
+  program_id: string;
+  year: number;
+  version: string;
+}
+
 function getDesignPercentTotal(categoryCredits: any[]): number {
   return categoryCredits.reduce(
     (acc, row) => acc + (Number(row?.design_percent) || 0),
@@ -94,14 +101,7 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    let versionRow:
-      | {
-          id: string;
-          program_id: string;
-          year: number;
-          version: string;
-        }
-      | null = null;
+    let versionRow: CurriculumVersionRow | null = null;
 
     if (versionId) {
       const { data, error: versionError } = await supabase
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         .eq("id", versionId)
         .single();
 
-      versionRow = data as typeof versionRow;
+      versionRow = (data ?? null) as CurriculumVersionRow | null;
 
       if (versionError || !versionRow) {
         return NextResponse.json(

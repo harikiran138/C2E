@@ -6,6 +6,14 @@ export interface CurriculumAdvisorSnapshot {
   recommendedElectives: string[];
   modernSubjects: Record<string, string[]>;
   advisorNotes: string;
+  trendSnapshot?: {
+    domain: string;
+    generatedAt: string;
+    coreTrendSkills: Array<{ topic: string; relevance: "high" | "medium" }>;
+    suggestedElectives: string[];
+    suggestedSkillModules: string[];
+    sources: Array<{ name: string; note: string }>;
+  };
   createdAt: string;
 }
 

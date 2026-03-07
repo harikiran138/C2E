@@ -137,6 +137,7 @@ function AccreditationReportPanelContent() {
   const [reportType, setReportType] = useState<ReportType>("NBA");
   const [report, setReport] = useState<AccreditationReport | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("matrix");
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -231,6 +232,50 @@ function AccreditationReportPanelContent() {
         ]),
       ];
       downloadCSV(`${report.reportType}_course_list_${ts}.csv`, rows);
+    }
+  };
+
+  const downloadServerExport = async (format: "csv" | "excel" | "pdf") => {
+    if (!programId) {
+      showToast("No program selected", false);
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const res = await fetch("/api/curriculum/accreditation-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programId,
+          reportType,
+          exportFormat: format,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Failed to export ${format.toUpperCase()}`);
+      }
+
+      const blob = await res.blob();
+      const extension = format === "excel" ? "xls" : format;
+      const fileName = `${reportType.toLowerCase()}_accreditation_report.${extension}`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+
+      showToast(`${format.toUpperCase()} export downloaded`, true);
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.message || "Export failed", false);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -377,13 +422,26 @@ function AccreditationReportPanelContent() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={exportCurrentTab}
-              className="flex items-center gap-1.5 px-4 py-2 mb-1 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Download CSV
-            </button>
+            <div className="mb-1 flex items-center gap-2">
+              <button
+                onClick={exportCurrentTab}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Tab CSV
+              </button>
+              {(["csv", "excel", "pdf"] as const).map((format) => (
+                <button
+                  key={format}
+                  onClick={() => downloadServerExport(format)}
+                  disabled={isExporting}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all disabled:opacity-50"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {format.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Tab: Curriculum Matrix */}

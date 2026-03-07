@@ -19,6 +19,8 @@ Primary references:
 - `lib/curriculum/engine.ts` (core generation logic)
 - `app/api/curriculum/structure/route.ts` (load persisted structure)
 - `app/api/curriculum/save/route.ts` (save structure and generated rows)
+- `lib/curriculum/validator.ts` (learning progression + technology alignment validation)
+- `lib/curriculum/technology-trend-engine.ts` (trend-informed elective/skill suggestions)
 
 ## 2) Where It Is Wired in the Product
 
@@ -258,6 +260,24 @@ The engine computes CI/tutorial/lab/teamwork proportions by category:
 - `HSS`, `AE`, `OE`: mostly CI + tutorial, no lab
 - `PR`: project-heavy (higher lab/teamwork)
 - `SE`: practical-heavy
+
+## 8) Learning Progression and Technology Alignment
+
+The module enforces a 3-layer curriculum model through `CurriculumValidator`:
+
+1. Fundamental Backbone (Year 1)
+2. Core Program Knowledge (Year 2/3)
+3. Emerging Technologies + Capstone (Year 3/4)
+
+Blocking checks include:
+
+- missing fundamental groups (Math / Science / Basic Engineering)
+- missing domain backbone courses
+- advanced/emerging topics introduced too early
+- prerequisite sequence violations (for example, Programming -> Data Structures -> Algorithms -> AI)
+- domain-misaligned core topics
+
+The advisor/generation stack uses guardrail prompts (`lib/curriculum/ai-guardrails.ts`) and trend augmentation (`TechnologyTrendEngine`) to keep AI outputs aligned with domain integrity and industry evolution.
 - `PE`: balanced advanced elective profile
 - others (`BS`, `ES`, `PC`): standard core split
 
