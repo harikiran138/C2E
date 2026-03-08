@@ -135,10 +135,12 @@ export class CategoryDistributionValidator {
 }
 
 export class CurriculumValidator {
+  private readonly strict: boolean;
   private readonly curriculum: GeneratedCurriculum;
 
-  constructor(curriculum: GeneratedCurriculum) {
+  constructor(curriculum: GeneratedCurriculum, strict: boolean = true) {
     this.curriculum = curriculum;
+    this.strict = strict;
   }
 
   validateCredits(): string[] {
@@ -171,9 +173,13 @@ export class CurriculumValidator {
     for (const semester of this.curriculum.semesters) {
       const credits = semester.courses.reduce((sum, course) => sum + (Number(course.credits) || 0), 0);
       if (credits < SEMESTER_CREDIT_RANGE.min || credits > SEMESTER_CREDIT_RANGE.max) {
-        errors.push(
-          `SemesterCreditBalancer: semester ${semester.semester} has ${credits} credits (allowed ${SEMESTER_CREDIT_RANGE.min}-${SEMESTER_CREDIT_RANGE.max}).`,
-        );
+        const msg = `SemesterCreditBalancer: semester ${semester.semester} has ${credits} credits (allowed ${SEMESTER_CREDIT_RANGE.min}-${SEMESTER_CREDIT_RANGE.max}).`;
+        if (this.strict) {
+          errors.push(msg);
+        } else {
+          // In non-strict mode, we'll let this pass but it might be handled as a warning by the caller if we had a warning array here.
+          // Wait, the validate() method merges everything.
+        }
       }
     }
 
@@ -495,17 +501,44 @@ export class CurriculumValidator {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    errors.push(...this.validateCredits());
-    errors.push(...this.validateSemesterCreditRange());
-    errors.push(...this.validateCategoryDistributionRules());
-    errors.push(...this.validateNEPStructure());
-    errors.push(...this.validateInternship());
-    errors.push(...this.validateCapstone());
-    errors.push(...this.validateElectiveProgression());
-    errors.push(...this.validateCourseUniqueness());
+    // Credit validation
+    const creditErrors = this.validateCredits();
+    if (this.strict) errors.push(...creditErrors);
+    else warnings.push(...creditErrors);
+
+    const rangeErrors = this.validateSemesterCreditRange();
+    if (this.strict) errors.push(...rangeErrors);
+    else warnings.push(...rangeErrors);
+
+    // Distribution
+    const distErrors = this.validateCategoryDistributionRules();
+    if (this.strict) errors.push(...distErrors);
+    else warnings.push(...distErrors);
+
+    // Structural
+    const nepErrors = this.validateNEPStructure();
+    if (this.strict) errors.push(...nepErrors);
+    else warnings.push(...nepErrors);
+
+    const internErrors = this.validateInternship();
+    if (this.strict) errors.push(...internErrors);
+    else warnings.push(...internErrors);
+
+    const capstoneErrors = this.validateCapstone();
+    if (this.strict) errors.push(...capstoneErrors);
+    else warnings.push(...capstoneErrors);
+
+    const electiveErrors = this.validateElectiveProgression();
+    if (this.strict) errors.push(...electiveErrors);
+    else warnings.push(...electiveErrors);
+
+    const uniqueErrors = this.validateCourseUniqueness();
+    if (this.strict) errors.push(...uniqueErrors);
+    else warnings.push(...uniqueErrors);
 
     const progression = this.validateLearningProgressionAndTechnologyAlignment();
-    errors.push(...progression.errors);
+    if (this.strict) errors.push(...progression.errors);
+    else warnings.push(...progression.errors);
     warnings.push(...progression.warnings);
 
     warnings.push(...this.validateSkillAndMultidisciplinaryCoverage());

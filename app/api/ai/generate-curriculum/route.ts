@@ -112,6 +112,8 @@ export async function POST(request: Request) {
       mode: "AICTE_MODEL",
     });
 
+    console.log(`Curriculum Build: programName="${contextResult.context.displayName}", count=${result.curriculum?.semesters.length}, enableAiTitles=${body.enableAiTitles}`);
+
     if (!result.curriculum || result.errors.length > 0) {
       return NextResponse.json(
         {
@@ -126,13 +128,18 @@ export async function POST(request: Request) {
     warnings.push(...result.warnings);
 
     if (body.enableAiTitles !== false) {
+      console.log("Curriculum AI: enableAiTitles is true, calling Gemini...");
       const aiResult = await applyGeminiCourseTitles(curriculum);
+      console.log(`Curriculum AI: complete. Warnings: ${aiResult.warnings.length}`);
       warnings.push(...aiResult.warnings);
       curriculum = aiResult.curriculum;
+    } else {
+      console.log("Curriculum AI: enableAiTitles is false, skipping Gemini.");
     }
 
     let repairActions: Array<{ step: string; detail: string }> = [];
-    let validation: ValidationResult = new CurriculumValidator(curriculum).validate();
+    const isStrict = body.strictAcademicFlow !== false;
+    let validation: ValidationResult = new CurriculumValidator(curriculum, isStrict).validate();
     warnings.push(...validation.warnings);
 
     if (!validation.passed) {
@@ -141,7 +148,7 @@ export async function POST(request: Request) {
       warnings.push(...repaired.warnings);
       curriculum = repaired.curriculum;
 
-      validation = new CurriculumValidator(curriculum).validate();
+      validation = new CurriculumValidator(curriculum, isStrict).validate();
       warnings.push(...validation.warnings);
 
       if (!validation.passed) {

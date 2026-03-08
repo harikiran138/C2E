@@ -160,7 +160,10 @@ export async function applyGeminiCourseTitles(
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
+    const timeout = setTimeout(() => controller.abort(), 120000); // Increased to 120s
+
+    console.log("Curriculum AI: Starting Gemini title generation...");
+    // console.log("Curriculum AI Prompt:", SYSTEM_PROMPT, "\n\n", userPrompt);
 
     const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
       method: "POST",
@@ -179,12 +182,13 @@ export async function applyGeminiCourseTitles(
 
     if (!response.ok) {
       const body = await response.text();
-      warnings.push(`Gemini title generation failed (${response.status}). Using fallback titles.`);
-      if (body) console.error("Gemini title generation error:", body);
+      console.error("Gemini title generation error:", response.status, body);
+      warnings.push(`Gemini title generation failed (${response.status}). Details: ${body.slice(0, 100)}`);
       return { curriculum: updated, warnings };
     }
 
     const data = (await response.json()) as Record<string, any>;
+    console.log("Gemini API Response received successfully.");
     const rawText = extractGeminiText(data);
     if (!rawText) {
       warnings.push("Gemini returned an empty title payload. Using fallback titles.");
@@ -205,9 +209,11 @@ export async function applyGeminiCourseTitles(
           : [];
 
     if (candidateRows.length === 0) {
+      console.warn("Curriculum AI: Gemini returned 0 candidate rows.");
       warnings.push("Gemini did not return any mapped course titles. Using fallback titles.");
       return { curriculum: updated, warnings };
     }
+    console.log(`Curriculum AI: Processing ${candidateRows.length} candidate rows...`);
 
     const keyToPayload = new Map<
       string,
@@ -241,6 +247,7 @@ export async function applyGeminiCourseTitles(
         learningHours,
       });
     }
+    console.log(`Curriculum AI: keyToPayload size = ${keyToPayload.size}. Sample key: ${Array.from(keyToPayload.keys())[0]}`);
 
     const usedTitles = new Set<string>();
     const profile = getDomainKnowledgeProfile(updated.programName);

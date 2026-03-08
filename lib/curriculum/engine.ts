@@ -90,7 +90,7 @@ interface BuildCurriculumResult {
   warnings: string[];
 }
 
-type ProgramTrack = "CSE" | "ECE" | "EEE" | "MECH" | "CIVIL" | "GENERIC";
+type ProgramTrack = "CSE" | "ECE" | "EEE" | "MECH" | "CIVIL" | "CHEMICAL" | "TEXTILE" | "FASHION" | "GENERIC";
 
 const DEFAULT_CATEGORY_PERCENTAGES: Record<CategoryCode, number> = {
   BS: 22,
@@ -471,6 +471,24 @@ const PROGRAM_TRACK_TITLE_LIBRARY: Record<
       "Structural Design Studio",
     ],
   },
+  CHEMICAL: {
+    ES: ["Basic Chemical Engineering", "Material and Energy Balances", "Fluid Flow Operations", "Mechanical Operations", "Chemical Engineering Thermodynamics"],
+    PC: ["Heat Transfer Operations", "Mass Transfer Operations", "Chemical Reaction Engineering", "Process Dynamics and Control", "Transport Phenomena", "Chemical Process Industries"],
+    PE: ["Petroleum Refining", "Polymer Technology", "Nano Technology", "Industrial Safety and Hazard Management", "Biochemical Engineering"],
+    SE: ["Chemical Engineering Lab", "Mass Transfer Lab", "Reaction Engineering Lab", "Process Control Lab"]
+  },
+  TEXTILE: {
+    ES: ["Introduction to Textile Technology", "Textile Fibers", "Yarn Manufacture", "Fabric Manufacture", "Textile Chemical Processing"],
+    PC: ["Spinning Technology", "Weaving Technology", "Knitting Technology", "Testing of Textiles", "Textile Finishing", "Apparel Technology"],
+    PE: ["High Performance Fibers", "Technical Textiles", "Smart Textiles", "Eco-friendly Processing", "Computer Aided Design for Textiles"],
+    SE: ["Fiber Identification Lab", "Spinning Lab", "Weaving Lab", "Textile Testing Lab"]
+  },
+  FASHION: {
+    ES: ["Introduction to Fashion Industry", "History of Art and Design", "Elements of Design", "Pattern Making Basics", "Textile Science for Fashion"],
+    PC: ["Draping", "Garment Construction", "Fashion Illustration", "Apparel Quality Management", "Fashion Merchandising", "Portfolio Development"],
+    PE: ["Luxury Brand Management", "Sustainable Fashion", "Couture Design", "Fashion Journalism", "Global Marketing"],
+    SE: ["Pattern Making Lab", "Garment Construction Studio", "Computer Aided Fashion Design Lab", "Fashion Illustration Studio"]
+  },
   GENERIC: {},
 };
 
@@ -539,9 +557,10 @@ function detectProgramTrack(programName: string): ProgramTrack {
   if (normalized.includes("MECHANICAL") || normalized.includes("MECH")) {
     return "MECH";
   }
-  if (normalized.includes("CIVIL")) {
-    return "CIVIL";
-  }
+  if (normalized.includes("CHEMICAL") || normalized.includes("PROCESS ENGINEERING")) return "CHEMICAL";
+  if (normalized.includes("TEXTILE") || normalized.includes("FABRIC") || normalized.includes("YARN")) return "TEXTILE";
+  if (normalized.includes("FASHION") || normalized.includes("APPAREL") || normalized.includes("DESIGN") && !normalized.includes("COMPUTER")) return "FASHION";
+  
   return "GENERIC";
 }
 

@@ -1,0 +1,93 @@
+
+> c2e@1.0.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.63.0.79:3000
+- Environments: .env.local
+- Experiments (use with caution):
+  · optimizePackageImports
+
+✓ Starting...
+✓ Ready in 983ms
+ POST /api/auth/verify 200 in 1441ms (compile: 431ms, proxy.ts: 24ms, render: 986ms)
+○ Compiling /institution/process/[step] ...
+ GET /institution/process/process-12?programId=7a789883-93d8-4227-afaf-d708f5d4eee0 200 in 25.7s (compile: 23.3s, proxy.ts: 1743ms, render: 668ms)
+ POST /api/auth/verify 200 in 10.2s (compile: 92ms, proxy.ts: 26ms, render: 10.1s)
+ GET /api/institution/me 200 in 10.7s (compile: 116ms, proxy.ts: 10.3s, render: 311ms)
+ GET /api/curriculum/structure?programId=7a789883-93d8-4227-afaf-d708f5d4eee0 200 in 11.1s (compile: 2.5s, proxy.ts: 62ms, render: 8.5s)
+ POST /api/auth/verify 200 in 585ms (compile: 15ms, proxy.ts: 24ms, render: 546ms)
+ GET /api/institution/me 200 in 1672ms (compile: 9ms, proxy.ts: 601ms, render: 1061ms)
+ POST /api/ai/generate-curriculum 200 in 68s (compile: 105ms, proxy.ts: 3ms, render: 67s)
+ POST /api/ai/generate-curriculum 200 in 2.7min (compile: 6ms, proxy.ts: 8ms, render: 2.7min)
+Curriculum AI: Starting Gemini title generation...
+Gemini title generation runtime error: TypeError: fetch failed
+    at async applyGeminiCourseTitles (lib/curriculum/ai.ts:168:22)
+    at async POST (app/api/ai/generate-curriculum/route.ts:129:24)
+  166 |     // console.log("Curriculum AI Prompt:", SYSTEM_PROMPT, "\n\n", userPrompt);
+  167 |
+> 168 |     const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      |                      ^
+  169 |       method: "POST",
+  170 |       headers: { "Content-Type": "application/json" },
+  171 |       body: JSON.stringify({ {
+  [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted addresses: 2001:4860:4802:34::223:443, timeout: 10000ms)
+      at ignore-listed frames {
+    code: 'UND_ERR_CONNECT_TIMEOUT'
+  }
+}
+ POST /api/ai/generate-curriculum 200 in 77s (compile: 68ms, proxy.ts: 9ms, render: 77s)
+✓ Compiled in 302ms
+ GET /api/curriculum/structure?programId=7a789883-93d8-4227-afaf-d708f5d4eee0 200 in 1100ms (compile: 13ms, proxy.ts: 5ms, render: 1082ms)
+Curriculum AI: Starting Gemini title generation...
+Gemini API Response received successfully.
+ POST /api/ai/generate-curriculum 200 in 114s (compile: 50ms, proxy.ts: 2ms, render: 114s)
+Curriculum Build: programName="B.Tech Stress Test Program 1772865855748", count=8, enableAiTitles=true
+Curriculum AI: enableAiTitles is true, calling Gemini...
+Curriculum AI: Starting Gemini title generation...
+Gemini API Response received successfully.
+Curriculum AI: complete. Warnings: 0
+ POST /api/ai/generate-curriculum 200 in 49s (compile: 105ms, proxy.ts: 3ms, render: 49s)
+Curriculum Build: programName="B.Tech Stress Test Program 1772865855748", count=8, enableAiTitles=true
+Curriculum AI: enableAiTitles is true, calling Gemini...
+Curriculum AI: Starting Gemini title generation...
+Gemini title generation runtime error: Error [AbortError]: This operation was aborted
+    at async applyGeminiCourseTitles (lib/curriculum/ai.ts:168:22)
+    at async POST (app/api/ai/generate-curriculum/route.ts:132:24)
+  166 |     // console.log("Curriculum AI Prompt:", SYSTEM_PROMPT, "\n\n", userPrompt);
+  167 |
+> 168 |     const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      |                      ^
+  169 |       method: "POST",
+  170 |       headers: { "Content-Type": "application/json" },
+  171 |       body: JSON.stringify({ {
+  code: 20,
+  INDEX_SIZE_ERR: 1,
+  DOMSTRING_SIZE_ERR: 2,
+  HIERARCHY_REQUEST_ERR: 3,
+  WRONG_DOCUMENT_ERR: 4,
+  INVALID_CHARACTER_ERR: 5,
+  NO_DATA_ALLOWED_ERR: 6,
+  NO_MODIFICATION_ALLOWED_ERR: 7,
+  NOT_FOUND_ERR: 8,
+  NOT_SUPPORTED_ERR: 9,
+  INUSE_ATTRIBUTE_ERR: 10,
+  INVALID_STATE_ERR: 11,
+  SYNTAX_ERR: 12,
+  INVALID_MODIFICATION_ERR: 13,
+  NAMESPACE_ERR: 14,
+  INVALID_ACCESS_ERR: 15,
+  VALIDATION_ERR: 16,
+  TYPE_MISMATCH_ERR: 17,
+  SECURITY_ERR: 18,
+  NETWORK_ERR: 19,
+  ABORT_ERR: 20,
+  URL_MISMATCH_ERR: 21,
+  QUOTA_EXCEEDED_ERR: 22,
+  TIMEOUT_ERR: 23,
+  INVALID_NODE_TYPE_ERR: 24,
+  DATA_CLONE_ERR: 25
+}
+Curriculum AI: complete. Warnings: 1
+ POST /api/ai/generate-curriculum 200 in 17.4min (compile: 59ms, proxy.ts: 4ms, render: 17.4min)

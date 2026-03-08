@@ -195,7 +195,8 @@ export async function POST(request: Request) {
     }
 
     let repairActions: Array<{ step: string; detail: string }> = [];
-    let validation = new CurriculumValidator(curriculum).validate();
+    const isStrict = body.strictAcademicFlow !== false;
+    let validation = new CurriculumValidator(curriculum, isStrict).validate();
     warnings.push(...validation.warnings);
     if (!validation.passed) {
       const repaired = CurriculumRepairEngine.repair(curriculum);
@@ -203,7 +204,7 @@ export async function POST(request: Request) {
       warnings.push(...repaired.warnings);
       curriculum = repaired.curriculum;
 
-      validation = new CurriculumValidator(curriculum).validate();
+      validation = new CurriculumValidator(curriculum, isStrict).validate();
       warnings.push(...validation.warnings);
 
       if (!validation.passed) {
