@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import useSWR from "swr";
 import {
   PROCESS_MENU_STEPS,
   SIDE_MENU_STEPS,
@@ -57,6 +58,18 @@ interface InstitutionWorkspaceProps {
 
 import { useInstitution } from "@/context/InstitutionContext";
 
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const error = new Error("An error occurred while fetching the data.");
+    const info = await res.json();
+    (error as any).info = info;
+    (error as any).status = res.status;
+    throw error;
+  }
+  return res.json();
+};
+
 export default function InstitutionWorkspace({
   title,
   subtitle,
@@ -78,6 +91,18 @@ export default function InstitutionWorkspace({
 
   const institutionName = institution?.institution_name || "Institution";
   const selectedProgramId = selectedProgram?.id || "";
+
+  // Fetch stats data for sidebar progress/dots
+  const statsUrl = useMemo(() => {
+    return selectedProgramId
+      ? `/api/institution/dashboard?programId=${selectedProgramId}`
+      : "/api/institution/dashboard";
+  }, [selectedProgramId]);
+
+  const { data: statsData } = useSWR(statsUrl, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000,
+  });
 
   // Restore sidebar scroll position on mount
   useEffect(() => {
@@ -197,6 +222,7 @@ export default function InstitutionWorkspace({
                     programs={programs}
                     selectedProgramId={selectedProgramId}
                     onSelectProgram={handleProgramSelect}
+                    statsData={statsData}
                   />
                 </div>
               </div>
@@ -244,6 +270,7 @@ export default function InstitutionWorkspace({
                 programs={programs}
                 selectedProgramId={selectedProgramId}
                 onSelectProgram={handleProgramSelect}
+                statsData={statsData}
               />
             </div>
 
@@ -376,6 +403,7 @@ function SidebarContent({
   programs,
   selectedProgramId,
   onSelectProgram,
+  statsData,
 }: any) {
   const [isProgramListOpen, setIsProgramListOpen] = useState(false);
 
@@ -522,7 +550,14 @@ function SidebarContent({
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
-            <SidebarGroup title="Program Execution" variant="purple">
+            <SidebarGroup 
+              title="Program Execution" 
+              variant="purple"
+              progress={{
+                total: PROCESS_MENU_STEPS.length,
+                completed: PROCESS_MENU_STEPS.filter(step => statsData?.stepStatus?.[step.key]).length
+              }}
+            >
               <SidebarNavItem
                 href={`/institution/dashboard?programId=${selectedProgramId}`}
                 active={activeStepKey === "dashboard" && !!selectedProgramId}
@@ -545,6 +580,7 @@ function SidebarContent({
                     onClick={onClose}
                     icon={<Icon className="size-4" />}
                     aiDriven={step.aiDriven}
+                    isCompleted={statsData?.stepStatus?.[step.key]}
                   >
                     {step.title}
                   </SidebarNavItem>
@@ -562,10 +598,12 @@ function SidebarGroup({
   title,
   children,
   variant = "neutral",
+  progress,
 }: {
   title: string;
   children: React.ReactNode;
   variant?: "blue" | "purple" | "neutral";
+  progress?: { completed: number; total: number };
 }) {
   const variants = {
     blue: "bg-blue-400/[0.06] border-blue-200/40 text-blue-900",
@@ -586,14 +624,33 @@ function SidebarGroup({
         variants[variant],
       )}
     >
-      <p
-        className={cn(
-          "text-[10px] font-black uppercase tracking-[0.2em] px-4 mb-4",
-          labelVariants[variant],
+      <div className="flex items-center justify-between px-4 mb-4">
+        <p
+          className={cn(
+            "text-[10px] font-black uppercase tracking-[0.2em]",
+            labelVariants[variant],
+          )}
+        >
+          {title}
+        </p>
+        {progress && (
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-slate-400">
+              {progress.completed}/{progress.total} Complete
+            </span>
+            <div className="w-12 h-1 bg-slate-200 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                className={cn(
+                  "h-full rounded-full",
+                  variant === "purple" ? "bg-purple-500" : "bg-blue-500"
+                )}
+              />
+            </div>
+          </div>
         )}
-      >
-        {title}
-      </p>
+      </div>
       <div className="space-y-1">{children}</div>
     </div>
   );
@@ -607,6 +664,7 @@ function SidebarNavItem({
   icon,
   aiDriven,
   className,
+  isCompleted,
 }: any) {
   return (
     <Link
@@ -639,8 +697,13 @@ function SidebarNavItem({
       >
         {icon}
       </div>
-      <div className="flex flex-col gap-0.5 min-w-0 pt-0.5 flex-1">
-        <span className="leading-tight truncate">{children}</span>
+      <div className="flex flex-col gap-0.5 min-w-0 pt-0.5 flex-1 relative">
+        <div className="flex items-center justify-between gap-2">
+          <span className="leading-tight truncate">{children}</span>
+          {isCompleted && (
+            <div className="size-1.5 rounded-full bg-emerald-500 shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+          )}
+        </div>
         {aiDriven && (
           <div className="flex items-center gap-1 mt-1">
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100">

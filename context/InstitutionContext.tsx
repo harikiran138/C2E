@@ -53,11 +53,8 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
      fetchData now only fetches if we don't have data or explicitly requested.
   */
   const fetchData = useCallback(async (force = false) => {
-    // If we already have data and not forcing, don't re-fetch
-    if (institution && programs.length > 0 && !force) {
-        setLoading(false); 
-        return;
-    }
+    // We used to skip fetching here if data existed, but that caused stale sidebar issues.
+    // Now we always attempt to fetch to keep the context in sync with the DB.
 
     try {
       const res = await fetch('/api/institution/me');
@@ -78,7 +75,7 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
     } finally {
       setLoading(false);
     }
-  }, [institution, programs.length, pathname, router]);
+  }, [pathname, router]);
 
   // Initial fetch
   useEffect(() => {

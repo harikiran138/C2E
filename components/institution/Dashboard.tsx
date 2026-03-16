@@ -66,6 +66,12 @@ const Dashboard = memo(function Dashboard() {
     mutate();
   }, [mutate]);
 
+  // Sync context data (sidebar programs) once the dashboard loads
+  const { refreshData } = useInstitution();
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
   // Determine Title and Subtitle based on context
   const pageTitle = selectedProgram
     ? selectedProgram.program_name

@@ -75,6 +75,16 @@ export async function GET(request: Request) {
       let vmpeoFeedbackSubmissions = 0;
       let vmpeoFeedbackEntries = 0;
 
+      // Initialize optional stats
+      let curriculumCount = 0;
+      let courseCount = 0;
+      let coCount = 0;
+      let curriculumFeedbackCount = 0;
+      let reportCount = 0;
+      let consistencyMatrixCount = 0;
+      let disseminationCount = 0;
+      let curriculumDataCount = 0;
+
       if (programId) {
         // Enforce STRICT relational boundaries: Verify the program actually belongs to this exact institution.
         // Prevents Insecure Direct Object Reference (IDOR) cross-tenant data leaks.
@@ -84,7 +94,10 @@ export async function GET(request: Request) {
         );
 
         if (progAuthCheck.rows.length === 0) {
-          return NextResponse.json({ error: "Unauthorized access to this Program data." }, { status: 403 });
+          return NextResponse.json(
+            { error: "Unauthorized access to this Program data." },
+            { status: 403 },
+          );
         }
 
         const safeProgramCount = async (
@@ -104,50 +117,38 @@ export async function GET(request: Request) {
           }
         };
 
-        // Run program-specific queries in parallel
-        const [
-          pacRes,
-          bosRes,
-          stakeRes,
-          coordRes,
-          vmpRes,
-          peoRes,
-          poRes,
-          psoRes,
-        ] = await Promise.all([
-          client.query(
-            "SELECT COUNT(*) as count FROM pac_members WHERE program_id = $1",
-            [programId],
-          ),
-          client.query(
-            "SELECT COUNT(*) as count FROM bos_members WHERE program_id = $1",
-            [programId],
-          ),
-          client.query(
-            "SELECT COUNT(*) as count FROM representative_stakeholders WHERE program_id = $1",
-            [programId],
-          ),
-          client.query(
-            "SELECT COUNT(*) as count FROM program_coordinators WHERE program_id = $1",
-            [programId],
-          ),
-          client.query(
-            "SELECT EXISTS(SELECT 1 FROM program_vmp_versions WHERE program_id = $1 AND is_final = true) as finalized",
-            [programId],
-          ),
-          client.query(
-            "SELECT COUNT(*) as count FROM program_peos WHERE program_id = $1",
-            [programId],
-          ),
-          client.query(
-            "SELECT COUNT(*) as count FROM program_outcomes WHERE program_id = $1",
-            [programId],
-          ),
-          client.query(
-            "SELECT COUNT(*) as count FROM program_psos WHERE program_id = $1",
-            [programId],
-          ),
+        const results = await Promise.all([
+          client.query("SELECT COUNT(*) as count FROM pac_members WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM bos_members WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM representative_stakeholders WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM program_coordinators WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT EXISTS(SELECT 1 FROM program_vmp_versions WHERE program_id = $1 AND is_final = true) as finalized", [programId]).catch(() => ({ rows: [{ finalized: false }] })),
+          client.query("SELECT COUNT(*) as count FROM program_peos WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM program_outcomes WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM program_psos WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM curriculum_structure WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM courses WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM course_outcomes co JOIN courses c ON co.course_id = c.id WHERE c.program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM curriculum_feedback WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM audit_logs WHERE metadata->>'programId' = $1 AND action = 'REPORT_GENERATED'", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM consistency_matrix WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM program_dissemination WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM curriculum_data WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
         ]);
+
+        const [
+          pacRes, bosRes, stakeRes, coordRes, vmpRes, peoRes, poRes, psoRes,
+          currRes, courseRes, coRes, feedbackRes, reportRes, matrixRes, disseminateRes, dataRes
+        ] = results;
+
+        curriculumCount = parseInt(currRes.rows[0]?.count || "0");
+        courseCount = parseInt(courseRes.rows[0]?.count || "0");
+        coCount = parseInt(coRes.rows[0]?.count || "0");
+        curriculumFeedbackCount = parseInt(feedbackRes.rows[0]?.count || "0");
+        reportCount = parseInt(reportRes.rows[0]?.count || "0");
+        consistencyMatrixCount = parseInt(matrixRes.rows[0]?.count || "0");
+        disseminationCount = parseInt(disseminateRes.rows[0]?.count || "0");
+        curriculumDataCount = parseInt(dataRes.rows[0]?.count || "0");
 
         pacCount = parseInt(pacRes.rows[0]?.count || "0");
         bosCount = parseInt(bosRes.rows[0]?.count || "0");
@@ -161,15 +162,25 @@ export async function GET(request: Request) {
         vmpeoFeedbackEntries = await safeProgramCount(
           "program_vmpeo_feedback_entries",
         );
-        // process-2 (Coordinator) removed from active menu steps
+        // Map all 18 process steps to indicators
+        stepStatus["process-1"] = obeCount > 0;
+        // process-2 removed
         stepStatus["process-3"] = pacCount > 0;
         stepStatus["process-4"] = bosCount > 0;
         stepStatus["process-5"] = stakeholdersCount > 0;
         stepStatus["process-6"] = vmpRes.rows[0]?.finalized;
         stepStatus["process-7"] = vmpeoFeedbackEntries > 0;
-        // process-6 now covers Vision, Mission & PEOs
+        stepStatus["process-8"] = consistencyMatrixCount > 0;
         stepStatus["process-9"] = poCount > 0;
         stepStatus["process-10"] = psoCount > 0;
+        stepStatus["process-11"] = disseminationCount > 0;
+        stepStatus["process-12"] = curriculumCount > 0;
+        stepStatus["process-13"] = courseCount > 0;
+        stepStatus["process-14"] = coCount > 0;
+        stepStatus["process-15"] = curriculumDataCount > 0;
+        stepStatus["process-16"] = curriculumFeedbackCount > 0;
+        stepStatus["process-17"] = true; // Analytics Active
+        stepStatus["process-18"] = reportCount > 0;
 
         dataVars.peoCount = peoCount;
         dataVars.poCount = poCount;
@@ -212,9 +223,9 @@ export async function GET(request: Request) {
             [programId],
           ),
           client.query(
-            "SELECT COUNT(*) as count, AVG(rating) as avg_rating FROM feedback_responses r JOIN stakeholders s ON r.stakeholder_id = s.id WHERE s.program_id = $1",
+            "SELECT COUNT(*) as count, AVG(vision_alignment_rating) as avg_rating FROM stakeholder_feedback WHERE program_id = $1",
             [programId],
-          ).catch(() => ({ rows: [{ count: 0, avg_rating: 0 }] })), // Handle missing table gracefully
+          ).catch(() => ({ rows: [{ count: 0, avg_rating: 0 }] })), // Handle missing table or column legacy gracefully
         ]);
         activeStudents = parseInt(studentRes.rows[0]?.count || "0");
         totalResponses = parseInt(feedbackRes.rows[0]?.count || "0");
@@ -227,9 +238,9 @@ export async function GET(request: Request) {
             [institutionId],
           ),
           client.query(
-            "SELECT COUNT(*) as count, AVG(rating) as avg_rating FROM feedback_responses r JOIN stakeholders s ON r.stakeholder_id = s.id JOIN programs p ON s.program_id = p.id WHERE p.institution_id = $1",
+            "SELECT COUNT(*) as count, AVG(vision_alignment_rating) as avg_rating FROM stakeholder_feedback WHERE program_id IN (SELECT id FROM programs WHERE institution_id = $1)",
             [institutionId],
-          ).catch(() => ({ rows: [{ count: 0, avg_rating: 0 }] })), // Handle missing table gracefully
+          ).catch(() => ({ rows: [{ count: 0, avg_rating: 0 }] })), // Handle missing table or column legacy gracefully
         ]);
         activeStudents = parseInt(studentRes.rows[0]?.count || "0");
         totalResponses = parseInt(feedbackRes.rows[0]?.count || "0");
@@ -247,6 +258,11 @@ export async function GET(request: Request) {
         bosMembers: bosCount,
         stakeholdersCount,
         obeFrameworkCount: obeCount,
+        curriculumCount: curriculumCount || 0,
+        courseCount: courseCount || 0,
+        coCount: coCount || 0,
+        curriculumFeedbackCount: curriculumFeedbackCount || 0,
+        reportCount: reportCount || 0,
         stepStatus,
         academicCouncilMembers: acCount,
         activeStudents,

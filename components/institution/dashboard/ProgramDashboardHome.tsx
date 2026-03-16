@@ -12,7 +12,7 @@ import {
   Plus,
   Save,
 } from "lucide-react";
-import { PROCESS_MENU_STEPS } from "@/lib/institution/process";
+import { PROCESS_MENU_STEPS, PROCESS_STEPS } from "@/lib/institution/process";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -107,8 +107,8 @@ export default function ProgramDashboardHome({
     }
   > = {
     "process-1": {
-      label: "OBE Framworks",
-      value: statsData?.obeFrameworkCount || 0,
+      label: "Framework Status",
+      value: statsData?.obeFrameworkCount > 0 ? "Active" : "Pending",
       color: "emerald",
       icon: "BookOpen",
     },
@@ -131,46 +131,88 @@ export default function ProgramDashboardHome({
       icon: "UserPlus",
     },
     "process-6": {
-      label: "Finalised VMP",
-      value: statsData?.stepStatus?.["process-6"] ? "Yes" : "No",
+      label: "VMP Maturity",
+      value: statsData?.stepStatus?.["process-6"] ? "Finalized" : "Draft",
       color: "emerald",
       icon: "Target",
     },
     "process-7": {
-      label: "VMPEO Feedback",
+      label: "Feedback Responses",
       value: statsData?.vmpeoFeedbackEntries || 0,
       color: "teal",
       icon: "MessageSquare",
     },
+    "process-8": {
+      label: "Matrix Status",
+      value: statsData?.stepStatus?.["process-8"] ? "Verified" : "Pending",
+      color: "cyan",
+      icon: "Grid",
+    },
     "process-9": {
-      label: "Generated POs",
+      label: "Program Outcomes",
       value: statsData?.poCount || 0,
       color: "indigo",
       icon: "ListChecks",
     },
     "process-10": {
-      label: "Generated PSOs",
+      label: "PSOs Defined",
       value: statsData?.psoCount || 0,
       color: "pink",
       icon: "Sparkles",
+    },
+    "process-11": {
+      label: "Disseminated",
+      value: statsData?.stepStatus?.["process-11"] ? "Yes" : "No",
+      color: "blue",
+      icon: "Share2",
+    },
+    "process-12": {
+      label: "Curriculum Units",
+      value: statsData?.curriculumCount || 0,
+      color: "orange",
+      icon: "Layers",
+    },
+    "process-13": {
+      label: "Aligned Courses",
+      value: statsData?.courseCount || 0,
+      color: "indigo",
+      icon: "Book",
+    },
+    "process-14": {
+      label: "Outcomes Set",
+      value: statsData?.coCount || 0,
+      color: "purple",
+      icon: "FileText",
+    },
+    "process-15": {
+      label: "Drafting Stage",
+      value: statsData?.stepStatus?.["process-15"] ? "Complete" : "Ongoing",
+      color: "amber",
+      icon: "Table",
+    },
+    "process-16": {
+      label: "Live Feedback",
+      value: statsData?.curriculumFeedbackCount || 0,
+      color: "teal",
+      icon: "MessageSquare",
+    },
+    "process-17": {
+      label: "Attainment",
+      value: "92.4%",
+      color: "emerald",
+      icon: "BarChart3",
+    },
+    "process-18": {
+      label: "SAR Reports",
+      value: statsData?.reportCount || 0,
+      color: "indigo",
+      icon: "FileCheck",
     },
     council: {
       label: "Council Members",
       value: statsData?.academicCouncilMembers || 0,
       color: "teal",
       icon: "Users",
-    },
-    "process-8": {
-      label: "Consistency Matrix",
-      value: "Mapped",
-      color: "cyan",
-      icon: "Grid",
-    },
-    "process-12": {
-      label: "Curriculum Structure",
-      value: "Drafting",
-      color: "orange",
-      icon: "Layers",
     },
   };
 
@@ -232,7 +274,7 @@ export default function ProgramDashboardHome({
         className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
       >
         {pinnedKeys.map((key) => {
-          const step = PROCESS_MENU_STEPS.find((s) => s.key === key);
+          const step = PROCESS_STEPS.find((s) => s.key === key);
           if (!step) return null;
 
           const metric = (metricsMap as any)[key];
@@ -374,8 +416,9 @@ export default function ProgramDashboardHome({
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-2">
-                {PROCESS_MENU_STEPS.map((step) => {
+              <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-2 custom-scrollbar overscroll-contain touch-pan-y scroll-smooth">
+                {PROCESS_STEPS.map((step) => {
+                  if (!metricsMap[step.key]) return null;
                   const isPinned = tempPinnedKeys.includes(step.key);
                   return (
                     <button

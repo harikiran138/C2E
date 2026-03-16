@@ -18,6 +18,7 @@ import {
   Loader2,
 } from "lucide-react";
 import * as Icons from "lucide-react";
+import { useInstitution } from "@/context/InstitutionContext";
 
 const cn = (...classes: (string | boolean | undefined)[]) =>
   classes.filter(Boolean).join(" ");
@@ -200,6 +201,7 @@ const getStatusIcon = (status: string) => {
 
 export default function ComplianceModule({ statsData }: { statsData: any }) {
   const router = useRouter();
+  const { refreshData } = useInstitution();
   const [selectedItem, setSelectedItem] = useState<ComplianceItem | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -287,7 +289,8 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
 
       if (response.ok) {
         setIsAddModalOpen(false);
-        // Refresh page or update state optimistically
+        // Refresh institutional context (sidebar) and page data
+        refreshData();
         router.refresh();
         setFormData({
           program_name: "",
