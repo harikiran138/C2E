@@ -28,6 +28,26 @@ import {
   clearCurriculumAdvisorSnapshot,
   readCurriculumAdvisorSnapshot,
 } from "@/lib/curriculum/advisor-integration";
+import { Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+const VALIDATION_WARNING_PREFIXES = [
+  "CategoryDistributionValidator:",
+  "CourseUniquenessValidator:",
+  "FUNDAMENTAL_BACKBONE_RULES:",
+  "CoursePrerequisiteGraph:",
+  "SE appears in",
+  "DomainKnowledgeGraph:",
+  "TechnologyIntegrationEngine:",
+];
+
+function filterValidationWarnings(rawWarnings: unknown): string[] {
+  const warnings: string[] = Array.isArray(rawWarnings) ? rawWarnings : [];
+  return warnings.filter(
+    (w) => !VALIDATION_WARNING_PREFIXES.some((prefix) => typeof w === "string" && w.startsWith(prefix))
+  );
+}
 
 const CATEGORY_CELL_FIELDS = [
   "design_percent",
@@ -969,12 +989,19 @@ function CurriculumStructurePanel() {
         let courses_others = genericCounts.courses_others;
         if (semesterCount === 8) {
           if (semIndex === 0) { courses_bs = 3; courses_es = 2; courses_hss = 1; courses_mc = 1; }
+          // Sem 2 - Foundation: BS + ES + HSS + AE
           else if (semIndex === 1) { courses_bs = 2; courses_es = 3; courses_hss = 1; courses_ae = 1; }
-          else if (semIndex === 2) { courses_bs = 1; courses_pc = 4; courses_hss = 1; }
-          else if (semIndex === 3) { courses_pc = 4; courses_ae = 1; courses_int = 1; }
-          else if (semIndex === 4) { courses_pc = 4; courses_se = 1; courses_oe = 1; }
-          else if (semIndex === 5) { courses_pc = 3; courses_se = 1; courses_oe = 1; }
+          // Sem 3 - Core Entry: starts PC + SE lab starts
+          else if (semIndex === 2) { courses_bs = 1; courses_pc = 3; courses_hss = 1; courses_se = 1; }
+          // Sem 4 - Core: PC + AE + SE (ensures SE in >= 2 semesters)
+          else if (semIndex === 3) { courses_pc = 3; courses_ae = 1; courses_se = 1; courses_int = 1; }
+          // Sem 5 - Professional Core + Electives
+          else if (semIndex === 4) { courses_pc = 4; courses_oe = 1; }
+          // Sem 6 - Professional + Electives
+          else if (semIndex === 5) { courses_pc = 3; courses_oe = 1; }
+          // Sem 7 - Specialization
           else if (semIndex === 6) { courses_oe = 2; courses_pro = 1; courses_mc = 1; }
+          // Sem 8 - Capstone
           else if (semIndex === 7) { courses_oe = 2; courses_pro = 2; }
         } else {
           courses_bs = Math.floor(baseCredits / 6);
@@ -1093,7 +1120,7 @@ function CurriculumStructurePanel() {
         shouldUseSample
           ? "AI used sample data and filled all semester allocations logically."
           : "AI filled semester allocations from your table values logically.",
-        ...(Array.isArray(data.warnings) ? data.warnings : []),
+        ...filterValidationWarnings(data.warnings),
       ]);
     } catch (error: any) {
       setGenerationErrors([error.message || "AI fill and generation failed."]);
@@ -1157,7 +1184,7 @@ function CurriculumStructurePanel() {
 
       setGeneratedCurriculum(data.curriculum);
       syncGeneratedData(data.curriculum);
-      setGenerationWarnings(Array.isArray(data.warnings) ? data.warnings : []);
+      setGenerationWarnings(filterValidationWarnings(data.warnings));
     } catch (error: any) {
       setGenerationErrors([error.message || "Curriculum generation failed."]);
     } finally {
@@ -1221,11 +1248,9 @@ function CurriculumStructurePanel() {
       setGeneratedCurriculum(data.curriculum);
       syncGeneratedData(data.curriculum);
       setGenerationWarnings(
-        Array.isArray(data.warnings)
-          ? data.warnings
-          : [
-              "All semesters and subject allocations were created logically using AICTE rules.",
-            ],
+        filterValidationWarnings(data.warnings).length > 0
+          ? filterValidationWarnings(data.warnings)
+          : ["All semesters and subject allocations were created logically using AICTE rules."]
       );
     } catch (error: any) {
       setGenerationErrors([error.message || "Semester creation failed."]);
@@ -1276,7 +1301,7 @@ function CurriculumStructurePanel() {
 
       setGeneratedCurriculum(data.curriculum);
       syncGeneratedData(data.curriculum);
-      setGenerationWarnings(Array.isArray(data.warnings) ? data.warnings : []);
+      setGenerationWarnings(filterValidationWarnings(data.warnings));
     } catch (error: any) {
       setGenerationErrors([error.message || "Semester regeneration failed."]);
     } finally {
@@ -1328,6 +1353,86 @@ function CurriculumStructurePanel() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const exportToPDF = () => {
+    if (!generatedCurriculum) return;
+
+    const doc = new jsPDF("l", "pt", "a4");
+    const program = generatedCurriculum.programName;
+    const date = new Date().toLocaleDateString();
+
+    doc.setFontSize(18);
+    doc.text(`Curriculum Structure: ${program}`, 40, 40);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${date}`, 40, 60);
+
+    let startY = 80;
+
+    generatedCurriculum.semesters.forEach((semester, index) => {
+      if (startY > 500) {
+        doc.addPage();
+        startY = 40;
+      }
+
+      doc.setFontSize(14);
+      doc.text(
+        `Semester ${getSemesterLabelFromNumber(semester.semester)} (${semester.level})`,
+        40,
+        startY,
+      );
+      startY += 15;
+
+      const tableData = semester.courses.map((course, idx) => [
+        idx + 1,
+        course.courseTitle,
+        getPoPsoMapping(course.category),
+        formatNumeric(course.tHours),
+        formatNumeric(course.tuHours),
+        formatNumeric(course.llHours),
+        formatNumeric(course.twHours),
+        formatNumeric(course.totalHours),
+        formatNumeric(course.credits),
+        getCategoryDisplayLabel(course.category),
+      ]);
+
+      const subCi = semester.courses.reduce((acc, course) => acc + course.tHours, 0);
+      const subT = semester.courses.reduce((acc, course) => acc + course.tuHours, 0);
+      const subLi = semester.courses.reduce((acc, course) => acc + course.llHours, 0);
+      const subTw = semester.courses.reduce((acc, course) => acc + course.twHours, 0);
+      const subTotal = semester.courses.reduce((acc, course) => acc + course.totalHours, 0);
+      const subCredit = semester.courses.reduce((acc, course) => acc + course.credits, 0);
+
+      tableData.push([
+        "",
+        { content: "Sub-total", styles: { fontStyle: "bold", halign: "right" } },
+        "",
+        formatNumeric(subCi),
+        formatNumeric(subT),
+        formatNumeric(subLi),
+        formatNumeric(subTw),
+        formatNumeric(subTotal),
+        formatNumeric(subCredit),
+        "",
+      ] as any[]);
+
+      autoTable(doc, {
+        startY: startY,
+        head: [
+          ["No.", "Course Title", "POs/PSOs", "CI", "T", "LI", "TW+SL", "Total", "Credit", "Category"],
+        ],
+        body: tableData as any[],
+        theme: "grid",
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [79, 70, 229] },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        margin: { left: 40, right: 40 },
+      });
+
+      startY = (doc as any).lastAutoTable.finalY + 30;
+    });
+
+    doc.save(`${program.replace(/\s+/g, "_")}_Curriculum.pdf`);
   };
 
   return (
@@ -1806,6 +1911,15 @@ function CurriculumStructurePanel() {
             <RefreshCcw className="h-4 w-4" />
           )}
           {isRegenerating ? "Generating..." : "Generate From Semester"}
+        </button>
+
+        <button
+          onClick={exportToPDF}
+          disabled={!generatedCurriculum}
+          className="h-10 rounded-lg border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export to PDF
         </button>
 
         <p className="text-xs text-slate-600">

@@ -178,102 +178,185 @@ const CATEGORY_LEVEL_WEIGHTS: Record<CategoryCode, Record<SemesterLevel, number>
   },
 };
 
-const CATEGORY_TITLE_LIBRARY: Record<CategoryCode, string[]> = {
-  BS: [
-    "Engineering Mathematics I",
-    "Engineering Mathematics II",
-    "Linear Algebra and Calculus",
-    "Engineering Physics",
-    "Engineering Chemistry",
-    "Probability and Statistics",
-    "Applied Numerical Methods",
-    "Discrete Mathematics",
-    "Computational Mathematics",
-    "Data Science Mathematics",
-  ],
-  ES: [
-    "Programming Fundamentals",
-    "Engineering Graphics",
-    "Basic Electrical and Electronics Engineering",
-    "Engineering Workshop",
-    "Digital Logic Design",
-    "Data Structures",
-    "Computer Organization",
-    "Object Oriented Programming",
-    "Signals and Systems",
-    "Embedded Systems Basics",
-  ],
-  HSS: [
-    "Technical Communication",
-    "Professional Ethics and Human Values",
-    "Constitution of India",
-    "Environmental Science",
-    "Economics for Engineers",
-    "Psychology for Engineers",
-    "Sociology and Sustainable Development",
-    "Research Writing and Presentation",
-  ],
-  PC: [
-    "Design and Analysis of Algorithms",
-    "Database Management Systems",
-    "Operating Systems",
-    "Computer Networks",
-    "Software Engineering",
-    "Theory of Computation",
-    "Compiler Design",
-    "Distributed Systems",
-    "Web Technologies",
-    "Information Security",
-  ],
-  PE: [
-    "Artificial Intelligence",
-    "Machine Learning",
-    "Cloud Computing",
-    "Cyber Security",
-    "Blockchain Technologies",
-    "Internet of Things",
-    "Natural Language Processing",
-    "Computer Vision",
-    "Data Engineering",
-    "Generative AI Systems",
-  ],
-  OE: [
-    "Design Thinking and Innovation",
-    "Entrepreneurship and Startup Management",
-    "Digital Marketing",
-    "Financial Literacy for Engineers",
-    "Public Policy and Technology",
-    "Green Technology and Climate Action",
-    "Introduction to Psychology",
-    "Management Principles",
-    "Indian Knowledge Systems",
-    "Sustainable Smart Cities",
-  ],
-  MC: [],
-  AE: [
-    "Communication Skills Lab",
-    "Critical Thinking and Problem Solving",
-    "Professional Writing",
-    "Life Skills and Leadership",
-    "Quantitative Aptitude",
-    "Career Readiness",
-  ],
-  SE: [
-    "Full Stack Development Lab",
-    "Mobile Application Development Lab",
-    "DevOps and Automation Lab",
-    "Data Analytics Practice",
-    "IoT and Sensor Systems Lab",
-    "UI/UX Prototyping Studio",
-  ],
-  PR: [
-    "Mini Project",
-    "Industry Internship",
-    "Capstone Project Phase I",
-    "Capstone Project Phase II",
-    "Innovation and Prototype Lab",
-    "Research Project",
-  ],
+type TitlePool = {
+  basic: string[];
+  core: string[];
+  advanced: string[];
+};
+
+const CATEGORY_TITLE_LIBRARY_V2: Record<CategoryCode, TitlePool> = {
+  BS: {
+    basic: [
+      // Mathematics — Foundation Year
+      "Calculus, Differential Equations and Transform Methods for Computational Systems",
+      "Linear Algebra, Vector Spaces and Matrix Computation for Engineers",
+      "Engineering Physics: Wave Mechanics, Optics and Electromagnetic Theory",
+      "Engineering Chemistry: Materials Science, Electrochemistry and Corrosion Engineering",
+      "Biology for Engineers: Principles of Life Sciences and Biotechnology",
+    ],
+    core: [
+      // Mathematics — Core Year
+      "Discrete Mathematics, Graph Theory and Combinatorial Optimization",
+      "Probability Theory, Statistical Methods and Stochastic Processes",
+      "Numerical Methods, Optimization Techniques and Mathematical Modeling",
+      "Complex Variables, Transforms and Special Functions for Signal Processing",
+    ],
+    advanced: [
+      // Mathematics — Advanced/Specialization Year
+      "Computational Linear Algebra for Machine Learning and Data Science",
+      "Operations Research, Decision Theory and Optimization",
+      "Information Theory, Coding Theory and Cryptographic Mathematics",
+    ],
+  },
+  ES: {
+    basic: [
+      // Engineering Science — Foundation Year
+      "Structured Programming, Algorithms and Computational Problem Solving",
+      "Engineering Graphics, Technical Drawing and Computer-Aided Design",
+      "Electrical Circuits, Network Theory and Electronic Measurement Techniques",
+      "Basic Electronics: Semiconductor Devices, Amplifiers and Signal Processing",
+      "Engineering Mechanics: Statics, Dynamics and Strength of Materials",
+      "Digital Logic Design, Boolean Algebra and Combinational Circuit Systems",
+    ],
+    core: [
+      // Engineering Science — Core Year
+      "Data Structures, Graph Algorithms and Efficient Computing Techniques",
+      "Computer Organization, Microarchitecture and Assembly Language Programming",
+      "Object-Oriented Design, Software Modelling and Programming Patterns",
+      "Signals, Systems and Fourier Analysis for Engineers",
+      "Microprocessors, Embedded Interfaces and System-Level Programming",
+    ],
+    advanced: [
+      // Engineering Science — Advanced Year
+      "Control Systems, Feedback Theory and Industrial Automation",
+      "Analog and Digital Communication Systems and Protocols",
+      "VLSI Design, Programmable Logic and Digital System Architecture",
+    ],
+  },
+  HSS: {
+    basic: [
+      "Communicative English, Technical Writing and Presentation Skills",
+      "Professional Ethics, Human Values and Engineering Society",
+      "Constitution of India, Fundamental Rights and Democratic Governance",
+      "Environmental Science, Ecology and Sustainable Engineering Practices",
+    ],
+    core: [
+      "Economics for Engineers: Microeconomics, Macroeconomics and Financial Analysis",
+      "Psychology for Engineers: Behavioral Science, Team Dynamics and Leadership",
+      "Intellectual Property Rights, Patents and Technology Innovation Law",
+    ],
+    advanced: [
+      "Research Methodology, Academic Writing and Scientific Communication",
+      "Project Management, Risk Assessment and Organizational Leadership",
+      "Entrepreneurship, Technology Commercialization and Startup Ecosystem",
+    ],
+  },
+  PC: {
+    basic: [],
+    core: [
+      // Professional Core — Core Year (Sem 3-5)
+      "Design and Analysis of Algorithms for Efficient Computing",
+      "Database Systems, Transaction Processing and Data Storage Architectures",
+      "Operating System Architecture, Process Management and Concurrent Computing",
+      "Computer Networking, Internet Protocols and Distributed Communication Systems",
+      "Software Engineering, Software Lifecycle Management and Agile Development",
+      "Theory of Computation, Automata and Formal Language Theory",
+      "Computer Architecture, Instruction Set Design and Pipelined Processor Systems",
+      "Compiler Design, Lexical Analysis and Code Optimization Techniques",
+    ],
+    advanced: [
+      // Professional Core — Advanced Year (Sem 6-8)
+      "Distributed Systems, Microservices and Fault-Tolerant Computing",
+      "Artificial Intelligence, Knowledge Representation and Intelligent Decision Systems",
+      "Web Technologies, Full Stack Development and RESTful API Architecture",
+      "Information Security, Cryptography and Secure Software Systems",
+      "Mobile Application Development, Cross-Platform Frameworks and UI Design",
+      "Software Testing, Quality Assurance and DevOps Engineering",
+    ],
+  },
+  PE: {
+    basic: [],
+    core: [
+      "Introduction to Data Science, Exploratory Analysis and Visualization",
+      "Python Programming for Data Engineering and Scientific Computing",
+      "Java Enterprise Development, Spring Framework and Backend Architecture",
+    ],
+    advanced: [
+      "Machine Learning Algorithms, Statistical Models and Predictive Analytics",
+      "Cloud Computing Architectures, Microservices and Scalable Distributed Systems",
+      "Cyber Security, Ethical Hacking and Secure Network Systems",
+      "Blockchain Technologies, Smart Contracts and Decentralized Applications",
+      "Internet of Things: Sensor Systems, Edge Computing and Connected Devices",
+      "Deep Learning, Neural Network Architectures and AI Model Training",
+      "Big Data Engineering, Data Warehousing and Distributed Data Processing",
+      "Generative AI Systems, Large Language Models and Prompt Engineering",
+      "Natural Language Processing, Text Analytics and Language Understanding Systems",
+      "Computer Vision, Image Processing and Visual Intelligence Systems",
+      "DevOps Engineering, CI/CD Pipelines and Infrastructure Automation",
+      "Quantum Computing: Principles, Algorithms and Quantum Information Theory",
+    ],
+  },
+  OE: {
+    basic: [
+      "Introduction to Finance, Investment Principles and Personal Wealth Management",
+      "Yoga, Wellness and Mindfulness for Engineering Professionals",
+    ],
+    core: [
+      "Entrepreneurship Development, Business Models and Market Validation",
+      "Digital Marketing, SEO Strategies and Online Business Development",
+      "Design Thinking, User Experience and Product Innovation",
+    ],
+    advanced: [
+      "Sustainable Smart Cities, Urban Technology and Green Infrastructure",
+      "Industrial Sociology, Organizational Behavior and Workforce Management",
+      "Supply Chain Management, Logistics Technology and Global Operations",
+      "Healthcare Informatics, Medical Devices and Digital Health Systems",
+    ],
+  },
+  MC: {
+    basic: ["Environmental Studies and Ecology Awareness", "Indian Constitution, Rights and Civic Responsibility"],
+    core: ["Essence of Indian Traditional Knowledge and Science"],
+    advanced: [],
+  },
+  AE: {
+    basic: [
+      "Communication Skills, Soft Skills and Professional Personality Development",
+      "Technical English for Engineers: Reading, Writing and Presentation",
+    ],
+    core: [
+      "Quantitative Aptitude, Logical Reasoning and Analytical Problem Solving",
+      "Interview Skills, Resume Writing and Career Readiness",
+    ],
+    advanced: ["Leadership, Group Dynamics and Corporate Communication"],
+  },
+  SE: {
+    basic: [
+      "Programming and Problem Solving Lab using Python/C",
+      "IT Workshop: Tools, Productivity Software and Digital Literacy",
+    ],
+    core: [
+      "Data Structures and Algorithms Lab with Competitive Programming",
+      "Full Stack Web Development Lab: React, Node and Database Integration",
+      "Mobile Application Development Lab using Flutter/React Native",
+    ],
+    advanced: [
+      "DevOps, CI/CD and Cloud Deployment Lab using AWS/GCP",
+      "Machine Learning and Deep Learning Lab with PyTorch/TensorFlow",
+      "Cybersecurity and Ethical Hacking Lab",
+    ],
+  },
+  PR: {
+    basic: [],
+    core: [
+      "Minor Project: Prototype Design and Technical Problem Solving",
+      "Innovation Lab: Hackathon, Ideation and Proof-of-Concept Development",
+    ],
+    advanced: [
+      "Industry Internship: Professional Experience and Applied Engineering",
+      "Capstone Project Phase I: Research, Design and System Architecture",
+      "Capstone Project Phase II: Implementation, Testing and Deployment",
+    ],
+  },
 };
 
 const PROGRAM_TRACK_TITLE_LIBRARY: Record<
@@ -282,43 +365,45 @@ const PROGRAM_TRACK_TITLE_LIBRARY: Record<
 > = {
   CSE: {
     ES: [
-      "Programming Fundamentals",
-      "Data Structures",
-      "Digital Logic Design",
-      "Computer Organization",
-      "Object Oriented Programming",
-      "Software Tools and Practices",
-      "Web Programming Basics",
-      "Operating System Concepts",
+      "Structured Programming, Algorithms and Computational Problem Solving",
+      "Data Structures, Graph Algorithms and Efficient Computing Techniques",
+      "Digital Logic Design, Boolean Algebra and Sequential Circuit Systems",
+      "Computer Organization, Microarchitecture and Assembly Language Programming",
+      "Object-Oriented Design, Software Modelling and Programming Patterns",
+      "Web Programming Fundamentals: HTML, CSS, JavaScript and DOM Manipulation",
     ],
     PC: [
-      "Database Management Systems",
-      "Operating Systems",
-      "Computer Networks",
-      "Design and Analysis of Algorithms",
-      "Software Engineering",
-      "Theory of Computation",
-      "Compiler Design",
-      "Information Security",
-      "Distributed Systems",
-      "Web Technologies",
+      "Database Systems, Transaction Processing and Data Storage Architectures",
+      "Operating System Architecture, Process Management and Concurrent Computing",
+      "Computer Networking, Internet Protocols and Distributed Communication Systems",
+      "Design and Analysis of Algorithms for Efficient Computing",
+      "Software Engineering, Software Lifecycle Management and Agile Development",
+      "Theory of Computation, Automata and Formal Language Theory",
+      "Compiler Design, Lexical Analysis and Code Optimization Techniques",
+      "Computer Architecture, Instruction Set Design and Pipelined Processor Systems",
+      "Information Security, Cryptography and Secure Software Systems",
+      "Artificial Intelligence, Knowledge Representation and Intelligent Decision Systems",
+      "Distributed Systems, Microservices and Fault-Tolerant Computing",
+      "Web Technologies, Full Stack Development and RESTful API Architecture",
     ],
     PE: [
-      "Artificial Intelligence",
-      "Machine Learning",
-      "Cloud Computing",
-      "Cyber Security",
-      "Natural Language Processing",
-      "Computer Vision",
-      "Big Data Analytics",
-      "Blockchain Technologies",
+      "Machine Learning Algorithms, Statistical Models and Predictive Analytics",
+      "Cloud Computing Architectures, Microservices and Scalable Distributed Systems",
+      "Cyber Security, Ethical Hacking and Secure Network Systems",
+      "Big Data Engineering, Data Warehousing and Distributed Data Processing",
+      "Deep Learning, Neural Network Architectures and AI Model Training",
+      "Natural Language Processing, Text Analytics and Language Understanding Systems",
+      "Computer Vision, Image Processing and Visual Intelligence Systems",
+      "Internet of Things: Sensor Systems, Edge Computing and Connected Devices",
+      "Generative AI Systems, Large Language Models and Prompt Engineering",
+      "DevOps Engineering, CI/CD Pipelines and Infrastructure Automation",
     ],
     SE: [
-      "Full Stack Development Lab",
-      "DevOps and Automation Lab",
-      "Mobile Application Development Lab",
-      "Data Analytics Practice",
-      "Cyber Security Practice Lab",
+      "Data Structures and Algorithms Lab with Competitive Programming",
+      "Full Stack Web Development Lab: React, Node and Database Integration",
+      "Mobile Application Development Lab using Flutter/React Native",
+      "DevOps, CI/CD and Cloud Deployment Lab using AWS/GCP",
+      "Machine Learning and Deep Learning Lab with PyTorch/TensorFlow",
     ],
   },
   ECE: {
@@ -500,37 +585,73 @@ export function normalizeCourseTitle(value: string): string {
     .trim();
 }
 
+function getLevelForSemester(semester: number): keyof TitlePool {
+  if (semester <= 2) return "basic";
+  if (semester <= 5) return "core";
+  return "advanced";
+}
+
 export function buildFallbackTitle(input: {
   programName: string;
   mode?: CurriculumMode;
   category: CategoryCode;
   semester: number;
   usedTitles?: Set<string>;
+  categoryIndexInSemester?: number; // Optional: to help with multi-course same-category same-semester
 }): string {
-  const categoryTitles = getCategoryTitlePool(input.programName, input.category);
-  const baseName =
-    categoryTitles[(Math.max(1, input.semester) - 1) % Math.max(1, categoryTitles.length)] ||
-    `${input.category} Course`;
+  const level = getLevelForSemester(input.semester);
+  const categoryTitles = getCategoryTitlePool(input.programName, input.category, level);
+  
+  // Logic: try to pick a title based on cumulative index or semester progression
+  // We use (semester * 2 + index) to spread titles across the library better
+  const poolIndex = ((input.semester - 1) * 2 + (input.categoryIndexInSemester || 0)) % Math.max(1, categoryTitles.length);
+  const baseName = categoryTitles[poolIndex] || `${input.category} Course`;
 
   const usedTitles = input.usedTitles;
   let candidate = baseName;
   if (!usedTitles) return candidate;
 
   let index = 1;
+  // If we hit a duplicate, we try the NEXT title in the pool first before adding "2"
+  let poolOffset = 1;
   while (usedTitles.has(normalizeCourseTitle(candidate))) {
-    index += 1;
-    candidate = `${baseName} ${index}`;
+    const nextPoolIndex = (poolIndex + poolOffset) % categoryTitles.length;
+    const nextCandidate = categoryTitles[nextPoolIndex];
+    
+    if (nextCandidate && !usedTitles.has(normalizeCourseTitle(nextCandidate))) {
+      candidate = nextCandidate;
+      break; 
+    }
+    
+    // If we've exhausted the pool or still hitting duplicates, add a suffix
+    if (poolOffset >= categoryTitles.length) {
+      index += 1;
+      candidate = `${baseName} ${index}`;
+    } else {
+      poolOffset += 1;
+    }
   }
 
   usedTitles.add(normalizeCourseTitle(candidate));
   return candidate;
 }
 
-function getCategoryTitlePool(programName: string, category: CategoryCode): string[] {
+function getCategoryTitlePool(programName: string, category: CategoryCode, level: keyof TitlePool): string[] {
   const track = detectProgramTrack(programName);
   const trackTitles = PROGRAM_TRACK_TITLE_LIBRARY[track]?.[category];
+  
+  // If we have track-specific titles, we use them (for now they aren't leveled but we can filter or just return)
   if (trackTitles && trackTitles.length > 0) return trackTitles;
-  return CATEGORY_TITLE_LIBRARY[category] || [];
+  
+  const poolObject = CATEGORY_TITLE_LIBRARY_V2[category];
+  if (!poolObject) return [];
+
+  let titles = poolObject[level];
+  // Fallback progression: target level -> core -> basic
+  if (titles.length === 0 && level === "advanced") titles = poolObject.core;
+  if (titles.length === 0) titles = poolObject.basic;
+  
+  return titles;
 }
 
 function detectProgramTrack(programName: string): ProgramTrack {
@@ -686,12 +807,17 @@ export function buildCurriculum(input: BuildCurriculumInput): BuildCurriculumRes
         }
 
         semesterCourseSequence[semIndex] += 1;
+        
+        // Count how many courses of this category are already in this semester
+        const categoryCountInSem = semesters[semIndex].courses.filter(c => c.category === category).length;
+
         const title = buildFallbackTitle({
           programName,
           mode,
           category,
           semester: semesterNo,
           usedTitles,
+          categoryIndexInSemester: categoryCountInSem,
         });
 
         const hourBreakdown = buildHourBreakdown(category, courseCredits);
@@ -728,12 +854,15 @@ export function buildCurriculum(input: BuildCurriculumInput): BuildCurriculumRes
         semesterCourseSequence[semIndex] += 1;
         semesters[semIndex].categoryCourseCounts[category] += 1;
 
+        const categoryCountInSem = semesters[semIndex].courses.filter(c => c.category === category).length;
+
         const title = buildFallbackTitle({
           programName,
           mode,
           category,
           semester: fallbackSemester,
           usedTitles,
+          categoryIndexInSemester: categoryCountInSem,
         });
 
         const hourBreakdown = buildHourBreakdown(category, courseCredits);

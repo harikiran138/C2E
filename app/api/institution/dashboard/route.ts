@@ -29,7 +29,10 @@ export async function GET(request: Request) {
       // Run independent queries in parallel
       const [nameRes, progRes, obeRes, acRes, allProgsRes] = await Promise.all([
         client.query(
-          "SELECT institution_name, vision, mission FROM institutions WHERE id = $1",
+          `SELECT i.institution_name, id.vision, id.mission 
+           FROM institutions i
+           LEFT JOIN institution_details id ON i.id = id.institution_id
+           WHERE i.id = $1`,
           [institutionId],
         ),
         client.query(
@@ -195,6 +198,44 @@ export async function GET(request: Request) {
         type: "program" as const,
       }));
 
+      // 6. Program Specific Data (moved up or updated)
+      let activeStudents = 0;
+      let totalResponses = 0;
+      let avgRating = 0;
+
+      if (programId) {
+        // ... (previous program specific queries)
+        // Let's add a query for student count and responses if not already there
+         const [studentRes, feedbackRes] = await Promise.all([
+          client.query(
+            "SELECT COUNT(*) as count FROM stakeholders WHERE program_id = $1 AND category = 'Students'",
+            [programId],
+          ),
+          client.query(
+            "SELECT COUNT(*) as count, AVG(rating) as avg_rating FROM feedback_responses r JOIN stakeholders s ON r.stakeholder_id = s.id WHERE s.program_id = $1",
+            [programId],
+          ).catch(() => ({ rows: [{ count: 0, avg_rating: 0 }] })), // Handle missing table gracefully
+        ]);
+        activeStudents = parseInt(studentRes.rows[0]?.count || "0");
+        totalResponses = parseInt(feedbackRes.rows[0]?.count || "0");
+        avgRating = parseFloat(feedbackRes.rows[0]?.avg_rating || "0");
+      } else {
+        // Institution-wide stats
+        const [studentRes, feedbackRes] = await Promise.all([
+          client.query(
+            "SELECT COUNT(*) as count FROM stakeholders s JOIN programs p ON s.program_id = p.id WHERE p.institution_id = $1 AND s.category = 'Students'",
+            [institutionId],
+          ),
+          client.query(
+            "SELECT COUNT(*) as count, AVG(rating) as avg_rating FROM feedback_responses r JOIN stakeholders s ON r.stakeholder_id = s.id JOIN programs p ON s.program_id = p.id WHERE p.institution_id = $1",
+            [institutionId],
+          ).catch(() => ({ rows: [{ count: 0, avg_rating: 0 }] })), // Handle missing table gracefully
+        ]);
+        activeStudents = parseInt(studentRes.rows[0]?.count || "0");
+        totalResponses = parseInt(feedbackRes.rows[0]?.count || "0");
+        avgRating = parseFloat(feedbackRes.rows[0]?.avg_rating || "0");
+      }
+
       const data = {
         ...dataVars,
         institutionName,
@@ -208,9 +249,9 @@ export async function GET(request: Request) {
         obeFrameworkCount: obeCount,
         stepStatus,
         academicCouncilMembers: acCount,
-        activeStudents: 120, // Placeholder
-        totalResponses: 0,
-        avgRating: 4.8,
+        activeStudents,
+        totalResponses,
+        avgRating: parseFloat(avgRating.toFixed(1)),
         recentActivities: activities,
       };
 

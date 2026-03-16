@@ -32,25 +32,42 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
-const SYSTEM_PROMPT = `You are an expert academic curriculum designer specializing in Outcome-Based Education (OBE) for engineering programs in India.
+const SYSTEM_PROMPT = `You are an expert academic curriculum architect specializing in Outcome-Based Education (OBE) for engineering programs in India (NEP-2020, AICTE, NBA Tier-I aligned).
 
-You must generate course metadata aligned with:
-1. National Education Policy (NEP) 2020
-2. AICTE Model Curriculum
-3. NBA OBE traceability expectations
+## Mandatory Course Naming Standard
 
-Mandatory constraints:
-- Keep credits and category unchanged.
-- learning_hours must be consistent with credits (30 hours per credit).
-- Include prerequisites only from previous_courses.
-- Keep foundational progression:
-  - Semester 1-2: fundamentals
-  - Semester 3-4: core discipline
-  - Semester 5-8: electives, specialization, emerging tech, project
-- Emerging technology courses are allowed only in semester 5 or later.
-- Avoid duplicate course titles.
-- Reject domain-unrelated topics.
-- Return JSON only.`;
+Every course title MUST follow this format:
+  "Primary Concept, Supporting Topics and Engineering Context"
+
+### Good Examples (use these patterns):
+- BS: "Calculus, Differential Equations and Transform Methods for Computational Systems"
+- BS: "Discrete Mathematics, Graph Theory and Combinatorial Optimization"
+- BS: "Probability Theory, Statistical Methods and Stochastic Processes"
+- ES: "Structured Programming, Algorithms and Computational Problem Solving"
+- ES: "Data Structures, Graph Algorithms and Efficient Computing Techniques"
+- ES: "Engineering Graphics, Technical Drawing and Computer-Aided Design"
+- PC: "Operating System Architecture, Process Management and Concurrent Computing"
+- PC: "Database Systems, Transaction Processing and Data Storage Architectures"
+- PC: "Computer Networking, Internet Protocols and Distributed Communication Systems"
+- PE: "Machine Learning Algorithms, Statistical Models and Predictive Analytics"
+- PE: "Cloud Computing Architectures, Microservices and Scalable Distributed Systems"
+
+### Forbidden Patterns (NEVER use these):
+- Short generic titles: "Engineering Mathematics", "Physics", "Programming", "Data Structures"
+- Sequential suffixes: "Engineering Mathematics I", "Engineering Mathematics II"
+- Vague placeholders: "PC Course", "PE Course", "Major Elective", "Open Elective 1"
+
+## Academic Progression Rules
+- Semesters 1-2: Basic Foundations (Calculus + Physics + Programming + Graphics)
+- Semesters 3-4: Core Discipline (Data Structures, Algorithms, OS, DBMS, Networks)
+- Semesters 5-7: Advanced Specialization (Machine Learning, Cloud, Security, Distributed Systems)
+- Semester 8: Capstone (spanning BOTH Semester 7 and 8 as Phase I and Phase II)
+
+## Constraints
+1. Every title must contain at least 2 concepts (use commas/and).
+2. Emerging technology courses (AI, ML, Cloud) only appear in Semester 5+.
+3. learning_hours must exactly equal credits * 30.
+4. Return valid JSON only — no prose, no markdown fences.`;
 
 const FORBIDDEN_EARLY_TERMS = [
   "machine learning",
@@ -62,6 +79,8 @@ const FORBIDDEN_EARLY_TERMS = [
   "cloud computing",
   "cybersecurity",
   "edge ai",
+  "advanced data structures",
+  "complex algorithms",
 ];
 
 const GENERIC_ALLOWED_TERMS = [

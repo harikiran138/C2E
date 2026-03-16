@@ -362,17 +362,20 @@ export class CurriculumValidator {
 
       if (dependentSemester === null) continue;
       if (prerequisiteSemester === null) {
+        // Only error if prerequisite is completely missing
         errors.push(
           `CoursePrerequisiteGraph: missing prerequisite for "${rule.label}" before semester ${dependentSemester}.`,
         );
         continue;
       }
 
-      if (prerequisiteSemester >= dependentSemester) {
+      if (prerequisiteSemester > dependentSemester) {
+        // Strict violation: prerequisite appears AFTER the dependent
         errors.push(
           `CoursePrerequisiteGraph: invalid order for "${rule.label}" (prerequisite semester ${prerequisiteSemester}, dependent semester ${dependentSemester}).`,
         );
       }
+      // Same semester is allowed (introductory + applied in parallel in first semester)
     }
 
     return errors;
@@ -501,21 +504,20 @@ export class CurriculumValidator {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Credit validation
+    // Credit validation - warnings only in non-strict, errors in strict
     const creditErrors = this.validateCredits();
     if (this.strict) errors.push(...creditErrors);
     else warnings.push(...creditErrors);
 
     const rangeErrors = this.validateSemesterCreditRange();
-    if (this.strict) errors.push(...rangeErrors);
-    else warnings.push(...rangeErrors);
+    // Semester credit range is always a warning, not an error
+    warnings.push(...rangeErrors);
 
-    // Distribution
+    // Category distribution - always a warning (user can configure their own distributions)
     const distErrors = this.validateCategoryDistributionRules();
-    if (this.strict) errors.push(...distErrors);
-    else warnings.push(...distErrors);
+    warnings.push(...distErrors);
 
-    // Structural
+    // Structural - always warnings too (except strict mode)
     const nepErrors = this.validateNEPStructure();
     if (this.strict) errors.push(...nepErrors);
     else warnings.push(...nepErrors);
@@ -532,11 +534,13 @@ export class CurriculumValidator {
     if (this.strict) errors.push(...electiveErrors);
     else warnings.push(...electiveErrors);
 
+    // Course uniqueness - always a warning (title overlap is okay across program)
     const uniqueErrors = this.validateCourseUniqueness();
-    if (this.strict) errors.push(...uniqueErrors);
-    else warnings.push(...uniqueErrors);
+    warnings.push(...uniqueErrors);
 
+    // Backbone and progression - warnings only for missing foundation
     const progression = this.validateLearningProgressionAndTechnologyAlignment();
+    // Prerequisite order violations are errors only in strict mode
     if (this.strict) errors.push(...progression.errors);
     else warnings.push(...progression.errors);
     warnings.push(...progression.warnings);

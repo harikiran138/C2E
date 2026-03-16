@@ -18,9 +18,20 @@ export async function POST(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      // Check institution details in `institutions` table
+      // Check institution details by joining with institution_details
       const instResult = await client.query(
-        "SELECT id, institution_type, institution_status, established_year, university_affiliation, city, state, email FROM institutions WHERE id = $1",
+        `SELECT 
+          i.id, 
+          id.type as institution_type, 
+          id.status as institution_status, 
+          id.established_year, 
+          id.affiliation as university_affiliation, 
+          id.city, 
+          id.state, 
+          i.email 
+         FROM institutions i
+         LEFT JOIN institution_details id ON i.id = id.institution_id
+         WHERE i.id = $1`,
         [institutionId],
       );
 
@@ -35,11 +46,9 @@ export async function POST(request: NextRequest) {
       // Validate required fields
       const isValid =
         details.institution_type &&
-        details.established_year >= 1900 &&
+        details.established_year >= 1800 &&
         details.city &&
-        details.state &&
-        (details.institution_status !== "Non-Autonomous" ||
-          details.university_affiliation);
+        details.state;
 
       if (!isValid) {
         return NextResponse.json(

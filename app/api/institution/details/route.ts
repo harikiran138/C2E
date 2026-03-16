@@ -22,29 +22,30 @@ export async function GET(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      // Fetch Institution
+      // Fetch Institution with Details
       const instResult = await client.query(
         `SELECT
-          id,
-          institution_name,
-          email,
-          onboarding_status,
-          institution_type,
-          institution_status,
-          established_year,
-          university_affiliation,
-          city,
-          state,
-          vision,
-          mission
-         FROM institutions
-         WHERE id = $1`,
+          i.id,
+          i.institution_name,
+          i.email,
+          i.onboarding_status,
+          id.type as institution_type,
+          id.status as institution_status,
+          id.established_year,
+          id.affiliation as university_affiliation,
+          id.city,
+          id.state,
+          id.vision,
+          id.mission
+         FROM institutions i
+         LEFT JOIN institution_details id ON i.id = id.institution_id
+         WHERE i.id = $1`,
         [institutionId],
       );
 
       const institution = instResult.rows[0];
 
-      // Fetch Programs
+      // Fetch Programs (Selecting only existing columns)
       const progResult = await client.query(
         `SELECT
           id,
@@ -56,22 +57,7 @@ export async function GET(request: NextRequest) {
           academic_year,
           program_code,
           vision,
-          mission,
-          program_vision,
-          program_mission,
-          vision_score,
-          mission_score,
-          vision_analysis,
-          mission_analysis,
-          vision_priorities,
-          mission_priorities,
-          vision_inputs_used,
-          mission_inputs_used,
-          generated_by_ai,
-          vision_options,
-          mission_options,
-          consistency_matrix,
-          peo_po_matrix
+          mission
          FROM programs
          WHERE institution_id = $1
          ORDER BY created_at ASC`,
@@ -129,21 +115,40 @@ export async function POST(request: NextRequest) {
 
     const client = await pool.connect();
     try {
+      await client.query("BEGIN");
+
+      // Update basic institution name
       await client.query(
-        `UPDATE institutions 
-         SET institution_name = $1,
-             institution_type = $2, 
-             institution_status = $3, 
-             established_year = $4, 
-             university_affiliation = $5, 
-             city = $6, 
-             state = $7, 
-             vision = $8,
-             mission = $9,
-             updated_at = NOW()
-         WHERE id = $10`,
+        `UPDATE institutions SET institution_name = $1, updated_at = NOW() WHERE id = $2`,
+        [payload.institution_name.trim(), institutionId]
+      );
+
+      // Upsert into institution_details
+      await client.query(
+        `INSERT INTO institution_details (
+          institution_id, 
+          type, 
+          status, 
+          established_year, 
+          affiliation, 
+          city, 
+          state, 
+          vision, 
+          mission, 
+          updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        ON CONFLICT (institution_id) DO UPDATE SET
+          type = EXCLUDED.type,
+          status = EXCLUDED.status,
+          established_year = EXCLUDED.established_year,
+          affiliation = EXCLUDED.affiliation,
+          city = EXCLUDED.city,
+          state = EXCLUDED.state,
+          vision = EXCLUDED.vision,
+          mission = EXCLUDED.mission,
+          updated_at = NOW()`,
         [
-          payload.institution_name.trim(),
+          institutionId,
           payload.institution_type,
           payload.institution_status,
           payload.established_year,
@@ -152,11 +157,14 @@ export async function POST(request: NextRequest) {
           payload.state.trim(),
           payload.vision?.trim() || null,
           payload.mission?.trim() || null,
-          institutionId,
         ],
       );
 
+      await client.query("COMMIT");
       return NextResponse.json({ ok: true });
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
     } finally {
       client.release();
     }

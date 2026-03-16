@@ -31,7 +31,17 @@ const item: Variants = {
 
 import { useInstitution } from "@/context/InstitutionContext";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const error = new Error("An error occurred while fetching the data.");
+    const info = await res.json();
+    (error as any).info = info;
+    (error as any).status = res.status;
+    throw error;
+  }
+  return res.json();
+};
 
 const Dashboard = memo(function Dashboard() {
   const { institution, selectedProgram } = useInstitution();

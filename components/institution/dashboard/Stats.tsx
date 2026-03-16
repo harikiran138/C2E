@@ -20,6 +20,7 @@ interface StatsProps {
     activeStudents: number;
     totalResponses: number;
     avgRating: number;
+    obeFrameworkCount: number;
   };
 }
 
@@ -36,7 +37,7 @@ export default function Stats({ data }: StatsProps) {
     },
     {
       title: "OBE Framework",
-      value: 4,
+      value: data?.obeFrameworkCount || 0,
       icon: <FileText className="h-5 w-5" />,
       change: 0,
       trend: "up" as const,

@@ -26,9 +26,22 @@ export async function GET(request: Request) {
 
     const client = await pool.connect();
     try {
-      // Fetch Institution details
+      // Fetch Institution details by joining with institution_details
       const instRes = await client.query(
-        "SELECT id, institution_name, email, institution_type, institution_status, city, state, vision, mission, onboarding_status FROM institutions WHERE id = $1",
+        `SELECT 
+          i.id, 
+          i.institution_name, 
+          i.email, 
+          id.type as institution_type, 
+          id.status as institution_status, 
+          id.city, 
+          id.state, 
+          id.vision, 
+          id.mission, 
+          i.onboarding_status 
+         FROM institutions i
+         LEFT JOIN institution_details id ON i.id = id.institution_id
+         WHERE i.id = $1`,
         [institutionId],
       );
 
