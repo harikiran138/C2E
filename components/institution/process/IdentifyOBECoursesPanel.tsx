@@ -111,7 +111,7 @@ function IdentifyOBECoursesPanelContent() {
   const [obeMappings, setObeMappings] = useState<OBEMappingsMap>({});
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
-  // ── Fetch courses on mount ──────────────────────────────────────────────
+  // ── Fetch courses & mappings on mount ──────────────────────────────────────
   useEffect(() => {
     if (!programId) return;
     const load = async () => {
@@ -124,23 +124,42 @@ function IdentifyOBECoursesPanelContent() {
           params.set("versionId", versionId);
         }
 
-        const res = await fetch(`/api/curriculum/courses?${params.toString()}`);
-        if (!res.ok) throw new Error("Failed to fetch courses");
-        const data = await res.json();
-        const fetched: Course[] = data.courses ?? [];
+        // Fetch courses
+        const resCourses = await fetch(`/api/curriculum/courses?${params.toString()}`);
+        if (!resCourses.ok) throw new Error("Failed to fetch courses");
+        const dataCourses = await resCourses.json();
+        const fetched: Course[] = dataCourses.courses ?? [];
         setCourses(fetched);
-        // Default: PC, PR, ES are OBE Core
-        const defaults: OBEMappingsMap = {};
+
+        // Fetch existing mappings
+        const resMappings = await fetch(`/api/curriculum/obe-mappings?${params.toString()}`);
+        let existingMap: OBEMappingsMap = {};
+        if (resMappings.ok) {
+          const mappingData = await resMappings.json();
+          (mappingData.mappings || []).forEach((m: any) => {
+            existingMap[m.course_code] = {
+              isOBECore: m.is_obe_core,
+              categoryOverride: m.category_override || undefined,
+            };
+          });
+        }
+
+        // Merge defaults if no mapping exists
+        const finalizedMap: OBEMappingsMap = {};
         fetched.forEach((c) => {
-          defaults[c.course_code] = {
-            isOBECore: ["PC", "PR", "ES"].includes(c.category_code),
-            categoryOverride: undefined,
-          };
+          if (existingMap[c.course_code]) {
+            finalizedMap[c.course_code] = existingMap[c.course_code];
+          } else {
+            finalizedMap[c.course_code] = {
+              isOBECore: ["PC", "PR", "ES"].includes(c.category_code),
+              categoryOverride: undefined,
+            };
+          }
         });
-        setObeMappings(defaults);
+        setObeMappings(finalizedMap);
       } catch (err) {
         console.error(err);
-        showToast("Failed to load courses", false);
+        showToast("Failed to load data", false);
       } finally {
         setIsLoading(false);
       }
@@ -173,14 +192,25 @@ function IdentifyOBECoursesPanelContent() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Log the mappings for now (no dedicated save endpoint yet)
-      console.log("OBE Mappings to save:", { programId, mappings: obeMappings });
-      // Simulate a brief network delay for UX
-      await new Promise((r) => setTimeout(r, 800));
+      const res = await fetch("/api/curriculum/obe-mappings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programId,
+          curriculumId: curriculumId || null,
+          mappings: obeMappings,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to save mappings");
+      }
+
       showToast("OBE mappings saved successfully", true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showToast("Failed to save mappings", false);
+      showToast(err.message || "Failed to save mappings", false);
     } finally {
       setIsSaving(false);
     }

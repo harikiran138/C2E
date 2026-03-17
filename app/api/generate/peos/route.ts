@@ -17,7 +17,7 @@ export async function POST(request: Request) {
         institutionName,
         geminiApiKey: GEMINI_API_KEY,
       });
-      return NextResponse.json({ peos: result.peos, ranked: result.ranked });
+      return NextResponse.json({ results: result.peos, quality: result.ranked });
     } catch (agentError) {
       // Fallback: Python backend (backward compatibility)
       console.warn("PEO Agent failed, falling back to Python backend:", agentError);

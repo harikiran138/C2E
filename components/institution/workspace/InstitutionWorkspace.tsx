@@ -413,6 +413,33 @@ function SidebarContent({
     return prog ? prog.program_name : "Select Program";
   }, [selectedProgramId, programs]);
 
+  const progressData = useMemo(() => {
+    const allStepKeys = [
+      "council",
+      "process-1",
+      "process-3",
+      "process-4",
+      "process-5",
+      "process-6",
+      "process-7",
+      "process-8",
+      "process-9",
+      "process-10",
+      "process-11",
+      "process-12",
+      "process-13",
+      "process-14",
+      "process-15",
+      "process-16",
+      "process-17",
+      "process-18",
+    ];
+    return {
+      completed: allStepKeys.filter((key) => statsData?.stepStatus?.[key]).length,
+      total: allStepKeys.length,
+    };
+  }, [statsData]);
+
   return (
     <div className="flex flex-col gap-6 py-4">
       {/* GROUP 1 — Institution (Always Visible) */}
@@ -550,13 +577,10 @@ function SidebarContent({
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
-            <SidebarGroup 
-              title="Program Execution" 
+            <SidebarGroup
+              title="Program Execution"
               variant="purple"
-              progress={{
-                total: PROCESS_MENU_STEPS.length,
-                completed: PROCESS_MENU_STEPS.filter(step => statsData?.stepStatus?.[step.key]).length
-              }}
+              progress={progressData}
             >
               <SidebarNavItem
                 href={`/institution/dashboard?programId=${selectedProgramId}`}

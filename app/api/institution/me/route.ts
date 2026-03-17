@@ -56,7 +56,20 @@ export async function GET(request: Request) {
 
       // Fetch Programs
       const progRes = await client.query(
-        "SELECT id, program_name, program_code, degree, intake, duration FROM programs WHERE institution_id = $1 ORDER BY program_name ASC",
+        `SELECT 
+          p.id, 
+          p.program_name, 
+          p.program_code, 
+          p.degree, 
+          p.intake, 
+          p.duration,
+          p.vision,
+          p.mission,
+          cm.matrix_data as consistency_matrix 
+         FROM programs p 
+         LEFT JOIN consistency_matrix cm ON p.id = cm.program_id
+         WHERE p.institution_id = $1 
+         ORDER BY p.program_name ASC`,
         [institutionId],
       );
 

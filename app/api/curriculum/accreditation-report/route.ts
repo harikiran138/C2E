@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
+import { verifyToken } from "@/lib/auth";
+import { cookies } from "next/headers";
 
 type ReportType = "NBA" | "NAAC" | "ABET";
 type ExportFormat = "json" | "csv" | "excel" | "pdf";
@@ -982,7 +984,6 @@ export async function POST(request: Request) {
         },
       });
     }
-
     if (exportFormat === "pdf") {
       const pdfBuffer = buildSimplePdf(report);
       return new NextResponse(new Uint8Array(pdfBuffer), {
@@ -991,6 +992,27 @@ export async function POST(request: Request) {
           "Content-Disposition": `attachment; filename="${reportType.toLowerCase()}_accreditation_report.pdf"`,
         },
       });
+    }
+
+    // Add audit log after successful generation
+    const token = (await cookies()).get("institution_token")?.value;
+    if (token) {
+      const payload = await verifyToken(token);
+      const institutionId = payload?.id as string;
+      if (institutionId) {
+        const auditClient = await pool.connect();
+        try {
+          await auditClient.query(
+            `INSERT INTO audit_logs (institution_id, action, metadata)
+             VALUES ($1, 'REPORT_GENERATED', $2)`,
+            [institutionId, JSON.stringify({ programId, reportType, exportFormat, academicYear })]
+          );
+        } catch (e) {
+          console.error("Failed to log audit event:", e);
+        } finally {
+          auditClient.release();
+        }
+      }
     }
 
     return NextResponse.json({ report });

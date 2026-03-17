@@ -65,6 +65,7 @@ export async function GET(request: Request) {
       let dataVars: any = {};
       let stepStatus: Record<string, any> = {};
       stepStatus["process-1"] = obeCount > 0;
+      stepStatus["council"] = acCount > 0;
 
       let pacCount = 0;
       let bosCount = 0;
@@ -126,14 +127,14 @@ export async function GET(request: Request) {
           client.query("SELECT COUNT(*) as count FROM program_peos WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
           client.query("SELECT COUNT(*) as count FROM program_outcomes WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
           client.query("SELECT COUNT(*) as count FROM program_psos WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
-          client.query("SELECT COUNT(*) as count FROM curriculum_structure WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
-          client.query("SELECT COUNT(*) as count FROM courses WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
-          client.query("SELECT COUNT(*) as count FROM course_outcomes co JOIN courses c ON co.course_id = c.id WHERE c.program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM curriculum_category_credits WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM curriculum_obe_mappings WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM curriculum_course_outcomes WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
           client.query("SELECT COUNT(*) as count FROM curriculum_feedback WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
           client.query("SELECT COUNT(*) as count FROM audit_logs WHERE metadata->>'programId' = $1 AND action = 'REPORT_GENERATED'", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
           client.query("SELECT COUNT(*) as count FROM consistency_matrix WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
           client.query("SELECT COUNT(*) as count FROM program_dissemination WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
-          client.query("SELECT COUNT(*) as count FROM curriculum_data WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
+          client.query("SELECT COUNT(*) as count FROM curriculum_generated_courses WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0 }] })),
         ]);
 
         const [
@@ -142,13 +143,16 @@ export async function GET(request: Request) {
         ] = results;
 
         curriculumCount = parseInt(currRes.rows[0]?.count || "0");
-        courseCount = parseInt(courseRes.rows[0]?.count || "0");
+        const obeMappedCount = parseInt(courseRes.rows[0]?.count || "0");
         coCount = parseInt(coRes.rows[0]?.count || "0");
         curriculumFeedbackCount = parseInt(feedbackRes.rows[0]?.count || "0");
         reportCount = parseInt(reportRes.rows[0]?.count || "0");
         consistencyMatrixCount = parseInt(matrixRes.rows[0]?.count || "0");
         disseminationCount = parseInt(disseminateRes.rows[0]?.count || "0");
         curriculumDataCount = parseInt(dataRes.rows[0]?.count || "0");
+        
+        // Ensure courseCount reflects either core courses or generated courses
+        courseCount = obeMappedCount || curriculumDataCount;
 
         pacCount = parseInt(pacRes.rows[0]?.count || "0");
         bosCount = parseInt(bosRes.rows[0]?.count || "0");
@@ -163,6 +167,7 @@ export async function GET(request: Request) {
           "program_vmpeo_feedback_entries",
         );
         // Map all 18 process steps to indicators
+        stepStatus["council"] = acCount > 0;
         stepStatus["process-1"] = obeCount > 0;
         // process-2 removed
         stepStatus["process-3"] = pacCount > 0;

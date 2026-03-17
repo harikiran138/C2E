@@ -112,6 +112,12 @@ export default function ProgramDashboardHome({
       color: "emerald",
       icon: "BookOpen",
     },
+    "council": {
+      label: "Council Members",
+      value: statsData?.academicCouncilMembers || 0,
+      color: "teal",
+      icon: "Users",
+    },
     "process-3": {
       label: "PAC Members",
       value: statsData?.pacMembers || 0,
@@ -207,12 +213,6 @@ export default function ProgramDashboardHome({
       value: statsData?.reportCount || 0,
       color: "indigo",
       icon: "FileCheck",
-    },
-    council: {
-      label: "Council Members",
-      value: statsData?.academicCouncilMembers || 0,
-      color: "teal",
-      icon: "Users",
     },
   };
 
@@ -416,7 +416,7 @@ export default function ProgramDashboardHome({
                 </button>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-2 custom-scrollbar overscroll-contain touch-pan-y scroll-smooth">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-2 overscroll-contain touch-pan-y scroll-smooth custom-scrollbar" style={{ maxHeight: "calc(100vh - 160px)" }}>
                 {PROCESS_STEPS.map((step) => {
                   if (!metricsMap[step.key]) return null;
                   const isPinned = tempPinnedKeys.includes(step.key);

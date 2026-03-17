@@ -18,19 +18,27 @@ import CurriculumFeedbackPanel from "@/components/institution/process/Curriculum
 import AccreditationReportPanel from "@/components/institution/process/AccreditationReportPanel";
 import AccreditationAnalyticsPanel from "@/components/institution/process/AccreditationAnalyticsPanel";
 import VMPEOFeedbackDashboard from "@/components/institution/VMPEOFeedbackDashboard";
+import DevelopCurriculumPanel from "@/components/institution/process/DevelopCurriculumPanel";
 import {
   CATEGORY_CODES,
   CategoryCode,
   GeneratedCurriculum,
 } from "@/lib/curriculum/engine";
-import { Save, Loader2, WandSparkles, RefreshCcw } from "lucide-react";
+import {
+  Save,
+  Loader2,
+  WandSparkles,
+  RefreshCcw,
+  Download,
+  Check,
+} from "lucide-react";
 import {
   clearCurriculumAdvisorSnapshot,
   readCurriculumAdvisorSnapshot,
 } from "@/lib/curriculum/advisor-integration";
-import { Download } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { cn } from "@/lib/utils";
 
 const VALIDATION_WARNING_PREFIXES = [
   "CategoryDistributionValidator:",
@@ -2090,64 +2098,34 @@ function CurriculumStructurePanel() {
   );
 }
 
-function DevelopCurriculumPanel() {
-  const headers = ["Semester", "Course Title", "Credits", "Category"];
 
-  return (
-    <div className="space-y-5">
-      <h3 className="text-xl font-semibold">Develop Curriculum</h3>
-      <p className="text-sm text-slate-600">
-        Table opens on the right side. You can fill prescribed format directly
-        or use Excel-assisted input.
-      </p>
-      <div className="rounded-xl border border-slate-300 bg-slate-50 p-4">
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-          Upload Excel (Optional)
-        </label>
-        <input
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          className="block w-full text-sm"
-        />
-      </div>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200">
-        <table className="min-w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              {headers.map((header) => (
-                <th
-                  key={header}
-                  className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-left font-semibold text-slate-700"
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 8 }).map((_, index) => (
-              <tr key={index}>
-                {headers.map((header) => (
-                  <td
-                    key={header}
-                    className="border-b border-slate-100 px-3 py-2"
-                  >
-                    <input
-                      className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
-                      placeholder={header}
-                    />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+function ActionPanel({ step, programId }: { step: ProcessStep; programId: string | null }) {
+  const [loading, setLoading] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
 
-function ActionPanel({ step }: { step: ProcessStep }) {
+  useEffect(() => {
+    // We could fetch status here, but for now let's just implement the toggle
+  }, [step.key, programId]);
+
+  const handleAction = async (completed: boolean) => {
+    if (!programId || step.key !== "process-11") return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/institution/disseminate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ programId, isCompleted: completed }),
+      });
+      if (res.ok) {
+        setIsCompleted(completed);
+      }
+    } catch (err) {
+      console.error("Action failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
       <h3 className="text-xl font-semibold">{step.title}</h3>
@@ -2160,14 +2138,30 @@ function ActionPanel({ step }: { step: ProcessStep }) {
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             type="button"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            disabled={loading}
+            onClick={() => handleAction(false)}
+            className={cn(
+              "rounded-lg px-4 py-2 text-sm font-semibold transition-all",
+              !isCompleted && !loading
+                ? "bg-slate-900 text-white hover:bg-slate-700"
+                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+            )}
           >
             Mark In Progress
           </button>
           <button
             type="button"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            disabled={loading}
+            onClick={() => handleAction(true)}
+            className={cn(
+              "rounded-lg px-4 py-2 text-sm font-semibold transition-all flex items-center gap-2",
+              isCompleted
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+            )}
           >
+            {loading && <Loader2 className="size-3 animate-spin" />}
+            {isCompleted && <Check className="size-3" />}
             Mark Completed
           </button>
         </div>
@@ -2224,6 +2218,9 @@ function SharedForm({ step }: { step: ProcessStep }) {
 }
 
 export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
+  const searchParams = useSearchParams();
+  const programId = searchParams.get("programId");
+
   if (step.key === "council") {
     return <AcademicCouncilForm />;
   }
@@ -2293,7 +2290,7 @@ export default function ProcessStepPanel({ step }: ProcessStepPanelProps) {
   }
 
   if (step.kind === "action" || step.kind === "info") {
-    return <ActionPanel step={step} />;
+    return <ActionPanel step={step} programId={programId} />;
   }
 
   if (

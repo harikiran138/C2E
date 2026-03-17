@@ -27,20 +27,13 @@ export async function PUT(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      const result = await client.query(
-        `UPDATE programs 
-         SET consistency_matrix = $1, updated_at = NOW()
-         WHERE id = $2 AND institution_id = $3
-         RETURNING id`,
-        [consistency_matrix, program_id, institutionId],
+      await client.query(
+        `INSERT INTO consistency_matrix (program_id, matrix_data, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (program_id) 
+         DO UPDATE SET matrix_data = $2, updated_at = NOW()`,
+        [program_id, consistency_matrix]
       );
-
-      if (result.rows.length === 0) {
-        return NextResponse.json(
-          { error: "Program not found or unauthorized" },
-          { status: 404 },
-        );
-      }
 
       return NextResponse.json({ success: true });
     } finally {

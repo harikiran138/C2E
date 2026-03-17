@@ -48,19 +48,21 @@ export async function GET(request: NextRequest) {
       // Fetch Programs (Selecting only existing columns)
       const progResult = await client.query(
         `SELECT
-          id,
-          program_name,
-          degree,
-          level,
-          duration,
-          intake,
-          academic_year,
-          program_code,
-          vision,
-          mission
-         FROM programs
-         WHERE institution_id = $1
-         ORDER BY created_at ASC`,
+          p.id,
+          p.program_name,
+          p.degree,
+          p.level,
+          p.duration,
+          p.intake,
+          p.academic_year,
+          p.program_code,
+          p.vision,
+          p.mission,
+          cm.matrix_data as consistency_matrix
+         FROM programs p
+         LEFT JOIN consistency_matrix cm ON p.id = cm.program_id
+         WHERE p.institution_id = $1
+         ORDER BY p.created_at ASC`,
         [institutionId],
       );
 
