@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import pool from "@/lib/postgres";
 
-export async function GET(request: Request) {
+/**
+ * GET /api/curriculum/versions?programId=<uuid>
+ * POST /api/curriculum/versions   { programId, version, year, regulationName, status }
+ */
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const programId = String(searchParams.get("programId") || "").trim();
@@ -10,17 +14,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "programId is required" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-
-    const { data: versions, error } = await supabase
-      .from("curriculum_versions")
-      .select("*")
-      .eq("program_id", programId)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    return NextResponse.json({ versions: versions ?? [] });
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        "SELECT * FROM curriculum_versions WHERE program_id = $1 ORDER BY created_at DESC",
+        [programId],
+      );
+      return NextResponse.json({ versions: result.rows });
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     console.error("Versions fetch error:", error);
     return NextResponse.json(
@@ -30,7 +33,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const programId = String(body.programId || "").trim();
@@ -58,41 +61,40 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
 
-    const { data: newVersion, error } = await supabase
-      .from("curriculum_versions")
-      .insert({
-        program_id: programId,
-        version,
-        year,
-        regulation_name: regulationName || null,
-        status,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Keep normalized curriculum catalog in sync for accreditation/version tracking.
-    const { error: curriculumSyncError } = await supabase
-      .from("curriculums")
-      .upsert(
-        {
-          program_id: programId,
-          regulation_year: year,
-          version,
-          total_credits: null,
-          approval_status: "draft",
-        },
-        { onConflict: "program_id, regulation_year, version" },
+      // Insert into curriculum_versions
+      const versionResult = await client.query(
+        `INSERT INTO curriculum_versions (program_id, version, year, regulation_name, status)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [programId, version, year, regulationName || null, status],
       );
 
-    if (curriculumSyncError && (curriculumSyncError as any)?.code !== "42P01") {
-      console.warn("Curriculum catalog sync warning:", curriculumSyncError.message);
-    }
+      const newVersion = versionResult.rows[0];
 
-    return NextResponse.json({ version: newVersion }, { status: 201 });
+      // Sync curriculums catalog (ignore error if table doesn't exist)
+      try {
+        await client.query(
+          `INSERT INTO curriculums (program_id, regulation_year, version, total_credits, approval_status)
+           VALUES ($1, $2, $3, NULL, 'draft')
+           ON CONFLICT (program_id, regulation_year, version) DO NOTHING`,
+          [programId, year, version],
+        );
+      } catch (syncErr: any) {
+        console.warn("Curriculum catalog sync warning:", syncErr.message);
+      }
+
+      await client.query("COMMIT");
+      return NextResponse.json({ version: newVersion }, { status: 201 });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     console.error("Version create error:", error);
     return NextResponse.json(

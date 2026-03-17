@@ -1,0 +1,1093 @@
+[dotenv@17.3.1] injecting env (7) from .env.local -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+--- TABLES ---
+stakeholders, peo_drafts, program_missions, institutions, institution_details, program_peos, program_vmpeo_feedback_submissions, program_vmpeo_feedback_entries, curriculum_versions, curriculum_category_credits, curriculum_electives_settings, curriculum_semester_categories, curriculum_generated_courses, curriculum_course_outcomes, stakeholder_feedback, curriculums, co_po_mapping, co_pso_mapping, co_attainment, po_attainment, continuous_improvement, consistency_matrix, program_dissemination, curriculum_data, curriculum_obe_mappings, program_visions, programs, program_outcomes, peos, jwt_blocklist, academic_council, curriculum_feedback, program_coordinators, audit_logs, course_syllabus, courses, obe_framework, program_vmp_versions, curriculum_structure, course_outcomes, program_psos, pac_members, bos_members, representative_stakeholders, dashboard_preferences
+
+--- TABLE: stakeholders ---
+┌─────────┬────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name        │ data_type                  │ is_nullable │ column_default      │
+├─────────┼────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'               │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'       │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'name'             │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'organization'     │ 'text'                     │ 'YES'       │ null                │
+│ 4       │ 'category'         │ 'text'                     │ 'NO'        │ null                │
+│ 5       │ 'contact_no'       │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'email'            │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'access_token'     │ 'uuid'                     │ 'YES'       │ 'gen_random_uuid()' │
+│ 8       │ 'feedback_enabled' │ 'boolean'                  │ 'YES'       │ 'false'             │
+│ 9       │ 'created_at'       │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 10      │ 'updated_at'       │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'stakeholders_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: peo_drafts ---
+┌─────────┬──────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name      │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'             │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'     │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'generated_peos' │ 'jsonb'                    │ 'YES'       │ null                │
+│ 3       │ 'created_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴──────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬──────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name              │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼──────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'peo_drafts_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴──────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_missions ---
+┌─────────┬────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name        │ data_type                  │ is_nullable │ column_default      │
+├─────────┼────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'               │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'       │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'vision_id'        │ 'uuid'                     │ 'NO'        │ null                │
+│ 3       │ 'mission_text'     │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'mission_score'    │ 'integer'                  │ 'YES'       │ null                │
+│ 5       │ 'mission_analysis' │ 'jsonb'                    │ 'YES'       │ null                │
+│ 6       │ 'source'           │ 'text'                     │ 'NO'        │ "'ai'::text"        │
+│ 7       │ 'is_active'        │ 'boolean'                  │ 'NO'        │ 'true'              │
+│ 8       │ 'created_at'       │ 'timestamp with time zone' │ 'NO'        │ 'now()'             │
+│ 9       │ 'updated_at'       │ 'timestamp with time zone' │ 'NO'        │ 'now()'             │
+└─────────┴────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                    │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'program_missions_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+│ 1       │ 'program_missions_vision_fk'       │ 'vision_id'  │ 'program_visions'  │ 'id'                │
+│ 2       │ 'program_missions_vision_fk'       │ 'vision_id'  │ 'program_visions'  │ 'program_id'        │
+│ 3       │ 'program_missions_vision_fk'       │ 'program_id' │ 'program_visions'  │ 'id'                │
+│ 4       │ 'program_missions_vision_fk'       │ 'program_id' │ 'program_visions'  │ 'program_id'        │
+└─────────┴────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: institutions ---
+┌─────────┬──────────────────────┬───────────────────────────────┬─────────────┬───────────────────┐
+│ (index) │ column_name          │ data_type                     │ is_nullable │ column_default    │
+├─────────┼──────────────────────┼───────────────────────────────┼─────────────┼───────────────────┤
+│ 0       │ 'id'                 │ 'uuid'                        │ 'NO'        │ null              │
+│ 1       │ 'institution_name'   │ 'text'                        │ 'NO'        │ null              │
+│ 2       │ 'email'              │ 'text'                        │ 'NO'        │ null              │
+│ 3       │ 'onboarding_status'  │ 'text'                        │ 'YES'       │ "'PENDING'::text" │
+│ 4       │ 'created_at'         │ 'timestamp with time zone'    │ 'YES'       │ 'now()'           │
+│ 5       │ 'updated_at'         │ 'timestamp with time zone'    │ 'YES'       │ 'now()'           │
+│ 6       │ 'password_hash'      │ 'text'                        │ 'YES'       │ null              │
+│ 7       │ 'refresh_token_hash' │ 'text'                        │ 'YES'       │ null              │
+│ 8       │ 'failed_attempts'    │ 'integer'                     │ 'YES'       │ '0'               │
+│ 9       │ 'locked_until'       │ 'timestamp without time zone' │ 'YES'       │ null              │
+└─────────┴──────────────────────┴───────────────────────────────┴─────────────┴───────────────────┘
+
+--- TABLE: institution_details ---
+┌─────────┬────────────────────┬────────────────────────────┬─────────────┬──────────────────────┐
+│ (index) │ column_name        │ data_type                  │ is_nullable │ column_default       │
+├─────────┼────────────────────┼────────────────────────────┼─────────────┼──────────────────────┤
+│ 0       │ 'institution_id'   │ 'uuid'                     │ 'NO'        │ null                 │
+│ 1       │ 'type'             │ 'text'                     │ 'NO'        │ null                 │
+│ 2       │ 'status'           │ 'text'                     │ 'NO'        │ "'Autonomous'::text" │
+│ 3       │ 'established_year' │ 'integer'                  │ 'NO'        │ null                 │
+│ 4       │ 'affiliation'      │ 'text'                     │ 'YES'       │ null                 │
+│ 5       │ 'address'          │ 'text'                     │ 'NO'        │ null                 │
+│ 6       │ 'city'             │ 'text'                     │ 'NO'        │ null                 │
+│ 7       │ 'state'            │ 'text'                     │ 'NO'        │ null                 │
+│ 8       │ 'country'          │ 'text'                     │ 'YES'       │ "'India'::text"      │
+│ 9       │ 'updated_at'       │ 'timestamp with time zone' │ 'YES'       │ 'now()'              │
+│ 10      │ 'vision'           │ 'text'                     │ 'YES'       │ null                 │
+│ 11      │ 'mission'          │ 'text'                     │ 'YES'       │ null                 │
+└─────────┴────────────────────┴────────────────────────────┴─────────────┴──────────────────────┘
+Foreign Keys:
+┌─────────┬───────────────────────────────────────────┬──────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                           │ column_name      │ foreign_table_name │ foreign_column_name │
+├─────────┼───────────────────────────────────────────┼──────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'institution_details_institution_id_fkey' │ 'institution_id' │ 'institutions'     │ 'id'                │
+└─────────┴───────────────────────────────────────────┴──────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_peos ---
+┌─────────┬─────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name     │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'            │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'    │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'peo_statement' │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'peo_number'    │ 'integer'                  │ 'NO'        │ null                │
+│ 4       │ 'created_at'    │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 5       │ 'updated_at'    │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+└─────────┴─────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'program_peos_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_vmpeo_feedback_submissions ---
+┌─────────┬─────────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name             │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                    │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'            │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'stakeholder_ref_id'    │ 'uuid'                     │ 'NO'        │ null                │
+│ 3       │ 'stakeholder_member_id' │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'stakeholder_name'      │ 'text'                     │ 'NO'        │ null                │
+│ 5       │ 'stakeholder_category'  │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'institution_name'      │ 'text'                     │ 'NO'        │ null                │
+│ 7       │ 'feedback_cycle'        │ 'text'                     │ 'NO'        │ null                │
+│ 8       │ 'submitted_at'          │ 'timestamp with time zone' │ 'NO'        │ 'now()'             │
+└─────────┴─────────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬──────────────────────────────────────────────────────────────┬──────────────────────┬───────────────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                                              │ column_name          │ foreign_table_name            │ foreign_column_name │
+├─────────┼──────────────────────────────────────────────────────────────┼──────────────────────┼───────────────────────────────┼─────────────────────┤
+│ 0       │ 'program_vmpeo_feedback_submissions_program_id_fkey'         │ 'program_id'         │ 'programs'                    │ 'id'                │
+│ 1       │ 'program_vmpeo_feedback_submissions_stakeholder_ref_id_fkey' │ 'stakeholder_ref_id' │ 'representative_stakeholders' │ 'id'                │
+└─────────┴──────────────────────────────────────────────────────────────┴──────────────────────┴───────────────────────────────┴─────────────────────┘
+
+--- TABLE: program_vmpeo_feedback_entries ---
+┌─────────┬─────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name     │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'            │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'submission_id' │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'program_id'    │ 'uuid'                     │ 'NO'        │ null                │
+│ 3       │ 'category'      │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'peo_id'        │ 'uuid'                     │ 'YES'       │ null                │
+│ 5       │ 'peo_number'    │ 'integer'                  │ 'YES'       │ null                │
+│ 6       │ 'peo_statement' │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'rating'        │ 'smallint'                 │ 'NO'        │ null                │
+│ 8       │ 'comment'       │ 'text'                     │ 'YES'       │ null                │
+│ 9       │ 'created_at'    │ 'timestamp with time zone' │ 'NO'        │ 'now()'             │
+└─────────┴─────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬─────────────────────────────────────────────────────┬─────────────────┬──────────────────────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                                     │ column_name     │ foreign_table_name                   │ foreign_column_name │
+├─────────┼─────────────────────────────────────────────────────┼─────────────────┼──────────────────────────────────────┼─────────────────────┤
+│ 0       │ 'program_vmpeo_feedback_entries_peo_id_fkey'        │ 'peo_id'        │ 'program_peos'                       │ 'id'                │
+│ 1       │ 'program_vmpeo_feedback_entries_program_id_fkey'    │ 'program_id'    │ 'programs'                           │ 'id'                │
+│ 2       │ 'program_vmpeo_feedback_entries_submission_id_fkey' │ 'submission_id' │ 'program_vmpeo_feedback_submissions' │ 'id'                │
+└─────────┴─────────────────────────────────────────────────────┴─────────────────┴──────────────────────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_versions ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'      │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'version'         │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'year'            │ 'integer'                  │ 'NO'        │ null                │
+│ 4       │ 'status'          │ 'text'                     │ 'NO'        │ "'draft'::text"     │
+│ 5       │ 'regulation_name' │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'created_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 7       │ 'updated_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬───────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                       │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼───────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_versions_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴───────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_category_credits ---
+┌─────────┬──────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name      │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'             │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'     │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'category_code'  │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'design_percent' │ 'numeric'                  │ 'YES'       │ '0'                 │
+│ 4       │ 'credit'         │ 'numeric'                  │ 'YES'       │ '0'                 │
+│ 5       │ 'courses_t'      │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 6       │ 'courses_p'      │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 7       │ 'courses_tu'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 8       │ 'courses_ll'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 9       │ 'hours_ci'       │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 10      │ 'hours_t'        │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 11      │ 'hours_li'       │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 12      │ 'hours_twd'      │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 13      │ 'hours_total'    │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 14      │ 'created_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 15      │ 'updated_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴──────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬───────────────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                               │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼───────────────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_category_credits_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴───────────────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_electives_settings ---
+┌─────────┬───────────────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name                   │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                          │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'                  │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'conventional_elective'       │ 'text'                     │ 'YES'       │ "'None'::text"      │
+│ 3       │ 'trans_disciplinary_elective' │ 'text'                     │ 'YES'       │ "'None'::text"      │
+│ 4       │ 'total_credits'               │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 5       │ 'created_at'                  │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 6       │ 'updated_at'                  │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬─────────────────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                                 │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼─────────────────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_electives_settings_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴─────────────────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_semester_categories ---
+┌─────────┬──────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name      │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'             │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'     │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'semester'       │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'no_of_credits'  │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 4       │ 'courses_bs'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 5       │ 'courses_es'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 6       │ 'courses_hss'    │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 7       │ 'courses_pc'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 8       │ 'courses_oe'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 9       │ 'courses_mc'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 10      │ 'courses_ae'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 11      │ 'courses_se'     │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 12      │ 'courses_int'    │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 13      │ 'courses_pro'    │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 14      │ 'courses_others' │ 'integer'                  │ 'YES'       │ '0'                 │
+│ 15      │ 'created_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 16      │ 'updated_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴──────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬──────────────────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                                  │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼──────────────────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_semester_categories_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴──────────────────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_generated_courses ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬───────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default        │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼───────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()'   │
+│ 1       │ 'program_id'      │ 'uuid'                     │ 'NO'        │ null                  │
+│ 2       │ 'version_id'      │ 'uuid'                     │ 'YES'       │ null                  │
+│ 3       │ 'semester'        │ 'integer'                  │ 'NO'        │ null                  │
+│ 4       │ 'category_code'   │ 'text'                     │ 'NO'        │ null                  │
+│ 5       │ 'course_code'     │ 'text'                     │ 'NO'        │ null                  │
+│ 6       │ 'course_title'    │ 'text'                     │ 'NO'        │ null                  │
+│ 7       │ 'credits'         │ 'integer'                  │ 'NO'        │ null                  │
+│ 8       │ 't_hours'         │ 'integer'                  │ 'YES'       │ '0'                   │
+│ 9       │ 'tu_hours'        │ 'integer'                  │ 'YES'       │ '0'                   │
+│ 10      │ 'll_hours'        │ 'integer'                  │ 'YES'       │ '0'                   │
+│ 11      │ 'tw_hours'        │ 'integer'                  │ 'YES'       │ '0'                   │
+│ 12      │ 'total_hours'     │ 'integer'                  │ 'YES'       │ '0'                   │
+│ 13      │ 'curriculum_mode' │ 'text'                     │ 'YES'       │ "'AICTE_MODEL'::text" │
+│ 14      │ 'generated_at'    │ 'timestamp with time zone' │ 'YES'       │ 'now()'               │
+│ 15      │ 'created_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'               │
+│ 16      │ 'curriculum_id'   │ 'uuid'                     │ 'YES'       │ null                  │
+│ 17      │ 'updated_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'               │
+│ 18      │ 'approval_status' │ 'text'                     │ 'NO'        │ "'draft'::text"       │
+│ 19      │ 'approved_by'     │ 'uuid'                     │ 'YES'       │ null                  │
+│ 20      │ 'approved_at'     │ 'timestamp with time zone' │ 'YES'       │ null                  │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴───────────────────────┘
+Foreign Keys:
+┌─────────┬───────────────────────────────────────────────────┬─────────────────┬───────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                                   │ column_name     │ foreign_table_name    │ foreign_column_name │
+├─────────┼───────────────────────────────────────────────────┼─────────────────┼───────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_generated_courses_approved_by_fkey'   │ 'approved_by'   │ 'institutions'        │ 'id'                │
+│ 1       │ 'curriculum_generated_courses_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'         │ 'id'                │
+│ 2       │ 'curriculum_generated_courses_program_id_fkey'    │ 'program_id'    │ 'programs'            │ 'id'                │
+│ 3       │ 'curriculum_generated_courses_version_id_fkey'    │ 'version_id'    │ 'curriculum_versions' │ 'id'                │
+└─────────┴───────────────────────────────────────────────────┴─────────────────┴───────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_course_outcomes ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'      │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'course_code'     │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'course_title'    │ 'text'                     │ 'YES'       │ null                │
+│ 4       │ 'co_number'       │ 'integer'                  │ 'NO'        │ null                │
+│ 5       │ 'co_code'         │ 'text'                     │ 'NO'        │ null                │
+│ 6       │ 'statement'       │ 'text'                     │ 'NO'        │ null                │
+│ 7       │ 'rbt_level'       │ 'text'                     │ 'YES'       │ null                │
+│ 8       │ 'po_mapping'      │ 'ARRAY'                    │ 'YES'       │ "'{}'::integer[]"   │
+│ 9       │ 'pso_mapping'     │ 'ARRAY'                    │ 'YES'       │ "'{}'::integer[]"   │
+│ 10      │ 'strength'        │ 'text'                     │ 'YES'       │ null                │
+│ 11      │ 'created_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 12      │ 'updated_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 13      │ 'curriculum_id'   │ 'uuid'                     │ 'YES'       │ null                │
+│ 14      │ 'approval_status' │ 'text'                     │ 'NO'        │ "'draft'::text"     │
+│ 15      │ 'approved_by'     │ 'uuid'                     │ 'YES'       │ null                │
+│ 16      │ 'approved_at'     │ 'timestamp with time zone' │ 'YES'       │ null                │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬─────────────────────────────────────────────────┬─────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                                 │ column_name     │ foreign_table_name │ foreign_column_name │
+├─────────┼─────────────────────────────────────────────────┼─────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_course_outcomes_approved_by_fkey'   │ 'approved_by'   │ 'institutions'     │ 'id'                │
+│ 1       │ 'curriculum_course_outcomes_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'      │ 'id'                │
+│ 2       │ 'curriculum_course_outcomes_program_id_fkey'    │ 'program_id'    │ 'programs'         │ 'id'                │
+└─────────┴─────────────────────────────────────────────────┴─────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: stakeholder_feedback ---
+┌─────────┬──────────────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name                  │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                         │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'stakeholder_id'             │ 'uuid'                     │ 'YES'       │ null                │
+│ 2       │ 'program_id'                 │ 'uuid'                     │ 'NO'        │ null                │
+│ 3       │ 'expectations'               │ 'text'                     │ 'YES'       │ null                │
+│ 4       │ 'vision_alignment_rating'    │ 'integer'                  │ 'YES'       │ null                │
+│ 5       │ 'feedback_json'              │ 'jsonb'                    │ 'YES'       │ null                │
+│ 6       │ 'submitted_at'               │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 7       │ 'rep_stakeholder_id'         │ 'uuid'                     │ 'YES'       │ null                │
+│ 8       │ 'peo_relevance_score'        │ 'numeric'                  │ 'YES'       │ null                │
+│ 9       │ 'curriculum_relevance_score' │ 'numeric'                  │ 'YES'       │ null                │
+│ 10      │ 'improvement_suggestions'    │ 'text'                     │ 'YES'       │ null                │
+└─────────┴──────────────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────────────────┬──────────────────────┬───────────────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                                │ column_name          │ foreign_table_name            │ foreign_column_name │
+├─────────┼────────────────────────────────────────────────┼──────────────────────┼───────────────────────────────┼─────────────────────┤
+│ 0       │ 'stakeholder_feedback_program_id_fkey'         │ 'program_id'         │ 'programs'                    │ 'id'                │
+│ 1       │ 'stakeholder_feedback_rep_stakeholder_id_fkey' │ 'rep_stakeholder_id' │ 'representative_stakeholders' │ 'id'                │
+│ 2       │ 'stakeholder_feedback_stakeholder_id_fkey'     │ 'stakeholder_id'     │ 'stakeholders'                │ 'id'                │
+└─────────┴────────────────────────────────────────────────┴──────────────────────┴───────────────────────────────┴─────────────────────┘
+
+--- TABLE: curriculums ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'      │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'regulation_year' │ 'integer'                  │ 'NO'        │ null                │
+│ 3       │ 'version'         │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'total_credits'   │ 'integer'                  │ 'YES'       │ null                │
+│ 5       │ 'approval_status' │ 'text'                     │ 'NO'        │ "'draft'::text"     │
+│ 6       │ 'approved_by'     │ 'uuid'                     │ 'YES'       │ null                │
+│ 7       │ 'approved_at'     │ 'timestamp with time zone' │ 'YES'       │ null                │
+│ 8       │ 'created_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 9       │ 'updated_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────┬───────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                │ column_name   │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────┼───────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculums_approved_by_fkey' │ 'approved_by' │ 'institutions'     │ 'id'                │
+│ 1       │ 'curriculums_program_id_fkey'  │ 'program_id'  │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────┴───────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: co_po_mapping ---
+┌─────────┬─────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name     │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'            │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'    │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'curriculum_id' │ 'uuid'                     │ 'YES'       │ null                │
+│ 3       │ 'course_id'     │ 'uuid'                     │ 'YES'       │ null                │
+│ 4       │ 'co_id'         │ 'uuid'                     │ 'YES'       │ null                │
+│ 5       │ 'course_code'   │ 'text'                     │ 'NO'        │ null                │
+│ 6       │ 'co_code'       │ 'text'                     │ 'NO'        │ null                │
+│ 7       │ 'po_id'         │ 'integer'                  │ 'NO'        │ null                │
+│ 8       │ 'strength'      │ 'integer'                  │ 'NO'        │ null                │
+│ 9       │ 'created_at'    │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 10      │ 'updated_at'    │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴─────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────┬─────────────────┬────────────────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                    │ column_name     │ foreign_table_name             │ foreign_column_name │
+├─────────┼────────────────────────────────────┼─────────────────┼────────────────────────────────┼─────────────────────┤
+│ 0       │ 'co_po_mapping_co_id_fkey'         │ 'co_id'         │ 'curriculum_course_outcomes'   │ 'id'                │
+│ 1       │ 'co_po_mapping_course_id_fkey'     │ 'course_id'     │ 'curriculum_generated_courses' │ 'id'                │
+│ 2       │ 'co_po_mapping_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'                  │ 'id'                │
+│ 3       │ 'co_po_mapping_program_id_fkey'    │ 'program_id'    │ 'programs'                     │ 'id'                │
+└─────────┴────────────────────────────────────┴─────────────────┴────────────────────────────────┴─────────────────────┘
+
+--- TABLE: co_pso_mapping ---
+┌─────────┬─────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name     │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'            │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'    │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'curriculum_id' │ 'uuid'                     │ 'YES'       │ null                │
+│ 3       │ 'course_id'     │ 'uuid'                     │ 'YES'       │ null                │
+│ 4       │ 'co_id'         │ 'uuid'                     │ 'YES'       │ null                │
+│ 5       │ 'course_code'   │ 'text'                     │ 'NO'        │ null                │
+│ 6       │ 'co_code'       │ 'text'                     │ 'NO'        │ null                │
+│ 7       │ 'pso_id'        │ 'integer'                  │ 'NO'        │ null                │
+│ 8       │ 'strength'      │ 'integer'                  │ 'NO'        │ null                │
+│ 9       │ 'created_at'    │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 10      │ 'updated_at'    │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴─────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬─────────────────────────────────────┬─────────────────┬────────────────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                     │ column_name     │ foreign_table_name             │ foreign_column_name │
+├─────────┼─────────────────────────────────────┼─────────────────┼────────────────────────────────┼─────────────────────┤
+│ 0       │ 'co_pso_mapping_co_id_fkey'         │ 'co_id'         │ 'curriculum_course_outcomes'   │ 'id'                │
+│ 1       │ 'co_pso_mapping_course_id_fkey'     │ 'course_id'     │ 'curriculum_generated_courses' │ 'id'                │
+│ 2       │ 'co_pso_mapping_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'                  │ 'id'                │
+│ 3       │ 'co_pso_mapping_program_id_fkey'    │ 'program_id'    │ 'programs'                     │ 'id'                │
+└─────────┴─────────────────────────────────────┴─────────────────┴────────────────────────────────┴─────────────────────┘
+
+--- TABLE: co_attainment ---
+┌─────────┬─────────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name             │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                    │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'            │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'curriculum_id'         │ 'uuid'                     │ 'YES'       │ null                │
+│ 3       │ 'course_id'             │ 'uuid'                     │ 'YES'       │ null                │
+│ 4       │ 'co_id'                 │ 'uuid'                     │ 'YES'       │ null                │
+│ 5       │ 'course_code'           │ 'text'                     │ 'NO'        │ null                │
+│ 6       │ 'co_code'               │ 'text'                     │ 'NO'        │ null                │
+│ 7       │ 'internal_score'        │ 'numeric'                  │ 'NO'        │ null                │
+│ 8       │ 'external_score'        │ 'numeric'                  │ 'NO'        │ null                │
+│ 9       │ 'calculated_attainment' │ 'numeric'                  │ 'NO'        │ null                │
+│ 10      │ 'academic_year'         │ 'text'                     │ 'NO'        │ null                │
+│ 11      │ 'approval_status'       │ 'text'                     │ 'NO'        │ "'draft'::text"     │
+│ 12      │ 'approved_by'           │ 'uuid'                     │ 'YES'       │ null                │
+│ 13      │ 'approved_at'           │ 'timestamp with time zone' │ 'YES'       │ null                │
+│ 14      │ 'created_at'            │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 15      │ 'updated_at'            │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴─────────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────┬─────────────────┬────────────────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                    │ column_name     │ foreign_table_name             │ foreign_column_name │
+├─────────┼────────────────────────────────────┼─────────────────┼────────────────────────────────┼─────────────────────┤
+│ 0       │ 'co_attainment_approved_by_fkey'   │ 'approved_by'   │ 'institutions'                 │ 'id'                │
+│ 1       │ 'co_attainment_co_id_fkey'         │ 'co_id'         │ 'curriculum_course_outcomes'   │ 'id'                │
+│ 2       │ 'co_attainment_course_id_fkey'     │ 'course_id'     │ 'curriculum_generated_courses' │ 'id'                │
+│ 3       │ 'co_attainment_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'                  │ 'id'                │
+│ 4       │ 'co_attainment_program_id_fkey'    │ 'program_id'    │ 'programs'                     │ 'id'                │
+└─────────┴────────────────────────────────────┴─────────────────┴────────────────────────────────┴─────────────────────┘
+
+--- TABLE: po_attainment ---
+┌─────────┬────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name        │ data_type                  │ is_nullable │ column_default      │
+├─────────┼────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'               │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'       │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'curriculum_id'    │ 'uuid'                     │ 'YES'       │ null                │
+│ 3       │ 'po_id'            │ 'integer'                  │ 'NO'        │ null                │
+│ 4       │ 'attainment_value' │ 'numeric'                  │ 'NO'        │ null                │
+│ 5       │ 'academic_year'    │ 'text'                     │ 'NO'        │ null                │
+│ 6       │ 'approval_status'  │ 'text'                     │ 'NO'        │ "'draft'::text"     │
+│ 7       │ 'approved_by'      │ 'uuid'                     │ 'YES'       │ null                │
+│ 8       │ 'approved_at'      │ 'timestamp with time zone' │ 'YES'       │ null                │
+│ 9       │ 'created_at'       │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 10      │ 'updated_at'       │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────┬─────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                    │ column_name     │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────────┼─────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'po_attainment_approved_by_fkey'   │ 'approved_by'   │ 'institutions'     │ 'id'                │
+│ 1       │ 'po_attainment_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'      │ 'id'                │
+│ 2       │ 'po_attainment_program_id_fkey'    │ 'program_id'    │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────────┴─────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: continuous_improvement ---
+┌─────────┬────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name        │ data_type                  │ is_nullable │ column_default      │
+├─────────┼────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'               │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'       │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'curriculum_id'    │ 'uuid'                     │ 'YES'       │ null                │
+│ 3       │ 'po_id'            │ 'integer'                  │ 'NO'        │ null                │
+│ 4       │ 'issue_identified' │ 'text'                     │ 'NO'        │ null                │
+│ 5       │ 'action_taken'     │ 'text'                     │ 'NO'        │ null                │
+│ 6       │ 'next_cycle_plan'  │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'academic_year'    │ 'text'                     │ 'NO'        │ null                │
+│ 8       │ 'approval_status'  │ 'text'                     │ 'NO'        │ "'draft'::text"     │
+│ 9       │ 'approved_by'      │ 'uuid'                     │ 'YES'       │ null                │
+│ 10      │ 'approved_at'      │ 'timestamp with time zone' │ 'YES'       │ null                │
+│ 11      │ 'created_at'       │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 12      │ 'updated_at'       │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬─────────────────────────────────────────────┬─────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                             │ column_name     │ foreign_table_name │ foreign_column_name │
+├─────────┼─────────────────────────────────────────────┼─────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'continuous_improvement_approved_by_fkey'   │ 'approved_by'   │ 'institutions'     │ 'id'                │
+│ 1       │ 'continuous_improvement_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'      │ 'id'                │
+│ 2       │ 'continuous_improvement_program_id_fkey'    │ 'program_id'    │ 'programs'         │ 'id'                │
+└─────────┴─────────────────────────────────────────────┴─────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: consistency_matrix ---
+┌─────────┬───────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name   │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'          │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'  │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'matrix_type' │ 'text'                     │ 'YES'       │ null                │
+│ 3       │ 'matrix_data' │ 'jsonb'                    │ 'YES'       │ "'{}'::jsonb"       │
+│ 4       │ 'is_verified' │ 'boolean'                  │ 'YES'       │ 'false'             │
+│ 5       │ 'created_at'  │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 6       │ 'updated_at'  │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬──────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                      │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼──────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'consistency_matrix_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴──────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_dissemination ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'      │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'channel'         │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'is_disseminated' │ 'boolean'                  │ 'YES'       │ 'false'             │
+│ 4       │ 'disseminated_at' │ 'timestamp with time zone' │ 'YES'       │ null                │
+│ 5       │ 'created_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 6       │ 'is_completed'    │ 'boolean'                  │ 'YES'       │ 'true'              │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬─────────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                         │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼─────────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'program_dissemination_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴─────────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_data ---
+┌─────────┬───────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name   │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'          │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'  │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'version_tag' │ 'text'                     │ 'YES'       │ null                │
+│ 3       │ 'payload'     │ 'jsonb'                    │ 'YES'       │ "'{}'::jsonb"       │
+│ 4       │ 'created_at'  │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬───────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                   │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼───────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_data_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴───────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_obe_mappings ---
+┌─────────┬─────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name         │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'        │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'curriculum_id'     │ 'uuid'                     │ 'YES'       │ null                │
+│ 3       │ 'course_code'       │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'is_obe_core'       │ 'boolean'                  │ 'YES'       │ 'false'             │
+│ 5       │ 'category_override' │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'created_at'        │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 7       │ 'updated_at'        │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴─────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬──────────────────────────────────────────────┬─────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                              │ column_name     │ foreign_table_name │ foreign_column_name │
+├─────────┼──────────────────────────────────────────────┼─────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_obe_mappings_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'      │ 'id'                │
+│ 1       │ 'curriculum_obe_mappings_program_id_fkey'    │ 'program_id'    │ 'programs'         │ 'id'                │
+└─────────┴──────────────────────────────────────────────┴─────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_visions ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'      │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'vision_text'     │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'vision_score'    │ 'integer'                  │ 'YES'       │ null                │
+│ 4       │ 'vision_analysis' │ 'jsonb'                    │ 'YES'       │ null                │
+│ 5       │ 'source'          │ 'text'                     │ 'NO'        │ "'ai'::text"        │
+│ 6       │ 'is_selected'     │ 'boolean'                  │ 'NO'        │ 'false'             │
+│ 7       │ 'created_at'      │ 'timestamp with time zone' │ 'NO'        │ 'now()'             │
+│ 8       │ 'updated_at'      │ 'timestamp with time zone' │ 'NO'        │ 'now()'             │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬───────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                   │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼───────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'program_visions_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴───────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: programs ---
+┌─────────┬────────────────────────────────┬────────────────────────────┬─────────────┬─────────────────────────┐
+│ (index) │ column_name                    │ data_type                  │ is_nullable │ column_default          │
+├─────────┼────────────────────────────────┼────────────────────────────┼─────────────┼─────────────────────────┤
+│ 0       │ 'id'                           │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()'     │
+│ 1       │ 'institution_id'               │ 'uuid'                     │ 'NO'        │ null                    │
+│ 2       │ 'program_name'                 │ 'text'                     │ 'NO'        │ null                    │
+│ 3       │ 'program_code'                 │ 'text'                     │ 'NO'        │ null                    │
+│ 4       │ 'degree'                       │ 'text'                     │ 'NO'        │ null                    │
+│ 5       │ 'duration'                     │ 'integer'                  │ 'NO'        │ null                    │
+│ 6       │ 'level'                        │ 'text'                     │ 'NO'        │ null                    │
+│ 7       │ 'intake'                       │ 'integer'                  │ 'NO'        │ null                    │
+│ 8       │ 'academic_year'                │ 'text'                     │ 'NO'        │ null                    │
+│ 9       │ 'program_chair'                │ 'text'                     │ 'YES'       │ null                    │
+│ 10      │ 'nba_coordinator'              │ 'text'                     │ 'YES'       │ null                    │
+│ 11      │ 'vision'                       │ 'text'                     │ 'YES'       │ null                    │
+│ 12      │ 'mission'                      │ 'text'                     │ 'YES'       │ null                    │
+│ 13      │ 'stakeholder_feedback_enabled' │ 'boolean'                  │ 'YES'       │ 'false'                 │
+│ 14      │ 'created_at'                   │ 'timestamp with time zone' │ 'YES'       │ 'now()'                 │
+│ 15      │ 'updated_at'                   │ 'timestamp with time zone' │ 'YES'       │ 'now()'                 │
+│ 16      │ 'peo_brainstorming_start_date' │ 'date'                     │ 'YES'       │ null                    │
+│ 17      │ 'peo_brainstorming_end_date'   │ 'date'                     │ 'YES'       │ null                    │
+│ 18      │ 'peo_feedback_start_date'      │ 'date'                     │ 'YES'       │ null                    │
+│ 19      │ 'peo_feedback_end_date'        │ 'date'                     │ 'YES'       │ null                    │
+│ 20      │ 'peo_consolidation_start_date' │ 'date'                     │ 'YES'       │ null                    │
+│ 21      │ 'peo_consolidation_end_date'   │ 'date'                     │ 'YES'       │ null                    │
+│ 22      │ 'peo_draft_version'            │ 'integer'                  │ 'YES'       │ '0'                     │
+│ 23      │ 'lead_society'                 │ 'text'                     │ 'YES'       │ null                    │
+│ 24      │ 'password_hash'                │ 'text'                     │ 'YES'       │ null                    │
+│ 25      │ 'status'                       │ 'text'                     │ 'YES'       │ "'active'::text"        │
+│ 26      │ 'vmpeo_feedback_start_at'      │ 'timestamp with time zone' │ 'YES'       │ null                    │
+│ 27      │ 'vmpeo_feedback_end_at'        │ 'timestamp with time zone' │ 'YES'       │ null                    │
+│ 28      │ 'vmpeo_feedback_cycle'         │ 'text'                     │ 'NO'        │ "'brainstorming'::text" │
+│ 29      │ 'peo_po_matrix'                │ 'jsonb'                    │ 'YES'       │ null                    │
+│ 30      │ 'consistency_matrix'           │ 'jsonb'                    │ 'YES'       │ null                    │
+│ 31      │ 'curriculum_feedback_start_at' │ 'timestamp with time zone' │ 'YES'       │ null                    │
+│ 32      │ 'curriculum_feedback_end_at'   │ 'timestamp with time zone' │ 'YES'       │ null                    │
+│ 33      │ 'curriculum_feedback_status'   │ 'text'                     │ 'YES'       │ "'pending'::text"       │
+└─────────┴────────────────────────────────┴────────────────────────────┴─────────────┴─────────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────┬──────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                │ column_name      │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────┼──────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'programs_institution_id_fkey' │ 'institution_id' │ 'institutions'     │ 'id'                │
+└─────────┴────────────────────────────────┴──────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_outcomes ---
+┌─────────┬──────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name      │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'             │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'     │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'po_code'        │ 'character varying'        │ 'NO'        │ null                │
+│ 3       │ 'po_title'       │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'po_description' │ 'text'                     │ 'NO'        │ null                │
+│ 5       │ 'tier'           │ 'character varying'        │ 'NO'        │ null                │
+│ 6       │ 'created_at'     │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 7       │ 'updated_at'     │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+└─────────┴──────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                    │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'program_outcomes_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: peos ---
+┌─────────┬───────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name   │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'          │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'  │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'peo_code'    │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'statement'   │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'approved_at' │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name        │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'peos_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: jwt_blocklist ---
+┌─────────┬──────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name  │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'         │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'token'      │ 'text'                     │ 'NO'        │ null                │
+│ 2       │ 'expires_at' │ 'timestamp with time zone' │ 'NO'        │ null                │
+│ 3       │ 'created_at' │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+└─────────┴──────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+
+--- TABLE: academic_council ---
+┌─────────┬─────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name         │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'institution_id'    │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'member_name'       │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'member_id'         │ 'text'                     │ 'YES'       │ null                │
+│ 4       │ 'organization'      │ 'text'                     │ 'YES'       │ null                │
+│ 5       │ 'email'             │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'mobile_number'     │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'specialisation'    │ 'text'                     │ 'YES'       │ null                │
+│ 8       │ 'category'          │ 'text'                     │ 'YES'       │ null                │
+│ 9       │ 'communicate'       │ 'text'                     │ 'YES'       │ null                │
+│ 10      │ 'tenure_start_date' │ 'date'                     │ 'YES'       │ null                │
+│ 11      │ 'tenure_end_date'   │ 'date'                     │ 'YES'       │ null                │
+│ 12      │ 'linkedin_id'       │ 'text'                     │ 'YES'       │ null                │
+│ 13      │ 'created_at'        │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 14      │ 'updated_at'        │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴─────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────────┬──────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                        │ column_name      │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────────────┼──────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'academic_council_institution_id_fkey' │ 'institution_id' │ 'institutions'     │ 'id'                │
+└─────────┴────────────────────────────────────────┴──────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_feedback ---
+┌─────────┬─────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name         │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'        │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'stakeholder_email' │ 'text'                     │ 'YES'       │ null                │
+│ 3       │ 'feedback_text'     │ 'text'                     │ 'YES'       │ null                │
+│ 4       │ 'rating'            │ 'integer'                  │ 'YES'       │ null                │
+│ 5       │ 'created_at'        │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 6       │ 'updated_at'        │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 7       │ 'stakeholder_id'    │ 'uuid'                     │ 'YES'       │ null                │
+│ 8       │ 'comments'          │ 'text'                     │ 'YES'       │ null                │
+│ 9       │ 'submitted_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴─────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬───────────────────────────────────────────┬──────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                           │ column_name      │ foreign_table_name │ foreign_column_name │
+├─────────┼───────────────────────────────────────────┼──────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_feedback_program_id_fkey'     │ 'program_id'     │ 'programs'         │ 'id'                │
+│ 1       │ 'curriculum_feedback_stakeholder_id_fkey' │ 'stakeholder_id' │ 'stakeholders'     │ 'id'                │
+└─────────┴───────────────────────────────────────────┴──────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_coordinators ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'institution_id'  │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'program_id'      │ 'uuid'                     │ 'NO'        │ null                │
+│ 3       │ 'name'            │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'designation'     │ 'text'                     │ 'NO'        │ null                │
+│ 5       │ 'email_official'  │ 'text'                     │ 'NO'        │ null                │
+│ 6       │ 'email_personal'  │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'mobile_official' │ 'text'                     │ 'NO'        │ null                │
+│ 8       │ 'mobile_personal' │ 'text'                     │ 'YES'       │ null                │
+│ 9       │ 'linkedin_id'     │ 'text'                     │ 'YES'       │ null                │
+│ 10      │ 'created_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 11      │ 'updated_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────────────┬──────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                            │ column_name      │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────────────────┼──────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'program_coordinators_institution_id_fkey' │ 'institution_id' │ 'institutions'     │ 'id'                │
+│ 1       │ 'program_coordinators_program_id_fkey'     │ 'program_id'     │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────────────────┴──────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: audit_logs ---
+┌─────────┬──────────────────┬───────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name      │ data_type                     │ is_nullable │ column_default      │
+├─────────┼──────────────────┼───────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'             │ 'uuid'                        │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'institution_id' │ 'uuid'                        │ 'YES'       │ null                │
+│ 2       │ 'action'         │ 'text'                        │ 'NO'        │ null                │
+│ 3       │ 'ip_address'     │ 'text'                        │ 'YES'       │ null                │
+│ 4       │ 'user_agent'     │ 'text'                        │ 'YES'       │ null                │
+│ 5       │ 'metadata'       │ 'jsonb'                       │ 'YES'       │ null                │
+│ 6       │ 'created_at'     │ 'timestamp without time zone' │ 'YES'       │ 'now()'             │
+└─────────┴──────────────────┴───────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬──────────────────────────────────┬──────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                  │ column_name      │ foreign_table_name │ foreign_column_name │
+├─────────┼──────────────────────────────────┼──────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'audit_logs_institution_id_fkey' │ 'institution_id' │ 'institutions'     │ 'id'                │
+└─────────┴──────────────────────────────────┴──────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: course_syllabus ---
+┌─────────┬──────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name          │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                 │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'         │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'curriculum_id'      │ 'uuid'                     │ 'YES'       │ null                │
+│ 3       │ 'course_id'          │ 'uuid'                     │ 'YES'       │ null                │
+│ 4       │ 'course_code'        │ 'text'                     │ 'NO'        │ null                │
+│ 5       │ 'course_title'       │ 'text'                     │ 'NO'        │ null                │
+│ 6       │ 'credits'            │ 'integer'                  │ 'YES'       │ null                │
+│ 7       │ 'hours'              │ 'integer'                  │ 'YES'       │ null                │
+│ 8       │ 'prerequisites'      │ 'ARRAY'                    │ 'YES'       │ "'{}'::text[]"      │
+│ 9       │ 'course_description' │ 'text'                     │ 'YES'       │ null                │
+│ 10      │ 'course_outcomes'    │ 'jsonb'                    │ 'YES'       │ "'[]'::jsonb"       │
+│ 11      │ 'unit_wise_syllabus' │ 'jsonb'                    │ 'YES'       │ "'[]'::jsonb"       │
+│ 12      │ 'textbooks'          │ 'ARRAY'                    │ 'YES'       │ "'{}'::text[]"      │
+│ 13      │ 'reference_books'    │ 'ARRAY'                    │ 'YES'       │ "'{}'::text[]"      │
+│ 14      │ 'evaluation_scheme'  │ 'jsonb'                    │ 'YES'       │ "'{}'::jsonb"       │
+│ 15      │ 'generated_by'       │ 'text'                     │ 'YES'       │ "'ai'::text"        │
+│ 16      │ 'approval_status'    │ 'text'                     │ 'NO'        │ "'draft'::text"     │
+│ 17      │ 'approved_by'        │ 'uuid'                     │ 'YES'       │ null                │
+│ 18      │ 'approved_at'        │ 'timestamp with time zone' │ 'YES'       │ null                │
+│ 19      │ 'created_at'         │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 20      │ 'updated_at'         │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴──────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬──────────────────────────────────────┬─────────────────┬────────────────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                      │ column_name     │ foreign_table_name             │ foreign_column_name │
+├─────────┼──────────────────────────────────────┼─────────────────┼────────────────────────────────┼─────────────────────┤
+│ 0       │ 'course_syllabus_approved_by_fkey'   │ 'approved_by'   │ 'institutions'                 │ 'id'                │
+│ 1       │ 'course_syllabus_course_id_fkey'     │ 'course_id'     │ 'curriculum_generated_courses' │ 'id'                │
+│ 2       │ 'course_syllabus_curriculum_id_fkey' │ 'curriculum_id' │ 'curriculums'                  │ 'id'                │
+│ 3       │ 'course_syllabus_program_id_fkey'    │ 'program_id'    │ 'programs'                     │ 'id'                │
+└─────────┴──────────────────────────────────────┴─────────────────┴────────────────────────────────┴─────────────────────┘
+
+--- TABLE: courses ---
+┌─────────┬───────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name   │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'          │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'  │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'course_code' │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'course_name' │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'credits'     │ 'integer'                  │ 'YES'       │ '3'                 │
+│ 5       │ 'created_at'  │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 6       │ 'updated_at'  │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬───────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name           │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼───────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'courses_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴───────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: obe_framework ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'institution_id'  │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'program_id'      │ 'uuid'                     │ 'YES'       │ null                │
+│ 3       │ 'member_name'     │ 'text'                     │ 'YES'       │ "'N/A'::text"       │
+│ 4       │ 'designation'     │ 'text'                     │ 'YES'       │ "'N/A'::text"       │
+│ 5       │ 'email_official'  │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'email_personal'  │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'mobile_official' │ 'text'                     │ 'YES'       │ null                │
+│ 8       │ 'mobile_personal' │ 'text'                     │ 'YES'       │ null                │
+│ 9       │ 'linkedin_id'     │ 'text'                     │ 'YES'       │ null                │
+│ 10      │ 'pdf_url'         │ 'text'                     │ 'YES'       │ null                │
+│ 11      │ 'pdf_name'        │ 'text'                     │ 'YES'       │ null                │
+│ 12      │ 'title'           │ 'text'                     │ 'YES'       │ null                │
+│ 13      │ 'description'     │ 'text'                     │ 'YES'       │ null                │
+│ 14      │ 'created_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 15      │ 'updated_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬─────────────────────────────────────┬──────────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                     │ column_name      │ foreign_table_name │ foreign_column_name │
+├─────────┼─────────────────────────────────────┼──────────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'obe_framework_institution_id_fkey' │ 'institution_id' │ 'institutions'     │ 'id'                │
+│ 1       │ 'obe_framework_program_id_fkey'     │ 'program_id'     │ 'programs'         │ 'id'                │
+└─────────┴─────────────────────────────────────┴──────────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_vmp_versions ---
+┌─────────┬──────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name      │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'             │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'     │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'version_number' │ 'integer'                  │ 'NO'        │ '1'                 │
+│ 3       │ 'is_final'       │ 'boolean'                  │ 'YES'       │ 'false'             │
+│ 4       │ 'vision_text'    │ 'text'                     │ 'YES'       │ null                │
+│ 5       │ 'mission_text'   │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'peos'           │ 'jsonb'                    │ 'YES'       │ "'[]'::jsonb"       │
+│ 7       │ 'created_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 8       │ 'updated_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴──────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                        │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'program_vmp_versions_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: curriculum_structure ---
+┌─────────┬──────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name      │ data_type                  │ is_nullable │ column_default      │
+├─────────┼──────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'             │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'     │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'structure_data' │ 'jsonb'                    │ 'YES'       │ "'{}'::jsonb"       │
+│ 3       │ 'created_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 4       │ 'updated_at'     │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴──────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                        │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'curriculum_structure_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: course_outcomes ---
+┌─────────┬───────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name           │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                  │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'course_id'           │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'outcome_code'        │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'outcome_description' │ 'text'                     │ 'NO'        │ null                │
+│ 4       │ 'rbt_level'           │ 'integer'                  │ 'YES'       │ '1'                 │
+│ 5       │ 'created_at'          │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 6       │ 'updated_at'          │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬──────────────────────────────────┬─────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                  │ column_name │ foreign_table_name │ foreign_column_name │
+├─────────┼──────────────────────────────────┼─────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'course_outcomes_course_id_fkey' │ 'course_id' │ 'courses'          │ 'id'                │
+└─────────┴──────────────────────────────────┴─────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: program_psos ---
+┌─────────┬─────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name     │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'            │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'    │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'pso_statement' │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'pso_number'    │ 'integer'                  │ 'NO'        │ null                │
+│ 4       │ 'created_at'    │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 5       │ 'updated_at'    │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+└─────────┴─────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'program_psos_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- TABLE: pac_members ---
+┌─────────┬─────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name         │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'        │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'member_name'       │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'member_id'         │ 'text'                     │ 'YES'       │ null                │
+│ 4       │ 'organization'      │ 'text'                     │ 'YES'       │ null                │
+│ 5       │ 'email'             │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'mobile_number'     │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'specialisation'    │ 'text'                     │ 'YES'       │ null                │
+│ 8       │ 'category'          │ 'text'                     │ 'YES'       │ null                │
+│ 9       │ 'tenure_start_date' │ 'date'                     │ 'YES'       │ null                │
+│ 10      │ 'tenure_end_date'   │ 'date'                     │ 'YES'       │ null                │
+│ 11      │ 'linkedin_id'       │ 'text'                     │ 'YES'       │ null                │
+│ 12      │ 'created_at'        │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 13      │ 'updated_at'        │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 14      │ 'communicate'       │ 'text'                     │ 'YES'       │ null                │
+└─────────┴─────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+
+--- TABLE: bos_members ---
+┌─────────┬─────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name         │ data_type                  │ is_nullable │ column_default      │
+├─────────┼─────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'        │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'member_name'       │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'member_id'         │ 'text'                     │ 'YES'       │ null                │
+│ 4       │ 'organization'      │ 'text'                     │ 'YES'       │ null                │
+│ 5       │ 'email'             │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'mobile_number'     │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'specialisation'    │ 'text'                     │ 'YES'       │ null                │
+│ 8       │ 'category'          │ 'text'                     │ 'YES'       │ null                │
+│ 9       │ 'tenure_start_date' │ 'date'                     │ 'YES'       │ null                │
+│ 10      │ 'tenure_end_date'   │ 'date'                     │ 'YES'       │ null                │
+│ 11      │ 'linkedin_id'       │ 'text'                     │ 'YES'       │ null                │
+│ 12      │ 'created_at'        │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 13      │ 'updated_at'        │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 14      │ 'communicate'       │ 'text'                     │ 'YES'       │ null                │
+└─────────┴─────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+
+--- TABLE: representative_stakeholders ---
+┌─────────┬───────────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name           │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'                  │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'program_id'          │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'member_name'         │ 'text'                     │ 'NO'        │ null                │
+│ 3       │ 'member_id'           │ 'text'                     │ 'YES'       │ null                │
+│ 4       │ 'organization'        │ 'text'                     │ 'YES'       │ null                │
+│ 5       │ 'email'               │ 'text'                     │ 'YES'       │ null                │
+│ 6       │ 'mobile_number'       │ 'text'                     │ 'YES'       │ null                │
+│ 7       │ 'specialisation'      │ 'text'                     │ 'YES'       │ null                │
+│ 8       │ 'category'            │ 'text'                     │ 'YES'       │ null                │
+│ 9       │ 'linkedin_id'         │ 'text'                     │ 'YES'       │ null                │
+│ 10      │ 'created_at'          │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 11      │ 'updated_at'          │ 'timestamp with time zone' │ 'YES'       │ 'CURRENT_TIMESTAMP' │
+│ 12      │ 'is_approved'         │ 'boolean'                  │ 'NO'        │ 'false'             │
+│ 13      │ 'login_password_hash' │ 'text'                     │ 'YES'       │ null                │
+│ 14      │ 'last_login_at'       │ 'timestamp with time zone' │ 'YES'       │ null                │
+└─────────┴───────────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+
+--- TABLE: dashboard_preferences ---
+┌─────────┬───────────────────┬────────────────────────────┬─────────────┬─────────────────────┐
+│ (index) │ column_name       │ data_type                  │ is_nullable │ column_default      │
+├─────────┼───────────────────┼────────────────────────────┼─────────────┼─────────────────────┤
+│ 0       │ 'id'              │ 'uuid'                     │ 'NO'        │ 'gen_random_uuid()' │
+│ 1       │ 'user_id'         │ 'uuid'                     │ 'NO'        │ null                │
+│ 2       │ 'program_id'      │ 'uuid'                     │ 'NO'        │ null                │
+│ 3       │ 'enabled_modules' │ 'jsonb'                    │ 'YES'       │ "'[]'::jsonb"       │
+│ 4       │ 'layout_order'    │ 'jsonb'                    │ 'YES'       │ "'[]'::jsonb"       │
+│ 5       │ 'created_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+│ 6       │ 'updated_at'      │ 'timestamp with time zone' │ 'YES'       │ 'now()'             │
+└─────────┴───────────────────┴────────────────────────────┴─────────────┴─────────────────────┘
+Foreign Keys:
+┌─────────┬─────────────────────────────────────────┬──────────────┬────────────────────┬─────────────────────┐
+│ (index) │ constraint_name                         │ column_name  │ foreign_table_name │ foreign_column_name │
+├─────────┼─────────────────────────────────────────┼──────────────┼────────────────────┼─────────────────────┤
+│ 0       │ 'dashboard_preferences_program_id_fkey' │ 'program_id' │ 'programs'         │ 'id'                │
+└─────────┴─────────────────────────────────────────┴──────────────┴────────────────────┴─────────────────────┘
+
+--- RLS POLICIES ---
+┌─────────┬────────────┬──────────────────────────────────┬──────────────────────────────────────────────────────┬──────────────┬────────────┬──────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────┐
+│ (index) │ schemaname │ tablename                        │ policyname                                           │ permissive   │ roles      │ cmd      │ qual                                                                                                                                                     │ with_check                      │
+├─────────┼────────────┼──────────────────────────────────┼──────────────────────────────────────────────────────┼──────────────┼────────────┼──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+│ 0       │ 'public'   │ 'stakeholders'                   │ 'Institutions can manage their own stakeholders'     │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = stakeholders.program_id) AND (programs.institution_id = auth.uid()))))'                   │ null                            │
+│ 1       │ 'public'   │ 'peo_drafts'                     │ 'Institutions can manage their own PEO drafts'       │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = peo_drafts.program_id) AND (programs.institution_id = auth.uid()))))'                     │ null                            │
+│ 2       │ 'public'   │ 'program_missions'               │ 'Institutions manage program missions'               │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = program_missions.program_id) AND (programs.institution_id = auth.uid()))))'               │ null                            │
+│ 3       │ 'public'   │ 'institutions'                   │ 'Institutions can insert their profile'              │ 'PERMISSIVE' │ '{public}' │ 'INSERT' │ null                                                                                                                                                     │ '(auth.uid() = id)'             │
+│ 4       │ 'public'   │ 'institutions'                   │ 'Institutions can update their own profile'          │ 'PERMISSIVE' │ '{public}' │ 'UPDATE' │ '(auth.uid() = id)'                                                                                                                                      │ null                            │
+│ 5       │ 'public'   │ 'institutions'                   │ 'Institutions can view their own profile'            │ 'PERMISSIVE' │ '{public}' │ 'SELECT' │ '(auth.uid() = id)'                                                                                                                                      │ null                            │
+│ 6       │ 'public'   │ 'institution_details'            │ 'Institutions manage details'                        │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(auth.uid() = institution_id)'                                                                                                                          │ null                            │
+│ 7       │ 'public'   │ 'program_peos'                   │ 'Institutions manage program peos'                   │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = program_peos.program_id) AND (programs.institution_id = auth.uid()))))'                   │ null                            │
+│ 8       │ 'public'   │ 'curriculum_generated_courses'   │ 'Institutions manage curriculum_generated_courses'   │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculum_generated_courses.program_id) AND (programs.institution_id = auth.uid()))))'   │ null                            │
+│ 9       │ 'public'   │ 'curriculum_electives_settings'  │ 'Institutions manage curriculum_electives_settings'  │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculum_electives_settings.program_id) AND (programs.institution_id = auth.uid()))))'  │ null                            │
+│ 10      │ 'public'   │ 'curriculum_semester_categories' │ 'Institutions manage curriculum_semester_categories' │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculum_semester_categories.program_id) AND (programs.institution_id = auth.uid()))))' │ null                            │
+│ 11      │ 'public'   │ 'curriculum_category_credits'    │ 'Institutions manage curriculum_category_credits'    │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculum_category_credits.program_id) AND (programs.institution_id = auth.uid()))))'    │ null                            │
+│ 12      │ 'public'   │ 'curriculum_versions'            │ 'Institutions manage curriculum_versions'            │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculum_versions.program_id) AND (programs.institution_id = auth.uid()))))'            │ null                            │
+│ 13      │ 'public'   │ 'curriculum_course_outcomes'     │ 'Institutions manage curriculum_course_outcomes'     │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculum_course_outcomes.program_id) AND (programs.institution_id = auth.uid()))))'     │ null                            │
+│ 14      │ 'public'   │ 'stakeholder_feedback'           │ 'Anyone can insert feedback'                         │ 'PERMISSIVE' │ '{public}' │ 'INSERT' │ null                                                                                                                                                     │ 'true'                          │
+│ 15      │ 'public'   │ 'stakeholder_feedback'           │ 'Institutions can view feedback for their programs'  │ 'PERMISSIVE' │ '{public}' │ 'SELECT' │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = stakeholder_feedback.program_id) AND (programs.institution_id = auth.uid()))))'           │ null                            │
+│ 16      │ 'public'   │ 'curriculums'                    │ 'Institutions manage curriculums'                    │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculums.program_id) AND (programs.institution_id = auth.uid()))))'                    │ null                            │
+│ 17      │ 'public'   │ 'co_attainment'                  │ 'Institutions manage co_attainment'                  │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = co_attainment.program_id) AND (programs.institution_id = auth.uid()))))'                  │ null                            │
+│ 18      │ 'public'   │ 'po_attainment'                  │ 'Institutions manage po_attainment'                  │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = po_attainment.program_id) AND (programs.institution_id = auth.uid()))))'                  │ null                            │
+│ 19      │ 'public'   │ 'co_po_mapping'                  │ 'Institutions manage co_po_mapping'                  │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = co_po_mapping.program_id) AND (programs.institution_id = auth.uid()))))'                  │ null                            │
+│ 20      │ 'public'   │ 'continuous_improvement'         │ 'Institutions manage continuous_improvement'         │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = continuous_improvement.program_id) AND (programs.institution_id = auth.uid()))))'         │ null                            │
+│ 21      │ 'public'   │ 'co_pso_mapping'                 │ 'Institutions manage co_pso_mapping'                 │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = co_pso_mapping.program_id) AND (programs.institution_id = auth.uid()))))'                 │ null                            │
+│ 22      │ 'public'   │ 'curriculum_obe_mappings'        │ 'Institutions manage curriculum_obe_mappings'        │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculum_obe_mappings.program_id) AND (programs.institution_id = auth.uid()))))'        │ null                            │
+│ 23      │ 'public'   │ 'program_dissemination'          │ 'Institutions manage dissemination'                  │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = program_dissemination.program_id) AND (programs.institution_id = auth.uid()))))'          │ null                            │
+│ 24      │ 'public'   │ 'consistency_matrix'             │ 'Institutions manage consistency matrix'             │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = consistency_matrix.program_id) AND (programs.institution_id = auth.uid()))))'             │ null                            │
+│ 25      │ 'public'   │ 'programs'                       │ 'Institutions can delete their own programs'         │ 'PERMISSIVE' │ '{public}' │ 'DELETE' │ '(auth.uid() = institution_id)'                                                                                                                          │ null                            │
+│ 26      │ 'public'   │ 'programs'                       │ 'Institutions can insert their own programs'         │ 'PERMISSIVE' │ '{public}' │ 'INSERT' │ null                                                                                                                                                     │ '(auth.uid() = institution_id)' │
+│ 27      │ 'public'   │ 'programs'                       │ 'Institutions can update their own programs'         │ 'PERMISSIVE' │ '{public}' │ 'UPDATE' │ '(auth.uid() = institution_id)'                                                                                                                          │ null                            │
+│ 28      │ 'public'   │ 'programs'                       │ 'Institutions can view their own programs'           │ 'PERMISSIVE' │ '{public}' │ 'SELECT' │ '(auth.uid() = institution_id)'                                                                                                                          │ null                            │
+│ 29      │ 'public'   │ 'program_visions'                │ 'Institutions manage program visions'                │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = program_visions.program_id) AND (programs.institution_id = auth.uid()))))'                │ null                            │
+│ 30      │ 'public'   │ 'program_outcomes'               │ 'Institutions manage program outcomes'               │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = program_outcomes.program_id) AND (programs.institution_id = auth.uid()))))'               │ null                            │
+│ 31      │ 'public'   │ 'peos'                           │ 'Institutions can manage their own PEOs'             │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = peos.program_id) AND (programs.institution_id = auth.uid()))))'                           │ null                            │
+│ 32      │ 'public'   │ 'audit_logs'                     │ 'Institutions manage audit logs'                     │ 'PERMISSIVE' │ '{public}' │ 'SELECT' │ '(institution_id = auth.uid())'                                                                                                                          │ null                            │
+│ 33      │ 'public'   │ 'course_syllabus'                │ 'Institutions manage course_syllabus'                │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = course_syllabus.program_id) AND (programs.institution_id = auth.uid()))))'                │ null                            │
+│ 34      │ 'public'   │ 'obe_framework'                  │ 'Institutions manage obe_framework'                  │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(auth.uid() = institution_id)'                                                                                                                          │ null                            │
+│ 35      │ 'public'   │ 'program_psos'                   │ 'Institutions manage program psos'                   │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = program_psos.program_id) AND (programs.institution_id = auth.uid()))))'                   │ null                            │
+│ 36      │ 'public'   │ 'representative_stakeholders'    │ 'Institutions manage representative stakeholders'    │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = representative_stakeholders.program_id) AND (programs.institution_id = auth.uid()))))'    │ null                            │
+│ 37      │ 'public'   │ 'dashboard_preferences'          │ 'Institutions manage preferences'                    │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(auth.uid() = user_id)'                                                                                                                                 │ null                            │
+│ 38      │ 'public'   │ 'academic_council'               │ 'Institutions manage academic council'               │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(auth.uid() = institution_id)'                                                                                                                          │ null                            │
+│ 39      │ 'public'   │ 'academic_council'               │ 'Institutions manage academic_council'               │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(auth.uid() = institution_id)'                                                                                                                          │ null                            │
+│ 40      │ 'public'   │ 'pac_members'                    │ 'Institutions manage pac members'                    │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = pac_members.program_id) AND (programs.institution_id = auth.uid()))))'                    │ null                            │
+│ 41      │ 'public'   │ 'bos_members'                    │ 'Institutions manage bos members'                    │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = bos_members.program_id) AND (programs.institution_id = auth.uid()))))'                    │ null                            │
+│ 42      │ 'public'   │ 'curriculum_feedback'            │ 'Institutions manage curriculum feedback'            │ 'PERMISSIVE' │ '{public}' │ 'ALL'    │ '(EXISTS ( SELECT 1\n   FROM programs\n  WHERE ((programs.id = curriculum_feedback.program_id) AND (programs.institution_id = auth.uid()))))'            │ null                            │
+└─────────┴────────────┴──────────────────────────────────┴──────────────────────────────────────────────────────┴──────────────┴────────────┴──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴─────────────────────────────────┘

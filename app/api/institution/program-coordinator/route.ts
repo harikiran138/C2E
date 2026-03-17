@@ -1,149 +1,121 @@
-import { createClient } from "../../../../utils/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import pool from "@/lib/postgres";
 import { verifyToken } from "@/lib/auth";
 
-export async function GET(request: Request) {
-  try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("institution_token")?.value;
+async function getInstitutionId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("institution_token")?.value;
+  if (!token) return null;
+  const payload = await verifyToken(token);
+  return (payload?.id as string) || null;
+}
 
-    if (!token) {
+/**
+ * GET  /api/institution/program-coordinator
+ * POST /api/institution/program-coordinator  (body can include `id` for update)
+ * DELETE /api/institution/program-coordinator?id=<uuid>
+ */
+export async function GET() {
+  try {
+    const institutionId = await getInstitutionId();
+    if (!institutionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const payload = await verifyToken(token);
-    if (!payload || !payload.id) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        `SELECT pc.*, p.program_name
+         FROM program_coordinators pc
+         LEFT JOIN programs p ON p.id = pc.program_id
+         WHERE pc.institution_id = $1
+         ORDER BY pc.created_at ASC`,
+        [institutionId],
+      );
+
+      const formattedData = result.rows.map((c) => ({
+        ...c,
+        program_name: c.program_name || "Unknown Program",
+      }));
+
+      return NextResponse.json({ data: formattedData });
+    } finally {
+      client.release();
     }
-    const institutionId = payload.id;
-
-    const supabase = await createClient();
-
-    // Fetch coordinators
-    const { data: coordinators, error } = await supabase
-      .from("program_coordinators")
-      .select(
-        `
-            *,
-            programs (
-                program_name
-            )
-        `,
-      )
-      .eq("institution_id", institutionId)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching Program Coordinators:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Flatten the structure for easier frontend consumption if needed,
-    // or just return as is. The frontend can access programs.program_name
-    const formattedData = coordinators.map((c) => ({
-      ...c,
-      program_name: c.programs?.program_name || "Unknown Program",
-    }));
-
-    return NextResponse.json({ data: formattedData });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Program Coordinator Fetch Error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("institution_token")?.value;
-
-    if (!token) {
+    const institutionId = await getInstitutionId();
+    if (!institutionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const payload = await verifyToken(token);
-    if (!payload || !payload.id) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    const institutionId = payload.id as string;
 
     const body = await request.json();
-    const supabase = await createClient();
+    const client = await pool.connect();
 
-    let query;
+    try {
+      let result;
 
-    if (body.id) {
-      // Update existing coordinator
-      query = supabase
-        .from("program_coordinators")
-        .update({
-          name: body.name,
-          designation: body.designation,
-          program_id: body.program_id,
-          email_official: body.email_official,
-          email_personal: body.email_personal,
-          mobile_official: body.mobile_official,
-          mobile_personal: body.mobile_personal,
-          linkedin_id: body.linkedin_id,
-        })
-        .eq("id", body.id)
-        .eq("institution_id", institutionId)
-        .select()
-        .single();
-    } else {
-      // Insert new coordinator
-      query = supabase
-        .from("program_coordinators")
-        .insert({
-          institution_id: institutionId,
-          name: body.name,
-          designation: body.designation,
-          program_id: body.program_id,
-          email_official: body.email_official,
-          email_personal: body.email_personal,
-          mobile_official: body.mobile_official,
-          mobile_personal: body.mobile_personal,
-          linkedin_id: body.linkedin_id,
-        })
-        .select()
-        .single();
+      if (body.id) {
+        // Update existing coordinator
+        result = await client.query(
+          `UPDATE program_coordinators SET
+             name = $1, designation = $2, program_id = $3,
+             email_official = $4, email_personal = $5,
+             mobile_official = $6, mobile_personal = $7,
+             linkedin_id = $8, updated_at = NOW()
+           WHERE id = $9 AND institution_id = $10
+           RETURNING *`,
+          [
+            body.name, body.designation, body.program_id,
+            body.email_official, body.email_personal || null,
+            body.mobile_official, body.mobile_personal || null,
+            body.linkedin_id || null,
+            body.id, institutionId,
+          ],
+        );
+        if (result.rowCount === 0) {
+          return NextResponse.json({ error: "Coordinator not found" }, { status: 404 });
+        }
+      } else {
+        // Insert new coordinator
+        result = await client.query(
+          `INSERT INTO program_coordinators
+             (institution_id, name, designation, program_id,
+              email_official, email_personal, mobile_official, mobile_personal, linkedin_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING *`,
+          [
+            institutionId, body.name, body.designation, body.program_id,
+            body.email_official, body.email_personal || null,
+            body.mobile_official, body.mobile_personal || null,
+            body.linkedin_id || null,
+          ],
+        );
+      }
+
+      return NextResponse.json({ data: result.rows[0] });
+    } finally {
+      client.release();
     }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error saving program coordinator:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ data });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Program Coordinator API Error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("institution_token")?.value;
-
-    if (!token) {
+    const institutionId = await getInstitutionId();
+    if (!institutionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const payload = await verifyToken(token);
-    if (!payload || !payload.id) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    const institutionId = payload.id;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -152,24 +124,18 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const { error } = await supabase
-      .from("program_coordinators")
-      .delete()
-      .eq("id", id)
-      .eq("institution_id", institutionId);
-
-    if (error) {
-      console.error("Error deleting coordinator:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const client = await pool.connect();
+    try {
+      await client.query(
+        "DELETE FROM program_coordinators WHERE id = $1 AND institution_id = $2",
+        [id, institutionId],
+      );
+      return NextResponse.json({ success: true });
+    } finally {
+      client.release();
     }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Program Coordinator DELETE Error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateSignupPayload } from "@/lib/validation/onboarding";
-import { createClient } from "@/utils/supabase/server";
+import pool from "@/lib/postgres";
 
+/**
+ * POST /api/institution/signup/validate
+ * Validates sign-up input and checks for duplicate institution name and email.
+ * Uses direct pg query to avoid Supabase RLS.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -20,45 +25,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const supabase = await createClient();
-
-    // Check for duplicate institution name
-    const { data: dupInstitution, error: instError } = await supabase
-      .from("institutions")
-      .select("id")
-      .ilike("institution_name", institutionName.trim())
-      .maybeSingle();
-
-    if (instError) {
-      console.error("Error checking duplicate institution name:", instError);
-    }
-
-    if (dupInstitution) {
-      return NextResponse.json(
-        { error: "An institution with this name is already registered." },
-        { status: 409 },
+    const client = await pool.connect();
+    try {
+      // Check for duplicate institution name (case-insensitive)
+      const dupInstitution = await client.query(
+        "SELECT id FROM institutions WHERE LOWER(institution_name) = LOWER($1) LIMIT 1",
+        [institutionName.trim()],
       );
-    }
 
-    // Check for duplicate email
-    const { data: dupEmail, error: emailError } = await supabase
-      .from("institutions")
-      .select("id")
-      .ilike("email", email.trim())
-      .maybeSingle();
+      if (dupInstitution.rows.length > 0) {
+        return NextResponse.json(
+          { error: "An institution with this name is already registered." },
+          { status: 409 },
+        );
+      }
 
-    if (emailError) {
-      console.error("Error checking duplicate email:", emailError);
-    }
-
-    if (dupEmail) {
-      return NextResponse.json(
-        { error: "This email is already registered." },
-        { status: 409 },
+      // Check for duplicate email (case-insensitive)
+      const dupEmail = await client.query(
+        "SELECT id FROM institutions WHERE LOWER(email) = LOWER($1) LIMIT 1",
+        [email.trim()],
       );
-    }
 
-    return NextResponse.json({ ok: true });
+      if (dupEmail.rows.length > 0) {
+        return NextResponse.json(
+          { error: "This email is already registered." },
+          { status: 409 },
+        );
+      }
+
+      return NextResponse.json({ ok: true });
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || "Validation failed." },

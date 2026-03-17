@@ -1,13 +1,18 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import pool from "@/lib/postgres";
 
+/**
+ * PATCH /api/curriculum/versions/[id]
+ * Body: { status: "draft" | "active" | "archived" }
+ */
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: rawId } = await params;
     const id = String(rawId || "").trim();
+
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
@@ -27,22 +32,21 @@ export async function PATCH(
       );
     }
 
-    const supabase = await createClient();
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        "UPDATE curriculum_versions SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        [status, id],
+      );
 
-    const { data: updated, error } = await supabase
-      .from("curriculum_versions")
-      .update({ status })
-      .eq("id", id)
-      .select()
-      .single();
+      if (result.rowCount === 0) {
+        return NextResponse.json({ error: "Version not found" }, { status: 404 });
+      }
 
-    if (error) throw error;
-
-    if (!updated) {
-      return NextResponse.json({ error: "Version not found" }, { status: 404 });
+      return NextResponse.json({ version: result.rows[0] });
+    } finally {
+      client.release();
     }
-
-    return NextResponse.json({ version: updated });
   } catch (error: any) {
     console.error("Version update error:", error);
     return NextResponse.json(
