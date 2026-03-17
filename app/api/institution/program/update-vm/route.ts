@@ -174,7 +174,7 @@ export async function PUT(request: NextRequest) {
       }
 
       let activeMissionText: string | null = normalizeStatement(
-        ownedProgram.program_mission || ownedProgram.mission || "",
+        ownedProgram.vision || ownedProgram.mission || "",
       );
       if (!activeMissionText) {
         activeMissionText = null;
@@ -328,11 +328,9 @@ export async function PUT(request: NextRequest) {
       await client.query(
         `UPDATE programs
          SET
-           program_vision = $2,
            vision = $2,
            vision_score = $3,
            vision_analysis = $4::jsonb,
-           program_mission = $5,
            mission = $5,
            mission_score = $6,
            mission_analysis = $7::jsonb,

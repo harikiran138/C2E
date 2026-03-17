@@ -1,13 +1,26 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+function isValidUUID(uuid: string): boolean {
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return regex.test(uuid);
+}
+
+function isMissingRelationError(error: any): boolean {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    String(error?.code || "") === "42P01" ||
+    (message.includes("relation") && message.includes("does not exist"))
+  );
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const programId = searchParams.get("programId");
+    const programId = String(searchParams.get("programId") || "").trim();
 
-    if (!programId) {
-      return NextResponse.json({ error: "programId is required" }, { status: 400 });
+    if (!programId || !isValidUUID(programId)) {
+      return NextResponse.json({ error: "Valid programId is required" }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -17,11 +30,20 @@ export async function GET(request: Request) {
       .eq("program_id", programId)
       .order("created_at", { ascending: false });
 
+    if (error && isMissingRelationError(error)) {
+      return NextResponse.json({ feedback: [] });
+    }
+
     if (error) throw error;
 
     return NextResponse.json({ feedback: data || [] });
   } catch (error: any) {
-    console.error("Curriculum feedback GET error:", error);
+    console.error("Curriculum feedback GET error details:", {
+      message: error.message,
+      code: error.code,
+      hint: error.hint,
+      details: error.details
+    });
     return NextResponse.json(
       { error: error.message || "Failed to fetch curriculum feedback" },
       { status: 500 }
@@ -34,9 +56,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { programId, stakeholderEmail, feedbackText, rating } = body;
 
-    if (!programId || !feedbackText) {
+    if (!programId || !isValidUUID(programId) || !feedbackText) {
       return NextResponse.json(
-        { error: "programId and feedbackText are required" },
+        { error: "Valid programId and feedbackText are required" },
         { status: 400 }
       );
     }

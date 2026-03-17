@@ -1364,28 +1364,37 @@ function CurriculumStructurePanel() {
   };
 
   const exportToPDF = () => {
-    if (!generatedCurriculum) return;
+    if (!generatedCurriculum) {
+      alert("Please generate the curriculum structure before exporting.");
+      return;
+    }
 
     const doc = new jsPDF("l", "pt", "a4");
-    const program = generatedCurriculum.programName;
+    const programName = generatedCurriculum.programName;
     const date = new Date().toLocaleDateString();
 
-    doc.setFontSize(18);
-    doc.text(`Curriculum Structure: ${program}`, 40, 40);
+    // Title & Header
+    doc.setFontSize(22);
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.text(`Curriculum Structure: ${programName}`, 40, 50);
+    
     doc.setFontSize(10);
-    doc.text(`Generated on: ${date}`, 40, 60);
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.text(`Regulation Version: ${generatedCurriculum.mode || "Standard"} | Total Credits: ${generatedCurriculum.totalCredits} | Generated on: ${date}`, 40, 70);
 
-    let startY = 80;
+    let startY = 100;
 
-    generatedCurriculum.semesters.forEach((semester, index) => {
-      if (startY > 500) {
+    // Semesters
+    generatedCurriculum.semesters.forEach((semester) => {
+      if (startY > 450) {
         doc.addPage();
-        startY = 40;
+        startY = 50;
       }
 
       doc.setFontSize(14);
+      doc.setTextColor(51, 65, 85); // slate-700
       doc.text(
-        `Semester ${getSemesterLabelFromNumber(semester.semester)} (${semester.level})`,
+        `Semester ${getSemesterLabelFromNumber(semester.semester)} - ${semester.level}`,
         40,
         startY,
       );
@@ -1413,34 +1422,104 @@ function CurriculumStructurePanel() {
 
       tableData.push([
         "",
-        { content: "Sub-total", styles: { fontStyle: "bold", halign: "right" } },
+        { content: "Semester Totals", styles: { fontStyle: "bold", halign: "right" } },
         "",
-        formatNumeric(subCi),
-        formatNumeric(subT),
-        formatNumeric(subLi),
-        formatNumeric(subTw),
-        formatNumeric(subTotal),
-        formatNumeric(subCredit),
+        { content: formatNumeric(subCi), styles: { fontStyle: "bold" } },
+        { content: formatNumeric(subT), styles: { fontStyle: "bold" } },
+        { content: formatNumeric(subLi), styles: { fontStyle: "bold" } },
+        { content: formatNumeric(subTw), styles: { fontStyle: "bold" } },
+        { content: formatNumeric(subTotal), styles: { fontStyle: "bold" } },
+        { content: formatNumeric(subCredit), styles: { fontStyle: "bold" } },
         "",
       ] as any[]);
 
       autoTable(doc, {
         startY: startY,
         head: [
-          ["No.", "Course Title", "POs/PSOs", "CI", "T", "LI", "TW+SL", "Total", "Credit", "Category"],
+          ["No.", "Course Title", "POs/PSOs", "CI", "T", "LI", "TW/D", "Total", "Credit", "Category"],
         ],
         body: tableData as any[],
         theme: "grid",
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [79, 70, 229] },
+        styles: { fontSize: 8, cellPadding: 5 },
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: "bold" },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          1: { cellWidth: "auto" },
+          2: { cellWidth: 80 },
+          3: { cellWidth: 40, halign: "center" },
+          4: { cellWidth: 40, halign: "center" },
+          5: { cellWidth: 40, halign: "center" },
+          6: { cellWidth: 40, halign: "center" },
+          7: { cellWidth: 40, halign: "center" },
+          8: { cellWidth: 40, halign: "center" },
+          9: { cellWidth: 60, halign: "center" },
+        },
         alternateRowStyles: { fillColor: [249, 250, 251] },
         margin: { left: 40, right: 40 },
       });
 
-      startY = (doc as any).lastAutoTable.finalY + 30;
+      startY = (doc as any).lastAutoTable.finalY + 40;
     });
 
-    doc.save(`${program.replace(/\s+/g, "_")}_Curriculum.pdf`);
+    // Summary Table
+    if (generatedCurriculum.categorySummary && generatedCurriculum.categorySummary.length > 0) {
+      if (startY > 400) {
+        doc.addPage();
+        startY = 50;
+      }
+
+      doc.setFontSize(16);
+      doc.setTextColor(30, 41, 59);
+      doc.text("Category Breakdown & Credit Distribution", 40, startY);
+      startY += 15;
+
+      const summaryData = generatedCurriculum.categorySummary.map((item) => {
+        const rowInfo = CURRICULUM_STRUCTURE_ROWS.find(r => r.code === item.categoryCode);
+        return [
+          rowInfo?.category || item.categoryCode,
+          `${item.percentage.toFixed(2)}%`,
+          item.numCourses,
+          formatNumeric(item.hoursCI),
+          formatNumeric(item.hoursT),
+          formatNumeric(item.hoursLI),
+          formatNumeric(item.hoursTWD),
+          formatNumeric(item.hoursTotal),
+          formatNumeric(item.credits),
+        ];
+      });
+
+      summaryData.push([
+        { content: "Total Program Credits", styles: { fontStyle: "bold", halign: "right" } },
+        "100.00%",
+        generatedCurriculum.semesters.reduce((acc, s) => acc + s.courses.length, 0),
+        "", "", "", "", "",
+        { content: generatedCurriculum.totalCredits.toString(), styles: { fontStyle: "bold" } }
+      ] as any[]);
+
+      autoTable(doc, {
+        startY: startY,
+        head: [
+          ["Category", "Design %", "Courses", "CI", "T", "LI", "TW/D", "Total Hrs", "Credits"],
+        ],
+        body: summaryData,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 6 },
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" },
+        margin: { left: 40, right: 40 },
+      });
+    }
+
+    // Page numbers
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 20, { align: "center" });
+      doc.text("Lumina C2E © 2026 | Curriculum Blueprint", 40, doc.internal.pageSize.height - 20);
+    }
+
+    doc.save(`${programName.replace(/\s+/g, "_")}_Curriculum.pdf`);
   };
 
   return (

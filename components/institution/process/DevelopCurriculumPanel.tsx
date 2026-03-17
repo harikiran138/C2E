@@ -70,7 +70,10 @@ export default function DevelopCurriculumPanel() {
         }
 
         const res = await fetch(`/api/curriculum/courses?${params.toString()}`);
-        if (!res.ok) throw new Error("Failed to fetch courses");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to fetch courses");
+        }
         const data = await res.json();
         
         // Map backend courses (snake_case) to frontend Course (camelCase)

@@ -48,7 +48,10 @@ export default function CurriculumFeedbackPanel() {
     setIsLoading(true);
     try {
       const res = await fetch(`/api/curriculum/feedback?programId=${programId}`);
-      if (!res.ok) throw new Error("Failed to fetch feedback");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to fetch feedback");
+      }
       const data = await res.json();
       setFeedbackList(data.feedback || []);
     } catch (err) {

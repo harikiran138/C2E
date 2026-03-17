@@ -64,6 +64,7 @@ interface ValidationResult {
     coveredCategories: string[];
   }>;
   violations: string[];
+  scores?: Record<string, any>;
 }
 
 interface GenerationResult {
@@ -180,7 +181,7 @@ const VISION_PILLAR_PHRASES: Record<ThemeCategory, string> = {
 };
 
 const CATEGORY_SIGNAL_TERMS: Record<ThemeCategory, string[]> = {
-  global_positioning: ["global", "international", "benchmark", "competitive"],
+  global_positioning: ["global", "international", "benchmark", "globally benchmarked", "global standards", "competitive"],
   innovation_technology: [
     "innovation",
     "technology",
@@ -198,7 +199,10 @@ const CATEGORY_SIGNAL_TERMS: Record<ThemeCategory, string[]> = {
   ],
   professional_values: [
     "ethic",
+    "ethical",
     "integrity",
+    "integrity-driven",
+    "integrity-based",
     "professional",
     "responsibility",
     "leadership",
@@ -206,6 +210,9 @@ const CATEGORY_SIGNAL_TERMS: Record<ThemeCategory, string[]> = {
   ],
   educational_philosophy: [
     "outcome",
+    "outcome-driven",
+    "outcome-oriented",
+    "impact-focused learning",
     "learning",
     "curriculum",
     "education",
@@ -372,9 +379,11 @@ const VISION_OPERATIONAL_TERMS = Array.from(
     "empower",
     "enable",
     "foster",
-    "outcome based",
-    "outcome-oriented",
-    "outcome oriented",
+    // Exempting high-score signals from operational ban
+    // "education", -- Removing education from ban as it is part of outcome-driven education
+    // "outcome based",
+    // "outcome-oriented",
+    // "outcome oriented",
     "through education",
     "through teaching",
   ]),
@@ -521,6 +530,7 @@ const VISION_POSITIONING_STARTERS = [
   "To achieve distinction in",
   "To advance as a leading",
   "To be globally respected for",
+  "To be globally benchmarked for",
 ];
 
 const VISION_GLOBAL_POSITIONING_PATTERNS: Array<{
@@ -531,7 +541,7 @@ const VISION_GLOBAL_POSITIONING_PATTERNS: Array<{
   { concept: "globally respected", regex: /\bglobally respected\b/i },
   {
     concept: "internationally benchmarked",
-    regex: /\binternationally benchmarked\b/i,
+    regex: /\b(internationally|globally) benchmarked\b/i,
   },
   { concept: "global leadership", regex: /\bglobal leadership\b/i },
   {
@@ -1542,6 +1552,12 @@ function evaluateVisionStrategicQuality(
     "benchmarked",
   ];
 
+  const highScoreSignals = [
+    { label: "Ethics & Integrity", terms: ["ethic", "integrity"] },
+    { label: "Outcome-Oriented", terms: ["outcome-driven", "outcome-oriented", "impact-focused"] },
+    { label: "International Benchmark", terms: ["benchmark", "global standards", "international standards"] },
+  ];
+
   const operationalMatches = findMatchedTerms(lower, VISION_OPERATIONAL_TERMS);
   const marketingMatches = findMatchedTerms(lower, VISION_MARKETING_TERMS);
   const immediateOutcomeMatches = OUTCOME_STYLE_TERMS.filter((term) =>
@@ -1601,7 +1617,7 @@ function evaluateVisionStrategicQuality(
   }
 
   let longTermAbstraction = 100;
-  if (words.length < 15 || words.length > 25) {
+  if (words.length < 15 || words.length > 30) {
     longTermAbstraction -= 35;
   }
   if (!longTermSignals.some((signal) => lower.includes(signal))) {
@@ -1650,11 +1666,22 @@ function evaluateVisionStrategicQuality(
 
   let strategicClarity = 100;
   if (marketingMatches.length > 0) strategicClarity -= 40;
-  if (words.length < 15 || words.length > 25) strategicClarity -= 20;
+  if (words.length < 15 || words.length > 30) strategicClarity -= 20;
   if (coveredCategories.length > VISION_MAX_PILLARS) strategicClarity -= 35;
   if (repeatedRootSignals.length > 0) strategicClarity -= 30;
   if (duplicatePhraseSignals.length > 0) strategicClarity -= 30;
   if (synonymStackingSignals.length > 0) strategicClarity -= 25;
+
+  let themeAlignmentScore = 0;
+  const missingThemes: string[] = [];
+  highScoreSignals.forEach(signal => {
+    if (signal.terms.some(term => lower.includes(term))) {
+      themeAlignmentScore += 34; // Max ~100
+    } else {
+      missingThemes.push(signal.label);
+    }
+  });
+  themeAlignmentScore = Math.min(100, themeAlignmentScore);
 
   let alignmentWithFocusAreas = 100;
   if (semanticOptions.length > 0) {
@@ -1670,12 +1697,13 @@ function evaluateVisionStrategicQuality(
   }
 
   const weightedScore = Math.round(
-    longTermAbstraction * 0.2 +
-      institutionalPositioning * 0.2 +
-      noOperationalLeakage * 0.2 +
-      redundancyControl * 0.15 +
-      strategicClarity * 0.15 +
-      alignmentWithFocusAreas * 0.1,
+    longTermAbstraction * 0.15 +
+      institutionalPositioning * 0.15 +
+      noOperationalLeakage * 0.15 +
+      redundancyControl * 0.1 +
+      strategicClarity * 0.1 +
+      alignmentWithFocusAreas * 0.1 +
+      themeAlignmentScore * 0.25,
   );
 
   const overall = clampScore(weightedScore);
@@ -1690,6 +1718,8 @@ function evaluateVisionStrategicQuality(
     duplicatePhraseSignals,
     synonymStackingSignals,
     globalConcepts: globalPositioning.concepts,
+    themeAlignmentScore,
+    missingThemes,
     dimensions: {
       long_term_abstraction: clampScore(longTermAbstraction),
       institutional_positioning: clampScore(institutionalPositioning),
@@ -1697,6 +1727,7 @@ function evaluateVisionStrategicQuality(
       redundancy_control: clampScore(redundancyControl),
       strategic_clarity: clampScore(strategicClarity),
       alignment_with_focus_areas: clampScore(alignmentWithFocusAreas),
+      theme_alignment: clampScore(themeAlignmentScore),
     },
   };
 }
@@ -3574,6 +3605,8 @@ function validateStatements(
   let visionGovernancePass = true;
   let missionGovernanceAverage = 0;
   let missionGovernancePass = true;
+  let individualScores: Record<string, any> = {};
+
   if (kind === "vision") {
     const visionGovernance = evaluateVisionGovernanceSet(
       statements,
@@ -3583,6 +3616,9 @@ function validateStatements(
     visionGovernanceAverage = visionGovernance.averageScore;
     visionGovernancePass = visionGovernance.pass;
     violations.push(...visionGovernance.violations);
+    visionGovernance.perStatement.forEach((item) => {
+      individualScores[item.statement] = item;
+    });
   } else if (kind === "mission") {
     const missionGovernance = evaluateMissionGovernanceSet({
       statements,
@@ -3593,6 +3629,9 @@ function validateStatements(
     missionGovernanceAverage = missionGovernance.averageScore;
     missionGovernancePass = missionGovernance.pass;
     violations.push(...missionGovernance.violations);
+    missionGovernance.perStatement.forEach((item) => {
+      individualScores[item.statement] = item;
+    });
   }
 
   const strictTotalScore =
@@ -3626,6 +3665,7 @@ function validateStatements(
     repeatedStartPattern: diversity.repeatedStartPattern,
     perStatementCoverage: coverage.perStatementCoverage,
     violations,
+    scores: individualScores,
   };
 }
 
@@ -3713,11 +3753,14 @@ Requirements:
 5. Global concept rule: use exactly ONE global positioning phrase per statement and do not stack additional global/international words.
 6. Hard Ban in Vision: operational/process terms such as education, teaching, learning, curriculum, pedagogy, provide, deliver, develop, cultivate, train, implement.
 7. Limit each Vision to a maximum of ${VISION_MAX_PILLARS} strategic pillars.
-8. Keep each statement between 15 and 25 words.
-9. Ensure structural diversity; each output must use a different opening phrase and distinct sentence framing.
-10. If any pair exceeds 70% structural similarity, rewrite the weaker candidate.
-11. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes, destination, hub, world-class.
-12. Do not concatenate labels; synthesize meaning with long-term institutional abstraction.
+8. Keep each statement between 15 and 30 words.
+9. MANDATORY KEYWORDS (Score Alignment): Each statement MUST explicitly include:
+   - "ethics" or "integrity" (e.g., ethical innovation, integrity-based)
+   - "outcome-driven" or "impact-focused" (e.g., outcome-driven education)
+   - "globally benchmarked" or "global standards"
+10. Ensure structural diversity; each output must use a different opening phrase and distinct sentence framing.
+11. If any pair exceeds 70% structural similarity, rewrite the weaker candidate.
+12. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes, destination, hub, world-class.
 13. Logic: The Program Vision must logically extend the Institute Vision into the disciplinary context of ${programName} without repeating it verbatim.
 
 Output format:
@@ -4482,6 +4525,10 @@ export async function POST(request: Request) {
       visions,
       missions,
       pairs,
+      scores: {
+        ...(visionResult?.validation?.scores || {}),
+        ...(missionResult?.validation?.scores || {}),
+      },
       approval_status: strategicValidation?.approved ?? null,
       generation_details: {
         vision: visionResult

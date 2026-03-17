@@ -100,9 +100,9 @@ function ToggleSwitch({
 
 function IdentifyOBECoursesPanelContent() {
   const searchParams = useSearchParams();
-  const programId = searchParams.get("programId") ?? "";
-  const versionId = searchParams.get("versionId") ?? "";
-  const curriculumId = searchParams.get("curriculumId") ?? "";
+  const programId = (searchParams.get("programId") || "").replace(/^undefined$|^null$/i, "");
+  const versionId = (searchParams.get("versionId") || "").replace(/^undefined$|^null$/i, "");
+  const curriculumId = (searchParams.get("curriculumId") || "").replace(/^undefined$|^null$/i, "");
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(false);

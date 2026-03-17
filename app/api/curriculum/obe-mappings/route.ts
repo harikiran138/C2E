@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+function isValidUUID(uuid: string): boolean {
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return regex.test(uuid);
+}
+
+function IsInvalidUUIDError(error: any): boolean {
+  return String(error?.code || "") === "22P02";
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const programId = String(searchParams.get("programId") || "").trim();
     const curriculumId = String(searchParams.get("curriculumId") || "").trim();
 
-    if (!programId) {
-      return NextResponse.json({ error: "programId is required" }, { status: 400 });
+    if (!programId || !isValidUUID(programId)) {
+      return NextResponse.json({ error: "Valid programId is required" }, { status: 400 });
     }
 
     const supabase = await createClient();
@@ -17,10 +26,13 @@ export async function GET(request: Request) {
       .select("*")
       .eq("program_id", programId);
 
-    if (curriculumId) {
+    if (curriculumId && isValidUUID(curriculumId)) {
       query = query.eq("curriculum_id", curriculumId);
     } else {
-      query = query.is("curriculum_id", null);
+      // If curriculumId is missing or "undefined"/"null", we default to null filtering
+      if (!curriculumId || curriculumId.toLowerCase() === "undefined" || curriculumId.toLowerCase() === "null") {
+        query = query.is("curriculum_id", null);
+      }
     }
 
     const { data, error } = await query;

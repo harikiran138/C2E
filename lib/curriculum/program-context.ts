@@ -5,9 +5,7 @@ interface ProgramRow {
   id: string;
   program_name: string;
   degree: string | null;
-  program_vision: string | null;
   vision: string | null;
-  program_mission: string | null;
   mission: string | null;
   peo_po_matrix: unknown;
   consistency_matrix: unknown;
@@ -150,9 +148,7 @@ export async function resolveProgramAcademicContext(
         id,
         program_name,
         degree,
-        program_vision,
         vision,
-        program_mission,
         mission,
         peo_po_matrix,
         consistency_matrix
@@ -191,10 +187,10 @@ export async function resolveProgramAcademicContext(
     }
 
     const effectiveVision = normalizeText(
-      selectedVision || program.program_vision || program.vision,
+      selectedVision || program.vision,
     );
     const effectiveMission = normalizeText(
-      activeMission || program.program_mission || program.mission,
+      activeMission || program.mission,
     );
 
     const context: ProgramAcademicContext = {

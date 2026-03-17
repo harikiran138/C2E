@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Sparkles, Save, Check, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Save, Check, RefreshCw, AlertCircle, Wand2 } from "lucide-react";
 import { AI_API_URL } from "@/lib/api";
 import PeoGenerator from "@/components/institution/process/PeoGenerator";
 
@@ -159,10 +159,10 @@ export default function VisionMissionGenerator() {
             );
             if (currentProgram) {
               const initialVision = normalizeStatement(
-                currentProgram.program_vision || currentProgram.vision || "",
+                currentProgram.vision || "",
               );
               const initialMission = normalizeStatement(
-                currentProgram.program_mission || currentProgram.mission || "",
+                currentProgram.mission || "",
               );
               const hasInitialVisionScore =
                 currentProgram.vision_score !== null &&
@@ -363,7 +363,7 @@ export default function VisionMissionGenerator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           program_id: programId,
-          program_vision: normalizedVision,
+          vision: normalizedVision,
           vision_score:
             typeof scoreInfo?.score === "number" ? scoreInfo.score : null,
           vision_analysis: scoreInfo || null,
@@ -392,7 +392,6 @@ export default function VisionMissionGenerator() {
         }));
         setProgram((prev: any) => ({
           ...(prev || {}),
-          program_vision: normalizedVision,
           vision: normalizedVision,
           vision_score: result.selected_vision.score,
         }));
@@ -573,8 +572,8 @@ export default function VisionMissionGenerator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           program_id: programId,
-          program_vision: programVision,
-          program_mission: programMission,
+          vision: programVision,
+          mission: programMission,
           vision_score:
             typeof selectedVisionScoreInfo?.score === "number"
               ? selectedVisionScoreInfo.score
@@ -605,7 +604,6 @@ export default function VisionMissionGenerator() {
         ) {
           setProgram((prev: any) => ({
             ...(prev || {}),
-            program_vision: result.selected_vision.text,
             vision: result.selected_vision.text,
             vision_score: result.selected_vision.score,
           }));
@@ -686,6 +684,27 @@ export default function VisionMissionGenerator() {
                   {v}
                 </span>
               ))}
+            </div>
+          )}
+          {scoreInfo?.missingThemes?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {scoreInfo.missingThemes.map((t: string, i: number) => (
+                <span
+                  key={i}
+                  className="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-md font-medium flex items-center gap-1"
+                >
+                  <AlertCircle className="size-2.5" />
+                  Missing: {t}
+                </span>
+              ))}
+            </div>
+          )}
+          {scoreInfo?.score < 90 && (
+            <div className="mt-3 p-2 bg-indigo-50/50 rounded-lg border border-indigo-100/50">
+              <p className="text-[10px] text-indigo-600 font-medium flex items-center gap-1.5">
+                <Wand2 className="size-3" />
+                Tip: Add keywords like "outcome-driven", "ethical", or "benchmarked" to hit 90+
+              </p>
             </div>
           )}
         </div>

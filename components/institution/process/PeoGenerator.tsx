@@ -104,7 +104,7 @@ export default function PeoGenerator({
   isEmbedded = false,
 }: PeoGeneratorProps) {
   const searchParams = useSearchParams();
-  const programId = searchParams.get("programId");
+  const programId = (searchParams.get("programId") || "").replace(/^undefined$|^null$/i, "");
 
   // --- STATE ---
   const [loading, setLoading] = useState(true);
@@ -543,7 +543,7 @@ export default function PeoGenerator({
                         Program Vision
                       </h4>
                       <p className="text-sm text-slate-600 leading-relaxed italic">
-                        "{program?.program_vision || program?.vision || "Program vision not defined. Please define it first."}"
+                        "{program?.vision || "Program vision not defined. Please define it first."}"
                       </p>
                     </div>
                     <div className="relative pl-4 border-l-2 border-teal-100">
@@ -551,7 +551,7 @@ export default function PeoGenerator({
                         Program Mission
                       </h4>
                       <p className="text-sm text-slate-600 leading-relaxed italic whitespace-pre-line">
-                        "{program?.program_mission || program?.mission || "Program mission not defined. Please define it first."}"
+                        "{program?.mission || "Program mission not defined. Please define it first."}"
                       </p>
                     </div>
                   </div>

@@ -113,7 +113,6 @@ export async function POST(request: NextRequest) {
         await client.query(
           `UPDATE programs
            SET
-             program_vision = $2,
              vision = $2,
              vision_score = $3,
              vision_analysis = $4::jsonb,

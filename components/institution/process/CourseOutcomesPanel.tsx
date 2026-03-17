@@ -57,9 +57,9 @@ function strengthSymbol(str: string) {
 
 function CourseOutcomesPanelContent() {
   const searchParams = useSearchParams();
-  const programId = searchParams.get("programId") ?? "";
-  const versionId = searchParams.get("versionId") ?? "";
-  const curriculumId = searchParams.get("curriculumId") ?? "";
+  const programId = (searchParams.get("programId") || "").replace(/^undefined$|^null$/i, "");
+  const versionId = (searchParams.get("versionId") || "").replace(/^undefined$|^null$/i, "");
+  const curriculumId = (searchParams.get("curriculumId") || "").replace(/^undefined$|^null$/i, "");
   const [programName, setProgramName] = useState("");
 
   const [courses, setCourses] = useState<Course[]>([]);
@@ -117,7 +117,10 @@ function CourseOutcomesPanelContent() {
         }
 
         const res = await fetch(`/api/curriculum/courses?${params.toString()}`);
-        if (!res.ok) throw new Error("Failed to fetch courses");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to fetch courses");
+        }
         const data = await res.json();
         const fetchedCourses: Course[] = data.courses ?? [];
         setCourses(fetchedCourses);

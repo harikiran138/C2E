@@ -42,9 +42,7 @@ export interface ProgramOwnership {
   program_name: string;
   program_code: string | null;
   vision_score: number | null;
-  program_vision: string | null;
   vision: string | null;
-  program_mission: string | null;
   mission: string | null;
 }
 
@@ -143,9 +141,7 @@ export async function getOwnedProgram(
       program_name,
       program_code,
       vision_score,
-      program_vision,
       vision,
-      program_mission,
       mission
      FROM programs
      WHERE id = $1 AND institution_id = $2`,
