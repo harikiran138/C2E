@@ -53,8 +53,9 @@ export async function POST(request: Request) {
             category,
             tenure_start_date,
             tenure_end_date,
+            communicate,
             linkedin_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
         [
           body.program_id,
           body.member_name,
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
           body.category,
           body.tenure_start_date || null,
           body.tenure_end_date || null,
+          body.communicate || null,
           body.linkedin_id,
         ],
       );
@@ -108,9 +110,10 @@ export async function PUT(request: Request) {
               category = $7,
               tenure_start_date = $8,
               tenure_end_date = $9,
-              linkedin_id = $10,
+              communicate = $10,
+              linkedin_id = $11,
               updated_at = CURRENT_TIMESTAMP
-           WHERE id = $11 RETURNING *`,
+           WHERE id = $12 RETURNING *`,
         [
           fields.member_name,
           fields.member_id,
@@ -121,6 +124,7 @@ export async function PUT(request: Request) {
           fields.category,
           fields.tenure_start_date || null,
           fields.tenure_end_date || null,
+          fields.communicate || null,
           fields.linkedin_id,
           id,
         ],
