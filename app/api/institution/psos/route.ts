@@ -46,16 +46,17 @@ export async function POST(request: Request) {
       ]);
 
       if (psos.length > 0) {
-        const values = psos
-          .map(
-            (p: any, i: number) =>
-              `('${program_id}', '${p.statement.replace(/'/g, "''")}', ${i + 1})`,
-          )
-          .join(",");
-        await client.query(`
-            INSERT INTO program_psos (program_id, pso_statement, pso_number)
-            VALUES ${values}
-          `);
+        const placeholders = psos
+          .map((_: any, i: number) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`)
+          .join(", ");
+        const values: any[] = [program_id];
+        psos.forEach((p: any, i: number) => {
+          values.push(p.statement, i + 1);
+        });
+        await client.query(
+          `INSERT INTO program_psos (program_id, pso_statement, pso_number) VALUES ${placeholders}`,
+          values,
+        );
       }
 
       await client.query("COMMIT");

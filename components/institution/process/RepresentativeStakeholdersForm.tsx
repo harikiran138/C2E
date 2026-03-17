@@ -32,11 +32,16 @@ import {
 } from "@/components/ui/tooltip";
 
 const STAKEHOLDER_CATEGORIES = [
-  "Industry professionals",
+  "Academia",
+  "Industry",
+  "Corporate",
+  "Potential Employer",
+  "Professional Body",
+  "Research Organisation",
   "Alumni",
-  "Academic experts",
-  "Employer representatives",
-  "Advisory board members",
+  "Senior Students",
+  "Parents",
+  "Management",
 ];
 
 import { memberSchema } from "@/lib/schemas";
