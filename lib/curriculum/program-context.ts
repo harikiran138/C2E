@@ -143,22 +143,45 @@ export async function resolveProgramAcademicContext(
       shouldRelease = true;
     }
 
-    const programResult = await client.query<ProgramRow>(
-      `SELECT
-        id,
-        program_name,
-        degree,
-        vision,
-        mission,
-        peo_po_matrix,
-        consistency_matrix
-       FROM programs
-       WHERE id = $1
-       LIMIT 1`,
-      [normalizedProgramId],
-    );
+    let program: ProgramRow | undefined;
+    try {
+      const programResult = await client.query<ProgramRow>(
+        `SELECT
+          id,
+          program_name,
+          degree,
+          vision,
+          mission,
+          peo_po_matrix,
+          consistency_matrix
+         FROM programs
+         WHERE id = $1
+         LIMIT 1`,
+        [normalizedProgramId],
+      );
+      program = programResult.rows[0];
+    } catch (error: any) {
+      if (String(error?.code) === "42703") {
+        console.warn("Retrying program context fetch with legacy schema fallback...");
+        // Fallback: Query only the core columns
+        const fallbackResult = await client.query<ProgramRow>(
+          `SELECT
+            id,
+            program_name,
+            degree,
+            vision,
+            mission
+           FROM programs
+           WHERE id = $1
+           LIMIT 1`,
+          [normalizedProgramId],
+        );
+        program = fallbackResult.rows[0];
+      } else {
+        throw error;
+      }
+    }
 
-    const program = programResult.rows[0];
     if (!program) {
       errors.push("Program not found for the provided programId.");
       return { context: null, errors, warnings };
