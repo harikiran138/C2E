@@ -47,7 +47,7 @@ function attachSecurityHeaders(response: NextResponse) {
   response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const forwardedIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
   const ip = String((request as any).ip || forwardedIp || '127.0.0.1');

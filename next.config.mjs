@@ -5,10 +5,11 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', 'lodash', 'recharts', 'framer-motion', '@radix-ui/react-icons'],
   },
   async rewrites() {
+    const isProd = process.env.NODE_ENV === 'production';
     return [
       {
         source: '/ai_proxy/:path*',
-        destination: 'http://127.0.0.1:8001/:path*',
+        destination: isProd ? '/api/main/:path*' : 'http://127.0.0.1:8001/:path*',
       },
     ];
   },
