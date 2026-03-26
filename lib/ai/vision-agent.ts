@@ -12,7 +12,7 @@
  *   return rankVisions(qualified, count)
  */
 
-import { generateVisionHybrid }                    from "./hybrid-generator";
+import { generateVisionHybrid }                    from "./vision-hybrid-generator";
 import { scoreVision, VisionScore, VISION_APPROVAL_THRESHOLD } from "./scoring";
 import { deduplicateVisions }                      from "./similarity";
 import { rankVisions, RankedVision }               from "./ranking-engine";

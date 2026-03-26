@@ -4,7 +4,7 @@ import json
 import asyncio
 import re
 import time
-from typing import Any, List, Optional, Dict
+from typing import Any, List, Optional, Dict, Tuple, Union, Set
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -28,17 +28,21 @@ app.add_middleware(
 )
 
 # Configure Gemini
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    load_dotenv(".env.local")
-    api_key = os.getenv("GEMINI_API_KEY")
+def load_gemini_api_key() -> Optional[str]:
+    """Load Gemini API key from environment variables with multiple fallbacks."""
+    key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        load_dotenv(".env.local")
+        key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        load_dotenv("../.env.local")
+        key = os.getenv("GEMINI_API_KEY")
+    return key
+
+api_key = load_gemini_api_key()
 
 if not api_key:
-    load_dotenv("../.env.local")
-    api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    print("Warning: GEMINI_API_KEY not found")
+    print("Warning: GEMINI_API_KEY not found. Some AI features may be disabled.")
 
 class VMGenerateRequest(BaseModel):
     program_name: str
@@ -97,9 +101,25 @@ class PSOGenerateResponse(BaseModel):
     quality: List[Dict[str, Any]]
     scores: Optional[Dict[str, Any]] = None
 
+class LocalChatRequest(BaseModel):
+    prompt: str
+    system_prompt: Optional[str] = "You are a helpful academic assistant."
+
+class LocalChatResponse(BaseModel):
+    text: str
+
+@app.post("/ai/local-chat", response_model=LocalChatResponse)
+async def local_chat(request: LocalChatRequest) -> LocalChatResponse:
+    try:
+        from ml_engine import engine
+        result = engine.generate_completion(request.prompt, request.system_prompt)
+        return LocalChatResponse(text=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Simple in-memory cache
-ai_cache = {}
+ai_cache: Dict[str, str] = {}
 
 VISION_APPROVAL_THRESHOLD = 90
 VISION_MAX_REPAIR_ATTEMPTS = 3
@@ -653,11 +673,11 @@ async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool 
     raise Exception("Max retries exceeded for Gemini API")
 
 @app.get("/")
-async def root():
+async def root() -> Dict[str, str]:
     return {"message": "AI Generation Backend (REST) is running with Async & Cache"}
 
 @app.post("/ai/generate-vision-mission", response_model=VMGenerateResponse)
-async def generate_vm(request: VMGenerateRequest):
+async def generate_vm(request: VMGenerateRequest) -> VMGenerateResponse:
     try:
         # Problem 3: Institute Vision/Mission Validation
         iv_len = len(request.institute_vision.strip()) if request.institute_vision else 0
@@ -768,19 +788,19 @@ Entropy Seed: {{seed}}
                     chunk_parsed = [v.strip().strip('"').strip("'") for v in vision_text.split('\n') if len(v.strip()) > 10]
 
                 for v in chunk_parsed:
-                    v_clean = normalize_whitespace(v)
-                    v_key = v_clean.lower()
+                    v_clean: str = normalize_whitespace(v)
+                    v_key: str = v_clean.lower()
                     if not v_clean or v_key in unique_visions_global or visions_remaining <= 0:
                         continue
 
-                    too_similar = any(
+                    too_similar: bool = any(
                         vision_similarity(v_clean, existing) > VISION_SIMILARITY_THRESHOLD
                         for existing in all_visions
                     )
                     if too_similar:
                         continue
 
-                    assessment = score_vision(v_clean, request.vision_inputs, request.institute_vision)
+                    assessment: Dict[str, Any] = score_vision(v_clean, request.vision_inputs, request.institute_vision)
                     if assessment.get("hard_fail"):
                         continue
 
@@ -789,13 +809,13 @@ Entropy Seed: {{seed}}
                     visions_remaining -= 1
 
             while len(all_visions) < request.vision_count:
-                deterministic = build_deterministic_vision(request.program_name, request.vision_inputs, len(all_visions))
-                d_key = deterministic.lower()
+                deterministic: str = build_deterministic_vision(request.program_name, request.vision_inputs, len(all_visions))
+                d_key: str = deterministic.lower()
                 if d_key not in unique_visions_global:
                     all_visions.append(deterministic)
                     unique_visions_global.add(d_key)
             
-            visions = all_visions[:request.vision_count]
+            visions: List[str] = all_visions[:request.vision_count]
                 
             # RECURSIVE FEEDBACK LOOP (GOVERNANCE STAGE)
             refined_visions = []
@@ -977,11 +997,13 @@ Return ONLY the corrected Mission paragraph.
                     candidate = build_safe_mission(request.program_name, idx)
                 refined_missions.append(candidate)
 
-            missions = enforce_mission_diversity(refined_missions, mission_reference, request.program_name)
+            # Ensure mission_reference is a string
+            mission_ref: str = str(mission_reference) if mission_reference else ""
+            missions = enforce_mission_diversity(refined_missions, mission_ref, request.program_name)
 
-            fill_idx = request.mission_count
+            fill_idx: int = request.mission_count
             while len(missions) < request.mission_count:
-                candidate = build_safe_mission(request.program_name, fill_idx)
+                candidate: str = build_safe_mission(request.program_name, fill_idx)
                 fill_idx += 1
                 if any(vision_similarity(candidate, existing) > VISION_SIMILARITY_THRESHOLD for existing in missions):
                     continue
@@ -990,15 +1012,21 @@ Return ONLY the corrected Mission paragraph.
             missions = missions[: request.mission_count]
             mission_scores = {m: score_mission(m) for m in missions}
 
+        # Construct response with explicit type safety
+        final_vision: Optional[str] = visions[0] if visions else None
+        final_mission: Optional[str] = missions[0] if missions else None
+        
+        response_scores: Dict[str, Dict[str, Any]] = {
+            "vision": vision_scores if vision_scores else {},
+            "mission": mission_scores if mission_scores else {},
+        }
+
         return VMGenerateResponse(
-            vision=visions[0] if visions else None,
-            mission=missions[0] if missions else None,
+            vision=final_vision,
+            mission=final_mission,
             visions=visions,
             missions=missions,
-            scores={
-                "vision": vision_scores if vision_scores else {},
-                "mission": mission_scores if mission_scores else {},
-            }
+            scores=response_scores
         )
         
     except Exception as e:
@@ -1167,15 +1195,15 @@ def rank_peo_statements(statements: List[str]) -> List[Dict[str, Any]]:
     return ranked
 
 @app.post("/api/v1/generate-peos", response_model=PEOGenerateResponse)
-async def generate_peos(request: PEOGenerateRequest):
+async def generate_peos(request: PEOGenerateRequest) -> PEOGenerateResponse:
     try:
-        normalized_count = min(12, max(1, request.count or 4))
+        normalized_count: int = min(12, max(1, request.count or 4))
         if not request.priorities:
             raise HTTPException(status_code=400, detail="Priorities are required")
         if len(request.priorities) > 20:
             raise HTTPException(status_code=400, detail="priorities must have at most 20 items")
 
-        peo_prompt = f"""
+        peo_prompt: str = f"""
         You are an Accreditation-Aware Academic Policy Designer.
         
         Program: "{request.programName}".
@@ -1202,43 +1230,43 @@ async def generate_peos(request: PEOGenerateRequest):
         - No markdown.
         """
         
-        raw_text = await call_gemini_rest_async(peo_prompt, use_cache=False)
-        parsed_results = parse_peo_array(raw_text)[:normalized_count]
+        raw_text: str = await call_gemini_rest_async(peo_prompt, use_cache=False)
+        parsed_results: List[str] = parse_peo_array(raw_text)[:normalized_count]
         
-        refined_peos = []
-        seen = set()
+        refined_peos: List[str] = []
+        seen: Set[str] = set()
         
         for i, statement in enumerate(parsed_results):
-            priority = request.priorities[i % len(request.priorities)] if request.priorities else "professional practice"
+            priority: str = request.priorities[i % len(request.priorities)] if request.priorities else "professional practice"
             statement = re.sub(r'^(?i)PEO\d+\s*:\s*', '', statement).strip()
             
             # 1. Enforce quality
-            refined_statement = enforce_peo_quality(statement, priority, request.programName)
+            refined_statement: str = enforce_peo_quality(statement, priority, request.programName)
             
             # 2. Check Vision Alignment
-            alignment = calculate_peo_vision_alignment(request.vision, refined_statement)
+            alignment: float = calculate_peo_vision_alignment(request.vision or "", refined_statement)
             if alignment < 0.1:
                  # If very low alignment, force a fallback
                  refined_statement = build_fallback_peo(priority, request.programName, i)
             
             # 3. Check Diversity
-            too_similar = any(peo_similarity(refined_statement, existing) > 0.8 for existing in refined_peos)
+            too_similar: bool = any(peo_similarity(refined_statement, existing) > 0.8 for existing in refined_peos)
             if too_similar:
                  # If too similar, differentiate via fallback
                  priority = request.priorities[(i+1) % len(request.priorities)] if request.priorities else "innovation"
                  refined_statement = build_fallback_peo(priority, request.programName, i + 1)
 
-            key = canonical_peo_key(refined_statement)
+            key: str = canonical_peo_key(refined_statement)
             if key not in seen:
                 seen.add(key)
                 refined_peos.append(refined_statement)
 
         # Ensure count
-        fallback_index = 0
+        fallback_index: int = 0
         while len(refined_peos) < normalized_count:
             idx = len(refined_peos)
             priority = request.priorities[idx % len(request.priorities)] if request.priorities else "excellence"
-            fallback = build_fallback_peo(priority, request.programName, fallback_index)
+            fallback: str = build_fallback_peo(priority, request.programName, fallback_index)
             if not any(peo_similarity(fallback, existing) > 0.8 for existing in refined_peos):
                 refined_peos.append(fallback)
             elif fallback_index >= normalized_count * 3:
@@ -1247,13 +1275,14 @@ async def generate_peos(request: PEOGenerateRequest):
             fallback_index += 1
             if fallback_index > normalized_count * 5: break
         
-        final_peos = refined_peos[:normalized_count]
-        ranked_results = rank_peo_statements(final_peos)
+        final_peos: List[str] = refined_peos[:normalized_count]
+        ranked_results: List[Dict[str, Any]] = rank_peo_statements(final_peos)
         
-        scores = {r["statement"]: r["quality"] for r in ranked_results}
-        matrix = create_default_alignment_matrix(len(final_peos), len(request.missions))
+        scores: Dict[str, Dict[str, Any]] = {r["statement"]: r["quality"] for r in ranked_results}
+        matrix: List[List[int]] = create_default_alignment_matrix(len(final_peos), len(request.missions or []))
             
         return PEOGenerateResponse(results=[r["statement"] for r in ranked_results], quality=[r["quality"] for r in ranked_results], alignment_matrix=matrix, scores=scores)
+
 
     except Exception as e:
         import traceback
@@ -1277,11 +1306,11 @@ async def generate_peos(request: PEOGenerateRequest):
         )
 
 @app.post("/api/v1/generate-pos", response_model=POGenerateResponse)
-async def generate_pos(request: POGenerateRequest):
+async def generate_pos(request: POGenerateRequest) -> POGenerateResponse:
     try:
-        normalized_count = min(15, max(1, request.count or 12))
+        normalized_count: int = min(15, max(1, request.count or 12))
         
-        po_prompt = f"""
+        po_prompt: str = f"""
         You are an NBA Accreditation Specialist.
         
         Program: "{request.programName}".
@@ -1316,17 +1345,17 @@ async def generate_pos(request: POGenerateRequest):
         - No explanation.
         """
         
-        raw_text = await call_gemini_rest_async(po_prompt, use_cache=False)
-        parsed_results = parse_peo_array(raw_text)[:normalized_count]
+        raw_text: str = await call_gemini_rest_async(po_prompt, use_cache=False)
+        parsed_results: List[str] = parse_peo_array(raw_text)[:normalized_count]
         
-        refined_pos = [enforce_po_quality(po) for po in parsed_results]
+        refined_pos: List[str] = [enforce_po_quality(po) for po in parsed_results]
         
         # Mapping matrix (PO to PEO)
-        peo_count = len(request.peos)
-        mapping_matrix = [[(1 if (i+j) % 3 == 0 else 2 if (i+j) % 2 == 0 else 0) for i in range(peo_count)] for j in range(len(refined_pos))]
+        peo_count: int = len(request.peos)
+        mapping_matrix: List[List[int]] = [[(1 if (i+j) % 3 == 0 else 2 if (i+j) % 2 == 0 else 0) for i in range(peo_count)] for j in range(len(refined_pos))]
         
         # Simple quality check (can be expanded)
-        quality_assessment = [{"statement": po, "specific": True, "measurable": True} for po in refined_pos]
+        quality_assessment: List[Dict[str, Any]] = [{"statement": po, "specific": True, "measurable": True} for po in refined_pos]
         
         return POGenerateResponse(
             pos=refined_pos,
@@ -1337,7 +1366,7 @@ async def generate_pos(request: POGenerateRequest):
     except Exception as e:
         print(f"CRITICAL ERROR generating POs: {str(e)}")
         # Fallback to standard PO names
-        standard_pos = [
+        standard_pos: List[str] = [
             "Apply knowledge of mathematics, science, and engineering fundamentals to solve complex problems.",
             "Analyze complex engineering problems and formulate conclusions using first principles.",
             "Design solutions for complex engineering problems that meet specific societal and environmental needs.",
@@ -1351,21 +1380,22 @@ async def generate_pos(request: POGenerateRequest):
             "Demonstrate knowledge and understanding of management and financial principles.",
             "Recognize the need for and have the preparation to engage in lifelong learning."
         ]
-        pos = standard_pos[:normalized_count]
-        mapping_matrix = [[1 for _ in range(len(request.peos))] for _ in range(len(pos))]
-        quality = [{"statement": po, "specific": True, "measurable": True} for po in pos]
+        pos: List[str] = standard_pos[:normalized_count]
+        mapping_matrix: List[List[int]] = [[1 for _ in range(len(request.peos))] for _ in range(len(pos))]
+        quality: List[Dict[str, Any]] = [{"statement": po, "specific": True, "measurable": True} for po in pos]
         return POGenerateResponse(pos=pos, mapping_matrix=mapping_matrix, quality=quality)
 
+
 @app.post("/api/v1/generate-psos", response_model=PSOGenerateResponse)
-async def generate_psos(request: PSOGenerateRequest):
+async def generate_psos(request: PSOGenerateRequest) -> PSOGenerateResponse:
     try:
-        normalized_count = min(10, max(1, request.count or 3))
+        normalized_count: int = min(10, max(1, request.count or 3))
         if not request.priorities:
             raise HTTPException(status_code=400, detail="Priorities are required for PSO generation")
         if len(request.priorities) > 20:
             raise HTTPException(status_code=400, detail="priorities must have at most 20 items")
 
-        pso_prompt = PSO_REFINEMENT_PROMPT.format(
+        pso_prompt: str = PSO_REFINEMENT_PROMPT.format(
             program_name=request.programName,
             vision=request.vision or "N/A",
             mission_list=json.dumps(request.missions or [], indent=2),
@@ -1375,14 +1405,14 @@ async def generate_psos(request: PSOGenerateRequest):
             seed=f"{time.time()}_pso",
         )
 
-        raw_text = await call_gemini_rest_async(pso_prompt, use_cache=False)
-        parsed_results = parse_peo_array(raw_text)[:normalized_count]
+        raw_text: str = await call_gemini_rest_async(pso_prompt, use_cache=False)
+        parsed_results: List[str] = parse_peo_array(raw_text)[:normalized_count]
 
         refined_psos: List[str] = []
-        seen_keys: set = set()
+        seen_keys: Set[str] = set()
 
         for i, statement in enumerate(parsed_results):
-            priority = request.priorities[i % len(request.priorities)]
+            priority: str = request.priorities[i % len(request.priorities)]
             # Strip PSO label prefixes if Gemini added them
             statement = re.sub(r'^(?i)(PSO\d*\s*[:.\-]?\s*)', '', statement).strip()
 
@@ -1395,7 +1425,7 @@ async def generate_psos(request: PSOGenerateRequest):
 
             # Governance repair loop
             for repair_attempt in range(PSO_MAX_REPAIR_ATTEMPTS):
-                assessment = score_pso(statement)
+                assessment: Dict[str, Any] = score_pso(statement)
                 print(
                     f"DEBUG PSO: Attempt {repair_attempt+1}, Score: {assessment['score']}, "
                     f"HardFail: {assessment.get('hard_fail')}, Text: {statement[:60]}..."
@@ -1403,7 +1433,7 @@ async def generate_psos(request: PSOGenerateRequest):
                 if assessment["score"] >= PSO_APPROVAL_THRESHOLD and not assessment.get("hard_fail"):
                     break
 
-                pso_repair_prompt = f"""You are a PSO quality repair agent for {request.programName}.
+                pso_repair_prompt: str = f"""You are a PSO quality repair agent for {request.programName}.
 
 Failed PSO: "{statement}"
 Violations: {", ".join(assessment.get("violations", []))}
@@ -1419,7 +1449,7 @@ Rewrite following ALL rules:
 
 Return ONLY the corrected PSO statement. No explanation. No markdown."""
                 try:
-                    repaired = await call_gemini_rest_async(pso_repair_prompt, use_cache=False)
+                    repaired: str = await call_gemini_rest_async(pso_repair_prompt, use_cache=False)
                     repaired = normalize_whitespace(repaired.strip().strip('"').strip("'"))
                     if repaired and not repaired.lower().startswith(PSO_PREFIX):
                         repaired = f"Graduates will be able to {repaired[0].lower() + repaired[1:]}"
@@ -1429,30 +1459,30 @@ Return ONLY the corrected PSO statement. No explanation. No markdown."""
                     statement = build_fallback_pso(priority, request.programName, i + repair_attempt)
 
             # Final quality gate: hard_fail → use template fallback
-            final_assessment = score_pso(statement)
+            final_assessment: Dict[str, Any] = score_pso(statement)
             if final_assessment.get("hard_fail"):
                 statement = build_fallback_pso(priority, request.programName, i)
 
             # Diversity gate
-            too_similar = any(
+            too_similar: bool = any(
                 pso_similarity(statement, existing) > PSO_SIMILARITY_THRESHOLD
                 for existing in refined_psos
             )
             if too_similar:
-                next_priority = request.priorities[(i + 1) % len(request.priorities)]
+                next_priority: str = request.priorities[(i + 1) % len(request.priorities)]
                 statement = build_fallback_pso(next_priority, request.programName, i + 1)
 
-            key = re.sub(r"[^a-z0-9]", "", statement.lower())[:60]
+            key: str = re.sub(r"[^a-z0-9]", "", statement.lower())[:60]
             if key not in seen_keys:
                 seen_keys.add(key)
                 refined_psos.append(statement)
 
         # Ensure count is met with diverse fallbacks
-        fallback_idx = 0
+        fallback_idx: int = 0
         while len(refined_psos) < normalized_count:
             idx = len(refined_psos)
             priority = request.priorities[idx % len(request.priorities)]
-            fallback = build_fallback_pso(priority, request.programName, fallback_idx)
+            fallback: str = build_fallback_pso(priority, request.programName, fallback_idx)
             if not any(pso_similarity(fallback, existing) > PSO_SIMILARITY_THRESHOLD for existing in refined_psos):
                 refined_psos.append(fallback)
             elif fallback_idx >= normalized_count * 3:
@@ -1461,18 +1491,19 @@ Return ONLY the corrected PSO statement. No explanation. No markdown."""
             if fallback_idx > normalized_count * 5:
                 break
 
-        final_psos = enforce_pso_diversity(refined_psos[:normalized_count], request.programName)
+        final_psos: List[str] = enforce_pso_diversity(refined_psos[:normalized_count], request.programName)
 
         # Score, rank, return
-        scored = [{"statement": p, "quality": score_pso(p)} for p in final_psos]
+        scored: List[Dict[str, Any]] = [{"statement": p, "quality": score_pso(p)} for p in final_psos]
         scored.sort(key=lambda x: x["quality"]["score"], reverse=True)
-        pso_scores = {s["statement"]: s["quality"] for s in scored}
+        pso_scores: Dict[str, Dict[str, Any]] = {s["statement"]: s["quality"] for s in scored}
 
         return PSOGenerateResponse(
             results=[s["statement"] for s in scored],
             quality=[s["quality"] for s in scored],
             scores=pso_scores,
         )
+
 
     except Exception as e:
         import traceback

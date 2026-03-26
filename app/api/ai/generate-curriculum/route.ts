@@ -1,5 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { applyGeminiCourseTitles } from "@/lib/curriculum/ai";
+import { suggestPrerequisites } from "@/lib/curriculum/ai-prerequisites";
+import { generateCourseDescriptions } from "@/lib/curriculum/ai-descriptions";
+import { performAccreditationAudit } from "@/lib/curriculum/ai-accreditation";
+import { suggestElectives } from "@/lib/curriculum/ai-electives";
+import { generateCourseObjectives } from "@/lib/curriculum/ai-cos";
+import { generateAccreditationReport } from "@/lib/curriculum/ai-report";
 import {
   buildCurriculum,
   CategoryCode,
@@ -127,12 +133,44 @@ export async function POST(request: Request) {
     let curriculum = result.curriculum;
     warnings.push(...result.warnings);
 
+    let accreditationAudit = null;
     if (body.enableAiTitles !== false) {
+      // 1. Parallel Titles & Electives (Sequential because they define the base curriculum)
       console.log("Curriculum AI: enableAiTitles is true, calling Gemini...");
       const aiResult = await applyGeminiCourseTitles(curriculum);
-      console.log(`Curriculum AI: complete. Warnings: ${aiResult.warnings.length}`);
       warnings.push(...aiResult.warnings);
       curriculum = aiResult.curriculum;
+
+      console.log("Curriculum AI: Running Elective Recommendations...");
+      const electiveResult = await suggestElectives(curriculum);
+      warnings.push(...electiveResult.warnings);
+      curriculum = electiveResult.curriculum;
+
+      // 2. Parallelizing detailed content generation
+      console.log("Curriculum AI: Running Parallel Content Generation (Prereqs, COs, Descriptions)...");
+      const [prereqResult, coResult, descResult] = await Promise.all([
+        suggestPrerequisites(curriculum),
+        generateCourseObjectives(curriculum),
+        generateCourseDescriptions(curriculum)
+      ]);
+
+      warnings.push(...prereqResult.warnings, ...coResult.warnings, ...descResult.warnings);
+      curriculum = descResult.curriculum; // All functions modify the same object, we pick one as base
+
+      // 3. Sequential Audit & Report (Needs final content)
+      console.log("Curriculum AI: Performing Accreditation Audit...");
+      const auditResult = await performAccreditationAudit(curriculum);
+      warnings.push(...auditResult.warnings);
+      accreditationAudit = auditResult.audit;
+
+      const finalReport = generateAccreditationReport(curriculum, accreditationAudit);
+
+      return NextResponse.json({
+        curriculum,
+        warnings,
+        audit: accreditationAudit,
+        report: finalReport
+      });
     } else {
       console.log("Curriculum AI: enableAiTitles is false, skipping Gemini.");
     }
@@ -157,6 +195,7 @@ export async function POST(request: Request) {
             errors: validation.errors,
             warnings,
             repairActions,
+            accreditationAudit,
           },
           { status: 400 },
         );
@@ -174,6 +213,7 @@ export async function POST(request: Request) {
       },
       repairActions,
       warnings,
+      accreditationAudit,
     });
   } catch (error: any) {
     console.error("Generate curriculum error:", error);

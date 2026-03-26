@@ -1,6 +1,6 @@
 /**
- * lib/ai/hybrid-generator.ts
- * Orchestrates Template Engine + Gemini AI + Mutation Engine.
+ * lib/ai/vision-hybrid-generator.ts
+ * Orchestrates Template Engine + Gemini AI + Mutation Engine for Vision Statement generation.
  *
  * Generation split:
  *   floor(count × 0.4) → grammar templates (guaranteed quality)
@@ -15,7 +15,7 @@ import { buildVisionAgentPrompt, PromptParams }       from "./prompt-builder";
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
-export interface HybridParams {
+export interface VisionHybridParams {
   programName:        string;
   priorities:         string[];
   count:              number;
@@ -101,9 +101,9 @@ function getMutationCandidates(
 
 /**
  * Generate a batch of vision candidates using the hybrid strategy.
- * Returns all candidates (unfiltered — scoring/ranking done upstream).
+ * Returns all candidates (unfiltered — scoring/ranking done upstream in visionAgent).
  */
-export async function generateVisionHybrid(params: HybridParams): Promise<string[]> {
+export async function generateVisionHybrid(params: VisionHybridParams): Promise<string[]> {
   const {
     programName,
     priorities,
@@ -137,7 +137,7 @@ export async function generateVisionHybrid(params: HybridParams): Promise<string
       const prompt = buildVisionAgentPrompt(promptParams);
       aiCandidates = await callGemini(prompt, geminiApiKey);
     } catch (err) {
-      console.warn("[HybridGenerator] Gemini call failed:", err);
+      console.warn("[VisionHybridGenerator] Gemini call failed:", err);
     }
   }
 

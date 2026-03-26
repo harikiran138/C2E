@@ -31,7 +31,14 @@ export interface GeneratedCourse {
   category: CategoryCode;
   courseCode: string;
   courseTitle: string;
+  description?: string;
   prerequisites?: string[];
+  courseOutcomes?: Array<{
+    coNumber: string;
+    text: string;
+    bloomLevel: string;
+    poMapping: string[];
+  }>;
   tHours: number;
   tuHours: number;
   llHours: number;

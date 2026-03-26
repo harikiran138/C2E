@@ -9,6 +9,8 @@ import {
   getDomainKnowledgeProfile,
   keywordMatch,
 } from "@/lib/curriculum/domain-knowledge";
+import { getAiCache, setAiCache } from "./ai-cache";
+import { callAiWithFallback, callLocalAi } from "./ai-model-router";
 
 interface ApplyGeminiOptions {
   targetSemester?: number;
@@ -29,8 +31,7 @@ interface AiPayload {
 }
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const SYSTEM_PROMPT = `You are an expert academic curriculum architect specializing in Outcome-Based Education (OBE) for engineering programs in India (NEP-2020, AICTE, NBA Tier-I aligned).
 
@@ -170,153 +171,160 @@ export async function applyGeminiCourseTitles(
     return { curriculum: updated, warnings };
   }
 
-  if (!GEMINI_API_KEY) {
-    warnings.push("GEMINI_API_KEY is not configured. Using deterministic fallback course titles.");
+  const userPrompt = buildUserPrompt(updated, coursesForPrompt, targetSemester);
+  const cacheKey = `${updated.programName}_${updated.semesterCount}_${JSON.stringify(coursesForPrompt)}`;
+
+  // 1. Check Cache
+  const cachedResponse = await getAiCache(cacheKey);
+  let rawText = "";
+
+  if (cachedResponse) {
+    console.log("Curriculum AI: Using cached response.");
+    rawText = cachedResponse;
+  } else {
+    if (!GEMINI_API_KEY) {
+      warnings.push("GEMINI_API_KEY is not configured. Using deterministic fallback course titles.");
+      return { curriculum: updated, warnings };
+    }
+
+    try {
+      console.log("Curriculum AI: Starting AI title generation via Router...");
+      
+      rawText = await callAiWithFallback(userPrompt, async (modelId, provider, prompt) => {
+        if (provider === "gemini") {
+          const url = `${GEMINI_BASE_URL}/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${prompt}` }] }],
+              generationConfig: {
+                temperature: 0.2,
+                responseMimeType: "application/json",
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Gemini API Error (${response.status}): ${errorBody}`);
+          }
+
+          const data = await response.json();
+          const text = extractGeminiText(data);
+          if (!text) throw new Error("Empty response from AI");
+          return text;
+        } else {
+          return await callLocalAi(prompt, SYSTEM_PROMPT);
+        }
+      });
+
+      // 2. Save to Cache
+      await setAiCache(cacheKey, rawText);
+    } catch (error: any) {
+      warnings.push("AI title generation failed after all fallbacks. Using default titles.");
+      console.error("Curriculum AI Router Error:", error);
+      return { curriculum: updated, warnings };
+    }
+  }
+
+  const parsed = parseAiPayload(rawText);
+  if (!parsed) {
+    warnings.push("Unable to parse AI title payload. Using fallback titles.");
     return { curriculum: updated, warnings };
   }
 
-  const userPrompt = buildUserPrompt(updated, coursesForPrompt, targetSemester);
+  const candidateRows =
+    Array.isArray(parsed.course_titles) && parsed.course_titles.length > 0
+      ? parsed.course_titles
+      : Array.isArray(parsed.courses)
+        ? parsed.courses
+        : [];
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000); // Increased to 120s
+  if (candidateRows.length === 0) {
+    console.warn("Curriculum AI: AI returned 0 candidate rows.");
+    warnings.push("AI did not return any mapped course titles. Using fallback titles.");
+    return { curriculum: updated, warnings };
+  }
+  console.log(`Curriculum AI: Processing ${candidateRows.length} candidate rows...`);
 
-    console.log("Curriculum AI: Starting Gemini title generation...");
-    // console.log("Curriculum AI Prompt:", SYSTEM_PROMPT, "\n\n", userPrompt);
+  const keyToPayload = new Map<
+    string,
+    { title: string; prerequisites: string[]; learningHours: number | null }
+  >();
 
-    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${userPrompt}` }] }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
-        },
-      }),
-      signal: controller.signal,
+  for (const row of candidateRows) {
+    const semester = Math.floor(Number(row.semester || 0));
+    const courseCode = String(row.courseCode || "").trim();
+    const category = String(row.category || "").trim().toUpperCase() as CategoryCode;
+    const proposed = sanitizeTitle(String(row.courseTitle || ""));
+    if (!semester || !courseCode || !proposed) continue;
+    if (
+      category &&
+      !["BS", "ES", "HSS", "PC", "PE", "OE", "MC", "AE", "SE", "PR"].includes(category)
+    ) {
+      continue;
+    }
+
+    const prerequisites = Array.isArray(row.prerequisites)
+      ? row.prerequisites.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4)
+      : [];
+    const learningHoursRaw = Math.floor(Number(row.learning_hours || 0));
+    const learningHours = Number.isFinite(learningHoursRaw) && learningHoursRaw > 0
+      ? learningHoursRaw
+      : null;
+
+    keyToPayload.set(`${semester}::${courseCode}`, {
+      title: proposed,
+      prerequisites,
+      learningHours,
     });
+  }
 
-    clearTimeout(timeout);
+  const usedTitles = new Set<string>();
+  const profile = getDomainKnowledgeProfile(updated.programName);
 
-    if (!response.ok) {
-      const body = await response.text();
-      console.error("Gemini title generation error:", response.status, body);
-      warnings.push(`Gemini title generation failed (${response.status}). Details: ${body.slice(0, 100)}`);
-      return { curriculum: updated, warnings };
-    }
-
-    const data = (await response.json()) as Record<string, any>;
-    console.log("Gemini API Response received successfully.");
-    const rawText = extractGeminiText(data);
-    if (!rawText) {
-      warnings.push("Gemini returned an empty title payload. Using fallback titles.");
-      return { curriculum: updated, warnings };
-    }
-
-    const parsed = parseAiPayload(rawText);
-    if (!parsed) {
-      warnings.push("Unable to parse Gemini title payload. Using fallback titles.");
-      return { curriculum: updated, warnings };
-    }
-
-    const candidateRows =
-      Array.isArray(parsed.course_titles) && parsed.course_titles.length > 0
-        ? parsed.course_titles
-        : Array.isArray(parsed.courses)
-          ? parsed.courses
-          : [];
-
-    if (candidateRows.length === 0) {
-      console.warn("Curriculum AI: Gemini returned 0 candidate rows.");
-      warnings.push("Gemini did not return any mapped course titles. Using fallback titles.");
-      return { curriculum: updated, warnings };
-    }
-    console.log(`Curriculum AI: Processing ${candidateRows.length} candidate rows...`);
-
-    const keyToPayload = new Map<
-      string,
-      { title: string; prerequisites: string[]; learningHours: number | null }
-    >();
-
-    for (const row of candidateRows) {
-      const semester = Math.floor(Number(row.semester || 0));
-      const courseCode = String(row.courseCode || "").trim();
-      const category = String(row.category || "").trim().toUpperCase() as CategoryCode;
-      const proposed = sanitizeTitle(String(row.courseTitle || ""));
-      if (!semester || !courseCode || !proposed) continue;
-      if (
-        category &&
-        !["BS", "ES", "HSS", "PC", "PE", "OE", "MC", "AE", "SE", "PR"].includes(category)
-      ) {
+  for (const semester of updated.semesters) {
+    for (const course of semester.courses) {
+      const lookupKey = `${semester.semester}::${course.courseCode}`;
+      const payload = keyToPayload.get(lookupKey);
+      if (!payload) {
+        usedTitles.add(normalizeCourseTitle(course.courseTitle));
         continue;
       }
 
-      const prerequisites = Array.isArray(row.prerequisites)
-        ? row.prerequisites.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4)
-        : [];
-      const learningHoursRaw = Math.floor(Number(row.learning_hours || 0));
-      const learningHours = Number.isFinite(learningHoursRaw) && learningHoursRaw > 0
-        ? learningHoursRaw
-        : null;
-
-      keyToPayload.set(`${semester}::${courseCode}`, {
-        title: proposed,
-        prerequisites,
-        learningHours,
-      });
-    }
-    console.log(`Curriculum AI: keyToPayload size = ${keyToPayload.size}. Sample key: ${Array.from(keyToPayload.keys())[0]}`);
-
-    const usedTitles = new Set<string>();
-    const profile = getDomainKnowledgeProfile(updated.programName);
-
-    for (const semester of updated.semesters) {
-      for (const course of semester.courses) {
-        const lookupKey = `${semester.semester}::${course.courseCode}`;
-        const payload = keyToPayload.get(lookupKey);
-        if (!payload) {
-          usedTitles.add(normalizeCourseTitle(course.courseTitle));
-          continue;
-        }
-
-        if (semester.semester <= 4 && violatesEarlySemesterRule(payload.title)) {
-          warnings.push(
-            `Semester ${semester.semester} suggested advanced title "${payload.title}" was rejected to preserve progression.`,
-          );
-          usedTitles.add(normalizeCourseTitle(course.courseTitle));
-          continue;
-        }
-
-        if (!isCourseAlignedWithProgram(profile, course.category, payload.title)) {
-          warnings.push(
-            `Semester ${semester.semester} ${course.courseCode}: title "${payload.title}" was rejected due to domain mismatch.`,
-          );
-          usedTitles.add(normalizeCourseTitle(course.courseTitle));
-          continue;
-        }
-
-        let nextTitle = payload.title;
-        let suffix = 2;
-        while (usedTitles.has(normalizeCourseTitle(nextTitle))) {
-          nextTitle = `${payload.title} Concepts ${suffix}`;
-          suffix += 1;
-        }
-
-        course.courseTitle = nextTitle;
-        course.prerequisites = payload.prerequisites;
-        course.learningHours = payload.learningHours ?? course.totalHours;
-        usedTitles.add(normalizeCourseTitle(nextTitle));
+      if (semester.semester <= 4 && violatesEarlySemesterRule(payload.title)) {
+        warnings.push(
+          `Semester ${semester.semester} suggested advanced title "${payload.title}" was rejected to preserve progression.`,
+        );
+        usedTitles.add(normalizeCourseTitle(course.courseTitle));
+        continue;
       }
-    }
 
-    updated.generatedAt = new Date().toISOString();
-    return { curriculum: updated, warnings };
-  } catch (error: any) {
-    warnings.push("Gemini title generation failed due to runtime/network error. Using fallback titles.");
-    console.error("Gemini title generation runtime error:", error);
-    return { curriculum: updated, warnings };
+      if (!isCourseAlignedWithProgram(profile, course.category, payload.title)) {
+        warnings.push(
+          `Semester ${semester.semester} ${course.courseCode}: title "${payload.title}" was rejected due to domain mismatch.`,
+        );
+        usedTitles.add(normalizeCourseTitle(course.courseTitle));
+        continue;
+      }
+
+      let nextTitle = payload.title;
+      let suffix = 2;
+      while (usedTitles.has(normalizeCourseTitle(nextTitle))) {
+        nextTitle = `${payload.title} Concepts ${suffix}`;
+        suffix += 1;
+      }
+
+      course.courseTitle = nextTitle;
+      course.prerequisites = payload.prerequisites;
+      course.learningHours = payload.learningHours ?? course.totalHours;
+      usedTitles.add(normalizeCourseTitle(nextTitle));
+    }
   }
+
+  updated.generatedAt = new Date().toISOString();
+  return { curriculum: updated, warnings };
 }
 
 function buildUserPrompt(
@@ -434,6 +442,5 @@ function isCourseAlignedWithProgram(
   if (keywordMatch(title, graph.relatedTopics)) return true;
   if (keywordMatch(title, graph.emergingTopics)) return true;
 
-  // Keep permissive behavior for broader engineering titles; reject only clear mismatches.
   return true;
 }

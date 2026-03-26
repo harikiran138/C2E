@@ -8,12 +8,14 @@ if (!process.env.DATABASE_URL) {
 
 // For Vercel/Production, it's highly recommended to use the Supabase Connection Pooler
 // to avoid DNS resolution issues (IPv6) and connection limits in serverless functions.
+const isSupabasePooler = process.env.DATABASE_URL?.includes('pooler.supabase.com') || 
+                        process.env.DATABASE_URL?.includes('supabase.co');
+
 const pool = new Pool(
   process.env.DATABASE_URL
     ? {
         connectionString: process.env.DATABASE_URL,
-        ssl:
-          process.env.NODE_ENV === "production"
+        ssl: isSupabasePooler || process.env.NODE_ENV === "production"
             ? { rejectUnauthorized: false }
             : false,
       }
