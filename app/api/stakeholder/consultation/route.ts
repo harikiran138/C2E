@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/postgres";
+import { createClient } from "@/utils/supabase/server";
 import { verifyToken } from "@/lib/auth";
 
 type StakeholderTokenPayload = {
@@ -37,27 +37,25 @@ export async function POST(request: NextRequest) {
     // Detailed consultation survey data is expected in the body
     // We will save it as feedback_json
 
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        `INSERT INTO stakeholder_feedback (
-          rep_stakeholder_id,
-          program_id,
-          feedback_json,
-          submitted_at
-        ) VALUES ($1, $2, $3, NOW())
-        RETURNING id, submitted_at`,
-        [stakeholder.stakeholder_ref_id, stakeholder.program_id, body],
-      );
+    const supabase = await createClient();
+    
+    const { data: result, error } = await supabase
+      .from("stakeholder_feedback")
+      .insert({
+        rep_stakeholder_id: stakeholder.stakeholder_ref_id,
+        program_id: stakeholder.program_id,
+        feedback_json: body,
+      })
+      .select("id, submitted_at")
+      .single();
 
-      return NextResponse.json({
-        ok: true,
-        id: result.rows[0].id,
-        submittedAt: result.rows[0].submitted_at,
-      });
-    } finally {
-      client.release();
-    }
+    if (error) throw error;
+
+    return NextResponse.json({
+      ok: true,
+      id: result.id,
+      submittedAt: result.submitted_at,
+    });
   } catch (error: any) {
     console.error("Stakeholder consultation submit error:", error);
     return NextResponse.json(

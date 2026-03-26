@@ -1,4 +1,4 @@
-import pool from "@/lib/postgres";
+import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -13,16 +13,16 @@ export async function GET(request: Request) {
       );
     }
 
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        "SELECT * FROM program_peos WHERE program_id = $1 ORDER BY peo_number ASC",
-        [programId],
-      );
-      return NextResponse.json({ data: result.rows });
-    } finally {
-      client.release();
-    }
+    const supabase = await createClient();
+    const { data: result, error } = await supabase
+      .from("program_peos")
+      .select("*")
+      .eq("program_id", programId)
+      .order("peo_number", { ascending: true });
+
+    if (error) throw error;
+
+    return NextResponse.json({ data: result });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -37,33 +37,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
+    const supabase = await createClient();
 
-      // Delete existing to full sync (simplest for re-ordering/editing MVP)
-      // In production, you might want to identify updates vs inserts to preserve created_at
-      await client.query("DELETE FROM program_peos WHERE program_id = $1", [
+    // Delete existing to full sync
+    const { error: deleteError } = await supabase
+      .from("program_peos")
+      .delete()
+      .eq("program_id", program_id);
+
+    if (deleteError) throw deleteError;
+
+    if (peos.length > 0) {
+      const peosToInsert = peos.map((peo, i) => ({
         program_id,
-      ]);
+        peo_statement: peo.statement,
+        peo_number: i + 1,
+      }));
 
-      if (peos.length > 0) {
-        for (let i = 0; i < peos.length; i++) {
-          await client.query(
-            "INSERT INTO program_peos (program_id, peo_statement, peo_number) VALUES ($1, $2, $3)",
-            [program_id, peos[i].statement, i + 1],
-          );
-        }
-      }
+      const { error: insertError } = await supabase
+        .from("program_peos")
+        .insert(peosToInsert);
 
-      await client.query("COMMIT");
-      return NextResponse.json({ success: true });
-    } catch (e) {
-      await client.query("ROLLBACK");
-      throw e;
-    } finally {
-      client.release();
+      if (insertError) throw insertError;
     }
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("PEO Save Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -77,13 +75,15 @@ export async function DELETE(request: Request) {
     if (!id)
       return NextResponse.json({ error: "ID required" }, { status: 400 });
 
-    const client = await pool.connect();
-    try {
-      await client.query("DELETE FROM program_peos WHERE id = $1", [id]);
-      return NextResponse.json({ success: true });
-    } finally {
-      client.release();
-    }
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("program_peos")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

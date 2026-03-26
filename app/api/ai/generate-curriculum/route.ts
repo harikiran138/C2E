@@ -146,16 +146,20 @@ export async function POST(request: Request) {
       warnings.push(...electiveResult.warnings);
       curriculum = electiveResult.curriculum;
 
-      // 2. Parallelizing detailed content generation
-      console.log("Curriculum AI: Running Parallel Content Generation (Prereqs, COs, Descriptions)...");
-      const [prereqResult, coResult, descResult] = await Promise.all([
+      // 2. Sequential generation to preserve context
+      console.log("Curriculum AI: Generating Course Descriptions...");
+      const descResult = await generateCourseDescriptions(curriculum);
+      warnings.push(...descResult.warnings);
+      curriculum = descResult.curriculum;
+
+      console.log("Curriculum AI: Generating Course Objectives & Prerequisites (Parallel)...");
+      const [prereqResult, coResult] = await Promise.all([
         suggestPrerequisites(curriculum),
-        generateCourseObjectives(curriculum),
-        generateCourseDescriptions(curriculum)
+        generateCourseObjectives(curriculum)
       ]);
 
-      warnings.push(...prereqResult.warnings, ...coResult.warnings, ...descResult.warnings);
-      curriculum = descResult.curriculum; // All functions modify the same object, we pick one as base
+      warnings.push(...prereqResult.warnings, ...coResult.warnings);
+      // Both functions modify the curriculum object, which is passed by reference
 
       // 3. Sequential Audit & Report (Needs final content)
       console.log("Curriculum AI: Performing Accreditation Audit...");
