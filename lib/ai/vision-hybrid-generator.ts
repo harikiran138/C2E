@@ -13,7 +13,7 @@ import { mutateVisionStarter }                        from "./mutation-engine";
 import { buildVisionAgentPrompt, PromptParams }       from "./prompt-builder";
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 export interface VisionHybridParams {
   programName:        string;
@@ -74,40 +74,6 @@ async function callGemini(
   }
 }
 
-// ── Template candidates ───────────────────────────────────────────────────────
-
-function getTemplateCandidates(
-  programName: string,
-  priorities:  string[],
-  count:       number,
-  attempt:     number,
-): string[] {
-  const all     = getAllGrammarVariants(programName, priorities);
-  const offset  = (attempt * count) % all.length;
-  const results: string[] = [];
-
-  for (let i = 0; i < count && i < all.length; i++) {
-    results.push(all[(offset + i) % all.length]);
-  }
-  return results;
-}
-
-// ── Mutation fill ─────────────────────────────────────────────────────────────
-
-function getMutationCandidates(
-  programName: string,
-  priorities:  string[],
-  count:       number,
-  seed:        number,
-): string[] {
-  const results: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const base    = buildGrammarVision(programName, priorities, (seed + i) % 5, i % 3);
-    const mutated = mutateVisionStarter(base, (seed + i + 1) % 2);
-    results.push(mutated);
-  }
-  return results;
-}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -126,14 +92,14 @@ export async function generateVisionHybrid(params: VisionHybridParams): Promise<
     geminiApiKey,
   } = params;
 
-  // 1. AI candidates
+  // 1. AI candidates only
   let aiCandidates: string[] = [];
   if (geminiApiKey) {
     try {
       const promptParams: PromptParams = {
         programName,
         priorities,
-        count:          count + 2, // request a few extra for headroom
+        count:          count + 4, // request extra for headroom
         institutionName,
         existingVisions,
         attempt,
@@ -145,17 +111,6 @@ export async function generateVisionHybrid(params: VisionHybridParams): Promise<
     }
   }
 
-  // 2. Template candidates (guaranteed quality - only use to fill gaps if AI fails)
-  const neededFromTemplates = Math.max(0, count - aiCandidates.length);
-  const templateCandidates = neededFromTemplates > 0
-    ? getTemplateCandidates(programName, priorities, neededFromTemplates, attempt)
-    : [];
-
-  // 3. Fill remaining gaps with mutation variants if still short
-  const needed = count - templateCandidates.length - aiCandidates.length;
-  const mutationCandidates = needed > 0
-    ? getMutationCandidates(programName, priorities, needed, attempt * 10)
-    : [];
-
-  return [...templateCandidates, ...aiCandidates, ...mutationCandidates];
+  // No more template or mutation fallbacks
+  return aiCandidates;
 }

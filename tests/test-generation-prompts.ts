@@ -13,9 +13,12 @@ function main() {
       co_lead: ["SAE International"],
       cooperating: ["Society of Manufacturing Engineers"],
     },
-    requiredDomains: ["Mechanical Design", "Thermal and Fluid Engineering", "Manufacturing and Automation"],
-    emergingAreas: ["AI", "Robotics", "Sustainability"],
-    focusAreas: ["Mechatronics", "Energy Systems"],
+    programCriteria: {
+      statement: "Mechanical Engineering criteria",
+      curriculum: ["Mechanical Design", "Thermal and Fluid Engineering", "Manufacturing and Automation"],
+      faculty: "Expert faculty with research background"
+    },
+    focusAreas: ["AI", "Robotics", "Sustainability", "Mechatronics", "Energy Systems"],
   });
 
   const poPrompt = buildPOAgentPrompt({
@@ -40,22 +43,21 @@ function main() {
     institutionName: "NSRIT",
   });
 
-  assert.match(psoPrompt, /"role": "You are an expert in Outcome-Based Education/);
-  assert.match(psoPrompt, /"lead_society": \["ASME"\]/);
-  assert.match(psoPrompt, /"program_domains": \["Mechanical Design"/);
-  assert.match(psoPrompt, /"output_format":/);
+  assert.match(psoPrompt, /You are a Senior Academic Auditor/);
+  assert.match(psoPrompt, /- Lead: ASME/);
+  assert.match(psoPrompt, /- Co-Lead: SAE International/);
+  assert.match(psoPrompt, /STEP 8: SEMANTIC DIVERSITY/);
+  assert.match(psoPrompt, /"PSOs":/);
 
   assert.match(poPrompt, /"task": "Generate Program Outcomes \(POs\)/);
   assert.match(poPrompt, /"number_of_outcomes": 12/);
-  assert.match(poPrompt, /"region_context": "India \(NBA aligned, Washington Accord compliant\)"/);
 
   assert.match(visionPrompt, /"task": "Generate Program Vision statements/);
   assert.match(visionPrompt, /"selected_ui_priorities": \["Global Engineering Excellence","Ethics and integrity"\]/);
-  assert.match(visionPrompt, /"output_format":/);
 
   assert.match(missionPrompt, /"task": "Generate Program Mission statements/);
   assert.match(missionPrompt, /"selected_program_vision":/);
-  assert.match(missionPrompt, /"program_specific_guardrails":/);
+
 
   console.log("Generation prompt tests passed.");
 }

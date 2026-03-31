@@ -1,23 +1,16 @@
 /**
  * lib/ai/peo-agent.ts
- * PEO Agent — orchestrates hybrid generation with max-3-attempt retry loop.
+ * PEO Agent — 100% AI-driven generation using Gemini 2.0 Flash.
  *
- * Flow:
- *   for attempt 0..2:
- *     batch = Gemini candidates + grammar templates
- *     scored = batch.map(scorePEO) [sync]
- *     qualified += scored.filter(score ≥ 85).deduplicate()
- *     if qualified.length >= count → break
- *   Guarantee: fill remaining with grammar templates
- *   return ranked PEOs
+ * This agent performs a multi-attempt retry loop to generate NBA/ABET-aligned
+ * Program Educational Objectives (PEOs) with deep domain reasoning and semantic diversity.
  */
 
-import { scorePEO, PEOScore, PEO_APPROVAL_THRESHOLD }   from "./peo-scoring";
-import { buildPEOGrammar, getAllPEOVariants, PEO_PRIORITIES } from "./peo-template-engine";
-import { buildPEOAgentPrompt }                           from "./peo-prompt-builder";
+import { scorePEO, PEOScore, PEO_APPROVAL_THRESHOLD } from "./peo-scoring";
+import { buildPEOAgentPrompt } from "./peo-prompt-builder";
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 const MAX_ATTEMPTS = 3;
 
@@ -86,8 +79,8 @@ async function fetchGeminiPEOs(params: PEOAgentParams, attempt: number): Promise
   const { geminiApiKey, ...rest } = params;
   if (!geminiApiKey) return [];
 
-  const priorities = rest.priorities?.length ? rest.priorities : PEO_PRIORITIES.slice(0, 5);
-  const prompt = buildPEOAgentPrompt({ ...rest, priorities, attempt });
+  const priorities = rest.priorities?.length ? rest.priorities : ["Career Growth", "Technical Excellence", "Leadership", "Ethical Responsibility"];
+  const prompt     = buildPEOAgentPrompt({ ...rest, priorities, attempt });
 
   try {
     const res = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
@@ -129,7 +122,7 @@ async function fetchGeminiPEOs(params: PEOAgentParams, attempt: number): Promise
 
 export async function peoAgent(params: PEOAgentParams): Promise<PEOAgentResult> {
   const { programName, count } = params;
-  const priorities = params.priorities?.length ? params.priorities : PEO_PRIORITIES.slice(0, count * 2);
+  const priorities = params.priorities?.length ? params.priorities : [];
 
   const qualifiedStatements: string[] = [];
   const qualifiedScores:     PEOScore[] = [];
@@ -139,8 +132,7 @@ export async function peoAgent(params: PEOAgentParams): Promise<PEOAgentResult> 
     attempts = attempt + 1;
 
     const aiCandidates       = await fetchGeminiPEOs({ ...params, priorities }, attempt);
-    const templateCandidates = aiCandidates.length >= count ? [] : getAllPEOVariants(priorities);
-    const batch              = [...aiCandidates, ...templateCandidates].map(normalizeWhitespace);
+    const batch              = aiCandidates.map(normalizeWhitespace);
 
     for (const candidate of batch) {
       if (!candidate || candidate.length < 20) continue;
@@ -160,23 +152,8 @@ export async function peoAgent(params: PEOAgentParams): Promise<PEOAgentResult> 
     if (qualifiedStatements.length >= count) break;
   }
 
-  // Guarantee: fill with grammar templates
-  let is_fallback = false;
-  if (qualifiedStatements.length < count) {
-    is_fallback = true;
-    const allPriorities = [...priorities, ...PEO_PRIORITIES];
-    let pi = 0;
-    while (qualifiedStatements.length < count && pi < allPriorities.length * 2) {
-      const priority = allPriorities[pi % allPriorities.length];
-      const variant  = Math.floor(pi / allPriorities.length);
-      const fb       = buildPEOGrammar(priority, variant);
-      if (!qualifiedStatements.some((s) => s.toLowerCase() === fb.toLowerCase())) {
-        qualifiedStatements.push(fb);
-        qualifiedScores.push(scorePEO(fb));
-      }
-      pi++;
-    }
-  }
+  // No static fallback filling
+  const is_fallback = qualifiedStatements.length === 0;
 
   const ranked = rankPEOs(qualifiedStatements, qualifiedScores, count);
   const peos   = ranked.map((r) => r.statement);

@@ -1,5 +1,11 @@
-import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
-import { detectProgramDomain } from "@/lib/curriculum/domain-knowledge";
+/**
+ * lib/ai/po-prompt-builder.ts
+ * Structured Gemini prompt for Program Outcome (PO) generation.
+ * Integrates standard ABET/NBA Student Outcomes as benchmarks.
+ */
+import { buildCurriculumAIGuardrailsPrompt } from "../curriculum/ai-guardrails";
+import { detectProgramDomain } from "../curriculum/domain-knowledge";
+import { STANDARD_PO_STATEMENTS } from "./constants";
 
 export interface POPromptParams {
   programName: string;
@@ -22,43 +28,40 @@ export function buildPOAgentPrompt(params: POPromptParams): string {
   const domain = detectProgramDomain(programName);
 
   return `
+You are a Senior Academic Auditor and Accreditation Specialist (NBA/ABET Expert).
+Task: Generate exactly ${count} Program Outcome(s) (POs) for the ${programName} program at ${institutionName || "our institution"}.
+
+CORE PRINCIPLES:
+1. 100% AI-GENERATED: Use deep domain reasoning for ${domain}. Do not use generic templates.
+2. ACCREDITATION READY: Align with ABET EAC Student Outcomes (SO1-SO7) and Washington Accord Graduate Attributes.
+3. SEMANTIC DIVERSITY: Each PO MUST cover a distinct professional capability: Domain Knowledge, Design, Ethics, Teamwork, Tool Usage, etc.
+4. MEASURABLE: Use high-level Bloom's action verbs.
+5. MANDATORY PREFIX: Every statement MUST start with "Ability to " or "An ability to ".
+
+CONTEXT:
+- Program: ${programName}
+- Domain: ${domain}
+- UI Priorities: ${priorities.length > 0 ? priorities.join(", ") : "Standard engineering spectrum"}
+- Attempt: ${attempt + 1}
+
+STANDARD PO BENCHMARKS (ABET/NBA Standards for Reference):
+${STANDARD_PO_STATEMENTS.map((s, i) => `PO${i+1}: ${s}`).join("\n")}
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON object:
 {
-  "role": "You are an expert in Outcome-Based Education (OBE), NBA accreditation, Washington Accord graduate attributes, and ABET Engineering Accreditation Commission (EAC) standards.",
-  "task": "Generate Program Outcomes (POs) for the ${programName}${institutionName ? ` program at ${institutionName}` : " program"}.",
-  "input_parameters": {
-    "program_of_study": "${programName}",
-    "program_domain": "${domain}",
-    "number_of_outcomes": ${count},
-    "priority_inputs_from_ui": ${JSON.stringify(priorities)},
-    "institution_context": "${institutionName || "Not provided"}",
-    "region_context": "India (NBA aligned, Washington Accord compliant)",
-    "attempt": ${attempt + 1}
-  },
-  "instructions": [
-    "Refer to ABET EAC Student Outcomes SO1-SO7 and NBA Tier-I/Tier-II PO expectations as the governing benchmark.",
-    "Generate outcomes at the time of graduation, not post-graduation objectives.",
-    "Keep the outcomes broad enough to function as program-level outcomes, but still aligned with the selected program domain and UI priorities.",
-    "Use measurable action-oriented openings such as Ability to apply, Ability to analyze, Ability to design, Ability to conduct, Ability to use, Ability to evaluate, Ability to communicate, and Ability to function.",
-    "Ensure the full set covers problem solving, design, investigation, modern tools, ethics, sustainability, teamwork, communication, project management, and lifelong learning where relevant.",
-    "Avoid promotional language, vague words, and repetition.",
-    "Keep each outcome accreditation-ready, assessable, and suitable for direct PO-CO mapping."
-  ],
-  "output_format": {
-    "POs": [
-      {
-        "PO_number": "PO1",
-        "statement": "Ability to ...",
-        "mapped_abet_elements": ["SO1"]
-      }
-    ]
-  },
-  "additional_guidelines": [
-    "Return exactly ${count} POs as a JSON array of strings only, because the UI stores PO statements directly.",
-    "Every PO must begin with Ability to or An ability to.",
-    "Avoid generic duplication across statements.",
-    "Use these selected priorities as emphasis signals where appropriate: ${priorities.length > 0 ? priorities.join(", ") : "No additional UI priorities selected"}."
-  },
-  "program_specific_guardrails": ${JSON.stringify(guardrails)}
+  "POs": [
+    {
+      "PO_number": "PO_X",
+      "statement": "Ability to [action] [context] [constraint]",
+      "mapped_abet_elements": ["SO1", "SO2"]
+    }
+  ]
 }
+
+GUARDRAILS:
+- Exactly ${count} outcomes.
+- Technical depth appropriate for ${domain}.
+- ${JSON.stringify(guardrails)}
 `.trim();
 }

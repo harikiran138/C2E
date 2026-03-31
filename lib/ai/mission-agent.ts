@@ -1,23 +1,16 @@
 /**
  * lib/ai/mission-agent.ts
- * Mission Agent — orchestrates hybrid generation with max-3-attempt retry loop.
+ * Mission Agent — 100% AI-driven generation using Gemini 2.0 Flash.
  *
- * Flow:
- *   for attempt 0..2:
- *     batch = Gemini candidates (if API key) + grammar templates
- *     scored = batch.map(scoreMission) [async]
- *     qualified += scored.filter(score ≥ 90 && no hard failures).deduplicate()
- *     if qualified.length >= count → break
- *   Guarantee: fill remaining with grammar templates (always ≥90)
- *   return ranked missions
+ * This agent performs a multi-attempt retry loop to generate NBA/ABET-aligned
+ * Mission statements with deep domain reasoning and semantic diversity.
  */
 
 import { scoreMission, MissionScore, MISSION_APPROVAL_THRESHOLD } from "./mission-scoring";
-import { buildGrammarMission, getAllGrammarMissions }              from "./mission-template-engine";
-import { buildMissionAgentPrompt }                                 from "./mission-prompt-builder";
+import { buildMissionAgentPrompt } from "./mission-prompt-builder";
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 const MAX_ATTEMPTS = 3;
 
@@ -145,10 +138,9 @@ export async function missionAgent(params: MissionAgentParams): Promise<MissionA
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     attempts = attempt + 1;
 
-    // Collect candidates: Gemini + grammar templates (fallback)
+    // Collect candidates: Gemini AI only (no static fallbacks)
     const aiCandidates      = await fetchGeminiMissions(params, attempt);
-    const templateCandidates= aiCandidates.length >= count ? [] : getAllGrammarMissions(programName);
-    const batch             = [...aiCandidates, ...templateCandidates].map(normalizeWhitespace);
+    const batch             = aiCandidates.map(normalizeWhitespace);
 
     for (const candidate of batch) {
       if (!candidate || candidate.length < 30) continue;
@@ -168,20 +160,8 @@ export async function missionAgent(params: MissionAgentParams): Promise<MissionA
     if (qualifiedStatements.length >= count) break;
   }
 
-  // Guarantee: fill with grammar templates if still short
-  let is_fallback = false;
-  if (qualifiedStatements.length < count) {
-    is_fallback = true;
-    for (let i = 0; qualifiedStatements.length < count; i++) {
-      const fb = buildGrammarMission(programName, i);
-      if (!qualifiedStatements.some((s) => s.toLowerCase() === fb.toLowerCase())) {
-        qualifiedStatements.push(fb);
-        const fbScore = await scoreMission(fb, visionRef);
-        qualifiedScores.push(fbScore);
-      }
-      if (i >= 10) break; // safety exit
-    }
-  }
+  // No static fallback filling
+  const is_fallback = qualifiedStatements.length === 0;
 
   const ranked  = rankMissions(qualifiedStatements, qualifiedScores, count);
   const missions = ranked.map((r) => r.statement);

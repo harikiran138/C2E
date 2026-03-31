@@ -234,6 +234,7 @@ export default function PsoGenerator() {
           },
           number_of_psos: psoCount,
           program_name: program?.program_name || "Engineering Program",
+          program_id: programId, // Pass program ID for auto-save
         }),
       });
 
@@ -244,6 +245,15 @@ export default function PsoGenerator() {
         setValidationReport(data.validation || null);
         setSelectionContext(data.selectionContext || null);
         setGenerationPrompt(data.prompt || "");
+
+        // Since it auto-saves now, update the main PSO list too
+        if (data.details) {
+          setPsos(data.details.map((d: any, i: number) => ({
+            id: `new-${Date.now()}-${i}`,
+            pso_statement: d.statement,
+            pso_number: i + 1
+          })));
+        }
       } else {
         setGeneratedPsos([]);
         alert("Generation failed.");

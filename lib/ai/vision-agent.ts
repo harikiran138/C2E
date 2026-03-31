@@ -1,23 +1,19 @@
 /**
  * lib/ai/vision-agent.ts
- * Vision Agent — main orchestrator with max-3-attempt retry loop.
+ * Vision Agent — 100% AI-driven generation using Gemini 2.0 Flash.
  *
- * Flow:
- *   for attempt 0..2:
- *     batch = generateVisionHybrid(params, attempt)
- *     scored = batch.map(scoreVision)
- *     qualified += scored.filter(score ≥ 90).deduplicate()
- *     if qualified.length >= count → break
- *   Guarantee: fill remaining with grammar templates (always ≥90)
- *   return rankVisions(qualified, count)
+ * This agent performs a multi-attempt retry loop to generate NBA/ABET-aligned
+ * Vision statements with deep domain reasoning and semantic diversity.
  */
 
-import { generateVisionHybrid }                    from "./vision-hybrid-generator";
 import { scoreVision, VisionScore, VISION_APPROVAL_THRESHOLD } from "./scoring";
 import { deduplicateVisions }                      from "./similarity";
 import { rankVisions, RankedVision }               from "./ranking-engine";
-import { getAllGrammarVariants }                    from "./template-engine";
+import { buildVisionAgentPrompt, PromptParams }       from "./prompt-builder";
 import { computeSemanticSimilarity }               from "@/lib/ai-validation";
+
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 /** Remove near-paraphrase duplicates using Google embedding cosine similarity. */
 async function semanticDedup(candidates: string[], threshold = 0.82): Promise<string[]> {
@@ -33,6 +29,55 @@ async function semanticDedup(candidates: string[], threshold = 0.82): Promise<st
     if (!tooClose) kept.push(c);
   }
   return kept;
+}
+
+// ── Gemini call ───────────────────────────────────────────────────────────────
+
+async function callGemini(
+  prompt: string,
+  apiKey: string,
+): Promise<string[]> {
+  const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.8 },
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Gemini API error: ${res.statusText}`);
+
+  const data = await res.json();
+  const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+  // Try to parse numbered list first (our prompt format), then fall back to JSON
+  const numbered = text
+    .split(/\n/)
+    .map((l) => l.replace(/^\d+\.\s*/, "").trim())
+    .filter((l) => l.length > 20);
+
+  if (numbered.length > 0 && !text.includes("{") && !text.includes("[")) return numbered;
+
+  try {
+    const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
+    const parsed  = JSON.parse(cleaned);
+    let arr: any[] = [];
+    if (Array.isArray(parsed)) {
+      arr = parsed;
+    } else if (parsed && typeof parsed === "object") {
+      const keys = Object.keys(parsed);
+      for (const key of keys) {
+        if (Array.isArray(parsed[key])) {
+          arr = parsed[key];
+          break;
+        }
+      }
+    }
+    return arr.map(String).filter(s => s.length > 20);
+  } catch {
+    return numbered;
+  }
 }
 
 export interface AgentParams {
@@ -69,18 +114,24 @@ export async function visionAgent(params: AgentParams): Promise<AgentResult> {
   let attempts = 0;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    attempts = attempt + 1;
-
-    const batch = await generateVisionHybrid({
-      programName,
-      priorities,
-      count,
-      institutionName,
-      // Self-improvement: pass accepted statements as style references on retry (improvement 1C)
-      existingVisions: [...existingVisions, ...qualifiedStatements],
-      attempt,
-      geminiApiKey,
-    });
+    // collect candidates: 100% AI
+    let batch: string[] = [];
+    if (geminiApiKey) {
+      try {
+        const promptParams: PromptParams = {
+          programName,
+          priorities,
+          count:           count + 4, // request extra for headroom
+          institutionName,
+          existingVisions: [...existingVisions, ...qualifiedStatements],
+          attempt,
+        };
+        const promptStr = buildVisionAgentPrompt(promptParams);
+        batch = await callGemini(promptStr, geminiApiKey);
+      } catch (err) {
+        console.warn("[VisionAgent] Gemini call failed on attempt", attempt, err);
+      }
+    }
 
     for (const candidate of batch) {
       if (!candidate || candidate.length < 20) continue;
@@ -115,19 +166,8 @@ export async function visionAgent(params: AgentParams): Promise<AgentResult> {
   const semanticDeduped = await semanticDedup(deduped, 0.82);
   const semanticDedupedScores = semanticDeduped.map((s) => dedupedScores[deduped.indexOf(s)]);
 
-  // Guarantee: fill with grammar templates if still short
-  let is_fallback = false;
-  if (semanticDeduped.length < count) {
-    is_fallback = true;
-    const fallbacks = getAllGrammarVariants(programName, priorities);
-    for (const fb of fallbacks) {
-      if (semanticDeduped.length >= count) break;
-      if (!semanticDeduped.some((d) => d.toLowerCase() === fb.toLowerCase())) {
-        semanticDeduped.push(fb);
-        semanticDedupedScores.push(scoreVision(fb));
-      }
-    }
-  }
+  // Final outcome: strictly AI-driven
+  const is_fallback = semanticDeduped.length === 0;
 
   const ranked = rankVisions(semanticDeduped, semanticDedupedScores, count);
   const finalVisions = ranked.map((r) => r.statement);

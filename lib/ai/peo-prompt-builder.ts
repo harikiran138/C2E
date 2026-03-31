@@ -1,8 +1,9 @@
 /**
  * lib/ai/peo-prompt-builder.ts
- * Structured Gemini prompt for PEO generation with full rubric embedded.
+ * Structured Gemini prompt for PEO generation with integrated legacy benchmarks.
  */
-import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
+import { buildCurriculumAIGuardrailsPrompt } from "../curriculum/ai-guardrails";
+import { PEO_PHRASE_BANK, PEO_REQUIRED_PREFIX } from "./constants";
 
 export interface PEOPromptParams {
   programName:      string;
@@ -18,6 +19,15 @@ export interface PEOPromptParams {
 export function buildPEOAgentPrompt(params: PEOPromptParams): string {
   const { programName, priorities, count, institutionName, attempt = 0 } = params;
 
+  // Selective benchmarks based on priorities
+  const benchmarks: string[] = [];
+  priorities.forEach(p => {
+    const completions = PEO_PHRASE_BANK[p];
+    if (completions) {
+      completions.forEach(c => benchmarks.push(`${PEO_REQUIRED_PREFIX} ${c}`));
+    }
+  });
+
   const attemptNote = attempt > 0
     ? `\n[Attempt ${attempt + 1}: Generate MORE DIVERSE statements — use different action verbs and domains.]`
     : "";
@@ -25,42 +35,39 @@ export function buildPEOAgentPrompt(params: PEOPromptParams): string {
   const guardrails = buildCurriculumAIGuardrailsPrompt(programName);
 
   return `
-You are an NBA/ABET accreditation consultant. Generate exactly ${count} Program Educational Objective(s) (PEOs) for the ${programName} program.${institutionName ? ` at ${institutionName}` : ""}${attemptNote}
+You are a Senior Academic Auditor and NBA/ABET Accreditation Specialist.
+Task: Generate exactly ${count} Program Educational Objective(s) (PEOs) for the ${programName} program${institutionName ? ` at ${institutionName}` : ""}.
 
-PEOs describe what graduates achieve 3–5 years AFTER graduation (NOT at graduation). They must align with NBA/ABET Criterion 2 (Program Educational Objectives).
+PEO DEFINITION:
+PEOs are broad statements that describe what graduates are expected to attain within 3 to 5 years of graduation. They are based on the needs of the program's constituencies.
 
-=== PEO SCORING RUBRIC ===
+CORE PRINCIPLES (NBA/ABET CRITERION 2):
+1. 100% AI-GENERATED: Use deep domain reasoning for ${programName}. Do not use generic templates.
+2. CAREER-LONG ACHIEVEMENTS: Focus on professional accomplishments 3-5 years POST-GRADUATION.
+3. SEMANTIC DIVERSITY: Ensure PEOs cover distinct dimensions: Technical Competence, Leadership, Ethics, and Lifelong Growth.
+4. ACTION ORIENTATION: Each PEO must focus on achievement, not state of being.
 
-HARD FAILURES (immediately caps score at ≤79):
-1. Does NOT start with exactly "Within 3 to 5 years of graduation, graduates will ..."
-2. Word count below 20 or above 40 (NBA/ABET preference for concise but comprehensive statements)
+STRICT ACCREDITATION RULES:
+- Every PEO statement MUST start exactly with: "${PEO_REQUIRED_PREFIX} ..."
+- Word count: 20-40 words per statement.
+- Only a single focused sentence per PEO.
+- High-level action verbs: Analyze, Design, Lead, Evaluate, Manage, Implement, Pursue.
+- No vague, promotional adjectives (e.g., "world-class", "excellent").
 
-REQUIRED ELEMENTS:
-- Start: "Within 3 to 5 years of graduation, graduates will [action]..."
-- Bloom's taxonomy verb: apply, analyze, design, evaluate, lead, manage, communicate, contribute, demonstrate, develop, implement, engage, pursue, adapt
-- Specific measurable outcome (not vague aspirations)
-- NBA Alignment: Must cover one of: Technical Competence, Societal Impact, Sustainable Development, or Ethics
-- No vague words: excellent, best, world-class, outstanding, superior
-- At most 1 comma (keep it a focused single objective)
+CONTEXT & PRIORITIES:
+- Priorities to emphasize: ${priorities.join(", ")}
+- Regional context: NBA (India) / Washington Accord / ABET EAC
+- Attempt: ${attempt + 1}
+${attemptNote}
 
-SCORING:
-- Starting phrase (30 pts): Must start with the required prefix
-- Bloom's verb (20 pts): Must include an appropriate action verb
-- NBA/ABET Alignment (25 pts): Must explicitly address technical capability, society, or environment
-- Clarity & Specificity (15 pts): Specific, no vague words, focused
-- Length (10 pts): 20–40 words
+PEO BENCHMARKS (Reference Examples for Desired Depth & Structure):
+${benchmarks.length > 0 ? benchmarks.join("\n") : "Use standard professional engineering achievements."}
 
-FOCUS AREAS (use these as themes): ${priorities.join(", ")}, Social Sustainability, Ethical Engineering Lifecycle, Environmental Stewardship
+GUARDRAILS:
+- ${guardrails}
 
-Program-Specific Guardrails:
-${guardrails}
-
-=== OUTPUT REQUIREMENTS ===
-- Each PEO: 1 sentence, 20–40 words
-- Must start with: "Within 3 to 5 years of graduation, graduates will ..."
-- Generate diverse PEOs: One technical-focused, one societal-focused, and one leadership-focused
-- Output ONLY a JSON array of exactly ${count} string(s). No markdown, no explanation.
-
-Example: ["Within 3 to 5 years of graduation, graduates will lead engineering teams demonstrating technical competency, ethical judgment, and collaborative professional practice."]
+OUTPUT FORMAT:
+Return ONLY a valid JSON array of strings.
+Example: ["${PEO_REQUIRED_PREFIX} lead engineering teams in developing sustainable infrastructure solutions through ethical professional practice and lifelong learning."]
 `.trim();
 }

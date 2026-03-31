@@ -13,11 +13,16 @@ export interface PromptParams {
   attempt?:          number;
 }
 
+import { 
+  VISION_PRIORITY_PILLAR_BANK, 
+  VISION_EXAMPLES,
+  VISION_STARTERS 
+} from "./constants";
+
 const RUBRIC = `
 SCORING RUBRIC (100 pts — every statement MUST score ≥ 90):
   [20] Word count 18–24 words (count carefully before writing)
-  [20] Starts with one of: "To be globally recognized for" | "To emerge as" |
-       "To achieve distinction in" | "To advance as a leading" | "To be globally respected for"
+  [20] Starts with one of: ${VISION_STARTERS.map(s => `"${s}"`).join(" | ")}
   [20] Exactly ONE global concept (globally recognized / globally respected /
        internationally benchmarked / global leadership / distinction / advance as a leading)
   [30] ZERO operational/educational terms: education, teaching, learning, curriculum,
@@ -28,11 +33,7 @@ SCORING RUBRIC (100 pts — every statement MUST score ≥ 90):
   [20] No synonym stacking (≤ 2 from: distinction/excellence/premier/leading/leadership/recognized/respected)
 `.trim();
 
-const SAFE_EXAMPLES = [
-  `To be globally recognized for long-term Computer Engineering distinction through institutional academic standards, applied innovation practice, and sustainable societal contribution.`,
-  `To achieve distinction in Electrical Engineering through sustained ethical institutional standards, research-driven technological advancement, and long-term professional competitiveness.`,
-  `To be globally respected for sustained Civil Engineering excellence through standards-driven professional practice, meaningful societal advancement, and responsible technological innovation.`,
-];
+const SAFE_EXAMPLES = VISION_EXAMPLES;
 
 export function buildVisionAgentPrompt(params: PromptParams): string {
   const {
@@ -48,51 +49,47 @@ export function buildVisionAgentPrompt(params: PromptParams): string {
     ? `${programName} at ${institutionName}`
     : programName;
 
-  const priorityList = priorities.length > 0
-    ? priorities.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
-    : "  (none specified — use professional engineering standards)";
-
   const exclusionBlock = existingVisions.length > 0
-    ? `\nDO NOT reuse or closely paraphrase these already-generated statements:\n${existingVisions.map((v) => `  - ${v}`).join("\n")}\n`
+    ? `\nDO NOT reuse or closely paraphrase these already-generated statements:\n${existingVisions.map((v) => `  - ${v}`).join("\n")}`
     : "";
 
-  const diversityHint = attempt > 0
-    ? `\nATTEMPT ${attempt + 1}: Previous attempt produced insufficient quality. Use different sentence structures and pillar phrases.\n`
-    : "";
+  const priorityNote = priorities.length > 0
+    ? `Selected UI Priorities (Must integrate as the core pillars): ${priorities.join(", ")}`
+    : "Use general professional engineering pillars.";
 
-  return `{
-  "role": "You are an expert in Outcome-Based Education (OBE), NBA accreditation strategy, and ABET-aligned program positioning for engineering education.",
-  "task": "Generate Program Vision statements for the ${programLabel} program.",
-  "input_parameters": {
-    "program_name": "${programName}",
-    "institution_name": "${institutionName || "Not provided"}",
-    "selected_ui_priorities": ${JSON.stringify(priorities)},
-    "existing_vision_exclusions": ${JSON.stringify(existingVisions)},
-    "requested_count": ${count},
-    "attempt": ${attempt + 1},
-    "region_context": "India (NBA aligned, Washington Accord compliant)"
-  },
-  "instructions": [
-    "Generate exactly ${count} vision statements.",
-    "Treat the selected UI priorities as a multi-select design brief, not a single preferred option.",
-    "Across the full generated set, ensure meaningful coverage of the selected priorities instead of collapsing everything into one repeated phrase.",
-    "Vision must express the future standing of the program, not operational teaching processes.",
-    "Use 1 to 3 strategic pillars derived from the selected UI priorities.",
-    "Do not reuse or closely paraphrase excluded statements.",
-    "Maintain lexical diversity and distinct framing across the full set.",
-    "Follow this scoring rubric strictly: ${RUBRIC.replace(/\n/g, " ")}"
-  ],
-  "safe_examples": ${JSON.stringify(SAFE_EXAMPLES)},
-  "additional_guidelines": [
-    "Allowed openings are restricted to the approved vision starters only.",
-    "Each statement must remain aspirational, concise, and accreditation-ready.",
-    "Avoid operational terms, marketing phrases, synonym stacking, and repeated roots.",
-    "Use the selected UI priorities as thematic evidence, not as a raw copy-paste list."
-  ],
-  "output_format": {
-    "visions": [
-      "To be globally recognized for ..."
-    ]
-  }
-}`;
+  return `
+You are a Senior Strategic Academic Consultant and NBA Accreditation Specialist.
+Task: Generate exactly ${count} Program Vision statements for the ${programLabel} program.
+
+VISION DEFINITION:
+A Vision statement describes the future standing and aspiration of the program. It is NOT an operational plan; it is a destination.
+
+CORE PRINCIPLES (NBA/ABET ALIGNMENT):
+1. 100% AI-GENERATED: Use deep domain reasoning for ${programName}. Do not use generic templates.
+2. ASPIRATIONAL STANDING: Focus on where the program will be internationally respected or globally recognized.
+3. SEMANTIC DIVERSITY: Across the ${count} visions, explore different strategic anchors (Innovation, Infrastructure, Ethics, Professional Distinction).
+4. STRICT RUBRIC COMPLIANCE: Every vision MUST score ≥ 90 on the embedded rubric.
+
+${RUBRIC}
+
+STRICT CONSTRAINTS:
+- Word count MUST be between 18 and 24 words.
+- Use only approved starters.
+- NO operational terms (teaching, learning, education, etc.).
+- NO marketing hype (best-in-class, world-class, etc.).
+- Exactly 1 global concept and no more than 3 strategic pillars.
+
+${priorityNote}
+${exclusionBlock}
+Attempt: ${attempt + 1}
+
+SAFE BENCHMARK EXAMPLES:
+${SAFE_EXAMPLES.join("\n- ")}
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON object:
+{
+  "visions": ["Vision Statement 1", "Vision Statement 2"]
+}
+`.trim();
 }

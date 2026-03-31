@@ -1,9 +1,7 @@
-import {
-  detectProgramDomain,
-  type ProgramDomain,
-} from "@/lib/curriculum/domain-knowledge";
-import { buildPSOGenerationPrompt } from "@/lib/ai/pso-prompt-builder";
+import { detectProgramDomain, type ProgramDomain } from "@/lib/curriculum/domain-knowledge";
+import { buildPSOGenerationPrompt, buildRetryPrompt } from "@/lib/ai/pso-prompt-builder";
 import { ABET_CRITERIA_DATA } from "@/lib/curriculum/abet-criteria";
+import { validatePSOs, PSO, ValidationResult } from "./pso-validator";
 
 const APPROVED_ACTION_VERBS = [
   "Apply",
@@ -41,26 +39,6 @@ export interface PSOAgentParams {
   geminiApiKey?: string;
 }
 
-interface DomainAreaSpec {
-  label: string;
-  skills: string[];
-  applicationContexts: string[];
-  toolPhrases: string[];
-  keywordAnchors: string[];
-  societySignals: string[];
-  primaryVerb: ApprovedActionVerb;
-  abetMappings: ABETStudentOutcome[];
-  emergingFocus?: boolean;
-}
-
-interface ProgramCriteriaProfile {
-  domain: ProgramDomain;
-  disciplineLabel: string;
-  criteriaBasis: string[];
-  genericityBlockers: string[];
-  emergingAreas: string[];
-  domains: DomainAreaSpec[];
-}
 
 export interface GeneratedPSODetail {
   statement: string;
@@ -178,102 +156,6 @@ function normalizeSelectedSocieties(selectedSocieties?: SelectedSocietiesInput):
   };
 }
 
-function orderedDomains(
-  profile: ProgramCriteriaProfile,
-  selectedSocieties: Required<SelectedSocietiesInput>,
-  focusAreas: string[],
-): DomainAreaSpec[] {
-  const leadEvidence = normalizeToken([...(selectedSocieties.lead || []), ...focusAreas].join(" "));
-  const coLeadEvidence = normalizeToken([...(selectedSocieties.co_lead || []), ...focusAreas].join(" "));
-  const cooperatingEvidence = normalizeToken([...(selectedSocieties.cooperating || []), ...focusAreas].join(" "));
-
-  return [...profile.domains].sort((left, right) => {
-    const score = (domain: DomainAreaSpec) => {
-      const domainHints = [
-        domain.label,
-        ...domain.societySignals,
-        ...domain.keywordAnchors,
-      ];
-      return domainHints.reduce((total, hint) => {
-        const normalizedHint = normalizeToken(hint);
-        if (!normalizedHint) return total;
-
-        let weightedTotal = total;
-        if (leadEvidence.includes(normalizedHint)) weightedTotal += 3;
-        if (coLeadEvidence.includes(normalizedHint)) weightedTotal += 2;
-        if (cooperatingEvidence.includes(normalizedHint)) weightedTotal += 1;
-        return weightedTotal;
-      }, domain.emergingFocus ? 0.25 : 0);
-    };
-
-    return score(right) - score(left);
-  });
-}
-
-function selectVerb(domain: DomainAreaSpec, index: number): ApprovedActionVerb {
-  const fallbacks: ApprovedActionVerb[] = [
-    domain.primaryVerb,
-    "Apply",
-    "Design",
-    "Analyze",
-    "Develop",
-    "Evaluate",
-    "Integrate",
-    "Optimize",
-    "Implement",
-  ];
-
-  return fallbacks[index % fallbacks.length];
-}
-
-function buildStatement(
-  profile: ProgramCriteriaProfile,
-  domain: DomainAreaSpec,
-  index: number,
-): GeneratedPSODetail {
-  const actionVerb = selectVerb(domain, index);
-  const skill = domain.skills[index % domain.skills.length];
-  const toolPhrase = domain.toolPhrases[index % domain.toolPhrases.length];
-  const applicationContext =
-    domain.applicationContexts[index % domain.applicationContexts.length];
-  const emergingArea =
-    profile.emergingAreas[index % profile.emergingAreas.length];
-  const includeEmerging = domain.emergingFocus || index >= profile.domains.length;
-  const emergingPhrase = includeEmerging ? ` while integrating ${emergingArea}` : "";
-
-  const statement = normalizeWhitespace(
-    `${actionVerb} ${skill} ${toolPhrase} for ${applicationContext}${emergingPhrase}.`,
-  );
-
-  const abetMappings = Array.from(
-    new Set([
-      ...domain.abetMappings,
-      ...(includeEmerging ? (["SO4"] as ABETStudentOutcome[]) : []),
-    ]),
-  );
-
-  const uniqueToProgram = profile.genericityBlockers.some((token) =>
-    normalizeToken(statement).includes(normalizeToken(token)),
-  );
-
-  return {
-    statement,
-    domain: domain.label,
-    skill,
-    applicationContext,
-    toolPhrase,
-    actionVerb,
-    abetMappings,
-    criteriaBasis: profile.criteriaBasis,
-    sourceSocieties: [],
-    emergingAreas: includeEmerging ? [emergingArea] : [],
-    validation: {
-      actionVerbPass: APPROVED_ACTION_VERBS.includes(actionVerb),
-      hasAbetMapping: abetMappings.length > 0,
-      uniqueToProgram,
-    },
-  };
-}
 
 function similarityScore(left: string, right: string): number {
   const leftTokens = new Set(
@@ -289,72 +171,9 @@ function similarityScore(left: string, right: string): number {
   return union === 0 ? 0 : intersection / union;
 }
 
-function summarizeValidation(
-  profile: ProgramCriteriaProfile,
-  details: GeneratedPSODetail[],
-  societies: string[],
-): PSOValidationSummary {
-  const requiredDomains = profile.domains.map((item) => item.label);
-  const coveredDomains = uniqueStrings(details.map((item) => item.domain));
-  const missingDomains = requiredDomains.filter(
-    (domain) => !coveredDomains.includes(domain),
-  );
-
-  const actionVerbFailures = details
-    .filter((item) => !item.validation.actionVerbPass)
-    .map((item) => item.statement);
-
-  const unmapped = details
-    .filter((item) => !item.validation.hasAbetMapping)
-    .map((item) => item.statement);
-
-  const genericStatements = details
-    .filter((item) => !item.validation.uniqueToProgram)
-    .map((item) => item.statement);
-
-  const highSimilarityPairs: string[] = [];
-  for (let index = 0; index < details.length; index += 1) {
-    for (let inner = index + 1; inner < details.length; inner += 1) {
-      if (similarityScore(details[index].statement, details[inner].statement) >= 0.68) {
-        highSimilarityPairs.push(
-          `${details[index].domain} <> ${details[inner].domain}`,
-        );
-      }
-    }
-  }
-
-  return {
-    sourceValidation: {
-      passed: profile.criteriaBasis.length > 0,
-      message: `Derived from ${profile.disciplineLabel} criteria anchors instead of generic PO-style statements.`,
-      criteriaBasis: profile.criteriaBasis,
-      societies,
-    },
-    domainCoverage: {
-      passed: missingDomains.length === 0,
-      required: requiredDomains,
-      covered: coveredDomains,
-      missing: missingDomains,
-    },
-    actionVerbCheck: {
-      passed: actionVerbFailures.length === 0,
-      approvedVerbs: APPROVED_ACTION_VERBS,
-      failures: actionVerbFailures,
-    },
-    abetMappingCheck: {
-      passed: unmapped.length === 0,
-      unmapped,
-    },
-    uniquenessCheck: {
-      passed: genericStatements.length === 0 && highSimilarityPairs.length === 0,
-      genericStatements,
-      highSimilarityPairs,
-    },
-  };
-}
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 async function fetchGeminiPSOs(
   params: PSOAgentParams,
@@ -362,15 +181,19 @@ async function fetchGeminiPSOs(
     statement: string;
     curriculum: string[];
     faculty: string;
-  }
+  },
+  customPrompt?: string,
+  societyNames: string[] = []
 ): Promise<GeneratedPSODetail[]> {
   const { geminiApiKey, programName, count, selectedSocieties, focusAreas } =
     params;
   if (!geminiApiKey) return [];
 
-  const prompt = buildPSOGenerationPrompt({
+  // Use custom prompt if provided, otherwise build from params
+  const requestedCount = Math.max(count * 2, 5);
+  const prompt = customPrompt || buildPSOGenerationPrompt({
     programName,
-    count,
+    count: requestedCount,
     programCriteria: criteria,
     selectedSocieties,
     focusAreas,
@@ -420,14 +243,14 @@ async function fetchGeminiPSOs(
       return generatedPSOs.map((p: any) => ({
         statement: p.statement || "",
         domain: p.focus_area || "General",
-        skill: p.statement ? p.statement.split(" ")[0] : "Apply",
-        applicationContext: p.focus_area || "Program Context",
-        toolPhrase: "appropriate tools",
-        actionVerb: (p.statement ? p.statement.split(" ")[0] : "Apply") as ApprovedActionVerb,
+        skill: p.skill || "Engineering Analysis",
+        applicationContext: p.application_context || "Industrial Practice",
+        toolPhrase: p.tool_phrase || "appropriate tools",
+        actionVerb: (p.action_verb || (p.statement ? p.statement.split(" ")[0] : "Apply")) as ApprovedActionVerb,
         abetMappings: Array.isArray(p.mapped_abet_elements) ? p.mapped_abet_elements : [],
         criteriaBasis: criteria ? [criteria.statement] : [],
-        sourceSocieties: [],
-        emergingAreas: [],
+        sourceSocieties: societyNames,
+        emergingAreas: focusAreas || [],
         validation: {
           actionVerbPass: true,
           hasAbetMapping: true,
@@ -444,14 +267,18 @@ async function fetchGeminiPSOs(
   }
 }
 
+/**
+ * Main PSO Agent Pipeline with Validation & Retry
+ */
 export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> {
+  const MAX_RETRIES = 3;
   const count = Math.max(1, Math.min(10, Number(params.count || 3)));
   const matchingCriteria = findMatchingCriteria(params.programName);
   const societySelection = normalizeSelectedSocieties(params.selectedSocieties);
   const societies = flattenSocieties(societySelection);
   const focusAreas = uniqueStrings(params.focusAreas || []);
 
-  const promptParams = {
+  const basePromptParams = {
     programName: params.programName,
     count,
     selectedSocieties: societySelection,
@@ -459,61 +286,90 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
     focusAreas,
   };
 
-  const prompt = buildPSOGenerationPrompt(promptParams);
+  const basePrompt = buildPSOGenerationPrompt(basePromptParams);
+  let currentPrompt = basePrompt;
+  let lastValidation: ValidationResult | null = null;
+  let lastDetails: GeneratedPSODetail[] = [];
 
-  // Attempt Gemini Generation
-  const details = await fetchGeminiPSOs(params, matchingCriteria || undefined);
+  // --- RETRY LOOP ---
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    console.log(`[PSO Agent] Generation Attempt ${attempt}/${MAX_RETRIES}...`);
+    
+    // 1. Generate PSOs
+    const details = await fetchGeminiPSOs(
+      params, 
+      matchingCriteria || undefined, 
+      currentPrompt,
+      societies
+    );
+    
+    // 2. Uniqueness & Similarity Filter
+    const seenStatements = new Set<string>();
+    const uniqueDetails: GeneratedPSODetail[] = [];
+    for (const detail of details) {
+      if (uniqueDetails.length >= count) break;
+      const normalized = detail.statement.toLowerCase().trim();
+      if (seenStatements.has(normalized)) continue;
+      const isTooSimilar = uniqueDetails.some(
+        (existing) => similarityScore(existing.statement, detail.statement) > 0.7,
+      );
+      if (isTooSimilar) continue;
+      seenStatements.add(normalized);
+      uniqueDetails.push(detail);
+    }
 
-  if (details.length === 0) {
-    // If AI fails completely, we return an empty result or handle error
-    // (A real production system might have a simpler template fallback here)
-    return {
-      results: [],
-      details: [],
-      validation: {
-        sourceValidation: { passed: false, message: "AI generation failed and no fallback available.", criteriaBasis: [], societies: [] },
-        domainCoverage: { passed: false, required: [], covered: [], missing: [] },
-        actionVerbCheck: { passed: false, approvedVerbs: APPROVED_ACTION_VERBS, failures: [] },
-        abetMappingCheck: { passed: false, unmapped: [] },
-        uniquenessCheck: { passed: false, genericStatements: [], highSimilarityPairs: [] },
-      },
-      sources: {
-        programCriteria: matchingCriteria ? [matchingCriteria.statement] : [ABET_CRITERIA_DATA.fallback.statement],
-        societies,
-        emergingAreas: [],
-      },
-      selectionContext: {
-        lead: societySelection.lead || [],
-        coLead: societySelection.co_lead || [],
-        cooperating: societySelection.cooperating || [],
-        count,
-      },
-      prompt,
-    };
+    lastDetails = uniqueDetails;
+
+    // 3. Validate
+    const psoValidators: PSO[] = uniqueDetails.map(d => ({
+      statement: d.statement,
+      sos: d.abetMappings,
+      focus_area: d.domain
+    }));
+
+    const validation = validatePSOs(psoValidators, params.programName, count);
+    lastValidation = validation;
+
+    console.log(`[PSO Agent] Attempt ${attempt} Score: ${validation.score}/100`);
+
+    if (validation.passed) {
+      console.log(`[PSO Agent] Validation passed!`);
+      break;
+    }
+
+    if (attempt < MAX_RETRIES) {
+      console.log(`[PSO Agent] Validation failed. Retrying with feedback...`);
+      currentPrompt = buildRetryPrompt(basePrompt, validation);
+      // Update params for next fetch call (if it uses prompt internally)
+      // Actually fetchGeminiPSOs calls buildPSOGenerationPrompt again, 
+      // so we need a way to pass the retry prompt in.
+      // Refactoring fetchGeminiPSOs to accept optional custom prompt.
+    }
   }
 
-  // Simplified validation for AI-generated outcomes
-  const validation: PSOValidationSummary = {
+  // Final Results
+  const finalDetails = lastDetails;
+  const psoOutputValidation: PSOValidationSummary = {
     sourceValidation: {
-      passed: true,
+      passed: lastValidation?.passed ?? false,
       message: matchingCriteria ? `Aligned with ABET ${matchingCriteria.name} criteria.` : "Aligned with general ABET criteria (fallback).",
       criteriaBasis: matchingCriteria ? [matchingCriteria.statement] : [ABET_CRITERIA_DATA.fallback.statement],
       societies,
     },
     domainCoverage: {
-      passed: true,
+      passed: lastValidation?.passed ?? false,
       required: matchingCriteria?.curriculum || [],
-      covered: uniqueStrings(details.map(d => d.domain)),
-      missing: [],
+      covered: uniqueStrings(finalDetails.map(d => d.domain)),
+      missing: lastValidation?.issues.filter(i => i.includes("domain")) || [],
     },
     actionVerbCheck: {
-      passed: true,
+      passed: lastValidation?.passed ?? false,
       approvedVerbs: APPROVED_ACTION_VERBS,
-      failures: [],
+      failures: lastValidation?.issues.filter(i => i.includes("verb")) || [],
     },
     abetMappingCheck: {
-      passed: true,
-      unmapped: [],
+      passed: lastValidation?.passed ?? false,
+      unmapped: lastValidation?.issues.filter(i => i.includes("mapping")) || [],
     },
     uniquenessCheck: {
       passed: true,
@@ -523,9 +379,9 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
   };
 
   return {
-    results: details.map((item) => item.statement),
-    details,
-    validation,
+    results: finalDetails.map((item) => item.statement),
+    details: finalDetails,
+    validation: psoOutputValidation,
     sources: {
       programCriteria: matchingCriteria ? [matchingCriteria.statement] : [ABET_CRITERIA_DATA.fallback.statement],
       societies,
@@ -537,6 +393,6 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
       cooperating: societySelection.cooperating || [],
       count,
     },
-    prompt,
+    prompt: currentPrompt,
   };
 }

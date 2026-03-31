@@ -1,17 +1,16 @@
 /**
  * lib/ai/po-agent.ts
- * Program Outcomes Agent — orchestrates hybrid generation with max-3-attempt retry.
+ * Program Outcomes Agent — 100% AI-driven generation using Gemini 2.0 Flash.
  *
- * For POs, the standard NBA/ABET 12 outcomes are always available as guaranteed
- * fallbacks. The agent tries Gemini first, then fills from standard POs.
+ * This agent performs a multi-attempt retry loop to generate NBA/ABET-aligned
+ * Program Outcomes (POs) with deep domain reasoning and semantic diversity.
  */
 
-import { scorePO, POScore, PO_APPROVAL_THRESHOLD }           from "./po-scoring";
-import { buildStandardPO, STANDARD_PO_STATEMENTS, getCustomPOs } from "./po-template-engine";
+import { scorePO, POScore, PO_APPROVAL_THRESHOLD } from "./po-scoring";
 import { buildPOAgentPrompt } from "./po-prompt-builder";
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 const MAX_ATTEMPTS = 3;
 
@@ -144,10 +143,9 @@ export async function poAgent(params: POAgentParams): Promise<POAgentResult> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     attempts = attempt + 1;
 
-    // Candidates: Gemini + custom theme POs (fallback)
+    // Candidates: Gemini AI only (no static fallbacks)
     const aiCandidates    = await fetchGeminiPOs(params, attempt);
-    const customCandidates= aiCandidates.length >= count ? [] : getCustomPOs(priorities);
-    const batch           = [...aiCandidates, ...customCandidates].map(normalizeWhitespace);
+    const batch           = aiCandidates.map(normalizeWhitespace);
 
     for (const candidate of batch) {
       if (!candidate || candidate.length < 10) continue;
@@ -167,20 +165,8 @@ export async function poAgent(params: POAgentParams): Promise<POAgentResult> {
     if (qualifiedStatements.length >= count) break;
   }
 
-  // Guarantee: fill with standard NBA/ABET POs
-  let is_fallback = false;
-  if (qualifiedStatements.length < count) {
-    is_fallback = true;
-    let si = 0;
-    while (qualifiedStatements.length < count && si < STANDARD_PO_STATEMENTS.length) {
-      const fb = buildStandardPO(si);
-      if (!qualifiedStatements.some((s) => s.toLowerCase() === fb.toLowerCase())) {
-        qualifiedStatements.push(fb);
-        qualifiedScores.push(scorePO(fb));
-      }
-      si++;
-    }
-  }
+  // No more static fallback filling
+  const is_fallback = qualifiedStatements.length === 0;
 
   const ranked = rankPOs(qualifiedStatements, qualifiedScores, count);
   const pos    = ranked.map((r) => r.statement);
