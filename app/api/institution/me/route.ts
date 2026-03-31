@@ -15,14 +15,14 @@ export async function GET(request: Request) {
       );
     }
 
-    const payload = await verifyToken(token);
-    if (!payload || !payload.id) {
+    const tokenPayload = await verifyToken(token);
+    if (!tokenPayload || !tokenPayload.id) {
       return NextResponse.json(
         { authenticated: false, error: "Invalid token" },
         { status: 401 },
       );
     }
-    const institutionId = payload.id as string;
+    const institutionId = tokenPayload.id as string;
 
     const client = await pool.connect();
     try {

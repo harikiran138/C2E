@@ -8,8 +8,8 @@ import { logAudit, ACTION_TYPES } from "@/lib/audit";
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("institution_token")?.value;
   if (!token) return null;
-  const payload = await verifyToken(token);
-  return (payload?.id as string) || null;
+  const tokenPayload = await verifyToken(token);
+  return (tokenPayload?.id as string) || null;
 }
 
 export async function POST(request: NextRequest) {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const payload = {
+    const tokenPayload = {
       program_name: String(body.program_name || ""),
       degree: String(body.degree || ""),
       level: String(body.level || ""),
@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
       mission: body.mission ? String(body.mission) : null,
     };
 
-    const validationError = validateProgramPayload(payload);
+    const validationError = validateProgramPayload(tokenPayload);
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const normalizedProgramCode = payload.program_code.trim().toUpperCase();
+    const normalizedProgramCode = tokenPayload.program_code.trim().toUpperCase();
     const newId = uuidv4();
 
     const client = await pool.connect();
@@ -75,15 +75,15 @@ export async function POST(request: NextRequest) {
         [
           newId,
           institutionId,
-          payload.program_name.trim(),
-          payload.degree,
-          payload.level,
-          payload.duration,
-          payload.intake,
-          payload.academic_year.trim(),
+          tokenPayload.program_name.trim(),
+          tokenPayload.degree,
+          tokenPayload.level,
+          tokenPayload.duration,
+          tokenPayload.intake,
+          tokenPayload.academic_year.trim(),
           normalizedProgramCode,
-          payload.vision?.trim() || null,
-          payload.mission?.trim() || null,
+          tokenPayload.vision?.trim() || null,
+          tokenPayload.mission?.trim() || null,
         ],
       );
 
@@ -100,15 +100,15 @@ export async function POST(request: NextRequest) {
         ok: true,
         program: {
           id: newId,
-          program_name: payload.program_name.trim(),
-          degree: payload.degree,
-          level: payload.level,
-          duration: payload.duration,
-          intake: payload.intake,
-          academic_year: payload.academic_year.trim(),
+          program_name: tokenPayload.program_name.trim(),
+          degree: tokenPayload.degree,
+          level: tokenPayload.level,
+          duration: tokenPayload.duration,
+          intake: tokenPayload.intake,
+          academic_year: tokenPayload.academic_year.trim(),
           program_code: normalizedProgramCode,
-          vision: payload.vision,
-          mission: payload.mission,
+          vision: tokenPayload.vision,
+          mission: tokenPayload.mission,
         },
       });
     } finally {

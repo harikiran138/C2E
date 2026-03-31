@@ -5,9 +5,9 @@ export async function POST(request: NextRequest) {
   const token = request.cookies.get("institution_token")?.value;
 
   if (token) {
-    const payload = await verifyToken(token);
-    if (payload && payload.exp) {
-      await blockToken(token, new Date(payload.exp * 1000));
+    const tokenPayload = await verifyToken(token);
+    if (tokenPayload && tokenPayload.exp) {
+      await blockToken(token, new Date(tokenPayload.exp * 1000));
     }
   }
 

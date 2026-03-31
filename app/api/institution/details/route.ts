@@ -6,8 +6,8 @@ import { validateInstitutionDetailsPayload } from "@/lib/validation/onboarding";
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("institution_token")?.value;
   if (!token) return null;
-  const payload = await verifyToken(token);
-  return (payload?.id as string) || null;
+  const tokenPayload = await verifyToken(token);
+  return (tokenPayload?.id as string) || null;
 }
 
 export async function GET(request: NextRequest) {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const payload = {
+    const tokenPayload = {
       institution_name: String(body.institution_name || ""),
       institution_type: String(body.institution_type || ""),
       institution_status: String(body.institution_status || ""),
@@ -125,14 +125,14 @@ export async function POST(request: NextRequest) {
       mission: body.mission ? String(body.mission) : null,
     };
 
-    const validationError = validateInstitutionDetailsPayload(payload);
+    const validationError = validateInstitutionDetailsPayload(tokenPayload);
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     if (
-      payload.institution_status === "Non-Autonomous" &&
-      !payload.university_affiliation?.trim()
+      tokenPayload.institution_status === "Non-Autonomous" &&
+      !tokenPayload.university_affiliation?.trim()
     ) {
       return NextResponse.json(
         { error: "University affiliation is required for Non-Autonomous institutions." },
@@ -140,11 +140,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const normalizedCity = payload.city.trim();
-    const normalizedState = payload.state.trim();
-    const normalizedCountry = payload.country?.trim() || "India";
+    const normalizedCity = tokenPayload.city.trim();
+    const normalizedState = tokenPayload.state.trim();
+    const normalizedCountry = tokenPayload.country?.trim() || "India";
     const normalizedAddress =
-      payload.address?.trim() ||
+      tokenPayload.address?.trim() ||
       `${normalizedCity}, ${normalizedState}, ${normalizedCountry}`.trim();
 
     const client = await pool.connect();
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
       // Update basic institution name
       await client.query(
         `UPDATE institutions SET institution_name = $1, updated_at = NOW() WHERE id = $2`,
-        [payload.institution_name.trim(), institutionId]
+        [tokenPayload.institution_name.trim(), institutionId]
       );
 
       // Upsert into institution_details
@@ -187,16 +187,16 @@ export async function POST(request: NextRequest) {
           updated_at = NOW()`,
         [
           institutionId,
-          payload.institution_type,
-          payload.institution_status,
-          payload.established_year,
-          payload.university_affiliation?.trim() || null,
+          tokenPayload.institution_type,
+          tokenPayload.institution_status,
+          tokenPayload.established_year,
+          tokenPayload.university_affiliation?.trim() || null,
           normalizedAddress,
           normalizedCity,
           normalizedState,
           normalizedCountry,
-          payload.vision?.trim() || null,
-          payload.mission?.trim() || null,
+          tokenPayload.vision?.trim() || null,
+          tokenPayload.mission?.trim() || null,
         ],
       );
 

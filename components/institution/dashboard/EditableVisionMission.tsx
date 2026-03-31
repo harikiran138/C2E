@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Target, Sparkles, Edit2, Check, X, Loader2 } from "lucide-react";
 
@@ -22,6 +22,14 @@ export default function EditableVisionMission({
   const [vision, setVision] = useState(initialVision || "");
   const [mission, setMission] = useState(initialMission || "");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setVision(initialVision || "");
+  }, [initialVision]);
+
+  useEffect(() => {
+    setMission(initialMission || "");
+  }, [initialMission]);
 
   const handleSave = async () => {
     setLoading(true);
@@ -88,7 +96,7 @@ export default function EditableVisionMission({
             />
           ) : (
             <p className="text-sm font-bold text-slate-700 italic whitespace-pre-wrap break-words leading-relaxed">
-              {initialVision ? `"${initialVision}"` : ""}
+              {vision ? `"${vision}"` : ""}
             </p>
           )}
         </div>
@@ -115,7 +123,7 @@ export default function EditableVisionMission({
             />
           ) : (
             <p className="text-sm font-bold text-slate-700 italic whitespace-pre-wrap break-words leading-relaxed">
-              {initialMission ? `"${initialMission}"` : ""}
+              {mission ? `"${mission}"` : ""}
             </p>
           )}
         </div>

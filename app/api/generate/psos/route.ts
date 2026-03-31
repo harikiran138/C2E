@@ -31,6 +31,7 @@ export async function POST(request: Request) {
       programName: program_name || "Engineering Program",
       count,
       selectedSocieties: selected_societies,
+      geminiApiKey: process.env.GEMINI_API_KEY,
     });
 
     return NextResponse.json(result);

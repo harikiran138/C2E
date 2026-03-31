@@ -155,8 +155,8 @@ export function useInstitutionOnboarding() {
   }, [router, states, currentYear]);
 
   // --- HANDLERS ---
-  
-  const handleSaveDetails = async () => {
+
+  const persistInstitutionDetails = async () => {
     if (!instDetails.city.trim() || !instDetails.state.trim()) {
       setErrorMsg("City and State are required.");
       return false;
@@ -189,6 +189,8 @@ export function useInstitutionOnboarding() {
       setLoading(false);
     }
   };
+
+  const handleSaveDetails = async () => persistInstitutionDetails();
 
   const handleAddProgram = async () => {
     if (!newProgram.program_name || !newProgram.degree || !newProgram.level || newProgram.duration === "" || !newProgram.program_code) {
@@ -244,7 +246,7 @@ export function useInstitutionOnboarding() {
 
   const handleNext = async () => {
     if (currentStep === 1) {
-        const saved = await handleSaveDetails();
+        const saved = await persistInstitutionDetails();
         if (saved) setCurrentStep(2);
     } else if (currentStep === 2) {
         if (programs.length === 0) {
@@ -253,13 +255,19 @@ export function useInstitutionOnboarding() {
         }
         setCurrentStep(3);
     } else if (currentStep === 3) {
-        setCurrentStep(4);
+        const saved = await persistInstitutionDetails();
+        if (saved) setCurrentStep(4);
     }
   };
 
   const handleCompleteOnboarding = async () => {
     if (programs.length === 0) {
       setErrorMsg("Please add at least one program.");
+      return;
+    }
+
+    const detailsSaved = await persistInstitutionDetails();
+    if (!detailsSaved) {
       return;
     }
 

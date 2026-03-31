@@ -2,7 +2,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: '.env.local' });
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 async function testGemini() {
     if (!GEMINI_API_KEY) {

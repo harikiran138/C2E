@@ -15,15 +15,15 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Verify token structure/expiry
-    const payload = await verifyRefreshToken(refreshToken);
-    if (!payload || !payload.id) {
+    const tokenPayload = await verifyRefreshToken(refreshToken);
+    if (!tokenPayload || !tokenPayload.id) {
       return NextResponse.json(
         { error: "Invalid or expired refresh token" },
         { status: 401 },
       );
     }
 
-    const institutionId = payload.id as string;
+    const institutionId = tokenPayload.id as string;
 
     const client = await pool.connect();
     try {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
       const newRefreshToken = await signRefreshToken({
         id: institutionId,
-        version: ((payload.version as number) || 0) + 1,
+        version: ((tokenPayload.version as number) || 0) + 1,
       });
 
       // 5. Update DB hash

@@ -5,8 +5,8 @@ import { signToken, verifyToken } from "@/lib/auth";
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("institution_token")?.value;
   if (!token) return null;
-  const payload = await verifyToken(token);
-  return (payload?.id as string) || null;
+  const tokenPayload = await verifyToken(token);
+  return (tokenPayload?.id as string) || null;
 }
 
 export async function POST(request: NextRequest) {

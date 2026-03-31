@@ -182,6 +182,21 @@ export default function VisionMissionGenerator() {
   const canGenerateMission = isVisionSelectionSaved && isVisionApproved;
 
   useEffect(() => {
+    // Reset state when programId changes to prevent stale data
+    setProgram(null);
+    setProgramVision("");
+    setProgramMission("");
+    setVisionOptions([]);
+    setMissionOptions([]);
+    setIsVisionSelectionSaved(false);
+    setIsVisionApproved(false);
+    setSelectedVisionPriorities([]);
+    setSelectedMissionPriorities([]);
+    setVisionScores({});
+    setMissionScores({});
+    setCustomVisionPriorities([]);
+    setCustomMissionPriorities([]);
+
     const fetchData = async () => {
       try {
         setLoading(true);

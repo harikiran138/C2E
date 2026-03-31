@@ -16,8 +16,8 @@ import {
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("institution_token")?.value;
   if (!token) return null;
-  const payload = await verifyToken(token);
-  return (payload?.id as string) || null;
+  const tokenPayload = await verifyToken(token);
+  return (tokenPayload?.id as string) || null;
 }
 
 export async function PUT(request: NextRequest) {
@@ -306,26 +306,27 @@ export async function PUT(request: NextRequest) {
         (selectedVision?.vision_analysis as Record<string, unknown> | null) ||
         null;
 
-      const finalVisionInputs =
-        visionInputs.length > 0
-          ? visionInputs
-          : normalizeStringArray(current.vision_inputs_used);
-      const finalMissionInputs =
-        missionInputs.length > 0
-          ? missionInputs
-          : normalizeStringArray(current.mission_inputs_used);
-      const finalVisionOptions =
-        visionOptions.length > 0
-          ? visionOptions
-          : normalizeStringArray(current.vision_options);
-      const finalMissionOptions =
-        missionOptions.length > 0
-          ? missionOptions
-          : normalizeStringArray(current.mission_options);
-      const finalGeneratedByAi =
-        generatedByAi !== null
-          ? generatedByAi
-          : Boolean(current.generated_by_ai);
+      const hasVisionInputs = Object.prototype.hasOwnProperty.call(body, "vision_inputs_used");
+      const hasMissionInputs = Object.prototype.hasOwnProperty.call(body, "mission_inputs_used");
+      const hasVisionOptions = Object.prototype.hasOwnProperty.call(body, "vision_options");
+      const hasMissionOptions = Object.prototype.hasOwnProperty.call(body, "mission_options");
+      const hasGeneratedByAi = Object.prototype.hasOwnProperty.call(body, "generated_by_ai");
+
+      const finalVisionInputs = hasVisionInputs
+        ? visionInputs
+        : normalizeStringArray(current.vision_inputs_used);
+      const finalMissionInputs = hasMissionInputs
+        ? missionInputs
+        : normalizeStringArray(current.mission_inputs_used);
+      const finalVisionOptions = hasVisionOptions
+        ? visionOptions
+        : normalizeStringArray(current.vision_options);
+      const finalMissionOptions = hasMissionOptions
+        ? missionOptions
+        : normalizeStringArray(current.mission_options);
+      const finalGeneratedByAi = hasGeneratedByAi
+        ? generatedByAi
+        : Boolean(current.generated_by_ai);
 
       await client.query(
         `UPDATE programs

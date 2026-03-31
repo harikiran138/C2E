@@ -67,8 +67,8 @@ export async function verifyToken(token: string) {
 // NOTE: This must only be called from Node.js environments
 // (e.g. Server Actions or route.ts), NEVER from middleware.ts
 export async function verifyTokenAndBlocklist(token: string) {
-  const payload = await verifyToken(token);
-  if (!payload) return null;
+  const tokenPayload = await verifyToken(token);
+  if (!tokenPayload) return null;
 
   try {
     // Lazy load pool to prevent Edge Runtime from crashing during import
@@ -90,7 +90,7 @@ export async function verifyTokenAndBlocklist(token: string) {
     // Fail open if DB is down? or fail closed?
   }
 
-  return payload;
+  return tokenPayload;
 }
 
 export async function blockToken(token: string, expiresAt: Date) {

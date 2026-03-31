@@ -5,7 +5,7 @@ import { missionAgent } from "@/lib/ai/mission-agent";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 // Simple in-memory cache for AI results
 const aiCache = new Map<string, string[]>();

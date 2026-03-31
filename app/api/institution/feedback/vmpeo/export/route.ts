@@ -10,9 +10,9 @@ import {
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("institution_token")?.value;
   if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload?.id) return null;
-  return String(payload.id);
+  const tokenPayload = await verifyToken(token);
+  if (!tokenPayload?.id) return null;
+  return String(tokenPayload.id);
 }
 
 async function checkProgramOwnership(

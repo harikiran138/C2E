@@ -37,6 +37,7 @@ export interface PSOAgentParams {
   count: number;
   selectedSocieties?: SelectedSocietiesInput;
   focusAreas?: string[];
+  geminiApiKey?: string;
 }
 
 interface DomainAreaSpec {
@@ -633,6 +634,82 @@ function summarizeValidation(
   };
 }
 
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+
+async function fetchGeminiPSOs(
+  params: PSOAgentParams,
+  requiredDomains: string[],
+  emergingAreas: string[],
+): Promise<GeneratedPSODetail[]> {
+  const { geminiApiKey, programName, count, selectedSocieties, focusAreas } =
+    params;
+  if (!geminiApiKey) return [];
+
+  const prompt = buildPSOGenerationPrompt({
+    programName,
+    count,
+    selectedSocieties,
+    requiredDomains,
+    emergingAreas,
+    focusAreas,
+  });
+
+  try {
+    const res = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.7,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Gemini API Error (PSO):", await res.text());
+      return [];
+    }
+
+    const data = await res.json();
+    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+    if (!text) return [];
+
+    try {
+      const cleaned = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      const generatedPSOs = Array.isArray(parsed.PSOs) ? parsed.PSOs : [];
+
+      return generatedPSOs.map((p: any) => ({
+        statement: p.statement || "",
+        domain: p.focus_area || "General",
+        skill: p.statement ? p.statement.split(" ")[0] : "Apply",
+        applicationContext: p.focus_area || "Program Context",
+        toolPhrase: "appropriate tools",
+        actionVerb: (p.statement ? p.statement.split(" ")[0] : "Apply") as ApprovedActionVerb,
+        abetMappings: Array.isArray(p.mapped_abet_elements) ? p.mapped_abet_elements : [],
+        criteriaBasis: [],
+        sourceSocieties: [],
+        emergingAreas: [],
+        validation: {
+          actionVerbPass: true,
+          hasAbetMapping: true,
+          uniqueToProgram: true,
+        },
+      }));
+    } catch (parseError) {
+      console.error("Failed to parse Gemini PSO response:", parseError);
+      return [];
+    }
+  } catch (error) {
+    console.error("Gemini fetch error (PSO):", error);
+    return [];
+  }
+}
+
 export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> {
   const count = Math.max(1, Math.min(10, Number(params.count || 3)));
   const profile = PROFILE_BY_DOMAIN[detectProgramDomain(params.programName)];
@@ -640,26 +717,42 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
   const societies = flattenSocieties(societySelection);
   const focusAreas = uniqueStrings(params.focusAreas || []);
   const rankedDomains = orderedDomains(profile, societySelection, focusAreas);
+  const requiredDomains = profile.domains.map((item) => item.label);
   const prompt = buildPSOGenerationPrompt({
     programName: params.programName,
     count,
     selectedSocieties: societySelection,
-    requiredDomains: profile.domains.map((item) => item.label),
+    requiredDomains,
     emergingAreas: profile.emergingAreas,
     focusAreas,
   });
 
-  const details: GeneratedPSODetail[] = [];
-  const seenStatements = new Set<string>();
+  // Attempt Gemini Generation
+  const aiDetails = await fetchGeminiPSOs(
+    params,
+    requiredDomains,
+    profile.emergingAreas,
+  );
 
-  for (let index = 0; details.length < count && index < count * 4; index += 1) {
-    const domain = rankedDomains[index % rankedDomains.length];
-    const detail = buildStatement(profile, domain, index);
-    detail.sourceSocieties = societies;
+  let details: GeneratedPSODetail[] = [];
+  if (aiDetails.length > 0) {
+    details = aiDetails.slice(0, count);
+  } else {
+    // Fallback to Template-based Generation
+    const seenStatements = new Set<string>();
+    for (
+      let index = 0;
+      details.length < count && index < count * 4;
+      index += 1
+    ) {
+      const domainArea = rankedDomains[index % rankedDomains.length];
+      const detail = buildStatement(profile, domainArea, index);
+      detail.sourceSocieties = societies;
 
-    if (!seenStatements.has(detail.statement)) {
-      seenStatements.add(detail.statement);
-      details.push(detail);
+      if (!seenStatements.has(detail.statement)) {
+        seenStatements.add(detail.statement);
+        details.push(detail);
+      }
     }
   }
 

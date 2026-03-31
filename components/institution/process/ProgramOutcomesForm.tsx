@@ -159,6 +159,10 @@ export default function ProgramOutcomesForm() {
   const [currentPOs, setCurrentPOs] = useState<any[]>([]);
 
   useEffect(() => {
+    // Reset state when programId changes
+    setTier(null);
+    setCurrentPOs([]);
+
     if (!programId) return;
     const fetchPOs = async () => {
       try {

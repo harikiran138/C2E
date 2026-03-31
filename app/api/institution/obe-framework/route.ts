@@ -7,8 +7,8 @@ async function getInstitutionId(): Promise<string | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get("institution_token")?.value;
   if (!token) return null;
-  const payload = await verifyToken(token);
-  return (payload?.id as string) || null;
+  const tokenPayload = await verifyToken(token);
+  return (tokenPayload?.id as string) || null;
 }
 
 /**
@@ -26,14 +26,22 @@ export async function GET() {
     const client = await pool.connect();
     try {
       // Join programs to get program_name
-      const result = await client.query(
-        `SELECT f.*, p.program_name
-         FROM obe_framework f
-         LEFT JOIN programs p ON p.id = f.program_id
-         WHERE f.institution_id = $1
-         ORDER BY f.created_at ASC`,
-        [institutionId],
-      );
+      let result;
+      try {
+        result = await client.query(
+          `SELECT f.*, p.program_name
+           FROM obe_framework f
+           LEFT JOIN programs p ON p.id = f.program_id
+           WHERE f.institution_id = $1
+           ORDER BY f.created_at ASC`,
+          [institutionId],
+        );
+      } catch (error: any) {
+        if (error?.code === "42P01") {
+          return NextResponse.json({ data: [] });
+        }
+        throw error;
+      }
       return NextResponse.json({ data: result.rows });
     } finally {
       client.release();
@@ -113,6 +121,17 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ data: result.rows[0] });
+    } catch (error: any) {
+      if (error?.code === "42P01") {
+        return NextResponse.json(
+          {
+            error:
+              "OBE Framework table is not initialized in the database yet.",
+          },
+          { status: 409 },
+        );
+      }
+      throw error;
     } finally {
       client.release();
     }
@@ -138,10 +157,23 @@ export async function DELETE(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      await client.query(
-        "DELETE FROM obe_framework WHERE id = $1 AND institution_id = $2",
-        [id, institutionId],
-      );
+      try {
+        await client.query(
+          "DELETE FROM obe_framework WHERE id = $1 AND institution_id = $2",
+          [id, institutionId],
+        );
+      } catch (error: any) {
+        if (error?.code === "42P01") {
+          return NextResponse.json(
+            {
+              error:
+                "OBE Framework table is not initialized in the database yet.",
+            },
+            { status: 409 },
+          );
+        }
+        throw error;
+      }
       return NextResponse.json({ success: true });
     } finally {
       client.release();

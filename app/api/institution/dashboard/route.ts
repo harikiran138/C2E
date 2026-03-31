@@ -17,15 +17,26 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const payload = await verifyToken(token);
-    if (!payload || !payload.id) {
+    const tokenPayload = await verifyToken(token);
+    if (!tokenPayload || !tokenPayload.id) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
-    const institutionId = payload.id as string;
+    const institutionId = tokenPayload.id as string;
     let dataVars: any = {};
 
     const client = await pool.connect();
     try {
+      const safeCountQuery = async (sql: string, params: unknown[]) => {
+        try {
+          return await client.query(sql, params);
+        } catch (error: any) {
+          if (error?.code === "42P01") {
+            return { rows: [{ count: "0" }] };
+          }
+          throw error;
+        }
+      };
+
       // Run independent queries in parallel
       const [nameRes, progRes, obeRes, acRes, allProgsRes] = await Promise.all([
         client.query(
@@ -39,7 +50,7 @@ export async function GET(request: Request) {
           "SELECT COUNT(*) as count FROM programs WHERE institution_id = $1",
           [institutionId],
         ),
-        client.query(
+        safeCountQuery(
           "SELECT COUNT(*) as count FROM obe_framework WHERE institution_id = $1",
           [institutionId],
         ),

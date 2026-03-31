@@ -135,6 +135,16 @@ export default function PsoGenerator() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // Reset state to prevent cross-program bleeding
+    setProgram(null);
+    setPsos([]);
+    setSelectedSocieties({ lead: [], coLead: [], cooperating: [] });
+    setGeneratedPsos([]);
+    setGeneratedDetails([]);
+    setValidationReport(null);
+    setSelectionContext(null);
+    setGenerationPrompt("");
+
     const fetchData = async () => {
       try {
         setLoading(true);
