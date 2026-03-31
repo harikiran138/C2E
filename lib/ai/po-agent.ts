@@ -105,9 +105,17 @@ async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<s
     const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     try {
-      const cleaned = text.replace(/```json|```/g, "").trim();
+      const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
       const parsed  = JSON.parse(cleaned);
-      return Array.isArray(parsed) ? parsed.map(String) : [];
+      let arr: any[] = [];
+      if (Array.isArray(parsed)) {
+        arr = parsed;
+      } else if (parsed && typeof parsed === "object") {
+        for (const key of Object.keys(parsed)) {
+          if (Array.isArray(parsed[key])) { arr = parsed[key]; break; }
+        }
+      }
+      return arr.map(String).filter((s) => s.length > 10);
     } catch {
       return text
         .split("\n")
@@ -136,9 +144,9 @@ export async function poAgent(params: POAgentParams): Promise<POAgentResult> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     attempts = attempt + 1;
 
-    // Candidates: Gemini + custom theme POs
+    // Candidates: Gemini + custom theme POs (fallback)
     const aiCandidates    = await fetchGeminiPOs(params, attempt);
-    const customCandidates= getCustomPOs(priorities);
+    const customCandidates= aiCandidates.length >= count ? [] : getCustomPOs(priorities);
     const batch           = [...aiCandidates, ...customCandidates].map(normalizeWhitespace);
 
     for (const candidate of batch) {

@@ -105,9 +105,17 @@ async function fetchGeminiPEOs(params: PEOAgentParams, attempt: number): Promise
     const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     try {
-      const cleaned = text.replace(/```json|```/g, "").trim();
+      const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
       const parsed  = JSON.parse(cleaned);
-      return Array.isArray(parsed) ? parsed.map(String) : [];
+      let arr: any[] = [];
+      if (Array.isArray(parsed)) {
+        arr = parsed;
+      } else if (parsed && typeof parsed === "object") {
+        for (const key of Object.keys(parsed)) {
+          if (Array.isArray(parsed[key])) { arr = parsed[key]; break; }
+        }
+      }
+      return arr.map(String).filter((s) => s.length > 10);
     } catch {
       return text
         .split("\n")
@@ -131,7 +139,7 @@ export async function peoAgent(params: PEOAgentParams): Promise<PEOAgentResult> 
     attempts = attempt + 1;
 
     const aiCandidates       = await fetchGeminiPEOs({ ...params, priorities }, attempt);
-    const templateCandidates = getAllPEOVariants(priorities);
+    const templateCandidates = aiCandidates.length >= count ? [] : getAllPEOVariants(priorities);
     const batch              = [...aiCandidates, ...templateCandidates].map(normalizeWhitespace);
 
     for (const candidate of batch) {

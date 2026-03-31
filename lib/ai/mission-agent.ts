@@ -113,9 +113,17 @@ async function fetchGeminiMissions(
     const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     try {
-      const cleaned = text.replace(/```json|```/g, "").trim();
+      const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
       const parsed  = JSON.parse(cleaned);
-      return Array.isArray(parsed) ? parsed.map(String) : [];
+      let arr: any[] = [];
+      if (Array.isArray(parsed)) {
+        arr = parsed;
+      } else if (parsed && typeof parsed === "object") {
+        for (const key of Object.keys(parsed)) {
+          if (Array.isArray(parsed[key])) { arr = parsed[key]; break; }
+        }
+      }
+      return arr.map(String).filter((s) => s.length > 20);
     } catch {
       return text
         .split("\n")
@@ -137,9 +145,9 @@ export async function missionAgent(params: MissionAgentParams): Promise<MissionA
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     attempts = attempt + 1;
 
-    // Collect candidates: Gemini + grammar templates
+    // Collect candidates: Gemini + grammar templates (fallback)
     const aiCandidates      = await fetchGeminiMissions(params, attempt);
-    const templateCandidates= getAllGrammarMissions(programName);
+    const templateCandidates= aiCandidates.length >= count ? [] : getAllGrammarMissions(programName);
     const batch             = [...aiCandidates, ...templateCandidates].map(normalizeWhitespace);
 
     for (const candidate of batch) {

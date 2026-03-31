@@ -51,14 +51,26 @@ async function callGemini(
     .map((l) => l.replace(/^\d+\.\s*/, "").trim())
     .filter((l) => l.length > 20);
 
-  if (numbered.length > 0) return numbered;
+  if (numbered.length > 0 && !text.includes("{") && !text.includes("[")) return numbered;
 
   try {
-    const cleaned = text.replace(/```json|```/g, "").trim();
+    const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
     const parsed  = JSON.parse(cleaned);
-    return Array.isArray(parsed) ? parsed : [];
+    let arr: any[] = [];
+    if (Array.isArray(parsed)) {
+      arr = parsed;
+    } else if (parsed && typeof parsed === "object") {
+      const keys = Object.keys(parsed);
+      for (const key of keys) {
+        if (Array.isArray(parsed[key])) {
+          arr = parsed[key];
+          break;
+        }
+      }
+    }
+    return arr.map(String).filter(s => s.length > 20);
   } catch {
-    return [];
+    return numbered;
   }
 }
 
@@ -114,22 +126,14 @@ export async function generateVisionHybrid(params: VisionHybridParams): Promise<
     geminiApiKey,
   } = params;
 
-  const templateSlots = Math.max(1, Math.floor(count * 0.4));
-  const aiSlots       = Math.ceil(count * 0.6);
-
-  // 1. Template candidates (guaranteed quality)
-  const templateCandidates = getTemplateCandidates(
-    programName, priorities, templateSlots, attempt,
-  );
-
-  // 2. AI candidates
+  // 1. AI candidates
   let aiCandidates: string[] = [];
   if (geminiApiKey) {
     try {
       const promptParams: PromptParams = {
         programName,
         priorities,
-        count:          aiSlots + 2, // request a few extra for headroom
+        count:          count + 2, // request a few extra for headroom
         institutionName,
         existingVisions,
         attempt,
@@ -141,7 +145,13 @@ export async function generateVisionHybrid(params: VisionHybridParams): Promise<
     }
   }
 
-  // 3. Fill gaps with mutation variants if AI is short
+  // 2. Template candidates (guaranteed quality - only use to fill gaps if AI fails)
+  const neededFromTemplates = Math.max(0, count - aiCandidates.length);
+  const templateCandidates = neededFromTemplates > 0
+    ? getTemplateCandidates(programName, priorities, neededFromTemplates, attempt)
+    : [];
+
+  // 3. Fill remaining gaps with mutation variants if still short
   const needed = count - templateCandidates.length - aiCandidates.length;
   const mutationCandidates = needed > 0
     ? getMutationCandidates(programName, priorities, needed, attempt * 10)
