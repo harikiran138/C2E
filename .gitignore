@@ -27,3 +27,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+python-backend/venv/
+__pycache__/
+*.pyc
+.env
+
+# os
+.DS_Store
+
+# supabase
+supabase/.gitignore
