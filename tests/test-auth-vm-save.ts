@@ -61,8 +61,8 @@ async function main() {
       },
       body: JSON.stringify({
         institution_name: institutionName,
-        institution_type: "Autonomous",
-        institution_status: "Private",
+        institution_type: "Private",
+        institution_status: "Autonomous",
         established_year: 2010,
         university_affiliation: "JNTU",
         city: "Visakhapatnam",
