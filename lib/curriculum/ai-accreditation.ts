@@ -1,9 +1,8 @@
 import { type GeneratedCurriculum } from "./engine";
 import { getAiCache, setAiCache } from "./ai-cache";
-import { callAiWithFallback, callLocalAi } from "./ai-model-router";
+import { callAI } from "./ai-model-router";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
 
 const ACCREDITATION_SYSTEM_PROMPT = `You are an expert NBA (National Board of Accreditation) Tier-I Auditor. Your task is to perform an "Accreditation Gap Analysis" on the provided engineering curriculum.
 
@@ -63,34 +62,9 @@ export async function performAccreditationAudit(
   if (cached) {
     rawText = cached;
   } else {
-    if (!GEMINI_API_KEY) {
-      warnings.push("GEMINI_API_KEY missing for accreditation audit.");
-      return { audit: null, warnings };
-    }
-
     try {
-      rawText = await callAiWithFallback(JSON.stringify(curriculumSummary), async (modelId, provider, prompt) => {
-        if (provider === "gemini") {
-          const url = `${GEMINI_BASE_URL}/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
-          const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: `${ACCREDITATION_SYSTEM_PROMPT}\n\nCurriculum Data:\n${prompt}` }] }],
-              generationConfig: {
-                temperature: 0.1,
-                responseMimeType: "application/json",
-              },
-            }),
-          });
-
-          if (!response.ok) throw new Error(`AI Error: ${response.status}`);
-          const data = await response.json();
-          return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        } else {
-          return await callLocalAi(prompt, ACCREDITATION_SYSTEM_PROMPT);
-        }
-      });
+      const prompt = `${ACCREDITATION_SYSTEM_PROMPT}\n\nCurriculum Data:\n${JSON.stringify(curriculumSummary)}`;
+      rawText = await callAI(prompt, "bulk");
       await setAiCache(cacheKey, rawText);
     } catch (error) {
       console.error("[Accreditation] Audit failed:", error);

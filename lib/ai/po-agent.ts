@@ -8,9 +8,7 @@
 
 import { scorePO, POScore, PO_APPROVAL_THRESHOLD } from "./po-scoring";
 import { buildPOAgentPrompt } from "./po-prompt-builder";
-
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+import { callAI } from "@/lib/curriculum/ai-model-router";
 
 const MAX_ATTEMPTS = 3;
 
@@ -51,8 +49,8 @@ function diversityBonus(candidate: string, selected: string[]): number {
     const sWords = new Set(
       s.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter((w) => w.length >= 4),
     );
-    const intersection = [...cWords].filter((w) => sWords.has(w)).length;
-    const union        = new Set([...cWords, ...sWords]).size;
+    const intersection = Array.from(cWords).filter((w) => sWords.has(w)).length;
+    const union        = new Set([...Array.from(cWords), ...Array.from(sWords)]).size;
     minOverlap = Math.min(minOverlap, union > 0 ? intersection / union : 0);
   }
   return 1 - minOverlap;
@@ -77,9 +75,6 @@ function rankPOs(candidates: string[], scores: POScore[], count: number): Ranked
 }
 
 async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<string[]> {
-  const { geminiApiKey } = params;
-  if (!geminiApiKey) return [];
-
   const prompt = buildPOAgentPrompt({
     programName: params.programName,
     count: params.count,
@@ -89,19 +84,7 @@ async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<s
   });
 
   try {
-    const res = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents:         [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
-      }),
-    });
-
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const text = await callAI(prompt, "po");
 
     try {
       const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
@@ -121,7 +104,8 @@ async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<s
         .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())
         .filter((l: string) => l.length > 10);
     }
-  } catch {
+  } catch (error) {
+    console.error("[PO Agent] AI fetch failed:", error);
     return [];
   }
 }

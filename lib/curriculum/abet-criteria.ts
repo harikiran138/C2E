@@ -116,6 +116,66 @@ export const ABET_CRITERIA_DATA: ABETCriteriaConfig = {
         "risk analysis"
       ],
       "faculty": "Environmental design practice qualified"
+    },
+    {
+      "name": "Materials Engineering",
+      "match_keywords": ["materials", "metallurgical", "ceramics"],
+      "statement": "The curriculum must include mathematics (differential equations), engineering sciences, and applications to the structure, properties, and processing of materials. It must cover at least two materials classes (e.g., metals, polymers, ceramics, composites). Faculty must maintain current expertise.",
+      "curriculum": [
+        "structure-property relationship",
+        "materials processing",
+        "metals/polymers/ceramics",
+        "thermodynamics of materials"
+      ],
+      "faculty": "Maintain current expertise in materials"
+    },
+    {
+      "name": "Industrial Engineering",
+      "match_keywords": ["industrial", "manufacturing", "production"],
+      "statement": "The curriculum must include mathematics, statistics, and engineering science to design, develop, implement, and improve integrated systems that include people, materials, information, equipment and energy. It must include systems modeling, human factors, and production systems.",
+      "curriculum": [
+        "systems modeling",
+        "operations research",
+        "human factors",
+        "production planning and control"
+      ],
+      "faculty": "Industrial engineering qualified"
+    },
+    {
+      "name": "Biomedical Engineering",
+      "match_keywords": ["biomedical", "bioengineering", "biotech"],
+      "statement": "The curriculum must include mathematics through differential equations and statistics, science (biology, chemistry, physics), and engineering applications for analyzing and designing systems for medicine and biology. It must include cellular/molecular biology and clinical applications.",
+      "curriculum": [
+        "biological systems",
+        "medical instrumentation",
+        "biomechanics",
+        "healthcare technology"
+      ],
+      "faculty": "Biomedical systems expertise"
+    },
+    {
+      "name": "Aerospace Engineering",
+      "match_keywords": ["aerospace", "aeronautical", "astronautical"],
+      "statement": "The curriculum must include mathematics, physics, and aeronautical/astronautical engineering for designing vehicles for flight in atmosphere and space. It must cover aerodynamics, propulsion, structures, and control systems.",
+      "curriculum": [
+        "aerodynamics",
+        "propulsion",
+        "flight mechanics",
+        "aerospace structures"
+      ],
+      "faculty": "Aerospace design expertise"
+    },
+    {
+      "name": "Systems Engineering",
+      "match_keywords": ["systems", "mechatronics", "robotics"],
+      "statement": "The curriculum must include mathematics, statistics, and engineering science to design, develop, implement, and improve integrated systems. It must include systems modeling, simulation, and optimization across the life cycle.",
+      "curriculum": [
+        "systems modeling",
+        "simulation",
+        "optimization",
+        "life-cycle analysis"
+      ],
+      "faculty": "Systems engineering expertise"
     }
   ],
   "fallback": {

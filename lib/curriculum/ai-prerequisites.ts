@@ -1,9 +1,8 @@
 import { type GeneratedCourse, type GeneratedCurriculum } from "./engine";
 import { getAiCache, setAiCache } from "./ai-cache";
-import { callAiWithFallback, callLocalAi } from "./ai-model-router";
+import { callAI } from "./ai-model-router";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
 
 const PREREQUISITE_SYSTEM_PROMPT = `You are an academic prerequisite analyzer. Your task is to establish semantic relationships between courses in an engineering curriculum.
 
@@ -44,7 +43,6 @@ export async function suggestPrerequisites(
       courseTitle: c.courseTitle,
       semester: s.semester,
       category: c.category,
-      // Provide all courses from earlier semesters as candidates
       availablePreviousCourses: curriculum.semesters
         .filter(prevS => prevS.semester < s.semester)
         .flatMap(prevS => prevS.courses.map(prevC => ({
@@ -52,7 +50,7 @@ export async function suggestPrerequisites(
           courseTitle: prevC.courseTitle
         })))
     }))
-  ).filter(c => c.semester > 1); // Semester 1 has no prerequisites
+  ).filter(c => c.semester > 1);
 
   if (coursesToProcess.length === 0) {
     return { curriculum, warnings };
@@ -65,34 +63,9 @@ export async function suggestPrerequisites(
   if (cached) {
     rawText = cached;
   } else {
-    if (!GEMINI_API_KEY) {
-      warnings.push("GEMINI_API_KEY missing for prerequisite analysis.");
-      return { curriculum, warnings };
-    }
-
     try {
-      rawText = await callAiWithFallback(JSON.stringify(coursesToProcess), async (modelId, provider, prompt) => {
-        if (provider === "gemini") {
-          const url = `${GEMINI_BASE_URL}/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
-          const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: `${PREREQUISITE_SYSTEM_PROMPT}\n\nInput Data:\n${prompt}` }] }],
-              generationConfig: {
-                temperature: 0.1,
-                responseMimeType: "application/json",
-              },
-            }),
-          });
-
-          if (!response.ok) throw new Error(`AI Error: ${response.status}`);
-          const data = await response.json();
-          return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        } else {
-          return await callLocalAi(prompt, PREREQUISITE_SYSTEM_PROMPT);
-        }
-      });
+      const prompt = `${PREREQUISITE_SYSTEM_PROMPT}\n\nInput Data:\n${JSON.stringify(coursesToProcess)}`;
+      rawText = await callAI(prompt, "bulk");
       await setAiCache(cacheKey, rawText);
     } catch (error) {
       console.error("[Prerequisites] AI Call failed:", error);

@@ -1,9 +1,8 @@
 import { type GeneratedCurriculum } from "./engine";
 import { getAiCache, setAiCache } from "./ai-cache";
-import { callAiWithFallback, callLocalAi } from "./ai-model-router";
+import { callAI } from "./ai-model-router";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
 
 const CO_SYSTEM_PROMPT = `You are an academic curriculum designer. Your task is to generate 5-6 Course Objectives (COs) for each course in an engineering curriculum.
 
@@ -59,33 +58,9 @@ export async function generateCourseObjectives(
       if (cached) {
         rawText = cached;
       } else {
-        if (!GEMINI_API_KEY) {
-          return;
-        }
-
         try {
-          rawText = await callAiWithFallback(JSON.stringify(batch), async (modelId, provider, prompt) => {
-            if (provider === "gemini") {
-              const url = `${GEMINI_BASE_URL}/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
-              const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [{ role: "user", parts: [{ text: `${CO_SYSTEM_PROMPT}\n\nCourses:\n${prompt}` }] }],
-                  generationConfig: {
-                    temperature: 0.3,
-                    responseMimeType: "application/json",
-                  },
-                }),
-              });
-
-              if (!response.ok) throw new Error(`AI Error: ${response.status}`);
-              const data = await response.json();
-              return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            } else {
-              return await callLocalAi(prompt, CO_SYSTEM_PROMPT);
-            }
-          });
+          const prompt = `${CO_SYSTEM_PROMPT}\n\nCourses:\n${JSON.stringify(batch)}`;
+          rawText = await callAI(prompt, "co");
           await setAiCache(cacheKey, rawText);
         } catch (error) {
           console.error(`[CO Generation] AI Call failed for batch ${i}:`, error);

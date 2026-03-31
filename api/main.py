@@ -26,17 +26,17 @@ app.add_middleware(
 )
 
 # Configure Gemini
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("OPENROUTER_API_KEY")
 if not api_key:
     load_dotenv(".env.local")
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("OPENROUTER_API_KEY")
 
 if not api_key:
     load_dotenv("../.env.local")
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("OPENROUTER_API_KEY")
 
 if not api_key:
-    print("Warning: GEMINI_API_KEY not found")
+    print("Warning: OPENROUTER_API_KEY not found")
 
 class VMGenerateRequest(BaseModel):
     program_name: str
@@ -61,7 +61,7 @@ ai_cache = {}
 
 async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool = True) -> str:
     if not api_key:
-        raise Exception("GEMINI_API_KEY not found")
+        raise Exception("OPENROUTER_API_KEY not found")
     
     if use_cache and prompt in ai_cache:
         return ai_cache[prompt]

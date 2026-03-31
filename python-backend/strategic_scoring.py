@@ -8,11 +8,23 @@ class StrategicClassifier:
     Enforces hard filters and weighted strategic scoring.
     """
 
-    WEIGHTS = {
-        "base_quality": 0.60,
-        "focus_area_alignment": 0.25,
-        "vision_structure": 0.10,
-        "grammar_clarity": 0.05,
+    # New Master Rubric Weights
+    VISION_RUBRIC_WEIGHTS = {
+        "strategic_depth": 20,
+        "global_future_orientation": 20,
+        "innovation_research": 20,
+        "societal_ethical": 20,
+        "language_clarity": 10,
+        "non_operational_purity": 10,
+    }
+
+    MISSION_RUBRIC_WEIGHTS = {
+        "pillar_coverage": 20, # 5 points per pillar
+        "action_clarity": 20,
+        "vision_alignment": 20,
+        "non_redundancy": 20,
+        "specificity": 10,
+        "language_quality": 10,
     }
 
     FOCUS_AREA_MAPPING = {
@@ -84,29 +96,18 @@ class StrategicClassifier:
     }
 
     OPERATIONAL_TERMS = [
-        "education",
-        "teaching",
-        "learning",
-        "curriculum",
-        "pedagogy",
-        "classroom",
-        "faculty",
-        "students",
-        "student",
-        "provide",
-        "deliver",
-        "develop",
-        "cultivate",
-        "train",
-        "prepare",
-        "implement",
-        "foster",
-        "outcome based",
-        "outcome-oriented",
-        "outcome oriented",
-        "through education",
-        "through teaching",
+        "education", "teaching", "learning", "curriculum", "pedagogy", "classroom",
+        "faculty", "students", "student", "provide", "deliver", "develop", "cultivate",
+        "train", "prepare", "implement", "foster", "outcome based", "outcome-oriented",
+        "outcome oriented", "through education", "through teaching", "courseware", "instruction"
     ]
+
+    GOVERNANCE_PILLARS = {
+        "Academic Excellence": ["curriculum", "learning", "pedagogy", "academic", "education", "outcome-based", "competencies"],
+        "Research & Industry Integration": ["research", "innovation", "industry", "collaboration", "laboratory", "technology transfer", "entrepreneurship"],
+        "Ethics & Professional Responsibility": ["ethics", "integrity", "professionalism", "responsibility", "standards", "values", "professional conduct"],
+        "Societal Impact / Sustainability": ["society", "community", "sustainable", "environment", "welfare", "public good", "global challenge"]
+    }
 
     MARKETING_TERMS = ["destination", "hub", "world-class", "best-in-class", "unmatched"]
 
@@ -348,143 +349,147 @@ class StrategicClassifier:
         
         return max(0, score)
 
-    def calculate_score(self, vision: str, focus_areas: List[str] = None, institute_vision: str = None) -> Dict[str, Any]:
+    def calculate_master_vision_score(self, vision: str, focus_areas: List[str] = None) -> Dict[str, Any]:
+        """
+        Master scoring logic based on the 100-point rubric.
+        """
         normalized = self.normalize_whitespace(vision)
-        lower_vision = normalized.lower()
+        lower = normalized.lower()
         
-        # 0. Institute Alignment Validation (Problem 10)
-        # We check if themes from the Institute Vision are present.
-        # This doesn't subtract points yet, but we'll include it in the assessment metadata.
-        inst_alignment = self._check_institute_alignment(normalized, institute_vision) if institute_vision else {"matches": [], "score": 100}
+        # 1. Strategic Depth (20)
+        # Assessed by presence of long-term horizon signals and depth of phrasing
+        long_term = any(self._contains_bounded_term(lower, t) for t in self.LONG_TERM_SIGNALS)
+        strategic_depth = 20 if long_term else 10
+        
+        # 2. Global / Future Orientation (20)
+        global_concepts = self._extract_global_concepts(lower)
+        global_future_score = len(global_concepts) * 10
+        if "future technologies" in self._check_vision_structure(normalized)["matched_themes"]:
+            global_future_score += 5
+        global_future_score = min(20, global_future_score)
 
-        # 1. Base Quality (up to 60)
-        # Inherits logic from legacy scoring but capped at 60
-        operational_hits = self._matched_terms(lower_vision, self.OPERATIONAL_TERMS)
-        marketing_hits = self._matched_terms(lower_vision, self.MARKETING_TERMS)
-        global_concepts = self._extract_global_concepts(lower_vision)
-        repeated_roots = self._repeated_roots(normalized)
-        synonym_stacking = self._synonym_stacking(normalized)
-        
-        base_quality = 60
-        if operational_hits: base_quality -= min(30, len(operational_hits) * 10)
-        if marketing_hits: base_quality -= 20
-        if len(global_concepts) != 1: base_quality -= 15
-        if repeated_roots: base_quality -= 10
-        if synonym_stacking: base_quality -= 10
-        
-        # 2. Focus Area Alignment (up to 25)
-        alignment_result = self._check_focus_alignment(normalized, focus_areas or [])
-        
-        # 3. Vision Structure Quality (up to 10)
-        structure_result = self._check_vision_structure(normalized)
-        
-        # 4. Grammar & Clarity (up to 5)
-        grammar_score = self._check_grammar_clarity(normalized)
-        
-        final_score = self._clamp(base_quality + alignment_result["score"] + structure_result["score"] + grammar_score)
-        
-        # Accreditation Logic: High quality visions should be 90-100
-        # If length is good and strong themes are present (innovation + societal impact/sustainability)
-        # we ensure it doesn't drop too low unless focus areas are missing.
-        if (structure_result["length_ok"] and 
-            "research or innovation" in structure_result["matched_themes"] and 
-            ("societal impact" in structure_result["matched_themes"] or "sustainability" in structure_result["matched_themes"])):
-            if not alignment_result["missing"]:
-                final_score = max(final_score, 90)
+        # 3. Innovation / Research (20)
+        has_innovation = any(self._contains_bounded_term(lower, kw) for kw in self.STRATEGIC_THEMES["research or innovation"])
+        innovation_score = 20 if has_innovation else 0
 
-        # Hard failure cap
-        hard_violations = []
-        if operational_hits:
-            hard_violations.append(f"Operational leakage: {', '.join(sorted(set(operational_hits))[:6])}")
-        if len(global_concepts) != 1:
-            hard_violations.append(f"Global positioning concept count must be exactly 1")
-        
-        if institute_vision and not inst_alignment["matches"]:
-            hard_violations.append("Weak alignment with Institute Vision themes")
-        
-        for area in alignment_result["missing"]:
-            hard_violations.append(f"Score reduced due to missing alignment with selected focus area: {area}")
+        # 4. Societal / Ethical (20)
+        has_societal = any(self._contains_bounded_term(lower, kw) for kw in self.STRATEGIC_THEMES["societal impact"])
+        has_ethical = any(self._contains_bounded_term(lower, kw) for kw in self.STRATEGIC_THEMES["ethics and integrity"])
+        societal_ethical_score = 20 if (has_societal or has_ethical) else 0
 
-        if final_score < 80:
-            if not structure_result["length_ok"]:
-                hard_violations.append(f"Vision length ({structure_result['word_count']} words) is outside recommended 15-25 range")
-            if len(structure_result["matched_themes"]) < 2:
-                hard_violations.append("Structure weak: Must include at least 2 strategic themes (Global Leadership, Innovation, etc.)")
+        # 5. Language Clarity (10)
+        lang_score = self._check_grammar_clarity(normalized) * 2 # Scale 5 to 10
 
-        if hard_violations and final_score >= 85:
-             # If we have alignment issues or major structure issues, cap it
-             if alignment_result["missing"] or not structure_result["length_ok"]:
-                 final_score = min(final_score, 84)
+        # 6. Non-operational Purity (10)
+        operational_hits = self._matched_terms(lower, self.OPERATIONAL_TERMS)
+        purity_score = max(0, 10 - (len(operational_hits) * 5))
+
+        total_score = strategic_depth + global_future_score + innovation_score + societal_ethical_score + lang_score + purity_score
+        
+        issues = []
+        if purity_score < 10: issues.append(f"Operational language detected: {', '.join(operational_hits)}")
+        if innovation_score == 0: issues.append("Missing innovation/research keywords")
+        if societal_ethical_score == 0: issues.append("Missing societal or ethical dimension")
 
         return {
-            "score": final_score,
-            "violations": hard_violations,
-            "is_elite": final_score >= 90,
-            "hard_fail": bool(operational_hits or len(global_concepts) != 1),
-            "alignment_matches": alignment_result["matches"],
-            "focus_areas_selected": focus_areas or [],
+            "score": self._clamp(total_score),
             "breakdown": {
-                "base_quality": self._clamp(base_quality * 100 / 60) if base_quality > 0 else 0,
-                "focus_area_alignment": self._clamp(alignment_result["score"] * 100 / 25) if alignment_result["score"] > 0 else 0,
-                "vision_structure": self._clamp(structure_result["score"] * 100 / 10) if structure_result["score"] > 0 else 0,
-                "grammar_clarity": self._clamp(grammar_score * 100 / 5) if grammar_score > 0 else 0,
-                "institute_alignment": inst_alignment["score"]
+                "strategic_depth": strategic_depth,
+                "global_future_orientation": global_future_score,
+                "innovation_research": innovation_score,
+                "societal_ethical": societal_ethical_score,
+                "language_clarity": lang_score,
+                "non_operational_purity": purity_score
             },
-            "institute_alignment_matches": inst_alignment["matches"]
+            "issues": issues,
+            "strengths": [t for t, s in [("Strategic", strategic_depth >= 15), ("Global", global_future_score >= 15), ("Innovative", innovation_score >= 15)] if s]
         }
 
-    def score_mission(self, mission: str) -> Dict[str, Any]:
-        normalized = " ".join((mission or "").split())
-        lower_mission = normalized.lower()
-        words = re.findall(r"\b[\w-]+\b", normalized)
-        word_count = len(words)
+    def score_master_mission(self, mission_list: List[Dict[str, str]], vision_text: str) -> Dict[str, Any]:
+        """
+        Scores a collection of 4 mission statements against the 4 pillars.
+        """
+        pillar_results = []
+        total_p_score = 0
+        
+        # Check pillar coverage
+        found_pillars = set()
+        for m in mission_list:
+            pillar = m.get("pillar")
+            text = m.get("text", "")
+            if pillar in self.GOVERNANCE_PILLARS:
+                found_pillars.add(pillar)
+                # Individual mission scoring
+                m_score = self._score_single_mission_master(text, pillar, vision_text)
+                pillar_results.append({
+                    "pillar": pillar,
+                    "text": text,
+                    "score": m_score
+                })
+                total_p_score += m_score
 
-        violations = []
-        hard_fail = False
-        score = 100
-
-        # Word count constraints
-        if word_count < 20 or word_count > 35:
-            violations.append(f"Mission length must be 20-35 words (found {word_count})")
-            score -= 30
-            hard_fail = True
-
-        # Banned phrases
-        banned_hits = self._matched_terms(lower_mission, self.MISSION_BANNED_TERMS)
-        if banned_hits:
-            violations.append(f"Marketing/absolute language detected: {', '.join(banned_hits)}")
-            score -= 40
-            hard_fail = True
-
-        # Action verbs
-        if not any(v in lower_mission for v in self.MISSION_REQUIREMENT_VERBS):
-            violations.append("Missing required operational verbs (e.g., deliver, foster, promote)")
-            score -= 25
-            hard_fail = True
-
-        # Academic activities
-        if not any(a in lower_mission for a in self.MISSION_ACADEMIC_TERMS):
-            violations.append("Missing academic context keywords (e.g., curriculum, research, training)")
-            score -= 15
-
-        # Societal impact
-        if not any(i in lower_mission for i in self.MISSION_IMPACT_TERMS):
-            violations.append("Missing socio-industrial impact keywords (e.g., industry, society, innovation)")
-            score -= 15
-
-        final_score = self._clamp(score)
-        if hard_fail:
-            final_score = min(final_score, 79)
-
-        if final_score < 90 and "Strategic score below threshold" not in "\n".join(violations):
-             violations.append(f"Strategic score below threshold: {final_score}/100")
-
+        avg_score = total_p_score / len(mission_list) if mission_list else 0
+        coverage_score = (len(found_pillars) / 4) * 20
+        
         return {
-            "score": final_score,
-            "violations": violations,
-            "is_elite": final_score >= 90,
-            "hard_fail": hard_fail
+            "average_score": self._clamp(avg_score),
+            "coverage_score": coverage_score,
+            "pillars": pillar_results,
+            "status": "PASS" if coverage_score >= 15 and avg_score >= 85 else "FAIL"
         }
+
+    def _score_single_mission_master(self, text: str, pillar: str, vision_text: str) -> int:
+        lower = text.lower()
+        score = 0
+        
+        # 1. Action Clarity (20)
+        has_verb = any(v in lower for v in self.MISSION_REQUIREMENT_VERBS)
+        score += 20 if has_verb else 5
+        
+        # 2. Vision Alignment (20)
+        alignment = self.calculate_alignment(vision_text, text)
+        score += int(alignment * 20)
+        
+        # 3. Non-redundancy (20)
+        redundant = self._repeated_roots(text)
+        score += max(0, 20 - (len(redundant) * 5))
+        
+        # 4. Specificity (20)
+        keywords = self.GOVERNANCE_PILLARS.get(pillar, [])
+        has_spec = any(kw in lower for kw in keywords)
+        score += 20 if has_spec else 0
+        
+        # 5. Language Quality (20)
+        words = text.split()
+        length_ok = 15 <= len(words) <= 30
+        score += 20 if length_ok else 10
+        
+        return self._clamp(score)
+
+    def calculate_alignment_score(self, vision: str, mission_points: List[str]) -> int:
+        """Enhanced alignment engine returning 0-100 score."""
+        if not vision or not mission_points:
+            return 0
+        
+        v_tokens = set(self._extract_core_tokens(vision))
+        all_m_tokens = set()
+        for mp in mission_points:
+            all_m_tokens.update(self._extract_core_tokens(mp))
+            
+        if not v_tokens:
+            return 100
+            
+        common = v_tokens.intersection(all_m_tokens)
+        alignment_raw = len(common) / len(v_tokens)
+        
+        # Boost if critical themes are shared
+        critical_themes = ["innovation", "global", "society", "sustainable", "future"]
+        boost = 0
+        for theme in critical_themes:
+            if theme in v_tokens and any(theme in mp.lower() for mp in mission_points):
+                boost += 5
+                
+        return self._clamp((alignment_raw * 75) + boost + 15) # Base 15 for intent
 
     def calculate_alignment(self, vision: str, mission: str) -> float:
         vision_words = set(self._extract_core_tokens(vision))

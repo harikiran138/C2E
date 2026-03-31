@@ -3,7 +3,19 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Sparkles, Plus, Trash2, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const PO_PRIORITIES = [
+  "Technical Excellence",
+  "Professional Ethics",
+  "Social & Environmental Impact",
+  "Modern Tool Usage",
+  "Teamwork & Leadership",
+  "Lifelong Learning Skills",
+  "Complex Problem Solving",
+  "Project Management",
+];
 
 const TIER_1_POS = [
   {
@@ -157,6 +169,26 @@ export default function ProgramOutcomesForm() {
   const [saving, setSaving] = useState(false);
   const [tier, setTier] = useState<"TIER_1" | "TIER_2" | null>(null);
   const [currentPOs, setCurrentPOs] = useState<any[]>([]);
+  const [program, setProgram] = useState<any>(null);
+
+  // AI Generator State
+  const [generating, setGenerating] = useState(false);
+  const [poCount, setPoCount] = useState(3);
+  const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
+  const [generatedPOs, setGeneratedPOs] = useState<any[]>([]);
+  const [generatedQuality, setGeneratedQuality] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!programId) return;
+    const fetchProg = async () => {
+      const resp = await fetch(`/api/institution/programs/${programId}`);
+      if (resp.ok) {
+        const d = await resp.json();
+        setProgram(d.data);
+      }
+    };
+    fetchProg();
+  }, [programId]);
 
   useEffect(() => {
     // Reset state when programId changes
@@ -189,6 +221,68 @@ export default function ProgramOutcomesForm() {
     };
     fetchPOs();
   }, [programId]);
+
+  const togglePriority = (p: string) => {
+    setSelectedPriorities((prev) =>
+      prev.includes(p) ? prev.filter((i) => i !== p) : [...prev, p],
+    );
+  };
+
+  const handleGeneratePOs = async () => {
+    if (!program || selectedPriorities.length === 0) return;
+    setGenerating(true);
+    setGeneratedPOs([]);
+
+    try {
+      const response = await fetch("/api/generate/pos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programName: program.name,
+          institutionName: program.institution_name || "Institution",
+          priorities: selectedPriorities,
+          count: poCount,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setGeneratedPOs(data.pos || []);
+        setGeneratedQuality(data.ranked || []);
+      }
+    } catch (error) {
+      console.error("AI PO Generation Error:", error);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleAddGeneratedPO = (newPO: any) => {
+    // Add to currentPOs with correct code
+    const nextNum = currentPOs.length + 1;
+    const addedPO = {
+      ...newPO,
+      code: `PO${nextNum}`,
+      id: `temp-${Date.now()}`
+    };
+    setCurrentPOs([...currentPOs, addedPO]);
+  };
+
+  const handleDeletePO = (index: number) => {
+    const updated = currentPOs.filter((_, i) => i !== index);
+    // Re-code remaining POs
+    const reCoded = updated.map((po, i) => ({
+      ...po,
+      code: `PO${i + 1}`
+    }));
+    setCurrentPOs(reCoded);
+  };
+
+  const handleClearAll = () => {
+    if (confirm("Are you sure you want to clear all outcomes?")) {
+      setCurrentPOs([]);
+    }
+  };
 
   const handleTierChange = (selectedTier: "TIER_1" | "TIER_2") => {
     setTier(selectedTier);
@@ -284,6 +378,99 @@ export default function ProgramOutcomesForm() {
 
       {tier && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* AI Generator Section */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-[100px] -mr-8 -mt-8 opacity-50" />
+            
+            <div className="flex items-center gap-3 mb-6 relative z-10">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <Sparkles className="size-4" />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">AI Architect</h2>
+            </div>
+
+            <div className="space-y-5 relative z-10">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 block">
+                  Outcome Focus Areas
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {PO_PRIORITIES.map((item) => (
+                    <button
+                      key={item}
+                      onClick={() => togglePriority(item)}
+                      className={`
+                        px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all
+                        ${selectedPriorities.includes(item)
+                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-200"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600"
+                        }
+                      `}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-end gap-3 pt-2">
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">
+                    No. of Outcomes
+                  </label>
+                  <select
+                    value={poCount}
+                    onChange={(e) => setPoCount(Number(e.target.value))}
+                    className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold px-3 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>{n} Outcome{n > 1 ? 's' : ''}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={handleGeneratePOs}
+                  disabled={generating || selectedPriorities.length === 0}
+                  className="flex-[2] h-10 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
+                >
+                  {generating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  <span>Generate Suggestions</span>
+                </button>
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {generatedPOs.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="mt-6 pt-6 border-t border-slate-100 space-y-4"
+                >
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Suggested Outcomes</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {generatedPOs.map((po, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="group p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all relative"
+                        onClick={() => handleAddGeneratedPO(po)}
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Draft {i + 1}</span>
+                          <Plus className="size-4 text-indigo-400 group-hover:text-indigo-600" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-900 mb-1">{po.title}</h4>
+                        <p className="text-xs text-slate-600 leading-relaxed">{po.description}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {tier === "TIER_1" && (
             <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5">
               <h4 className="text-sm font-semibold text-slate-700">
@@ -322,18 +509,27 @@ export default function ProgramOutcomesForm() {
             <h3 className="text-xl font-bold text-slate-900">
               Program Outcomes ({tier === "TIER_1" ? "Tier I" : "Tier II"})
             </h3>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50 transition-all"
-            >
-              {saving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              Save Outcomes
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleClearAll}
+                className="flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                <Trash2 className="size-4" />
+                Clear All
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-slate-800 disabled:opacity-50 transition-all"
+              >
+                {saving ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                Save Outcomes
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -346,10 +542,19 @@ export default function ProgramOutcomesForm() {
                   <div className="bg-indigo-50 text-indigo-700 font-bold px-3 py-1 rounded-lg text-sm h-fit shrink-0 border border-indigo-100">
                     {po.code || po.po_code}
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-slate-900">
-                      {po.title || po.po_title}
-                    </h4>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-slate-900">
+                        {po.title || po.po_title}
+                      </h4>
+                      <button 
+                        onClick={() => handleDeletePO(index)}
+                        className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                        title="Delete outcome"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                     <p className="text-sm text-slate-600 leading-relaxed text-justify">
                       {po.description || po.po_description}
                     </p>

@@ -10,7 +10,7 @@ import {
   keywordMatch,
 } from "@/lib/curriculum/domain-knowledge";
 import { getAiCache, setAiCache } from "./ai-cache";
-import { callAiWithFallback, callLocalAi } from "./ai-model-router";
+import { callAI } from "./ai-model-router";
 
 interface ApplyGeminiOptions {
   targetSemester?: number;
@@ -30,8 +30,7 @@ interface AiPayload {
   courses?: AiMappedCourse[];
 }
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
 
 const SYSTEM_PROMPT = `You are an expert academic curriculum architect specializing in Outcome-Based Education (OBE) for engineering programs in India (NEP-2020, AICTE, NBA Tier-I aligned).
 
@@ -182,44 +181,9 @@ export async function applyGeminiCourseTitles(
     console.log("Curriculum AI: Using cached response.");
     rawText = cachedResponse;
   } else {
-    if (!GEMINI_API_KEY) {
-      warnings.push("GEMINI_API_KEY is not configured. Using deterministic fallback course titles.");
-      return { curriculum: updated, warnings };
-    }
-
     try {
       console.log("Curriculum AI: Starting AI title generation via Router...");
-      
-      rawText = await callAiWithFallback(userPrompt, async (modelId, provider, prompt) => {
-        if (provider === "gemini") {
-          const url = `${GEMINI_BASE_URL}/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
-          const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\n${prompt}` }] }],
-              generationConfig: {
-                temperature: 0.2,
-                responseMimeType: "application/json",
-              },
-            }),
-          });
-
-          if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Gemini API Error (${response.status}): ${errorBody}`);
-          }
-
-          const data = await response.json();
-          const text = extractGeminiText(data);
-          if (!text) throw new Error("Empty response from AI");
-          return text;
-        } else {
-          return await callLocalAi(prompt, SYSTEM_PROMPT);
-        }
-      });
-
-      // 2. Save to Cache
+      rawText = await callAI(userPrompt, "bulk");
       await setAiCache(cacheKey, rawText);
     } catch (error: any) {
       warnings.push("AI title generation failed after all fallbacks. Using default titles.");
@@ -384,11 +348,7 @@ Output JSON format:
 }`;
 }
 
-function extractGeminiText(response: Record<string, any>): string {
-  const parts = response?.candidates?.[0]?.content?.parts;
-  if (!Array.isArray(parts)) return "";
-  return parts.map((part) => String(part?.text || "")).join("\n").trim();
-}
+
 
 function parseAiPayload(raw: string): AiPayload | null {
   const cleaned = raw

@@ -11,9 +11,7 @@
 import { getAllGrammarVariants, buildGrammarVision } from "./template-engine";
 import { mutateVisionStarter }                        from "./mutation-engine";
 import { buildVisionAgentPrompt, PromptParams }       from "./prompt-builder";
-
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+import { callAI }                                     from "@/lib/curriculum/ai-model-router";
 
 export interface VisionHybridParams {
   programName:        string;
@@ -27,23 +25,10 @@ export interface VisionHybridParams {
 
 // ── Gemini call ───────────────────────────────────────────────────────────────
 
-async function callGemini(
-  prompt: string,
-  apiKey: string,
+async function fetchVisionAI(
+  prompt: string
 ): Promise<string[]> {
-  const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.8 },
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Gemini API error: ${res.statusText}`);
-
-  const data = await res.json();
-  const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const text = await callAI(prompt, "vision");
 
   // Try to parse numbered list first (our prompt format), then fall back to JSON
   const numbered = text
@@ -94,21 +79,19 @@ export async function generateVisionHybrid(params: VisionHybridParams): Promise<
 
   // 1. AI candidates only
   let aiCandidates: string[] = [];
-  if (geminiApiKey) {
-    try {
-      const promptParams: PromptParams = {
-        programName,
-        priorities,
-        count:          count + 4, // request extra for headroom
-        institutionName,
-        existingVisions,
-        attempt,
-      };
-      const prompt = buildVisionAgentPrompt(promptParams);
-      aiCandidates = await callGemini(prompt, geminiApiKey);
-    } catch (err) {
-      console.warn("[VisionHybridGenerator] Gemini call failed:", err);
-    }
+  try {
+    const promptParams: PromptParams = {
+      programName,
+      priorities,
+      count:          count + 4, // request extra for headroom
+      institutionName,
+      existingVisions,
+      attempt,
+    };
+    const prompt = buildVisionAgentPrompt(promptParams);
+    aiCandidates = await fetchVisionAI(prompt);
+  } catch (err) {
+    console.warn("[VisionHybridGenerator] AI call failed:", err);
   }
 
   // No more template or mutation fallbacks

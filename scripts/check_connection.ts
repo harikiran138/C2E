@@ -80,9 +80,9 @@ async function checkSupabaseAuth() {
 
 async function checkGemini() {
   console.log('\n--- 3. Testing Gemini API Connectivity ---');
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.OPENROUTER_API_KEY;
   if (!key) {
-    console.error('❌ GEMINI_API_KEY is missing in .env.local');
+    console.error('❌ OPENROUTER_API_KEY is missing in .env.local');
     return;
   }
 

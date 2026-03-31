@@ -11,9 +11,9 @@ const TEST_PROGRAMS = [
 ];
 
 async function runTests() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("❌ GEMINI_API_KEY not found in .env.local");
+    console.error("❌ OPENROUTER_API_KEY not found in .env.local");
     return;
   }
 
@@ -22,17 +22,16 @@ async function runTests() {
     try {
       const result = await psoAgent({
         programName: prog.name,
-        count: prog.count,
-        geminiApiKey: apiKey
+        count: prog.count
       });
 
       console.log(`✅ Success: ${result.results.length === prog.count}`);
-      console.log(`📊 Validation Score: ${result.validation.sourceValidation.passed ? 'PASSED' : 'FAILED'}`);
+      console.log(`📊 Validation Score: ${result.validation?.passed ? 'PASSED' : 'FAILED'}`);
       console.log(`📝 Results:`);
-      result.results.forEach((r, i) => console.log(`   ${i + 1}. ${r}`));
+      result.results.forEach((r, i) => console.log(`   ${i + 1}. ${r.statement}`));
       
-      if (!result.validation.sourceValidation.passed) {
-        console.log(`❌ Issues:`, result.validation.domainCoverage.missing);
+      if (!result.validation?.passed) {
+        console.log(`❌ Issues:`, result.validation);
       }
     } catch (e) {
       console.error(`❌ Error testing ${prog.name}:`, e);

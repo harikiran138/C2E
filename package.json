@@ -21,7 +21,6 @@
   },
   "homepage": "https://github.com/harikiran138/C2E#readme",
   "dependencies": {
-    "@google/genai": "^1.43.0",
     "@paper-design/shaders-react": "^0.0.71",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-scroll-area": "^1.2.10",

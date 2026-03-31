@@ -5,27 +5,26 @@ import { psoAgent } from "../lib/ai/pso-agent";
 dotenv.config({ path: path.join(process.cwd(), ".env.local") });
 
 async function verify() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.error("GEMINI_API_KEY missing in .env.local");
+    console.error("OPENROUTER_API_KEY missing in .env.local");
     return;
   }
 
-  console.log("Verifying PSO Agent with Gemini API...");
+  console.log("Verifying PSO Agent with OpenRouter API...");
   try {
     const result = await psoAgent({
       programName: "Computer Science and Engineering",
       count: 3,
-      selectedSocieties: { lead: ["ACM", "IEEE-CS"] },
-      geminiApiKey: apiKey,
+      selectedSocieties: { lead: ["ACM", "IEEE-CS"], co_lead: [], cooperating: [] },
     });
 
     console.log("Results generated:", result.results.length);
     console.log("Result 1:", result.results[0]);
-    console.log("Is fallback:", !!result.results[0].includes("Use key concepts")); // My template fallback uses this phrase.
+    console.log("Is fallback:", !!result.results[0].statement.includes("Use key concepts")); // My template fallback uses this phrase.
     
-    if (!result.results[0].includes("Use key concepts")) {
-      console.log("✅ SUCCESS: Gemini generated dynamic content!");
+    if (!result.results[0].statement.includes("Use key concepts")) {
+      console.log("✅ SUCCESS: AI generated dynamic content!");
     } else {
       console.log("❌ FAILURE: Fell back to template logic.");
     }

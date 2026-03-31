@@ -3,10 +3,7 @@ import pool from "@/lib/postgres";
 import type { PoolClient } from "pg";
 import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
 import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+import { callAI } from "@/lib/curriculum/ai-model-router";
 
 interface CourseInput {
   courseCode: string;
@@ -147,54 +144,22 @@ async function callGeminiForOutcomes(
   courses: CourseInput[],
   references: { pos: string[]; psos: string[] },
 ): Promise<{ parsed: any; error?: string }> {
-  if (!GEMINI_API_KEY) {
-    return { parsed: null, error: "GEMINI_API_KEY is not configured" };
-  }
-
-  const prompt = buildOutcomesPrompt(programName, courses, references);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60000);
-
   try {
-    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 4096,
-          responseMimeType: "application/json",
-        },
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      const body = await response.text();
-      console.error("Gemini outcomes error response:", body);
-      return { parsed: null, error: `Gemini API error: ${response.status}` };
-    }
-
-    const data = await response.json();
-    const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const prompt = buildOutcomesPrompt(programName, courses, references);
+    const text = await callAI(prompt, "accreditation");
 
     if (!text) {
-      return { parsed: null, error: "Gemini returned empty response" };
+      return { parsed: null, error: "AI returned empty response" };
     }
 
     const parsed = safeJsonParse(text);
     if (!parsed) {
-      return { parsed: null, error: "Failed to parse Gemini JSON response" };
+      return { parsed: null, error: "Failed to parse AI JSON response" };
     }
 
     return { parsed };
   } catch (err: any) {
-    clearTimeout(timeout);
-    return { parsed: null, error: err.message || "Gemini request failed" };
+    return { parsed: null, error: err.message || "AI request failed" };
   }
 }
 

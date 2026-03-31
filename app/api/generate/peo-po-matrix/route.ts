@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { computeSemanticSimilarity } from "@/lib/ai-validation";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-// Using the same flash model for matrix generation
-const API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+import { callAI } from "@/lib/curriculum/ai-model-router";
 
 export async function POST(request: Request) {
   try {
@@ -15,15 +11,6 @@ export async function POST(request: Request) {
         { error: "PEOs and POs required" },
         { status: 400 },
       );
-    }
-
-    // Fallback if key missing
-    if (!GEMINI_API_KEY) {
-      const options = ["1", "2", "3", "-"];
-      const matrix = peos.map(() =>
-        pos.map(() => options[Math.floor(Math.random() * options.length)]),
-      );
-      return NextResponse.json({ matrix });
     }
 
     const prompt = `
@@ -53,25 +40,7 @@ export async function POST(request: Request) {
       Example: [["1", "3", "-", "2"], ["-", "2", "3", "1"]]
     `;
 
-    const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Gemini API Failed for PEO-PO Matrix: ${response.statusText}`,
-      );
-    }
-
-    const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    let generatedText = await callAI(prompt, "accreditation");
 
     // Safety cleaning
     let cleanedText = generatedText

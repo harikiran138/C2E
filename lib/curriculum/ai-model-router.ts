@@ -1,89 +1,79 @@
 /**
  * AI Model Router for C2E Curriculum Module.
- * Handles multi-model fallback and retry logic.
- * Fallback Path: Gemini 2.0 Flash -> Gemini 1.5 Pro -> TinyLlama (Local)
+ * Migrated to OpenRouter with task-specific model routing.
+ * DeepSeek R1 for OBE / Llama 3.3 for Bulk.
  */
 
-export type AiProvider = "gemini" | "local";
+export type AiTaskType = "vision" | "peo" | "po" | "mission" | "pso" | "co" | "accreditation" | "bulk";
 
-export interface ModelConfig {
-  name: string;
-  provider: AiProvider;
-  modelId: string;
-}
-
-const MODELS: ModelConfig[] = [
-  { name: "Gemini 2.0 Flash", provider: "gemini", modelId: "gemini-2.0-flash" },
-  { name: "Gemini 1.5 Pro", provider: "gemini", modelId: "gemini-1.5-pro" },
-  { name: "TinyLlama", provider: "local", modelId: "tiny-llama" },
-];
-
-const MAX_RETRIES = 3;
-const INITIAL_BACKOFF = 1000; // 1 second
-
-/**
- * Calls AI models in sequence with exponential backoff retry.
- * The executor receives the modelId and provider to handle different API formats.
- */
-export async function callAiWithFallback<T>(
-  prompt: string,
-  executor: (modelId: string, provider: AiProvider, prompt: string) => Promise<T>
-): Promise<T> {
-  let lastError: any;
-
-  for (const model of MODELS) {
-    console.log(`[AI Router] Attempting with model: ${model.name} (${model.provider})`);
-    
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const result = await executor(model.modelId, model.provider, prompt);
-        return result;
-      } catch (error: any) {
-        lastError = error;
-        console.warn(`[AI Router] Attempt ${attempt} failed for ${model.name}: ${error.message}`);
-        
-        // Don't retry if it's a 4xx error (except 429) unless it's the last model
-        if (error.status && error.status >= 400 && error.status < 500 && error.status !== 429) {
-           console.error(`[AI Router] Non-retryable error ${error.status} for ${model.name}.`);
-           break; 
-        }
-
-        if (attempt < MAX_RETRIES) {
-          const delay = INITIAL_BACKOFF * Math.pow(2, attempt - 1);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
-    }
-    
-    console.error(`[AI Router] Model ${model.name} exhausted all retries. Falling back...`);
+export async function callAI(prompt: string, taskType: AiTaskType): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    const errorMsg = "OPENROUTER_API_KEY is not defined in environment variables.";
+    console.error(`[AI Router] ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
-  throw new Error(`[AI Router] All models and retries failed. Last error: ${lastError?.message}`);
-}
+  // Switch completely away from Google/Gemini to avoid any Gemini reliance
+  const modelId = taskType === "bulk" 
+    ? "openai/gpt-4o-mini" 
+    : "openai/gpt-4o-mini";
 
-/**
- * Helper to call the local TinyLlama instance running via python-backend/main.py
- */
-export async function callLocalAi(prompt: string, systemPrompt?: string): Promise<string> {
-  const url = "http://localhost:8001/ai/local-chat";
+  console.log(`[AI Router] Task: ${taskType} | Sending to Model: ${modelId}`);
+
   try {
-    const response = await fetch(url, {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, system_prompt: systemPrompt }),
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://c2e.ai",
+        "X-Title": "C2E Curriculum Engine"
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+      })
     });
 
     if (!response.ok) {
-      throw new Error(`Local AI Error: ${response.status} - ${await response.text()}`);
+      const errorText = await response.text();
+      console.error(`[AI Router] HTTP Error: ${response.status} - ${errorText}`);
+      throw new Error(`OpenRouter Error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.text || "";
-  } catch (error: any) {
-    if (error.name === "TypeError" || error.code === "ECONNREFUSED") {
-      console.error(`[Local-AI] Could not connect to Python backend at ${url}. Ensure the FastAPI server is running on port 8001.`);
+    let content = data.choices?.[0]?.message?.content || "";
+
+    // DeepSeek R1 might include <think> tags. Strip them for clean processing.
+    if (content.includes("</think>")) {
+      content = content.split("</think>").pop()?.trim() || content;
     }
+
+    return content;
+  } catch (error: any) {
+    console.error(`[AI Router] Failed to call ${modelId}:`, error.message);
     throw error;
   }
 }
 
+/**
+ * Compatibility wrapper for existing fallback calls.
+ * We ignore the custom executor and route directly to callAI.
+ */
+export async function callAiWithFallback<T>(
+  prompt: string,
+  _executor: any, 
+  taskType: AiTaskType = "bulk"
+): Promise<T> {
+  const result = await callAI(prompt, taskType);
+  return result as any;
+}
+
+/**
+ * Compatibility wrapper for local AI calls.
+ */
+export async function callLocalAi(prompt: string, systemPrompt?: string): Promise<string> {
+   return await callAI(`${systemPrompt}\n\n${prompt}`, "bulk");
+}

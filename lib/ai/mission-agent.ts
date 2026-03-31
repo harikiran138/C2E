@@ -8,9 +8,7 @@
 
 import { scoreMission, MissionScore, MISSION_APPROVAL_THRESHOLD } from "./mission-scoring";
 import { buildMissionAgentPrompt } from "./mission-prompt-builder";
-
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+import { callAI } from "@/lib/curriculum/ai-model-router";
 
 const MAX_ATTEMPTS = 3;
 
@@ -86,24 +84,11 @@ async function fetchGeminiMissions(
   attempt: number,
 ): Promise<string[]> {
   const { geminiApiKey, ...rest } = params;
-  if (!geminiApiKey) return [];
 
   const prompt = buildMissionAgentPrompt({ ...rest, attempt });
 
   try {
-    const res = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents:         [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.8 },
-      }),
-    });
-
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const text = await callAI(prompt, "mission");
 
     try {
       const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
@@ -123,7 +108,8 @@ async function fetchGeminiMissions(
         .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())
         .filter((l: string) => l.length > 20);
     }
-  } catch {
+  } catch (error) {
+    console.error("[Mission Agent] AI fetch failed:", error);
     return [];
   }
 }

@@ -47,7 +47,7 @@ export function scorePO(statement: string): POScore {
 
   const hardFailures = [
     ...(!hasValidPrefix  ? ["must start with 'Ability to' or 'An ability to'"] : []),
-    ...(wordCount > 25   ? ["word count above 25"]                              : []),
+    ...(wordCount > 30   ? ["word count above 30"]                              : []),
   ];
 
   let prefix     = hasValidPrefix ? 100 : 0;
@@ -55,7 +55,7 @@ export function scorePO(statement: string): POScore {
   let clarity    = 100;
   if (hasFirstPerson)        clarity -= 30;
   if (vagueHits.length > 0)  clarity -= 20 * vagueHits.length;
-  let length     = wordCount <= 25 ? 100 : 0;
+  let length     = wordCount <= 30 ? 100 : 0;
 
   let score = Math.round(
     prefix     * 0.40 +

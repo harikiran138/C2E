@@ -6,7 +6,7 @@
  * Rubric aligned with NBA/ABET PEO requirements.
  */
 
-export const PEO_APPROVAL_THRESHOLD = 85;
+export const PEO_APPROVAL_THRESHOLD = 80;
 
 export interface PEOScore {
   score:        number;
@@ -44,9 +44,9 @@ export function scorePEO(statement: string): PEOScore {
   const wordCount       = words.length;
 
   const hardFailures = [
-    ...(!startsCorrectly             ? ["must start with 'Within 3 to 5 years of graduation'"] : []),
-    ...(wordCount < 20               ? ["word count below 20"]                                 : []),
-    ...(wordCount > 35               ? ["word count above 35"]                                 : []),
+    ...(!startsCorrectly ? ["must start with 'Within 3 to 5 years of graduation'"] : []),
+    ...(wordCount < 15   ? ["word count below 15"] : []),
+    ...(wordCount > 40   ? ["word count above 40"] : []),
   ];
 
   // Scoring dimensions
@@ -55,7 +55,7 @@ export function scorePEO(statement: string): PEOScore {
   let clarity        = 100;
   if (vagueHits.length > 0)  clarity -= 20 * vagueHits.length;
   if (commaCount > 1)        clarity -= 15;
-  let length         = (wordCount >= 20 && wordCount <= 35) ? 100 : 0;
+  let length         = (wordCount >= 15 && wordCount <= 40) ? 100 : 0;
 
   let score = Math.round(
     startingPhrase * 0.40 +

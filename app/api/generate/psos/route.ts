@@ -6,7 +6,7 @@ import pool from "@/lib/postgres";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { selected_societies, number_of_psos, program_name } = body;
+    const { selected_societies, number_of_psos, program_name, mode = "standard", program_id } = body;
 
     const hasSelection =
       Boolean(selected_societies?.lead?.length) ||
@@ -29,42 +29,77 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await psoAgent({
-      programName: program_name || "Engineering Program",
-      count,
-      selectedSocieties: selected_societies,
-      geminiApiKey: process.env.GEMINI_API_KEY,
-    });
+    let result: any = null;
 
-    // Auto-save to database if program_id is present
-    const programId = body.program_id;
-    if (programId && result.details.length > 0) {
+    // Primary: Python Backend
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/generate-psos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selected_societies,
+          number_of_psos: count,
+          program_name: program_name || "Engineering Program",
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map snake_case to camelCase
+        if (data.results && Array.isArray(data.results)) {
+          const mappedResults = data.results.map((r: any) => ({
+            statement: r.statement,
+            abetMappings: r.abet_mappings || [],
+            focusArea: r.focus_area,
+            skill: r.skill
+          }));
+          result = {
+            success: true,
+            results: mappedResults,
+            validation: data.validation || { score: 100, globalIssues: [] }
+          };
+        }
+      }
+    } catch (backendError) {
+      console.warn("Python Backend connection failed for PSOs:", backendError);
+    }
+
+    // Fallback: TS Agent
+    if (!result) {
+      console.warn("Falling back to PSO TS Agent...");
+      result = await psoAgent({
+        programName: program_name || "Engineering Program",
+        count,
+        selectedSocieties: selected_societies,
+        mode,
+      });
+    }
+
+    if (!result?.success && result?.error) {
+      return NextResponse.json(
+        { error: result.error, attempts: result.attempts },
+        { status: 500 }
+      );
+    }
+
+    // Auto-save to database
+    if (program_id && result.results && result.results.length > 0) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
-        // Clear existing
-        await client.query("DELETE FROM program_psos WHERE program_id = $1", [programId]);
+        await client.query("DELETE FROM program_psos WHERE program_id = $1", [program_id]);
         
-        // Insert new
-        const placeholders = result.details
-          .map((_: any, i: number) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`)
-          .join(", ");
-        
-        const values: any[] = [programId];
-        result.details.forEach((p: any, i: number) => {
-          values.push(p.statement, i + 1);
-        });
-
-        await client.query(
-          `INSERT INTO program_psos (program_id, pso_statement, pso_number) VALUES ${placeholders}`,
-          values
-        );
+        for (let i = 0; i < result.results.length; i++) {
+          const pso = result.results[i];
+          await client.query(
+            "INSERT INTO program_psos (program_id, pso_statement, pso_number) VALUES ($1, $2, $3)",
+            [program_id, pso.statement, i + 1]
+          );
+        }
         await client.query("COMMIT");
       } catch (dbError) {
         await client.query("ROLLBACK");
         console.error("Auto-save PSO failure:", dbError);
-        // We still return the generated results even if auto-save fails,
-        // but perhaps add a flag or log it.
       } finally {
         client.release();
       }
@@ -72,10 +107,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error("PSO Generation Error:", error);
+    console.error("PSO Route Error:", error);
     return NextResponse.json(
       { error: error.message || "Internal Server Error" },
       { status: 500 },
     );
   }
 }
+

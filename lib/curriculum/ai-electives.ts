@@ -1,10 +1,9 @@
 import { type GeneratedCurriculum, type CategoryCode } from "./engine";
 import { getAiCache, setAiCache } from "./ai-cache";
-import { callAiWithFallback, callLocalAi } from "./ai-model-router";
+import { callAI } from "./ai-model-router";
 import { getDomainKnowledgeProfile } from "./domain-knowledge";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
 
 const ELECTIVE_SYSTEM_PROMPT = `You are an academic elective consultant for engineering programs. Your task is to suggest specialized Professional Electives (PE) and Open Electives (OE).
 
@@ -59,34 +58,9 @@ export async function suggestElectives(
   if (cached) {
     rawText = cached;
   } else {
-    if (!GEMINI_API_KEY) {
-      warnings.push("GEMINI_API_KEY missing for elective recommendations.");
-      return { curriculum, warnings };
-    }
-
     try {
-      rawText = await callAiWithFallback(JSON.stringify({ slots: electiveSlots, domainProfile: profile }), async (modelId, provider, prompt) => {
-        if (provider === "gemini") {
-          const url = `${GEMINI_BASE_URL}/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
-          const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: `${ELECTIVE_SYSTEM_PROMPT}\n\nInput:\n${prompt}` }] }],
-              generationConfig: {
-                temperature: 0.5,
-                responseMimeType: "application/json",
-              },
-            }),
-          });
-
-          if (!response.ok) throw new Error(`AI Error: ${response.status}`);
-          const data = await response.json();
-          return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        } else {
-          return await callLocalAi(prompt, ELECTIVE_SYSTEM_PROMPT);
-        }
-      });
+      const prompt = `${ELECTIVE_SYSTEM_PROMPT}\n\nInput:\n${JSON.stringify({ slots: electiveSlots, domainProfile: profile })}`;
+      rawText = await callAI(prompt, "bulk");
       await setAiCache(cacheKey, rawText);
     } catch (error) {
       console.error("[Electives] AI Call failed:", error);

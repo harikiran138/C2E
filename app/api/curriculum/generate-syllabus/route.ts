@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/postgres";
 import type { PoolClient } from "pg";
 import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+import { callAI } from "@/lib/curriculum/ai-model-router";
 
 interface CourseInput {
   id?: string;
@@ -202,47 +199,17 @@ async function callGeminiForSyllabus(
   course: CourseInput,
   existingOutcomes: string[],
 ): Promise<{ payload: SyllabusPayload | null; error?: string }> {
-  if (!GEMINI_API_KEY) {
-    return { payload: null, error: "GEMINI_API_KEY is not configured" };
-  }
-
-  const prompt = buildSyllabusPrompt(programName, course, existingOutcomes);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60000);
-
   try {
-    const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
-          maxOutputTokens: 4096,
-        },
-      }),
-      signal: controller.signal,
-    });
+    const prompt = buildSyllabusPrompt(programName, course, existingOutcomes);
+    const text = await callAI(prompt, "accreditation");
 
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      const body = await response.text();
-      console.error("Gemini syllabus generation error response:", body);
-      return { payload: null, error: `Gemini API error: ${response.status}` };
-    }
-
-    const data = (await response.json()) as Record<string, any>;
-    const text = String(data?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
     if (!text) {
-      return { payload: null, error: "Gemini returned an empty response." };
+      return { payload: null, error: "AI returned an empty response." };
     }
 
     const parsed = safeJsonParse(text);
     if (!parsed) {
-      return { payload: null, error: "Failed to parse Gemini syllabus JSON response." };
+      return { payload: null, error: "Failed to parse AI syllabus JSON response." };
     }
 
     const payload: SyllabusPayload = {
@@ -282,13 +249,12 @@ async function callGeminiForSyllabus(
     };
 
     if (!payload.courseDescription || payload.unitWiseSyllabus.length === 0) {
-      return { payload: null, error: "Gemini payload was incomplete." };
+      return { payload: null, error: "AI payload was incomplete." };
     }
 
     return { payload };
   } catch (error: any) {
-    clearTimeout(timeout);
-    return { payload: null, error: error.message || "Gemini request failed" };
+    return { payload: null, error: error.message || "AI request failed" };
   }
 }
 

@@ -11,9 +11,8 @@ import { deduplicateVisions }                      from "./similarity";
 import { rankVisions, RankedVision }               from "./ranking-engine";
 import { buildVisionAgentPrompt, PromptParams }       from "./prompt-builder";
 import { computeSemanticSimilarity }               from "@/lib/ai-validation";
+import { callAI }                                from "@/lib/curriculum/ai-model-router";
 
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 /** Remove near-paraphrase duplicates using Google embedding cosine similarity. */
 async function semanticDedup(candidates: string[], threshold = 0.82): Promise<string[]> {
@@ -31,25 +30,12 @@ async function semanticDedup(candidates: string[], threshold = 0.82): Promise<st
   return kept;
 }
 
-// ── Gemini call ───────────────────────────────────────────────────────────────
+// ── AI call ───────────────────────────────────────────────────────────────
 
-async function callGemini(
-  prompt: string,
-  apiKey: string,
+async function fetchVisionAI(
+  prompt: string
 ): Promise<string[]> {
-  const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.8 },
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Gemini API error: ${res.statusText}`);
-
-  const data = await res.json();
-  const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const text = await callAI(prompt, "vision");
 
   // Try to parse numbered list first (our prompt format), then fall back to JSON
   const numbered = text
@@ -116,21 +102,19 @@ export async function visionAgent(params: AgentParams): Promise<AgentResult> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     // collect candidates: 100% AI
     let batch: string[] = [];
-    if (geminiApiKey) {
-      try {
-        const promptParams: PromptParams = {
-          programName,
-          priorities,
-          count:           count + 4, // request extra for headroom
-          institutionName,
-          existingVisions: [...existingVisions, ...qualifiedStatements],
-          attempt,
-        };
-        const promptStr = buildVisionAgentPrompt(promptParams);
-        batch = await callGemini(promptStr, geminiApiKey);
-      } catch (err) {
-        console.warn("[VisionAgent] Gemini call failed on attempt", attempt, err);
-      }
+    try {
+      const promptParams: PromptParams = {
+        programName,
+        priorities,
+        count:           count + 4, // request extra for headroom
+        institutionName,
+        existingVisions: [...existingVisions, ...qualifiedStatements],
+        attempt,
+      };
+      const promptStr = buildVisionAgentPrompt(promptParams);
+      batch = await fetchVisionAI(promptStr);
+    } catch (err) {
+      console.warn("[VisionAgent] AI call failed on attempt", attempt, err);
     }
 
     for (const candidate of batch) {

@@ -8,9 +8,7 @@
 
 import { scorePEO, PEOScore, PEO_APPROVAL_THRESHOLD } from "./peo-scoring";
 import { buildPEOAgentPrompt } from "./peo-prompt-builder";
-
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+import { callAI } from "@/lib/curriculum/ai-model-router";
 
 const MAX_ATTEMPTS = 3;
 
@@ -50,8 +48,8 @@ function diversityBonus(candidate: string, selected: string[]): number {
     const sWords = new Set(
       s.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter((w) => w.length >= 4),
     );
-    const intersection = [...cWords].filter((w) => sWords.has(w)).length;
-    const union        = new Set([...cWords, ...sWords]).size;
+    const intersection = Array.from(cWords).filter((w) => sWords.has(w)).length;
+    const union        = new Set([...Array.from(cWords), ...Array.from(sWords)]).size;
     minOverlap = Math.min(minOverlap, union > 0 ? intersection / union : 0);
   }
   return 1 - minOverlap;
@@ -77,25 +75,12 @@ function rankPEOs(candidates: string[], scores: PEOScore[], count: number): Rank
 
 async function fetchGeminiPEOs(params: PEOAgentParams, attempt: number): Promise<string[]> {
   const { geminiApiKey, ...rest } = params;
-  if (!geminiApiKey) return [];
 
   const priorities = rest.priorities?.length ? rest.priorities : ["Career Growth", "Technical Excellence", "Leadership", "Ethical Responsibility"];
   const prompt     = buildPEOAgentPrompt({ ...rest, priorities, attempt });
 
   try {
-    const res = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents:         [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.8 },
-      }),
-    });
-
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const text = await callAI(prompt, "peo");
 
     try {
       const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
@@ -115,7 +100,8 @@ async function fetchGeminiPEOs(params: PEOAgentParams, attempt: number): Promise
         .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())
         .filter((l: string) => l.length > 20);
     }
-  } catch {
+  } catch (error) {
+    console.error("[PEO Agent] AI fetch failed:", error);
     return [];
   }
 }
@@ -146,6 +132,8 @@ export async function peoAgent(params: PEOAgentParams): Promise<PEOAgentResult> 
           qualifiedStatements.push(candidate);
           qualifiedScores.push(scored);
         }
+      } else {
+        console.log(`[DEBUG] Rejected PEO: "${candidate}" | Score: ${scored.score} | Fails: ${scored.hardFailures.join(", ")}`);
       }
     }
 

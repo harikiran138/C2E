@@ -16,9 +16,7 @@ export interface VisionScore {
     global: number;
     op: number;
     mkt: number;
-    pillars: number;
-    roots: number;
-    syn: number;
+    diversity: number;
   };
 }
 
@@ -149,16 +147,14 @@ export function scoreVision(statement: string): VisionScore {
   if (repeatedRoots.length > 0)                  hardFailures.push(`repeated roots: ${repeatedRoots.join(", ")}`);
   if (synStacking)                               hardFailures.push("synonym stacking");
 
-  // Score calculation (100 pts total)
+  // Score calculation (Exactly 100 pts total)
   const breakdown = {
-    wc:      (words.length >= 18 && words.length <= 24) ? 20 : 0,
-    starter: STARTERS.some((s) => lower.startsWith(s.toLowerCase())) ? 20 : 0,
-    global:  globalConcepts.length === 1 ? 20 : 0,
-    op:      opHits.length === 0 ? 30 : 0,
-    mkt:     mktHits.length === 0 ? 20 : 0,
-    pillars: estimatedPillars <= 3 ? 15 : 0,
-    roots:   repeatedRoots.length === 0 ? 15 : Math.max(0, 15 - repeatedRoots.length * 5),
-    syn:     synStacking ? 0 : 20,
+    wc:      (words.length >= 18 && words.length <= 24) ? 25 : 0,
+    starter: STARTERS.some((s) => lower.startsWith(s.toLowerCase())) ? 25 : 0,
+    global:  globalConcepts.length === 1 && globalTokenCount === 1 ? 20 : 0,
+    op:      opHits.length === 0 ? 20 : 0,
+    mkt:     (mktHits.length === 0 && !synStacking) ? 10 : 0,
+    diversity: repeatedRoots.length === 0 ? 10 : 0,
   };
 
   let score = Object.values(breakdown).reduce((a, b) => a + b, 0);

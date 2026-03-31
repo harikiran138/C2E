@@ -1,6 +1,9 @@
 // PSO Prompt Builder - High-fidelity accreditation-aligned prompts
 import type { SelectedSocietiesInput } from "@/lib/ai/pso-agent";
-import type { ValidationResult } from "./pso-validator";
+import type { PSOValidationResult } from "./pso-scoring";
+import { PSO_PHRASE_BANK, PSO_EXAMPLES, PSO_FAILING_EXAMPLES } from "./constants";
+
+export type PSOGenerationMode = "standard" | "strict" | "industry" | "research";
 
 export interface PSOPromptBuilderParams {
   programName: string;
@@ -12,6 +15,7 @@ export interface PSOPromptBuilderParams {
   };
   selectedSocieties?: SelectedSocietiesInput;
   focusAreas?: string[];
+  mode?: PSOGenerationMode;
 }
 
 export function buildPSOGenerationPrompt(
@@ -23,190 +27,143 @@ export function buildPSOGenerationPrompt(
     programCriteria,
     selectedSocieties,
     focusAreas = [],
+    mode = "standard",
   } = params;
 
   const criteriaText = programCriteria 
     ? `Program Criteria: ${programCriteria.statement}\nFocus Areas: ${programCriteria.curriculum.join(", ")}`
     : "Not provided (Use ABET General Student Outcomes SO1-SO7)";
 
+  // Find relevant benchmark phrases
+  let benchmarkPhrases: string[] = [];
+  for (const [domain, phrases] of Object.entries(PSO_PHRASE_BANK)) {
+    if (programName.toLowerCase().includes(domain.toLowerCase()) || 
+        domain.toLowerCase().includes(programName.toLowerCase())) {
+      benchmarkPhrases = phrases;
+      break;
+    }
+  }
+  if (benchmarkPhrases.length === 0) benchmarkPhrases = PSO_PHRASE_BANK["General Engineering"];
+
+  const benchmarksText = benchmarkPhrases.map(p => `- ${p}`).join("\n");
+
+  // Mode-specific instructions
+  let modeInstructions = "";
+  if (mode === "strict") {
+    modeInstructions = "STRATEGY: Maximum ABET/NBA alignment. Force complex engineering constraints (safety, ethics, standards) into every statement.";
+  } else if (mode === "industry") {
+    modeInstructions = "STRATEGY: Industry-readiness. Focus on modern industrial tools, workflow simulation, and deployment-ready professional systems.";
+  } else if (mode === "research") {
+    modeInstructions = "STRATEGY: Research & Innovation. Focus on mathematical modeling, system simulation, and optimization of complex theoretical frameworks.";
+  }
+
+  const failingExamplesText = PSO_FAILING_EXAMPLES
+    .map(ex => `❌ BAD: "${ex.text}"\n   REASON: ${ex.reason}`)
+    .join("\n\n");
+
   return `
-🧠 🔥 PERFECT PSO GENERATION PROMPT (FINAL VERSION)
+🧠 🔥 ACCREDITATION-READY PSO GENERATION
+You are a Senior Academic Auditor specializing in NBA Tier-I and ABET EAC standards.
+Generate exactly ${count} high-quality Program Specific Outcomes (PSOs) for: ${programName}.
 
-You are a Senior Academic Auditor and Accreditation Specialist with expertise in Outcome-Based Education (OBE), NBA Tier-I accreditation, and ABET Engineering Accreditation Commission (EAC) standards.
-
-Your task is to generate high-quality, accreditation-ready Program Specific Outcomes (PSOs).
-
-⸻
-
-🎯 INPUT
+---
+🎯 CONTEXT & INPUTS
 - Program Name: ${programName}
-- Program Criteria (if available): ${criteriaText}
-- Selected Professional Societies:
-  - Lead: ${selectedSocieties?.lead?.join(", ") || "None"}
-  - Co-Lead: ${selectedSocieties?.co_lead?.join(", ") || "None"}
-  - Cooperating: ${selectedSocieties?.cooperating?.join(", ") || "None"}
+- ABET Criteria: ${criteriaText}
+- Lead Societies: ${selectedSocieties?.lead?.join(", ") || "None"}
+- Additional Focus Areas: ${focusAreas.join(", ")}
+- GENERATION MODE: ${mode.toUpperCase()}
+${modeInstructions ? `- ${modeInstructions}` : ""}
 
-⸻
+---
+🔴 NEGATIVE CALIBRATION (DO NOT REPEAT THESE MISTAKES)
+${failingExamplesText}
 
-🧠 CORE EXECUTION LOGIC (STRICTLY FOLLOW)
+---
+💎 HIGH-QUALITY BENCHMARKS (REFERENCE STYLE)
+Use these high-scoring technical phrases as inspiration for depth and tone:
+${benchmarksText}
 
-STEP 1: PROGRAM IDENTIFICATION
-- Analyze the program name carefully: "${programName}".
-- If it matches a known engineering discipline (Mechanical, Civil, Electrical, etc.), use domain-specific knowledge.
-- If not:
-→ Infer domain using keywords:
-  - AI / ML → intelligent systems, data-driven models
-  - Software → applications, cloud, systems
-  - Electronics → embedded systems, IoT, circuits
-  - Mechanical → design, thermal, manufacturing
-  - Civil → infrastructure, construction
-  - General → use core engineering principles
+---
+🧠 CORE REQUIREMENTS
+1. ACTION VERBS: Start ONLY with strong Bloom's levels: Apply, Design, Analyze, Develop, Evaluate, Integrate, Optimize, Implement, Formulate, Model.
+2. DOMAIN DEPTH: Statements MUST include discipline-specific technical keywords. Reject generic terms.
+3. ABET MAPPING: Map each PSO to 1-2 Student Outcomes (SO1-SO7).
+   - SO1: Complex Problem Solving (Analysis)
+   - SO2: Engineering Design (Synthesis)
+   - SO4: Ethics & Impact
+   - SO6: Experimentation & Data
+4. SEMANTIC DIVERSITY: Each PSO must cover a unique technical dimension. Ensure distinct focus areas.
+5. REAL-WORLD CONTEXT: Include measurable constraints (Safety, Cost, Efficiency, Reliability, Standards).
+6. NO VAGUE TERMS: Avoid "understand", "learn", "aware", "know".
 
-⸻
+---
+🟡 INTERNAL SELF-VERIFICATION
+Before producing output, internally verify:
+1. Does each PSO start with a strong measurable verb?
+2. Is the technical granularity deep enough for ${programName}?
+3. Does each PSO reflect a real-world engineering constraint?
+4. Is the ABET SO mapping logically consistent with the statement text?
+5. Do the ${count} PSOs together provide broad program coverage without repetition?
 
-STEP 2: APPLY ABET CRITERIA
+DO NOT output this reasoning block.
 
-If Program Criteria is provided:
-- Extract key curriculum + capability requirements
-- Ensure ALL PSOs reflect those requirements
+---
+🟢 NBA SAR SECTION 2.5 ALIGNMENT
+- PSOs must reflect program specialization.
+- Must demonstrate industry/professional readiness.
+- Must result in measurable outcomes aligning with PEOs.
 
-If NOT provided:
-Use ABET Student Outcomes (MANDATORY BASE):
-SO1 → Solve complex engineering problems
-SO2 → Engineering design under constraints
-SO3 → Communication
-SO4 → Ethics & societal impact
-SO5 → Teamwork
-SO6 → Experimentation & data analysis
-SO7 → Lifelong learning
+Every PSO must explicitly reflect the provided criteria.
 
-⸻
-
-STEP 3: DOMAIN ENFORCEMENT
-
-Each PSO MUST:
-- Include domain-specific technical keywords
-(e.g., thermal systems, CAD/CAM, AI models, embedded systems, infrastructure, etc.)
-- Avoid generic phrases like:
-❌ “apply engineering knowledge”
-❌ “solve problems”
-- Instead:
-✅ “analyze thermal-fluid systems”
-✅ “design intelligent data-driven models”
-
-⸻
-
-STEP 4: REAL-WORLD CONTEXT (MANDATORY)
-
-Each PSO MUST include at least one:
-- Industry application
-- Real-world system
-- Practical engineering scenario
-
-Examples:
-- energy systems
-- smart infrastructure
-- manufacturing systems
-- healthcare systems
-- automation
-
-⸻
-
-STEP 5: ACTION VERB CONTROL
-
-ONLY use these verbs:
-Apply, Design, Analyze, Develop, Evaluate, Integrate, Optimize, Implement
-
-Each PSO must start with one of these.
-
-⸻
-
-STEP 6: ABET MAPPING (STRICT)
-
-For each PSO:
-- Map ONLY relevant ABET outcomes (SO1–SO7)
-- DO NOT guess
-- Include 1–2 mappings MAX
-
-⸻
-
-STEP 7: OUTPUT FORMAT (STRICT — NO DEVIATION)
-
-Output ONLY valid JSON. No explanations.
-
-Format:
+---
+📦 OUTPUT FORMAT (STRICT JSON)
 {
   "PSOs": [
     {
-      "PSO_number": "PSO1",
-      "statement": "<clear, domain-specific, real-world PSO>",
-      "focus_area": "Specific Domain Focus",
-      "action_verb": "One of the approved action verbs",
-      "skill": "Technical skill or capability",
-      "tool_phrase": "Tools or methodologies used",
-      "application_context": "Industry or real-world application",
-      "mapped_abet_elements": ["SOX", "SOY"]
+      "statement": "Graduates will be able to [Strong Verb] [Deep Technical Subspace] within the context of [Real-world Constraint]...",
+      "focus_area": "Technical subspace",
+      "mapped_abet_elements": ["SO1", "SO2"]
     }
-  ]
+  ],
+  "meta": {
+    "mode": "${mode}",
+    "compliance": "NBA Tier-I + ABET EAC"
+  }
 }
-
-⸻
-
-STEP 8: SEMANTIC DIVERSITY (CRITICAL)
-- Ensure each PSO covers a distinctly different dimension of the program.
-- Example for CSE:
-  1. System Architecture
-  2. Software Development
-  3. AI/Data Science deployment
-- DO NOT repeat the same core competence with different wording.
-- DO NOT generate semantically similar PSOs.
-
-⸻
-
-🚨 HARD CONSTRAINTS (NON-NEGOTIABLE)
-- MUST generate exactly ${count} PSOs
-- MUST be domain-specific (no generic wording)
-- MUST be semantically unique (NO repetition of ideas)
-- MUST include real-world context
-- MUST include correct ABET mapping
-- MUST be valid JSON (parsable)
-- NO extra text before or after JSON
-
-⸻
-
-✅ FINAL QUALITY CHECK (SELF-VALIDATE BEFORE OUTPUT)
-
-Ensure:
-✔ Domain depth is visible
-✔ ABET alignment is logical
-✔ Statements are measurable and outcome-based
-✔ NO SEMANTIC REPETITION
-✔ No vague terms
-
-⸻
-
-Now generate ${count} PSOs for: ${programName}—
 `.trim();
 }
 
 /**
  * Generates a feedback-aware prompt for retrying PSO generation.
  */
-export function buildRetryPrompt(basePrompt: string, feedback: ValidationResult): string {
+export function buildRetryPrompt(
+  basePrompt: string, 
+  feedback: PSOValidationResult,
+  previousResults: any[] = []
+): string {
+  const issues = [
+    ...feedback.globalIssues,
+    ...feedback.psos.flatMap(p => p.score.issues)
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  const prevText = previousResults.length > 0 
+    ? `\nPREVIOUS FAILED ATTEMPT:\n${JSON.stringify(previousResults, null, 2)}`
+    : "";
+
   return `
 ${basePrompt}
 
-⚠️ PREVIOUS OUTPUT HAD ISSUES:
-${feedback.issues.map(issue => `- ${issue}`).join("\n")}
+${prevText}
 
-💡 IMPROVEMENT SUGGESTIONS:
-${feedback.suggestions.map(suggestion => `- ${suggestion}`).join("\n")}
+⚠️ THE PREVIOUS ATTEMPT FAILED QUALITY CHECKS WITH THESE ISSUES:
+${issues.map(issue => `- ❌ ${issue}`).join("\n")}
 
-STRICT INSTRUCTIONS FOR THE RETRY:
-- Tighten the domain-specific depth by adding technical keywords (e.g., thermal-fluids, CAD/CAM, algorithms).
-- Include more explicit real-world context and engineering constraints.
-- Correct the ABET mapping (SO1-SO7) based on the issues listed above.
-- Ensure only prescribed action verbs are used at the start of each statement.
-- Output ONLY the corrected valid JSON.
+STRICT RETRY INSTRUCTIONS:
+1. Fix all ❌ issues mentioned above.
+2. Maintain the technical complexity for ${feedback.psos.length} outcomes.
+3. Ensure deeper granularity — avoid repeating any patterns from the previous failed attempt.
+4. If an ABET mapping was flagged as incorrect, re-map correctly (e.g. Design -> SO2).
+5. Output ONLY the corrected valid JSON.
 `.trim();
 }

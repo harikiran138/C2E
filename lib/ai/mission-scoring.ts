@@ -31,6 +31,11 @@ const MISSION_IMMEDIATE_TERMS = [
   "students will be able to", "student will be able to",
 ];
 
+const BLOOMS_VERBS = [
+  "analyze", "evaluate", "create", "design", "implement", "formulate",
+  "synthesize", "optimize", "critique", "engineer", "develop",
+];
+
 const MISSION_PILLAR_SIGNALS = {
   academic:              ["curriculum", "outcome-based", "outcome based", "academic", "learning", "continuous improvement", "rigor"],
   research_industry:     ["research", "industry", "innovation", "laboratory", "hands-on", "internship", "collaboration"],
@@ -150,9 +155,12 @@ export async function scoreMission(
   const overlap  = visionRef ? await computeSemanticSimilarity(visionRef, normalized) : 0.35;
   const leakage  = visionRef ? await computeSemanticSimilarity(visionRef, normalized) : 0;
 
+  const bloomsHits = BLOOMS_VERBS.filter(v => lower.includes(v));
+
   const hardFailures = [
     ...(lexicalRichness < 40               ? ["insufficient lexical flexibility"] : []),
     ...(operationalHits.length < 2         ? ["insufficient operational verbs"]   : []),
+    ...(bloomsHits.length === 0            ? ["missing bloom's taxonomy verbs"]   : []),
     ...(sentenceCount < 3 || sentenceCount > 4 ? ["mission sentence count"]       : []),
     ...(pillars.total < 3                  ? ["pillar coverage"]                  : []),
     ...(repeatedRoots.length > 0           ? [`repeated roots: ${repeatedRoots.join(", ")}`] : []),
@@ -163,45 +171,22 @@ export async function scoreMission(
     ...(leakage > 0.82                     ? ["vision leakage"]                   : []),
   ];
 
-  let alignment = 100;
-  if (visionRef) {
-    const pillarScore = Math.min(100, Math.round((pillars.total / 4) * 100));
-    alignment = Math.round(Math.min(100, overlap * 100) * 0.65 + pillarScore * 0.35);
-  }
+  // New Scoring Logic (Exactly 100 pts total)
+  const breakdown = {
+    alignment:   (visionRef ? (overlap > 0.6 ? 25 : Math.round(overlap * 25)) : 25),
+    operational: (operationalHits.length >= 2 && pillars.total >= 3) ? 25 : 0,
+    blooms:      (bloomsHits.length > 0) ? 20 : 0,
+    structure:   (sentenceCount >= 3 && sentenceCount <= 4 && words.length >= 45 && words.length <= 110) ? 20 : 0,
+    accreditation: (marketingHits.length === 0 && restrictedHits.length === 0 && immediateHits.length === 0) ? 10 : 0,
+  };
 
-  let operational = 100;
-  if (operationalHits.length < 2) operational -= 45;
-  if (pillars.total < 3)          operational -= 35;
-  if (sentenceCount < 3 || sentenceCount > 4) operational -= 25;
-
-  let redundancy = 100;
-  if (repeatedRoots.length > 0) redundancy -= Math.min(60, repeatedRoots.length * 20);
-  if (synonymStacking)           redundancy -= 35;
-
-  let accreditation = 100;
-  if (marketingHits.length > 0)  accreditation -= 45;
-  if (restrictedHits.length > 0) accreditation -= 35;
-  if (immediateHits.length > 0)  accreditation -= 40;
-
-  let coherence = 100;
-  if (sentenceCount < 3 || sentenceCount > 4) coherence -= 35;
-  if (words.length < 45 || words.length > 110) coherence -= 25;
-  if (pillars.total < 3)         coherence -= 25;
-  if (leakage > 0.72)            coherence -= 30;
-
-  let score = Math.round(
-    alignment    * 0.25 +
-    operational  * 0.20 +
-    redundancy   * 0.15 +
-    accreditation* 0.20 +
-    coherence    * 0.20,
-  );
+  let score = Object.values(breakdown).reduce((a, b) => a + b, 0);
   score = Math.max(0, Math.min(100, score));
   if (hardFailures.length > 0) score = Math.min(score, 79);
 
   return {
     score,
     hardFailures,
-    breakdown: { alignment, operational, redundancy, accreditation, coherence },
+    breakdown,
   };
 }

@@ -1,9 +1,8 @@
 import { type GeneratedCurriculum } from "./engine";
 import { getAiCache, setAiCache } from "./ai-cache";
-import { callAiWithFallback, callLocalAi } from "./ai-model-router";
+import { callAI } from "./ai-model-router";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+
 
 const DESCRIPTION_SYSTEM_PROMPT = `You are an academic course description generator. Your task is to write professional, 2-3 sentence technical descriptions for engineering courses.
 
@@ -64,33 +63,9 @@ export async function generateCourseDescriptions(
       if (cached) {
         rawText = cached;
       } else {
-        if (!GEMINI_API_KEY) {
-          return { success: false, warning: "GEMINI_API_KEY missing for course description generation." };
-        }
-
         try {
-          rawText = await callAiWithFallback(JSON.stringify(batchInput), async (modelId, provider, prompt) => {
-            if (provider === "gemini") {
-              const url = `${GEMINI_BASE_URL}/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
-              const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [{ role: "user", parts: [{ text: `${DESCRIPTION_SYSTEM_PROMPT}\n\nCourses:\n${prompt}` }] }],
-                  generationConfig: {
-                    temperature: 0.3,
-                    responseMimeType: "application/json",
-                  },
-                }),
-              });
-
-              if (!response.ok) throw new Error(`AI Error: ${response.status}`);
-              const data = await response.json();
-              return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            } else {
-              return await callLocalAi(prompt, DESCRIPTION_SYSTEM_PROMPT);
-            }
-          });
+          const prompt = `${DESCRIPTION_SYSTEM_PROMPT}\n\nCourses:\n${JSON.stringify(batchInput)}`;
+          rawText = await callAI(prompt, "bulk");
           await setAiCache(cacheKey, rawText);
         } catch (error) {
           console.error(`[Descriptions] Batch ${index} failed:`, error);

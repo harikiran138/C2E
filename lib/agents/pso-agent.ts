@@ -29,7 +29,7 @@ export async function runPSOAgent(
   });
 
   return {
-    data: { psos: result.results },
+    data: { psos: result.results.map(r => typeof r === 'string' ? r : r.statement) },
     warnings: [],
     errors: [],
   };

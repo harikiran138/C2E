@@ -66,34 +66,29 @@ type SelectedSocieties = {
 
 type GeneratedPsoDetail = {
   statement: string;
-  domain: string;
   abetMappings: string[];
-  emergingAreas: string[];
+  focusArea?: string;
+  skill?: string;
 };
 
 type ValidationReport = {
-  sourceValidation: {
-    passed: boolean;
-    message: string;
-  };
-  domainCoverage: {
-    passed: boolean;
-    covered: string[];
-    missing: string[];
-  };
-  actionVerbCheck: {
-    passed: boolean;
-    failures: string[];
-  };
-  abetMappingCheck: {
-    passed: boolean;
-    unmapped: string[];
-  };
-  uniquenessCheck: {
-    passed: boolean;
-    genericStatements: string[];
-    highSimilarityPairs: string[];
-  };
+  score: number;
+  passed: boolean;
+  psos: Array<{
+    pso: GeneratedPsoDetail;
+    score: {
+      total: number;
+      breakdown: {
+        actionVerb: number;
+        abetMapping: number;
+        domainRelevance: number;
+        depth: number;
+        realWorldContext: number;
+      };
+      issues: string[];
+    };
+  }>;
+  globalIssues: string[];
 };
 
 type SelectionContext = {
@@ -222,6 +217,7 @@ export default function PsoGenerator() {
     setGeneratedDetails([]);
     setSelectionContext(null);
     setGenerationPrompt("");
+
     try {
       const response = await fetch("/api/generate/psos", {
         method: "POST",
@@ -234,32 +230,39 @@ export default function PsoGenerator() {
           },
           number_of_psos: psoCount,
           program_name: program?.program_name || "Engineering Program",
-          program_id: programId, // Pass program ID for auto-save
+          program_id: programId,
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setGeneratedPsos(data.results);
-        setGeneratedDetails(data.details || []);
-        setValidationReport(data.validation || null);
-        setSelectionContext(data.selectionContext || null);
-        setGenerationPrompt(data.prompt || "");
+      const data = await response.json();
 
-        // Since it auto-saves now, update the main PSO list too
-        if (data.details) {
-          setPsos(data.details.map((d: any, i: number) => ({
-            id: `new-${Date.now()}-${i}`,
-            pso_statement: d.statement,
+      if (response.ok) {
+        // Map the new result structure to the UI
+        // result.results -> generatedDetails
+        // result.validation -> validationReport
+        
+        if (data.results && Array.isArray(data.results)) {
+          setGeneratedDetails(data.results);
+          setGeneratedPsos(data.results.map((r: any) => r.statement));
+          
+          // Auto-update main list
+          setPsos(data.results.map((r: any, i: number) => ({
+            id: `gen-${Date.now()}-${i}`,
+            pso_statement: r.statement,
             pso_number: i + 1
           })));
         }
+
+        if (data.validation) {
+          setValidationReport(data.validation);
+        }
       } else {
         setGeneratedPsos([]);
-        alert("Generation failed.");
+        alert(`Generation failed: ${data.error || "Unknown error"}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Generation error:", error);
+      alert("A network error occurred while generating PSOs.");
     } finally {
       setGenerating(false);
     }
@@ -515,69 +518,36 @@ export default function PsoGenerator() {
             Rule-Validated Suggestions
           </h4>
           {validationReport && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="rounded-xl border border-slate-200 bg-white p-3">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                  Source
+                  Aggregate Quality
                 </p>
                 <p className="mt-2 text-sm font-semibold text-slate-800">
-                  {validationReport.sourceValidation.passed ? "Criteria-based" : "Needs review"}
+                  Score: {Math.round(validationReport.score)}/100
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {validationReport.sourceValidation.message}
-                </p>
+                <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5">
+                  <div 
+                    className={`h-1.5 rounded-full ${validationReport.score >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}`} 
+                    style={{ width: `${validationReport.score}%` }} 
+                  />
+                </div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-3 md:col-span-2">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                  Domains
+                  Audit Findings
                 </p>
-                <p className="mt-2 text-sm font-semibold text-slate-800">
-                  {validationReport.domainCoverage.covered.length} covered
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {validationReport.domainCoverage.missing.length === 0
-                    ? "All required domains included."
-                    : `Missing: ${validationReport.domainCoverage.missing.join(", ")}`}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                  Action Verbs
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-800">
-                  {validationReport.actionVerbCheck.passed ? "All measurable" : "Check wording"}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {validationReport.actionVerbCheck.failures.length === 0
-                    ? "Each PSO starts with a high-order action verb."
-                    : `${validationReport.actionVerbCheck.failures.length} statement(s) need revision.`}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                  ABET Map
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-800">
-                  {validationReport.abetMappingCheck.passed ? "Mapped" : "Missing links"}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {validationReport.abetMappingCheck.unmapped.length === 0
-                    ? "Every PSO maps to at least one SO."
-                    : `${validationReport.abetMappingCheck.unmapped.length} statement(s) are unmapped.`}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                  Uniqueness
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-800">
-                  {validationReport.uniquenessCheck.passed ? "Program-specific" : "Too generic"}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {validationReport.uniquenessCheck.highSimilarityPairs.length === 0
-                    ? "No high-overlap PSO pairs detected."
-                    : `Overlap found in ${validationReport.uniquenessCheck.highSimilarityPairs.length} pair(s).`}
-                </p>
+                <div className="mt-2 space-y-1">
+                  {validationReport.globalIssues.length === 0 ? (
+                    <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                      <CheckCircle2 className="size-3" /> No global quality violations detected.
+                    </p>
+                  ) : (
+                    validationReport.globalIssues.map((issue, idx) => (
+                      <p key={idx} className="text-xs text-amber-600 font-medium">• {issue}</p>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -616,25 +586,24 @@ export default function PsoGenerator() {
                     <p className="text-sm text-slate-800">{pso}</p>
                     {detail && (
                       <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 border border-indigo-100">
-                          {detail.domain}
-                        </span>
-                        {detail.abetMappings.map((mapping) => (
+                        {Boolean(detail.focusArea) && (
+                          <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 border border-indigo-100">
+                            {detail.focusArea}
+                          </span>
+                        )}
+                        {detail.abetMappings?.map((mapping, midx) => (
                           <span
-                            key={`${detail.statement}-${mapping}`}
+                            key={`${i}-map-${midx}`}
                             className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-indigo-700 border border-indigo-100"
                           >
                             {mapping}
                           </span>
                         ))}
-                        {detail.emergingAreas.map((area) => (
-                          <span
-                            key={`${detail.statement}-${area}`}
-                            className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-100"
-                          >
-                            {area}
+                        {Boolean(detail.skill) && (
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-100">
+                            {detail.skill}
                           </span>
-                        ))}
+                        )}
                       </div>
                     )}
                   </div>

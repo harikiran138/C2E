@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTechnologyTrendSnapshot } from "@/lib/curriculum/technology-trend-engine";
 import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+import { callAI } from "@/lib/curriculum/ai-model-router";
 
 const SYSTEM_PROMPT = `You are an expert academic curriculum advisor for Indian engineering universities. Recommend curriculum distribution aligned with NEP 2020, AICTE guidelines, and industry trends.
 
@@ -156,18 +153,6 @@ function validateCategoryDistribution(dist: Record<string, unknown>): dist is Ca
   return true;
 }
 
-function extractGeminiText(response: Record<string, unknown>): string {
-  const candidates = (response as Record<string, unknown>)?.candidates;
-  if (!Array.isArray(candidates)) return "";
-  const parts = (candidates[0] as Record<string, unknown>)?.content;
-  if (!parts) return "";
-  const partsArr = (parts as Record<string, unknown>)?.parts;
-  if (!Array.isArray(partsArr)) return "";
-  return partsArr
-    .map((part) => String((part as Record<string, unknown>)?.text || ""))
-    .join("\n")
-    .trim();
-}
 
 function safeJsonParse(value: string): Record<string, unknown> | null {
   try {
@@ -248,13 +233,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     Math.max(4, Math.floor(Number(body.semesterCount || 8))),
   );
 
-  if (!GEMINI_API_KEY) {
-    return NextResponse.json(
-      { error: "AI advisor is not configured. GEMINI_API_KEY missing." },
-      { status: 503 },
-    );
-  }
-
   const userPrompt = buildUserPrompt(
     programType,
     industryFocus,
@@ -264,40 +242,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   );
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
+    let rawText = "";
 
-    const geminiResponse = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `${SYSTEM_PROMPT}\n\n${userPrompt}` }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: "application/json",
-        },
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!geminiResponse.ok) {
-      const errorBody = await geminiResponse.text();
-      console.error("Gemini advisor API error:", errorBody);
+    try {
+      rawText = await callAI(`${SYSTEM_PROMPT}\n\n${userPrompt}`, "bulk");
+    } catch (err) {
+      console.error("AI advisor API error:", err);
       return NextResponse.json(
-        { error: `AI advisor request failed (${geminiResponse.status}).` },
+        { error: "AI advisor request failed." },
         { status: 502 },
       );
     }
-
-    const data = (await geminiResponse.json()) as Record<string, unknown>;
-    const rawText = extractGeminiText(data);
 
     if (!rawText) {
       return NextResponse.json(

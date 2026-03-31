@@ -88,12 +88,30 @@ export const VISION_EXAMPLES = [
   "To achieve distinction in {prog} through sustained institutional academic rigor, research-driven technological progress, and ethical institutional governance.",
 ];
 
+export const VISION_FAILING_EXAMPLES = [
+  {
+    text: "To be a world-class hub of teaching and learning that provides excellent education and matches industry needs.",
+    reason: "Fails multiple rules: contains forbidden operational terms (teaching, learning, provides, education), uses marketing hype (world-class hub), and lacks a global concept."
+  },
+  {
+    text: "To emerge as a globally recognized and internationally benchmarked leader in engineering excellence and innovation.",
+    reason: "Fails global concept rule: contains two global concepts (globally recognized, internationally benchmarked). Must have exactly one."
+  }
+];
+
 // ── Mission Constants ────────────────────────────────────────────────────────
 
 export const MISSION_EXAMPLES = [
   "Deliver a rigorous {prog} curriculum through outcome-based education, continuous assessment, and evidence-driven academic improvement. Strengthen research engagement, industry collaboration, and applied practice to align graduates with career and accreditation standards. Foster ethical responsibility, innovation capability, and societal awareness to sustain long-term professional growth and community impact.",
   "Advance {prog} through research-driven inquiry, applied industry partnerships, hands-on laboratory engagement, and collaborative professional learning. Implement outcome-based curriculum design, continuous academic review, and systematic quality improvement across all program activities. Promote ethical conduct, sustainable practices, and societal responsibility among graduates to sustain institutional growth and community impact.",
   "Foster an environment of ethical conduct, professional integrity, and societal responsibility within the {prog} community. Deliver rigorous curriculum through outcome-based assessment, continuous program improvement, and accreditation-aligned academic quality standards. Sustain research engagement, industry collaboration, and innovation practice to prepare graduates for evolving engineering challenges.",
+];
+
+export const MISSION_FAILING_EXAMPLES = [
+  {
+    text: "We will teach students all the skills they need for a job at graduation. We guarantee 100% placement and world-class labs.",
+    reason: "Fails multiple rules: focuses on 'immediate graduation' (restricted), uses absolute guarantees (100% placement), and marketing hype (world-class labs). Lacks Bloom's level verbs."
+  }
 ];
 
 // ── PEO Constants ────────────────────────────────────────────────────────────
@@ -199,6 +217,72 @@ export const CUSTOM_PO_TEMPLATES: Record<string, string[]> = {
   ],
   leadership: [
     "Ability to lead engineering projects and collaborate effectively in diverse professional teams.",
-    "Ability to manage technical projects, coordinate team efforts, and deliver engineering outcomes.",
   ],
 };
+
+// ── PSO Constants ────────────────────────────────────────────────────────────
+
+export const PSO_PHRASE_BANK: Record<string, string[]> = {
+  "Computer Science & Engineering": [
+    "design, develop and maintain secure software systems using modern architectural patterns and frameworks",
+    "analyze and optimize complex algorithms and data structures to solve computational problems with efficiency",
+    "implement scalable cloud-native applications and intelligent systems through data-driven engineering practices",
+  ],
+  "Information Technology": [
+    "design and manage secure IT infrastructure, networks and database systems for enterprise requirements",
+    "develop integrated web and mobile solutions using contemporary technologies and security best practices",
+    "analyze business requirements to implement effective information technology solutions and digital transformations",
+  ],
+  "Electronics & Communication": [
+    "design, simulate and test electronic circuits, VLSI systems and embedded hardware for signal processing",
+    "develop and optimize communication systems, networking protocols and wireless technologies for modern connectivity",
+    "analyze and implement intelligent systems using microcontrollers, sensors and automated control technologies",
+  ],
+  "Electrical Engineering": [
+    "analyze and design power systems, electrical machines and control networks for sustainable energy distribution",
+    "implement smart grid solutions and industrial automation using modern power electronics and drive systems",
+    "design and maintain high-voltage electrical infrastructure with emphasis on safety, reliability and efficiency",
+  ],
+  "Mechanical Engineering": [
+    "analyze thermal and mechanical systems to design, optimize and manufacture industrial products and machinery",
+    "implement advanced manufacturing technologies and robotic systems through computer-aided design and engineering",
+    "design sustainable energy systems and automotive components using material science and fluid mechanics principles",
+  ],
+  "Civil Engineering": [
+    "plan, design and supervise the construction of sustainable infrastructure, buildings and transportation systems",
+    "analyze structural integrity and geotechnical properties to ensure safety and durability of civil engineering works",
+    "implement water resource management and environmental engineering solutions for resilient urban development",
+  ],
+  "General Engineering": [
+    "apply multidisciplinary engineering principles to design and implement complex technical systems and solutions",
+    "analyze and optimize industrial processes through systematic engineering inquiry and technological application",
+    "develop sustainable engineering projects that balance technical requirements with societal and environmental impact",
+  ],
+};
+
+export const PSO_STARTERS = [
+  "Graduates will be able to",
+  "The graduates will demonstrate the ability to",
+  "The program will enable graduates to",
+];
+
+export const PSO_EXAMPLES = [
+  "Graduates will be able to {phrase} while adhering to professional standards and societal needs.",
+  "The graduates will demonstrate the ability to {phrase} through systematic engineering inquiry and modern tool application.",
+  "The program will enable graduates to {phrase} to address evolving challenges in the {prog} domain.",
+];
+
+export const PSO_FAILING_EXAMPLES = [
+  {
+    text: "Understand basic mechanical systems and know engineering concepts.",
+    reason: "Fails multiple rules: starts with a weak verb ('Understand'), lacks discipline-specific technical keywords, and provides no measurable outcome."
+  },
+  {
+    text: "Apply general engineering knowledge to solve simple problems efficiently.",
+    reason: "Fails depth and specificity: 'general engineering' and 'simple problems' are too vague for Program Specific Outcomes. Needs higher technical granularity."
+  },
+  {
+    text: "Graduates will be able to work with engineering tools and be aware of ethics.",
+    reason: "Fails Bloom's level: 'be aware of' is not a measurable engineering outcome. Needs a stronger verb like 'Evaluate' or 'Implement' and specific tool/social context."
+  }
+];
