@@ -8,18 +8,28 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const forwardedIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    const ip = forwardedIp || "unknown";
+    const isLocalDev =
+      process.env.NODE_ENV !== "production" &&
+      (ip === "127.0.0.1" ||
+        ip === "::1" ||
+        ip === "::ffff:127.0.0.1" ||
+        ip === "localhost" ||
+        ip === "unknown");
     // 1. Rate Limiting (5 attempts / 15 mins)
-    const isAllowed = checkRateLimit({
-      ip,
-      limit: 5,
-      windowMs: 15 * 60 * 1000,
-    });
-    if (!isAllowed) {
-      return NextResponse.json(
-        { error: "Too many registration attempts. Please try again later." },
-        { status: 429 },
-      );
+    if (!isLocalDev) {
+      const isAllowed = checkRateLimit({
+        ip,
+        limit: 5,
+        windowMs: 15 * 60 * 1000,
+      });
+      if (!isAllowed) {
+        return NextResponse.json(
+          { error: "Too many registration attempts. Please try again later." },
+          { status: 429 },
+        );
+      }
     }
 
     const body = await request.json();

@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
 const baseUrl = "http://localhost:3000";
+const VISION_APPROVAL_THRESHOLD = 90;
 
 function parseCookies(response: Response): string {
   const cookies =
@@ -20,6 +21,56 @@ async function requestJson(
   const response = await fetch(`${baseUrl}${path}`, options);
   const data = await response.json().catch(() => ({}));
   return { response, data };
+}
+
+function normalizeStatement(value: unknown) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function extractScoreMap(payload: any, kind: "vision" | "mission") {
+  if (!payload || typeof payload !== "object") return {};
+  if (payload[kind] && typeof payload[kind] === "object") return payload[kind];
+  return payload;
+}
+
+function findScoreInfo(scoreMap: Record<string, any>, statement: string) {
+  const normalized = normalizeStatement(statement);
+  for (const [key, value] of Object.entries(scoreMap || {})) {
+    if (normalizeStatement(key) === normalized) {
+      return value as { score?: number } | null;
+    }
+  }
+  return null;
+}
+
+function pickApprovedVision(
+  visions: string[],
+  scoresPayload: any,
+): { text: string; score: number | null } | null {
+  const scoreMap = extractScoreMap(scoresPayload, "vision");
+  let bestApproved: { text: string; score: number } | null = null;
+  let bestFallback: { text: string; score: number | null } | null = null;
+
+  for (const vision of visions) {
+    const info = findScoreInfo(scoreMap, vision);
+    const score =
+      typeof info?.score === "number" ? Number(info.score) : null;
+
+    if (score !== null && score >= VISION_APPROVAL_THRESHOLD) {
+      if (!bestApproved || score > bestApproved.score) {
+        bestApproved = { text: vision, score };
+      }
+    }
+
+    if (!bestFallback || (score ?? -1) > (bestFallback.score ?? -1)) {
+      bestFallback = { text: vision, score };
+    }
+  }
+
+  return bestApproved || bestFallback;
 }
 
 async function main() {
@@ -118,29 +169,66 @@ async function main() {
       "Ethical engineering practice",
     ];
 
-    const visionGen = await requestJson("/api/ai/generate-vision-mission", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mode: "vision",
-        program_name: "B.Tech Mechanical Engineering",
-        institute_vision:
-          "To build globally relevant engineering education through quality, ethics, and innovation.",
-        institute_mission:
-          "To provide an outcome-based academic ecosystem with strong industry relevance and societal commitment.",
-        vision_inputs: visionInputs,
-        mission_inputs: missionInputs,
-        vision_count: 3,
-      }),
-    });
+    let visionGen:
+      | {
+          response: Response;
+          data: any;
+        }
+      | null = null;
+    let selectedVision = "";
+    let selectedVisionScore: number | null = null;
+    const excludedVisions: string[] = [];
 
-    if (!visionGen.response.ok) {
-      throw new Error(`Vision generation failed: ${JSON.stringify(visionGen.data)}`);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      visionGen = await requestJson("/api/ai/generate-vision-mission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "vision",
+          program_name: "B.Tech Mechanical Engineering",
+          institute_vision:
+            "To build globally relevant engineering education through quality, ethics, and innovation.",
+          institute_mission:
+            "To provide an outcome-based academic ecosystem with strong industry relevance and societal commitment.",
+          vision_inputs: visionInputs,
+          mission_inputs: missionInputs,
+          vision_count: 3,
+          exclude_visions: excludedVisions,
+        }),
+      });
+
+      if (!visionGen.response.ok) {
+        throw new Error(`Vision generation failed: ${JSON.stringify(visionGen.data)}`);
+      }
+
+      const generatedVisions = Array.isArray(visionGen.data.visions)
+        ? visionGen.data.visions.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+        : [];
+      excludedVisions.push(...generatedVisions);
+
+      const preferredVision = pickApprovedVision(
+        generatedVisions,
+        visionGen.data.scores,
+      );
+      if (
+        preferredVision?.text &&
+        preferredVision.score !== null &&
+        preferredVision.score >= VISION_APPROVAL_THRESHOLD
+      ) {
+        selectedVision = preferredVision.text;
+        selectedVisionScore = preferredVision.score;
+        break;
+      }
     }
 
-    const selectedVision = String(visionGen.data.visions?.[0] || "");
+    if (!visionGen) {
+      throw new Error("Vision generation did not produce a response.");
+    }
+
     if (!selectedVision) {
-      throw new Error("No generated vision returned.");
+      throw new Error(
+        `No generated vision reached score ${VISION_APPROVAL_THRESHOLD} after 3 attempts.`,
+      );
     }
 
     const saveVision = await requestJson("/api/institution/program/update-vm", {
@@ -155,8 +243,10 @@ async function main() {
         vision_inputs_used: visionInputs,
         vision_options: visionGen.data.visions,
         generated_by_ai: true,
-        vision_score: visionGen.data.scores?.[selectedVision]?.score ?? 95,
-        vision_analysis: visionGen.data.scores?.[selectedVision] ?? { score: 95 },
+        vision_score: selectedVisionScore,
+        vision_analysis:
+          findScoreInfo(extractScoreMap(visionGen.data.scores, "vision"), selectedVision) ??
+          (selectedVisionScore !== null ? { score: selectedVisionScore } : null),
       }),
     });
 
@@ -201,8 +291,10 @@ async function main() {
         vision_options: visionGen.data.visions,
         mission_options: missionGen.data.missions,
         generated_by_ai: true,
-        vision_score: saveVision.data.selected_vision?.score ?? 95,
-        vision_analysis: visionGen.data.scores?.[selectedVision] ?? { score: 95 },
+        vision_score: saveVision.data.selected_vision?.score ?? selectedVisionScore,
+        vision_analysis:
+          findScoreInfo(extractScoreMap(visionGen.data.scores, "vision"), selectedVision) ??
+          (selectedVisionScore !== null ? { score: selectedVisionScore } : null),
         mission_score: missionGen.data.scores?.[selectedMission]?.score ?? 95,
         mission_analysis: missionGen.data.scores?.[selectedMission] ?? { score: 95 },
       }),
@@ -226,6 +318,15 @@ async function main() {
 
     if (!savedProgram) {
       throw new Error("Saved program was not returned by /api/institution/details.");
+    }
+
+    if (
+      detailsAfterSave.data.institution.vision !==
+        "To build globally relevant engineering education through quality, ethics, and innovation." ||
+      detailsAfterSave.data.institution.mission !==
+        "To provide an outcome-based academic ecosystem with strong industry relevance and societal commitment."
+    ) {
+      throw new Error("Institution vision/mission were not persisted correctly.");
     }
 
     const programRow = (

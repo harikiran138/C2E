@@ -92,6 +92,44 @@ function extractScoreMap(payload: any, kind: "vision" | "mission") {
   return payload;
 }
 
+function getStatementScore(scoreMap: Record<string, any>, statement: string) {
+  const scoreInfo = findScoreInfo(scoreMap, statement);
+  return typeof scoreInfo?.score === "number" ? scoreInfo.score : null;
+}
+
+function pickPreferredStatement(
+  options: string[],
+  scoreMap: Record<string, any>,
+  threshold: number,
+) {
+  let approvedCandidate: string | null = null;
+  let approvedScore = Number.NEGATIVE_INFINITY;
+  let fallbackCandidate: string | null = null;
+  let fallbackScore = Number.NEGATIVE_INFINITY;
+
+  for (const option of options) {
+    const score = getStatementScore(scoreMap, option);
+    if (score === null) {
+      if (!fallbackCandidate) {
+        fallbackCandidate = option;
+      }
+      continue;
+    }
+
+    if (score >= threshold && score > approvedScore) {
+      approvedCandidate = option;
+      approvedScore = score;
+    }
+
+    if (score > fallbackScore) {
+      fallbackCandidate = option;
+      fallbackScore = score;
+    }
+  }
+
+  return approvedCandidate || fallbackCandidate || options[0] || "";
+}
+
 export default function VisionMissionGenerator() {
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId");
@@ -448,17 +486,37 @@ export default function VisionMissionGenerator() {
               ? [data.vision]
               : [];
         setVisionOptions(newVisions);
+        const extractedVisionScores = extractScoreMap(data.scores, "vision");
         if (data.scores) {
-          const extractedVisionScores = extractScoreMap(data.scores, "vision");
           setVisionScores((prev) => ({ ...prev, ...extractedVisionScores }));
         }
         setVisionGenerationHistory((previous) =>
           mergeUniqueStatements(previous, newVisions),
         );
 
-        // Auto-select first option if none selected
-        if (!programVision && newVisions.length > 0) {
-          handleVisionSelectionChange(newVisions[0]);
+        const combinedVisionScores = {
+          ...visionScores,
+          ...extractedVisionScores,
+        };
+        const currentVisionScore = getStatementScore(
+          combinedVisionScores,
+          programVision,
+        );
+        const preferredVision = pickPreferredStatement(
+          newVisions,
+          combinedVisionScores,
+          VISION_APPROVAL_THRESHOLD,
+        );
+
+        // Prefer an approved candidate when available, especially if the
+        // current selection is missing or below the mission-generation threshold.
+        if (
+          preferredVision &&
+          (!programVision ||
+            currentVisionScore === null ||
+            currentVisionScore < VISION_APPROVAL_THRESHOLD)
+        ) {
+          handleVisionSelectionChange(preferredVision);
         } else {
           setIsVisionSelectionSaved(false);
           setIsVisionApproved(false);

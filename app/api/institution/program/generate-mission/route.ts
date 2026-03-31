@@ -142,8 +142,8 @@ export async function POST(request: NextRequest) {
         mission: string | null;
       }>(
         `SELECT vision, mission
-         FROM institutions
-         WHERE id = $1`,
+         FROM institution_details
+         WHERE institution_id = $1`,
         [institutionId],
       );
 

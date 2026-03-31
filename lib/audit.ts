@@ -11,6 +11,7 @@ export const ACTION_TYPES = {
 
 interface AuditLogEntry {
   institutionId?: string;
+  programId?: string;
   action: string;
   ipAddress?: string;
   userAgent?: string;
@@ -19,19 +20,29 @@ interface AuditLogEntry {
 
 export async function logAudit(entry: AuditLogEntry) {
   try {
-    const { institutionId, action, ipAddress, userAgent, details } = entry;
+    const { institutionId, programId, action, ipAddress, userAgent, details } =
+      entry;
+
+    // The current production audit_logs table is program-scoped.
+    // Skip auth-only events until a dedicated auth audit schema exists.
+    if (!programId) {
+      return;
+    }
 
     // Fire and forget - don't await/block main thread significantly
     pool
       .query(
-        `INSERT INTO public.audit_logs (institution_id, action, ip_address, user_agent, details)
-       VALUES ($1, $2, $3, $4, $5)`,
+        `INSERT INTO public.audit_logs (program_id, event_type, details, created_by)
+         VALUES ($1, $2, $3, $4)`,
         [
-          institutionId || null,
+          programId,
           action,
-          ipAddress || null,
-          userAgent || null,
-          details ? JSON.stringify(details) : null,
+          JSON.stringify({
+            ...(details && typeof details === "object" ? details : {}),
+            ip_address: ipAddress || null,
+            user_agent: userAgent || null,
+          }),
+          institutionId || null,
         ],
       )
       .catch((err) => {

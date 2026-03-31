@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
 import { verifyToken } from "@/lib/auth";
-import {
-  validateInstitutionDetailsPayload,
-  validateVisionMissionPayload,
-} from "@/lib/validation/onboarding";
+import { validateInstitutionDetailsPayload } from "@/lib/validation/onboarding";
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("institution_token")?.value;
@@ -33,8 +30,10 @@ export async function GET(request: NextRequest) {
           id.status as institution_status,
           id.established_year,
           id.affiliation as university_affiliation,
+          id.address,
           id.city,
           id.state,
+          id.country,
           id.vision,
           id.mission
          FROM institutions i
@@ -120,6 +119,8 @@ export async function POST(request: NextRequest) {
         : null,
       city: String(body.city || ""),
       state: String(body.state || ""),
+      address: body.address ? String(body.address) : null,
+      country: body.country ? String(body.country) : "India",
       vision: body.vision ? String(body.vision) : null,
       mission: body.mission ? String(body.mission) : null,
     };
@@ -128,6 +129,23 @@ export async function POST(request: NextRequest) {
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
+
+    if (
+      payload.institution_status === "Non-Autonomous" &&
+      !payload.university_affiliation?.trim()
+    ) {
+      return NextResponse.json(
+        { error: "University affiliation is required for Non-Autonomous institutions." },
+        { status: 400 },
+      );
+    }
+
+    const normalizedCity = payload.city.trim();
+    const normalizedState = payload.state.trim();
+    const normalizedCountry = payload.country?.trim() || "India";
+    const normalizedAddress =
+      payload.address?.trim() ||
+      `${normalizedCity}, ${normalizedState}, ${normalizedCountry}`.trim();
 
     const client = await pool.connect();
     try {
@@ -147,19 +165,23 @@ export async function POST(request: NextRequest) {
           status, 
           established_year, 
           affiliation, 
+          address,
           city, 
           state, 
+          country,
           vision, 
           mission, 
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
         ON CONFLICT (institution_id) DO UPDATE SET
           type = EXCLUDED.type,
           status = EXCLUDED.status,
           established_year = EXCLUDED.established_year,
           affiliation = EXCLUDED.affiliation,
+          address = EXCLUDED.address,
           city = EXCLUDED.city,
           state = EXCLUDED.state,
+          country = EXCLUDED.country,
           vision = EXCLUDED.vision,
           mission = EXCLUDED.mission,
           updated_at = NOW()`,
@@ -169,8 +191,10 @@ export async function POST(request: NextRequest) {
           payload.institution_status,
           payload.established_year,
           payload.university_affiliation?.trim() || null,
-          payload.city.trim(),
-          payload.state.trim(),
+          normalizedAddress,
+          normalizedCity,
+          normalizedState,
+          normalizedCountry,
           payload.vision?.trim() || null,
           payload.mission?.trim() || null,
         ],

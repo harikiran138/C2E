@@ -180,6 +180,15 @@ const VISION_PILLAR_PHRASES: Record<ThemeCategory, string> = {
   custom: "program-specific strategic identity",
 };
 
+const SAFE_VISION_CATEGORY_PHRASES: Record<ThemeCategory, string> = {
+  global_positioning: "institutional distinction",
+  innovation_technology: "responsible innovation practice",
+  sustainability_society: "sustainable societal contribution",
+  professional_values: "ethical professional standards",
+  educational_philosophy: "outcome-oriented institutional standards",
+  custom: "enduring strategic relevance",
+};
+
 const CATEGORY_SIGNAL_TERMS: Record<ThemeCategory, string[]> = {
   global_positioning: ["global", "international", "benchmark", "globally benchmarked", "global standards", "competitive"],
   innovation_technology: [
@@ -2436,16 +2445,21 @@ function buildVisionFallbackStatement(
   slot: DistributionSlot,
   index: number,
 ) {
-  const selectedCategories = slot.categories.slice(0, VISION_MAX_PILLARS);
+  const selectedCategories = Array.from(
+    new Set<ThemeCategory>([
+      "educational_philosophy",
+      ...slot.categories.filter((category) => category !== "global_positioning"),
+    ]),
+  ).slice(0, VISION_MAX_PILLARS);
   const focusPhrase = formatList(
-    selectedCategories.map((category) => VISION_PILLAR_PHRASES[category]),
+    selectedCategories.map((category) => SAFE_VISION_CATEGORY_PHRASES[category]),
   );
   const variants = [
-    `To be globally recognized for long-term ${programName} distinction through ${focusPhrase} with sustained institutional and societal impact`,
-    `To emerge as a long-term ${programName} benchmark for globally respected distinction through ${focusPhrase} and enduring strategic relevance`,
-    `To achieve distinction in ${programName} through sustained ${focusPhrase} and long-term institutional contribution`,
-    `To advance as a leading ${programName} program through sustained ${focusPhrase}, institutional standards, and enduring strategic contribution`,
-    `To be globally respected for sustained ${programName} excellence through ${focusPhrase} with long-term societal relevance`,
+    `To be globally recognized for long-term ${programName} distinction through ${focusPhrase}.`,
+    `To emerge as an internationally benchmarked ${programName} discipline through ${focusPhrase}.`,
+    `To achieve distinction in ${programName} through ${focusPhrase} with enduring relevance.`,
+    `To advance as a leading ${programName} discipline through ${focusPhrase}.`,
+    `To be globally respected for sustained ${programName} excellence through ${focusPhrase}.`,
   ];
 
   return ensureSentence(variants[index % variants.length]);
@@ -3897,6 +3911,7 @@ function buildCoupledMissionPrompt(params: {
 }
 
 async function generateWithValidation(params: {
+  programName: string;
   kind: StatementKind;
   count: number;
   semanticOptions: SemanticOption[];
@@ -3908,6 +3923,7 @@ async function generateWithValidation(params: {
   fallbackFactory: (index: number) => string;
 }): Promise<GenerationResult> {
   const {
+    programName,
     kind,
     count,
     semanticOptions,
@@ -4009,12 +4025,14 @@ async function generateWithValidation(params: {
         );
       }
 
-      const defaultPillar =
-        VISION_PILLAR_PHRASES[clusters[0]?.category || "custom"];
-      return ensureVisionWordWindow(
-        ensureSentence(
-          `${VISION_POSITIONING_STARTERS[index % VISION_POSITIONING_STARTERS.length]} long-term institutional distinction in ${defaultPillar} with sustained societal relevance`,
-        ),
+      return buildVisionFallbackStatement(
+        programName,
+        distributionPlan[index % distributionPlan.length] || {
+          index,
+          categories: [clusters[0]?.category || "custom"],
+          emphasisLabels: [],
+        },
+        index + count * 4,
       );
     });
 
@@ -4309,6 +4327,10 @@ export async function POST(request: Request) {
       : requestedMissionCount;
 
     const selectedVisionInputs = normalizeStringArray(vision_inputs);
+    const visionInputsForGeneration = normalizeStringArray([
+      ...selectedVisionInputs,
+      "Outcome-oriented education",
+    ]);
     const selectedMissionInputs = normalizeStringArray(mission_inputs);
     const excludedVisions = normalizeStringArray(exclude_visions);
     const excludedMissions = normalizeStringArray(exclude_missions);
@@ -4327,7 +4349,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const visionSemantic = buildSemanticObjects(selectedVisionInputs, "vision");
+    const visionSemantic = buildSemanticObjects(
+      visionInputsForGeneration,
+      "vision",
+    );
     const visionClusters = buildThemeClusters(visionSemantic);
 
     const missionInputsForGeneration = coupledGeneration
@@ -4417,6 +4442,7 @@ export async function POST(request: Request) {
 
     if (shouldGenerateVision) {
       visionResult = await generateWithValidation({
+        programName: String(program_name),
         kind: "vision",
         count: visionCount,
         semanticOptions: visionSemantic,
@@ -4473,6 +4499,7 @@ export async function POST(request: Request) {
           selected_program_vision || visionResult?.statements?.[0] || "",
         );
         missionResult = await generateWithValidation({
+          programName: String(program_name),
           kind: "mission",
           count: missionCount,
           semanticOptions: missionSemantic,
@@ -4578,7 +4605,7 @@ export async function POST(request: Request) {
           ? {
               attempts: visionResult.attempts,
               validation: visionResult.validation,
-              selected_inputs: selectedVisionInputs,
+              selected_inputs: visionInputsForGeneration,
               semantic_clusters: visionClusters,
               distribution_plan: visionPlan,
               prompt_preview: visionPromptPreview,

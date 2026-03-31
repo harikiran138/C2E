@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
       // [Audit Log]
       await logAudit({
         institutionId,
+        programId: newId,
         action: "PROGRAM_CREATED",
         ipAddress: ip,
         details: { programId: newId, programCode: normalizedProgramCode },
@@ -154,6 +155,7 @@ export async function DELETE(request: NextRequest) {
       // [Audit Log]
       await logAudit({
         institutionId,
+        programId: id,
         action: "PROGRAM_DELETED",
         ipAddress: ip,
         details: { programId: id },
@@ -208,6 +210,7 @@ export async function PUT(request: NextRequest) {
       // [Audit Log]
       await logAudit({
         institutionId,
+        programId: id,
         action: "PROGRAM_UPDATED",
         ipAddress: ip,
         details: {
