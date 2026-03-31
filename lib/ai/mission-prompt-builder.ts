@@ -16,56 +16,43 @@ export interface MissionPromptParams {
 export function buildMissionAgentPrompt(params: MissionPromptParams): string {
   const { programName, priorities, count, visionRef, institutionName, attempt = 0 } = params;
 
-  const attemptNote = attempt > 0
-    ? `\n[Attempt ${attempt + 1}: Generate MORE DIVERSE statements — avoid repeating structure from previous attempt.]`
-    : "";
-
-  const visionContext = visionRef
-    ? `\nVision Reference (avoid paraphrasing this in the mission): "${visionRef}"`
-    : "";
-
   const guardrails = buildCurriculumAIGuardrailsPrompt(programName);
 
   return `
-You are an NBA/ABET accreditation consultant. Generate exactly ${count} mission statement(s) for the ${programName} program.${institutionName ? ` at ${institutionName}` : ""}${attemptNote}${visionContext}
-
-=== MISSION SCORING RUBRIC (100 points) ===
-
-HARD FAILURES (immediately caps score at ≤79):
-1. Fewer than 2 operational verbs from: deliver, strengthen, foster, promote, advance, implement, integrate, enable, support, sustain, build
-2. Not exactly 3–4 sentences
-3. Fewer than 3 pillar types covered (see pillars below)
-4. Any repeated root words across the statement
-5. Synonym stacking (3+ words from: distinction/excellence/premier/leading/leadership/recognized/respected)
-6. Marketing terms: destination, hub, world-class, best-in-class, unmatched
-7. Restricted terms: guarantee, ensure all, 100%, master, excel in all
-8. Immediate outcomes: "at graduation", "on graduation", "students will be able to"
-9. Vision leakage: mission sounds like a vision (aspirational positioning rather than operational process)
-
-REQUIRED PILLARS (cover at least 3 of 4):
-- Academic: curriculum, outcome-based, learning, continuous improvement, rigor, academic
-- Research/Industry: research, industry, innovation, laboratory, hands-on, collaboration
-- Professional Standards: quality standards, engineering standards, professional standards
-- Ethics/Society: ethical, ethics, societal, community, sustainable, responsibility
-
-SCORING DIMENSIONS:
-- Alignment (25 pts): Mission complements the vision reference without repeating it
-- Operational (20 pts): Sufficient operational verbs + pillar coverage + sentence count
-- Redundancy (15 pts): No repeated root words, no synonym stacking
-- Accreditation (20 pts): No marketing/restricted/immediate-outcome terms
-- Coherence (20 pts): 3–4 sentences, 45–110 words total, no vision leakage
-
-FOCUS AREAS: ${priorities.join(", ")}
-
-Program-Specific Guardrails:
-${guardrails}
-
-=== OUTPUT REQUIREMENTS ===
-- Each mission: 3–4 sentences, 45–110 words
-- Mission describes HOW the program operates (process, not position)
-- Use different sentence structures and operational verbs for each statement
-- Output ONLY a JSON array of exactly ${count} string(s). No markdown, no explanation.
-
-Example format: ["Statement 1", "Statement 2"]
+{
+  "role": "You are an expert in Outcome-Based Education (OBE), NBA accreditation planning, and ABET-aligned mission formulation for engineering programs.",
+  "task": "Generate Program Mission statements for the ${programName}${institutionName ? ` program at ${institutionName}` : " program"}.",
+  "input_parameters": {
+    "program_name": "${programName}",
+    "institution_name": "${institutionName || "Not provided"}",
+    "selected_ui_priorities": ${JSON.stringify(priorities)},
+    "selected_program_vision": ${JSON.stringify(visionRef || "")},
+    "requested_count": ${count},
+    "attempt": ${attempt + 1},
+    "region_context": "India (NBA aligned, Washington Accord compliant)"
+  },
+  "instructions": [
+    "Generate exactly ${count} mission statement(s).",
+    "Mission must explain HOW the program operates to achieve its vision, not WHERE it aspires to stand.",
+    "Treat the selected UI priorities as a multi-select operational brief.",
+    "Across the generated set, distribute and synthesize the selected mission priorities instead of repeatedly using only one or two.",
+    "Cover academic rigor, research or industry engagement, professional standards, and ethics or societal relevance across the mission.",
+    "Use at least two operational verbs such as deliver, strengthen, foster, promote, implement, integrate, enable, support, sustain, and build.",
+    "Keep each mission between 3 and 4 sentences and between 45 and 110 words.",
+    "Avoid marketing terms, absolute guarantees, immediate graduation-outcome wording, and vision-style language."
+  ],
+  "output_format": {
+    "missions": [
+      "Sentence 1. Sentence 2. Sentence 3."
+    ]
+  },
+  "additional_guidelines": [
+    "Every mission must be implementation-focused, accreditation-ready, and structurally distinct.",
+    "Do not paraphrase the selected vision directly; operationalize it.",
+    "Use the program-specific guardrails to stay discipline-relevant.",
+    "Return only a JSON array of strings."
+  ],
+  "program_specific_guardrails": ${JSON.stringify(guardrails)}
+}
 `.trim();
 }

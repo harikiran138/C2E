@@ -8,7 +8,7 @@
 
 import { scorePO, POScore, PO_APPROVAL_THRESHOLD }           from "./po-scoring";
 import { buildStandardPO, STANDARD_PO_STATEMENTS, getCustomPOs } from "./po-template-engine";
-import { buildCurriculumAIGuardrailsPrompt } from "@/lib/curriculum/ai-guardrails";
+import { buildPOAgentPrompt } from "./po-prompt-builder";
 
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
@@ -35,6 +35,7 @@ export interface POAgentResult {
   ranked:      RankedPO[];
   is_fallback: boolean;
   attempts:    number;
+  prompt:      string;
 }
 
 function normalizeWhitespace(text: string) {
@@ -76,54 +77,17 @@ function rankPOs(candidates: string[], scores: POScore[], count: number): Ranked
   return ranked.sort((a, b) => b.finalScore - a.finalScore);
 }
 
-function buildPOPrompt(params: POAgentParams, attempt: number): string {
-  const { programName, count, priorities, institutionName } = params;
-  const attemptNote = attempt > 0
-    ? `\n[Attempt ${attempt + 1}: Generate MORE DIVERSE outcomes — use different action verbs.]`
-    : "";
-
-  const themeNote = priorities?.length
-    ? `\nFocus themes: ${priorities.join(", ")}`
-    : "";
-
-  const guardrails = buildCurriculumAIGuardrailsPrompt(programName);
-
-  return `
-You are an NBA/ABET accreditation consultant. Generate exactly ${count} Program Outcome(s) (POs) for the ${programName} program.${institutionName ? ` at ${institutionName}` : ""}${attemptNote}${themeNote}
-
-POs describe graduate competencies at the time of graduation.
-
-=== PO SCORING RUBRIC ===
-
-HARD FAILURES:
-1. Does NOT start with "Ability to" or "An ability to"
-2. Word count above 25
-
-REQUIREMENTS:
-- Start: "Ability to [action verb] ..."
-- Action verb: design, analyze, apply, communicate, work, use, understand, function, engage, recognize, conduct, identify, demonstrate, evaluate, implement, develop
-- ≤25 words total
-- No first-person pronouns (I, my, we, our)
-- No vague terms: excellent, outstanding, world-class, best
-
-Program-Specific Guardrails:
-${guardrails}
-
-=== OUTPUT REQUIREMENTS ===
-- Each PO: 1 sentence, ≤25 words
-- Must start with "Ability to" or "An ability to"
-- Generate diverse POs covering different competency areas
-- Output ONLY a JSON array of exactly ${count} string(s). No markdown, no explanation.
-
-Example: ["Ability to apply knowledge of mathematics, science, and engineering to solve complex problems.", "Ability to design and implement systems that meet engineering requirements."]
-`.trim();
-}
-
 async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<string[]> {
   const { geminiApiKey } = params;
   if (!geminiApiKey) return [];
 
-  const prompt = buildPOPrompt(params, attempt);
+  const prompt = buildPOAgentPrompt({
+    programName: params.programName,
+    count: params.count,
+    priorities: params.priorities,
+    institutionName: params.institutionName,
+    attempt,
+  });
 
   try {
     const res = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
@@ -157,6 +121,13 @@ async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<s
 
 export async function poAgent(params: POAgentParams): Promise<POAgentResult> {
   const { count, priorities = [] } = params;
+  const prompt = buildPOAgentPrompt({
+    programName: params.programName,
+    count,
+    priorities,
+    institutionName: params.institutionName,
+    attempt: 0,
+  });
 
   const qualifiedStatements: string[] = [];
   const qualifiedScores:     POScore[] = [];
@@ -206,5 +177,5 @@ export async function poAgent(params: POAgentParams): Promise<POAgentResult> {
   const ranked = rankPOs(qualifiedStatements, qualifiedScores, count);
   const pos    = ranked.map((r) => r.statement);
 
-  return { pos, ranked, is_fallback, attempts };
+  return { pos, ranked, is_fallback, attempts, prompt };
 }

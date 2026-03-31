@@ -60,27 +60,39 @@ export function buildVisionAgentPrompt(params: PromptParams): string {
     ? `\nATTEMPT ${attempt + 1}: Previous attempt produced insufficient quality. Use different sentence structures and pillar phrases.\n`
     : "";
 
-  return `You are an accreditation consultant generating vision statements for the ${programLabel} program.
-
-TASK: Generate exactly ${count} vision statements (numbered 1 to ${count}).
-
-FOCUS AREAS (use 1–3 of these as thematic pillars):
-${priorityList}
-${exclusionBlock}${diversityHint}
-${RUBRIC}
-
-SAFE EXAMPLES (study the structure, do NOT copy verbatim):
-${SAFE_EXAMPLES.map((e, i) => `  ${i + 1}. ${e}`).join("\n")}
-
-CRITICAL CONSTRAINTS:
-- Replace "and" with "&" in "${programName}" if the program name contains "and"
-- Pillar count = total commas + total "and" in the sentence — keep ≤ 3
-- Each pillar phrase must be 2–4 words with NO "and" inside the phrase
-- No global tokens (global/globally/international/internationally/world) inside pillar phrases
-- Each statement must be lexically distinct from others in the batch
-
-OUTPUT FORMAT — return ONLY a numbered list, no commentary:
-1. <vision statement>
-2. <vision statement>
-...`;
+  return `{
+  "role": "You are an expert in Outcome-Based Education (OBE), NBA accreditation strategy, and ABET-aligned program positioning for engineering education.",
+  "task": "Generate Program Vision statements for the ${programLabel} program.",
+  "input_parameters": {
+    "program_name": "${programName}",
+    "institution_name": "${institutionName || "Not provided"}",
+    "selected_ui_priorities": ${JSON.stringify(priorities)},
+    "existing_vision_exclusions": ${JSON.stringify(existingVisions)},
+    "requested_count": ${count},
+    "attempt": ${attempt + 1},
+    "region_context": "India (NBA aligned, Washington Accord compliant)"
+  },
+  "instructions": [
+    "Generate exactly ${count} vision statements.",
+    "Treat the selected UI priorities as a multi-select design brief, not a single preferred option.",
+    "Across the full generated set, ensure meaningful coverage of the selected priorities instead of collapsing everything into one repeated phrase.",
+    "Vision must express the future standing of the program, not operational teaching processes.",
+    "Use 1 to 3 strategic pillars derived from the selected UI priorities.",
+    "Do not reuse or closely paraphrase excluded statements.",
+    "Maintain lexical diversity and distinct framing across the full set.",
+    "Follow this scoring rubric strictly: ${RUBRIC.replace(/\n/g, " ")}"
+  ],
+  "safe_examples": ${JSON.stringify(SAFE_EXAMPLES)},
+  "additional_guidelines": [
+    "Allowed openings are restricted to the approved vision starters only.",
+    "Each statement must remain aspirational, concise, and accreditation-ready.",
+    "Avoid operational terms, marketing phrases, synonym stacking, and repeated roots.",
+    "Use the selected UI priorities as thematic evidence, not as a raw copy-paste list."
+  ],
+  "output_format": {
+    "visions": [
+      "To be globally recognized for ..."
+    ]
+  }
+}`;
 }

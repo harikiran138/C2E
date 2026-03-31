@@ -15,6 +15,7 @@ export async function runPOAgent(input: POAgentInput): Promise<AgentRunResult<PO
         ranked: [],
         is_fallback: true,
         attempts: 0,
+        prompt: "",
       },
       warnings: [],
       errors: [error?.message || "PO agent failed."],

@@ -3727,45 +3727,43 @@ function buildVisionPrompt(params: {
   } = params;
 
   return `
-You are generating Program Vision statements for an engineering program.
-
-Program: ${programName}
-Institute Vision Context: ${instituteVision || "Not specified"}
-
-Structured Semantic Inputs:
-${JSON.stringify(semanticOptions, null, 2)}
-
-Category Clusters:
-${JSON.stringify(clusters, null, 2)}
-
-Strategic Distribution Plan:
-${JSON.stringify(distributionPlan, null, 2)}
-
-${customInstructions ? `Additional User Instructions: ${customInstructions}` : ""}
-${excludedStatements.length > 0 ? `Do not repeat any of these previous statements: ${excludedStatements.join(" || ")}` : ""}
-${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(" | ")}` : ""}
-
-Requirements:
-1. Generate exactly ${count} distinct Vision statements.
-2. Treat all selected semantic inputs as active constraints across the full set, while keeping each individual statement concise.
-3. Each statement must remain strictly aspirational and represent institutional standing (WHERE), not teaching processes (HOW).
-4. Mandatory start: each statement MUST begin with one of these exact starts: "To be globally recognized for", "To emerge as", "To achieve distinction in", "To advance as a leading", or "To be globally respected for".
-5. Global concept rule: use exactly ONE global positioning phrase per statement and do not stack additional global/international words.
-6. Hard Ban in Vision: operational/process terms such as education, teaching, learning, curriculum, pedagogy, provide, deliver, develop, cultivate, train, implement.
-7. Limit each Vision to a maximum of ${VISION_MAX_PILLARS} strategic pillars.
-8. Keep each statement between 15 and 30 words.
-9. MANDATORY KEYWORDS (Score Alignment): Each statement MUST explicitly include:
-   - "ethics" or "integrity" (e.g., ethical innovation, integrity-based)
-   - "outcome-driven" or "impact-focused" (e.g., outcome-driven education)
-   - "globally benchmarked" or "global standards"
-10. Ensure structural diversity; each output must use a different opening phrase and distinct sentence framing.
-11. If any pair exceeds 70% structural similarity, rewrite the weaker candidate.
-12. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes, destination, hub, world-class.
-13. Logic: The Program Vision must logically extend the Institute Vision into the disciplinary context of ${programName} without repeating it verbatim.
-
-Output format:
-- Return strictly a JSON array of strings.
-- No markdown, no numbering, no explanations.
+{
+  "role": "You are an expert in Outcome-Based Education (OBE), NBA accreditation strategy, and ABET-aligned engineering program positioning.",
+  "task": "Generate Program Vision statements for the ${programName} program.",
+  "input_parameters": {
+    "program_name": "${programName}",
+    "institute_vision_context": ${JSON.stringify(instituteVision || "Not specified")},
+    "structured_semantic_inputs": ${JSON.stringify(semanticOptions, null, 2)},
+    "category_clusters": ${JSON.stringify(clusters, null, 2)},
+    "strategic_distribution_plan": ${JSON.stringify(distributionPlan, null, 2)},
+    "excluded_previous_statements": ${JSON.stringify(excludedStatements)},
+    "validation_feedback_to_fix": ${JSON.stringify(feedback)},
+    "custom_ui_instructions": ${JSON.stringify(customInstructions || "")},
+    "region_context": "India (NBA aligned, Washington Accord compliant)"
+  },
+  "instructions": [
+    "Generate exactly ${count} distinct Vision statements.",
+    "The side-menu priorities are multi-select inputs; treat the full selected set as an active design brief.",
+    "Across the batch, ensure visible coverage of the selected priorities instead of repeating the same two ideas in every statement.",
+    "Treat all selected semantic inputs as active constraints across the full set.",
+    "Each statement must stay aspirational and describe WHERE the program intends to stand, not HOW it will operate.",
+    "Every statement must begin with one approved vision starter only.",
+    "Use exactly one global positioning concept per statement.",
+    "Avoid operational terms, marketing language, repetition, and immediate outcome wording.",
+    "Limit each Vision to a maximum of ${VISION_MAX_PILLARS} strategic pillars.",
+    "Keep each statement between 15 and 30 words.",
+    "Ensure each statement is structurally distinct and logically extends the institute vision into the disciplinary context of ${programName}."
+  ],
+  "output_format": {
+    "visions": [
+      "To be globally recognized for ..."
+    ]
+  },
+  "additional_guidelines": [
+    "Return strictly a JSON array of strings.",
+    "No markdown, no numbering, no explanations."
+  ]
+}
 `;
 }
 
@@ -3795,44 +3793,42 @@ function buildMissionPrompt(params: {
   } = params;
 
   return `
-You are generating Program Mission paragraphs for an engineering program.
-
-Program: ${programName}
-Selected Program Vision: ${selectedProgramVision || "Not specified"}
-Institute Mission Context: ${instituteMission || "Not specified"}
-
-Structured Semantic Inputs:
-${JSON.stringify(semanticOptions, null, 2)}
-
-Category Clusters:
-${JSON.stringify(clusters, null, 2)}
-
-Strategic Distribution Plan:
-${JSON.stringify(distributionPlan, null, 2)}
-
-${customInstructions ? `Additional User Instructions: ${customInstructions}` : ""}
-${excludedStatements.length > 0 ? `Do not repeat any of these previous statements: ${excludedStatements.join(" || ")}` : ""}
-${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(" | ")}` : ""}
-
-Requirements:
-1. Generate exactly ${count} distinct Mission paragraphs.
-2. Each paragraph must explain HOW the selected Program Vision will be achieved.
-3. Each paragraph must follow a strict "3 Operational Pillars" structure:
-   - Pillar 1: Academic rigor / curriculum quality / continuous improvement.
-   - Pillar 2: Research and industry engagement / hands-on practice.
-   - Pillar 3: Professional standards, ethics, and sustained societal impact.
-4. Mission must include at least two operational verbs such as deliver, strengthen, foster, promote, implement, or integrate.
-5. Diversity Constraint: Do NOT simply swap the first verb of the paragraph. Every sentence in the paragraph must be structurally unique across all ${count} candidates.
-6. Avoid direct phrase reuse from the Vision sentence; Mission should operationalize Vision, not restate it.
-7. Tone: Professional, implementation-oriented, and action-driven.
-8. Length: 3-4 sentences and 45-110 words per paragraph.
-9. Avoid restricted wording: guarantee, ensure all, absolute mastery, 100% placement.
-10. Avoid redundant noun stacking or repeated root words.
-11. Synthesize meaning from the Institute Mission context; do not repeat it verbatim.
-
-Output format:
-- Return strictly a JSON array of strings.
-- No markdown, no numbering, no explanations.
+{
+  "role": "You are an expert in Outcome-Based Education (OBE), NBA accreditation planning, and ABET-aligned mission design for engineering programs.",
+  "task": "Generate Program Mission paragraphs for the ${programName} program.",
+  "input_parameters": {
+    "program_name": "${programName}",
+    "selected_program_vision": ${JSON.stringify(selectedProgramVision || "Not specified")},
+    "institute_mission_context": ${JSON.stringify(instituteMission || "Not specified")},
+    "structured_semantic_inputs": ${JSON.stringify(semanticOptions, null, 2)},
+    "category_clusters": ${JSON.stringify(clusters, null, 2)},
+    "strategic_distribution_plan": ${JSON.stringify(distributionPlan, null, 2)},
+    "excluded_previous_statements": ${JSON.stringify(excludedStatements)},
+    "validation_feedback_to_fix": ${JSON.stringify(feedback)},
+    "custom_ui_instructions": ${JSON.stringify(customInstructions || "")},
+    "region_context": "India (NBA aligned, Washington Accord compliant)"
+  },
+  "instructions": [
+    "Generate exactly ${count} distinct Mission paragraphs.",
+    "The side-menu mission priorities are multi-select inputs; treat the full selected set as an operational brief for the batch.",
+    "Across the batch, distribute the selected mission priorities logically instead of repeating a single theme.",
+    "Each paragraph must explain HOW the selected Program Vision will be achieved.",
+    "Each paragraph must cover academic rigor and continuous improvement, research or industry engagement, and professional standards with ethics or societal impact.",
+    "Mission must include at least two operational verbs such as deliver, strengthen, foster, promote, implement, or integrate.",
+    "Keep every paragraph implementation-oriented, action-driven, and accreditation-ready.",
+    "Avoid direct phrase reuse from the Vision statement, restricted wording, repeated roots, and structural duplication.",
+    "Length must remain between 3 and 4 sentences and between 45 and 110 words."
+  ],
+  "output_format": {
+    "missions": [
+      "Sentence 1. Sentence 2. Sentence 3."
+    ]
+  },
+  "additional_guidelines": [
+    "Return strictly a JSON array of strings.",
+    "No markdown, no numbering, no explanations."
+  ]
+}
 `;
 }
 
@@ -3862,45 +3858,41 @@ function buildCoupledMissionPrompt(params: {
   } = params;
 
   return `
-You are generating coupled Program Mission paragraphs for an engineering program.
-
-Program: ${programName}
-Institute Mission Context: ${instituteMission || "Not specified"}
-
-Vision Statements (ordered):
-${JSON.stringify(visions, null, 2)}
-
-Pairwise Alignment Hints (same order as Vision Statements):
-${JSON.stringify(hints, null, 2)}
-
-Structured Mission Semantic Inputs:
-${JSON.stringify(semanticOptions, null, 2)}
-
-Mission Category Clusters:
-${JSON.stringify(clusters, null, 2)}
-
-Mission Distribution Plan:
-${JSON.stringify(distributionPlan, null, 2)}
-
-${customInstructions ? `Additional User Instructions: ${customInstructions}` : ""}
-${excludedStatements.length > 0 ? `Do not repeat any of these previous mission statements: ${excludedStatements.join(" || ")}` : ""}
-${feedback.length > 0 ? `Prior validation issues to fix: ${feedback.join(" | ")}` : ""}
-
-Requirements:
-1. Generate exactly ${visions.length} distinct mission paragraphs, in the same order as the provided visions.
-2. Mission i must align directly with Vision i; do not mix visions across missions.
-3. Each mission must be one paragraph with exactly 3 to 4 sentences following a strict "3 Operational Pillars" structure (Academic/Curriculum Quality, Research/Industry Engagement, and Professional Standards with Ethical/Societal Impact).
-4. Each mission must operationalize the dominant categories and required pillars provided in its hint.
-5. Each mission must include at least two operational verbs such as deliver, strengthen, foster, promote, implement, or integrate.
-6. Structural Diversity: NO duplication of sentence templates. Every sentence across the JSON array must be unique.
-7. Tone: Implementation-focused, accreditation-ready, and professional.
-8. Length: 45-110 words per paragraph.
-9. Avoid direct phrase reuse from Vision i and avoid redundant noun stacking or repeated root words.
-10. Avoid restricted wording: guarantee, ensure all, master, excel in all, immediate graduation outcomes.
-
-Output format:
-- Return strictly a JSON array of strings.
-- No markdown, no numbering, no explanations.
+{
+  "role": "You are an expert in Outcome-Based Education (OBE), NBA accreditation planning, and ABET-aligned mission design for engineering programs.",
+  "task": "Generate coupled Program Mission paragraphs aligned to the provided Vision statements for the ${programName} program.",
+  "input_parameters": {
+    "program_name": "${programName}",
+    "institute_mission_context": ${JSON.stringify(instituteMission || "Not specified")},
+    "vision_statements": ${JSON.stringify(visions, null, 2)},
+    "pairwise_alignment_hints": ${JSON.stringify(hints, null, 2)},
+    "structured_semantic_inputs": ${JSON.stringify(semanticOptions, null, 2)},
+    "mission_category_clusters": ${JSON.stringify(clusters, null, 2)},
+    "mission_distribution_plan": ${JSON.stringify(distributionPlan, null, 2)},
+    "excluded_previous_statements": ${JSON.stringify(excludedStatements)},
+    "validation_feedback_to_fix": ${JSON.stringify(feedback)},
+    "custom_ui_instructions": ${JSON.stringify(customInstructions || "")},
+    "region_context": "India (NBA aligned, Washington Accord compliant)"
+  },
+  "instructions": [
+    "Generate exactly ${visions.length} distinct mission paragraphs in the same order as the provided visions.",
+    "Treat the side-menu mission priorities as multi-select inputs that must influence the full mission set.",
+    "Mission i must align directly with Vision i and must not mix across other visions.",
+    "Each mission must have 3 to 4 sentences and cover academic or curriculum quality, research or industry engagement, and professional standards with ethical or societal impact.",
+    "Each mission must include at least two operational verbs such as deliver, strengthen, foster, promote, implement, or integrate.",
+    "Every mission must operationalize the dominant categories and required pillars from its paired hint.",
+    "Avoid direct phrase reuse from the corresponding vision, repeated roots, restricted language, and structural duplication."
+  ],
+  "output_format": {
+    "missions": [
+      "Sentence 1. Sentence 2. Sentence 3."
+    ]
+  },
+  "additional_guidelines": [
+    "Return strictly a JSON array of strings.",
+    "No markdown, no numbering, no explanations."
+  ]
+}
 `;
 }
 
@@ -4233,7 +4225,11 @@ async function generateCoupledMissionsWithValidation(params: {
 
 export async function POST(request: Request) {
   let fallbackProgramName = "this program";
+  let fallbackInstituteVision = "";
+  let fallbackInstituteMission = "";
   let fallbackSelectedProgramVision = "";
+  let fallbackVisionInstructions = "";
+  let fallbackMissionInstructions = "";
   let fallbackMode: GenerationMode = "both";
   let fallbackVisionCount = 1;
   let fallbackMissionCount = 1;
@@ -4353,7 +4349,11 @@ export async function POST(request: Request) {
     const missionPlan = buildDistributionPlan(missionClusters, missionCount);
 
     fallbackProgramName = String(program_name);
+    fallbackInstituteVision = String(institute_vision || "");
+    fallbackInstituteMission = String(institute_mission || "");
     fallbackSelectedProgramVision = String(selected_program_vision || "");
+    fallbackVisionInstructions = String(vision_instructions || "");
+    fallbackMissionInstructions = String(mission_instructions || "");
     fallbackMode = generationMode;
     fallbackVisionCount = visionCount;
     fallbackMissionCount = missionCount;
@@ -4365,6 +4365,49 @@ export async function POST(request: Request) {
     fallbackMissionPlan = missionPlan;
     fallbackExcludedVisions = excludedVisions;
     fallbackExcludedMissions = excludedMissions;
+    const visionPromptPreview = shouldGenerateVision
+      ? buildVisionPrompt({
+          programName,
+          instituteVision: validInstituteVision,
+          semanticOptions: visionSemantic,
+          clusters: visionClusters,
+          distributionPlan: visionPlan,
+          count: visionCount,
+          customInstructions: String(vision_instructions || ""),
+          excludedStatements: excludedVisions,
+          feedback: [],
+        })
+      : null;
+    const missionPromptPreview =
+      shouldGenerateMission && !coupledGeneration
+        ? buildMissionPrompt({
+            programName,
+            selectedProgramVision: String(selected_program_vision || ""),
+            instituteMission: validInstituteMission,
+            semanticOptions: missionSemantic,
+            clusters: missionClusters,
+            distributionPlan: missionPlan,
+            count: missionCount,
+            customInstructions: String(mission_instructions || ""),
+            excludedStatements: excludedMissions,
+            feedback: [],
+          })
+        : null;
+    const coupledMissionPromptPreview =
+      shouldGenerateMission && coupledGeneration
+        ? buildCoupledMissionPrompt({
+            programName,
+            instituteMission: validInstituteMission,
+            semanticOptions: missionSemantic,
+            clusters: missionClusters,
+            distributionPlan: missionPlan,
+            visions: [],
+            hints: [],
+            customInstructions: String(mission_instructions || ""),
+            excludedStatements: excludedMissions,
+            feedback: [],
+          })
+        : null;
 
     let visionResult: GenerationResult | null = null;
     let missionResult:
@@ -4535,18 +4578,24 @@ export async function POST(request: Request) {
           ? {
               attempts: visionResult.attempts,
               validation: visionResult.validation,
+              selected_inputs: selectedVisionInputs,
               semantic_clusters: visionClusters,
               distribution_plan: visionPlan,
+              prompt_preview: visionPromptPreview,
             }
           : null,
         mission: missionResult
           ? {
               attempts: missionResult.attempts,
               validation: missionResult.validation,
+              selected_inputs: selectedMissionInputs,
               semantic_clusters: missionClusters,
               distribution_plan: missionPlan,
               alignment_validation: validationAlignment,
               coupled_hints: validationHints,
+              prompt_preview: coupledGeneration
+                ? coupledMissionPromptPreview
+                : missionPromptPreview,
             }
           : null,
         strategic_validation: strategicValidation,
@@ -4629,6 +4678,49 @@ export async function POST(request: Request) {
           fallbackExcludedMissions,
         )
       : [];
+    const fallbackVisionPromptPreview = shouldGenerateVision
+      ? buildVisionPrompt({
+          programName: fallbackProgramName,
+          instituteVision: fallbackInstituteVision,
+          semanticOptions: fallbackVisionSemantic,
+          clusters: fallbackVisionClusters,
+          distributionPlan: fallbackVisionPlan,
+          count: fallbackVisionCount,
+          customInstructions: fallbackVisionInstructions,
+          excludedStatements: fallbackExcludedVisions,
+          feedback: [],
+        })
+      : null;
+    const fallbackMissionPromptPreview =
+      shouldGenerateMission && !isFallbackCoupled
+        ? buildMissionPrompt({
+            programName: fallbackProgramName,
+            selectedProgramVision: fallbackSelectedProgramVision,
+            instituteMission: fallbackInstituteMission,
+            semanticOptions: fallbackMissionSemantic,
+            clusters: fallbackMissionClusters,
+            distributionPlan: fallbackMissionPlan,
+            count: fallbackMissionCount,
+            customInstructions: fallbackMissionInstructions,
+            excludedStatements: fallbackExcludedMissions,
+            feedback: [],
+          })
+        : null;
+    const fallbackCoupledMissionPromptPreview =
+      shouldGenerateMission && isFallbackCoupled
+        ? buildCoupledMissionPrompt({
+            programName: fallbackProgramName,
+            instituteMission: fallbackInstituteMission,
+            semanticOptions: fallbackMissionSemantic,
+            clusters: fallbackMissionClusters,
+            distributionPlan: fallbackMissionPlan,
+            visions: fallbackVisions,
+            hints: fallbackCoupledHints,
+            customInstructions: fallbackMissionInstructions,
+            excludedStatements: fallbackExcludedMissions,
+            feedback: [],
+          })
+        : null;
 
     const fallbackPairs = isFallbackCoupled
       ? buildVisionMissionPairs(fallbackVisions, fallbackMissions)
@@ -4670,16 +4762,22 @@ export async function POST(request: Request) {
       generation_details: {
         vision: shouldGenerateVision
           ? {
+              selected_inputs: fallbackVisionSemantic.map((item) => item.label),
               semantic_count: fallbackVisionSemantic.length,
               cluster_count: fallbackVisionClusters.length,
+              prompt_preview: fallbackVisionPromptPreview,
             }
           : null,
         mission: shouldGenerateMission
           ? {
+              selected_inputs: fallbackMissionSemantic.map((item) => item.label),
               semantic_count: fallbackMissionSemantic.length,
               cluster_count: fallbackMissionClusters.length,
               alignment_validation: fallbackAlignment,
               coupled_hints: fallbackCoupledHints,
+              prompt_preview: isFallbackCoupled
+                ? fallbackCoupledMissionPromptPreview
+                : fallbackMissionPromptPreview,
             }
           : null,
         strategic_validation: fallbackStrategicValidation,
