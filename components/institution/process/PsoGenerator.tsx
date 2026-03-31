@@ -64,6 +64,45 @@ type SelectedSocieties = {
   cooperating: string[];
 };
 
+type GeneratedPsoDetail = {
+  statement: string;
+  domain: string;
+  abetMappings: string[];
+  emergingAreas: string[];
+};
+
+type ValidationReport = {
+  sourceValidation: {
+    passed: boolean;
+    message: string;
+  };
+  domainCoverage: {
+    passed: boolean;
+    covered: string[];
+    missing: string[];
+  };
+  actionVerbCheck: {
+    passed: boolean;
+    failures: string[];
+  };
+  abetMappingCheck: {
+    passed: boolean;
+    unmapped: string[];
+  };
+  uniquenessCheck: {
+    passed: boolean;
+    genericStatements: string[];
+    highSimilarityPairs: string[];
+  };
+};
+
+type SelectionContext = {
+  lead: string[];
+  coLead: string[];
+  cooperating: string[];
+  count: number;
+};
+
 export default function PsoGenerator() {
   const searchParams = useSearchParams();
   const programId = searchParams.get("programId");
@@ -83,6 +122,14 @@ export default function PsoGenerator() {
 
   const [psoCount, setPsoCount] = useState(3);
   const [generatedPsos, setGeneratedPsos] = useState<string[]>([]);
+  const [generatedDetails, setGeneratedDetails] = useState<GeneratedPsoDetail[]>(
+    [],
+  );
+  const [validationReport, setValidationReport] =
+    useState<ValidationReport | null>(null);
+  const [selectionContext, setSelectionContext] =
+    useState<SelectionContext | null>(null);
+  const [generationPrompt, setGenerationPrompt] = useState("");
 
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -161,6 +208,10 @@ export default function PsoGenerator() {
     }
 
     setGenerating(true);
+    setValidationReport(null);
+    setGeneratedDetails([]);
+    setSelectionContext(null);
+    setGenerationPrompt("");
     try {
       const response = await fetch("/api/generate/psos", {
         method: "POST",
@@ -179,7 +230,12 @@ export default function PsoGenerator() {
       if (response.ok) {
         const data = await response.json();
         setGeneratedPsos(data.results);
+        setGeneratedDetails(data.details || []);
+        setValidationReport(data.validation || null);
+        setSelectionContext(data.selectionContext || null);
+        setGenerationPrompt(data.prompt || "");
       } else {
+        setGeneratedPsos([]);
         alert("Generation failed.");
       }
     } catch (error) {
@@ -436,24 +492,152 @@ export default function PsoGenerator() {
       {generatedPsos.length > 0 && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <h4 className="text-sm font-bold uppercase tracking-widest text-indigo-500">
-            AI Generated Suggestions
+            Rule-Validated Suggestions
           </h4>
-          <div className="grid grid-cols-1 gap-3">
-            {generatedPsos.map((pso, i) => (
-              <div
-                key={i}
-                className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 flex justify-between items-center gap-4 group hover:bg-indigo-50 transition-colors"
-              >
-                <p className="text-sm text-slate-800 flex-1">{pso}</p>
-                <button
-                  onClick={() => handleAddPso(pso)}
-                  className="bg-white text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                >
-                  Add
-                </button>
+          {validationReport && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                  Source
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">
+                  {validationReport.sourceValidation.passed ? "Criteria-based" : "Needs review"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {validationReport.sourceValidation.message}
+                </p>
               </div>
-            ))}
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                  Domains
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">
+                  {validationReport.domainCoverage.covered.length} covered
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {validationReport.domainCoverage.missing.length === 0
+                    ? "All required domains included."
+                    : `Missing: ${validationReport.domainCoverage.missing.join(", ")}`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                  Action Verbs
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">
+                  {validationReport.actionVerbCheck.passed ? "All measurable" : "Check wording"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {validationReport.actionVerbCheck.failures.length === 0
+                    ? "Each PSO starts with a high-order action verb."
+                    : `${validationReport.actionVerbCheck.failures.length} statement(s) need revision.`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                  ABET Map
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">
+                  {validationReport.abetMappingCheck.passed ? "Mapped" : "Missing links"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {validationReport.abetMappingCheck.unmapped.length === 0
+                    ? "Every PSO maps to at least one SO."
+                    : `${validationReport.abetMappingCheck.unmapped.length} statement(s) are unmapped.`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                  Uniqueness
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">
+                  {validationReport.uniquenessCheck.passed ? "Program-specific" : "Too generic"}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {validationReport.uniquenessCheck.highSimilarityPairs.length === 0
+                    ? "No high-overlap PSO pairs detected."
+                    : `Overlap found in ${validationReport.uniquenessCheck.highSimilarityPairs.length} pair(s).`}
+                </p>
+              </div>
+            </div>
+          )}
+          {selectionContext && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700">
+                  Lead: {selectionContext.lead.length}
+                </span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700">
+                  Co-Lead: {selectionContext.coLead.length}
+                </span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700">
+                  Cooperating: {selectionContext.cooperating.length}
+                </span>
+                <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700">
+                  PSOs Requested: {selectionContext.count}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                All PSO-side UI selections are now passed into generation separately, so lead, co-lead,
+                cooperating societies, and requested count each influence the output.
+              </p>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3">
+            {generatedPsos.map((pso, i) => {
+              const detail = generatedDetails[i];
+
+              return (
+                <div
+                  key={i}
+                  className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 flex justify-between items-start gap-4 group hover:bg-indigo-50 transition-colors"
+                >
+                  <div className="flex-1 space-y-3">
+                    <p className="text-sm text-slate-800">{pso}</p>
+                    {detail && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 border border-indigo-100">
+                          {detail.domain}
+                        </span>
+                        {detail.abetMappings.map((mapping) => (
+                          <span
+                            key={`${detail.statement}-${mapping}`}
+                            className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-indigo-700 border border-indigo-100"
+                          >
+                            {mapping}
+                          </span>
+                        ))}
+                        {detail.emergingAreas.map((area) => (
+                          <span
+                            key={`${detail.statement}-${area}`}
+                            className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-100"
+                          >
+                            {area}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleAddPso(pso)}
+                    className="bg-white text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                  >
+                    Add
+                  </button>
+                </div>
+              );
+            })}
           </div>
+          {generationPrompt && (
+            <details className="rounded-xl border border-slate-200 bg-white p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                Prompt used for PSO generation
+              </summary>
+              <pre className="mt-3 whitespace-pre-wrap text-xs leading-5 text-slate-600">
+                {generationPrompt}
+              </pre>
+            </details>
+          )}
         </div>
       )}
 

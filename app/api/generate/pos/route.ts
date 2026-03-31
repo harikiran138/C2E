@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       geminiApiKey: GEMINI_API_KEY,
     });
 
-    return NextResponse.json({ pos: result.pos, ranked: result.ranked });
+    return NextResponse.json({ pos: result.pos, ranked: result.ranked, prompt: result.prompt });
   } catch (error: any) {
     console.error("PO Generation Error:", error);
     return NextResponse.json(
