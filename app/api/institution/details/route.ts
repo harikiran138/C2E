@@ -57,7 +57,21 @@ export async function GET(request: NextRequest) {
           p.academic_year,
           p.program_code,
           p.vision,
+          p.program_vision,
           p.mission,
+          p.program_mission,
+          p.vision_score,
+          p.vision_analysis,
+          p.mission_score,
+          p.mission_analysis,
+          p.generated_by_ai,
+          p.vision_inputs_used,
+          p.mission_inputs_used,
+          p.vision_options,
+          p.mission_options,
+          p.vision_priorities,
+          p.mission_priorities,
+          p.lead_society,
           cm.matrix_data as consistency_matrix
          FROM programs p
          LEFT JOIN consistency_matrix cm ON p.id = cm.program_id

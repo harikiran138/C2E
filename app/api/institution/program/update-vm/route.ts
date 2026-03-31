@@ -36,16 +36,18 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const hasVisionField = Object.prototype.hasOwnProperty.call(
-      body,
-      "program_vision",
+    const hasVisionField =
+      Object.prototype.hasOwnProperty.call(body, "program_vision") ||
+      Object.prototype.hasOwnProperty.call(body, "vision");
+    const hasMissionField =
+      Object.prototype.hasOwnProperty.call(body, "program_mission") ||
+      Object.prototype.hasOwnProperty.call(body, "mission");
+    const normalizedProgramVision = normalizeStatement(
+      body?.program_vision ?? body?.vision,
     );
-    const hasMissionField = Object.prototype.hasOwnProperty.call(
-      body,
-      "program_mission",
+    const normalizedProgramMission = normalizeStatement(
+      body?.program_mission ?? body?.mission,
     );
-    const normalizedProgramVision = normalizeStatement(body?.program_vision);
-    const normalizedProgramMission = normalizeStatement(body?.program_mission);
 
     const visionInputs = normalizeStringArray(body?.vision_inputs_used);
     const missionInputs = normalizeStringArray(body?.mission_inputs_used);
@@ -329,9 +331,11 @@ export async function PUT(request: NextRequest) {
         `UPDATE programs
          SET
            vision = $2,
+           program_vision = $2,
            vision_score = $3,
            vision_analysis = $4::jsonb,
            mission = $5,
+           program_mission = $5,
            mission_score = $6,
            mission_analysis = $7::jsonb,
            vision_inputs_used = $8::jsonb,
