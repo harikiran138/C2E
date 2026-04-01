@@ -151,7 +151,7 @@ export default function SuperAdminDashboard() {
                         <button 
                             onClick={handleLogout}
                             className="size-11 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 rounded-2xl transition-all text-slate-400 group relative"
-                            title="Sign Out"
+                            title="Logout"
                         >
                             <LogOut className="size-5 group-hover:scale-110 transition-transform" />
                             <span className="absolute -bottom-1 w-1 h-1 bg-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />

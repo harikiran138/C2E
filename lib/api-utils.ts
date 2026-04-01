@@ -20,7 +20,8 @@ export async function authorize(
   request: NextRequest,
   allowedRoles?: string[]
 ): Promise<AuthorizedContext | NextResponse> {
-  const token = request.cookies.get("c2e_auth_token")?.value;
+  const token = request.cookies.get("c2e_auth_token")?.value || 
+                request.cookies.get("institution_token")?.value;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized: No session found." }, { status: 401 });

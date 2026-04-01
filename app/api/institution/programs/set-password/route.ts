@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
 import bcrypt from "bcrypt";
-import { verifyToken } from "@/lib/auth";
+import { authorize, isAuthorized } from "@/lib/api-utils";
 import { logAudit } from "@/lib/audit";
 
 /**
@@ -20,17 +20,10 @@ export async function PUT(request: NextRequest) {
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   try {
-    const token = request.cookies.get("institution_token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
 
-    const tokenPayload = await verifyToken(token);
-    if (!tokenPayload?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const institutionId = tokenPayload.id as string;
+    const institutionId = auth.institutionId;
 
     const body = await request.json();
     const { program_id, new_password, old_password } = body;

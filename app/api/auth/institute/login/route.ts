@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         const globalCheck = await client.query('SELECT id FROM public.users WHERE LOWER(email) = LOWER($1) OR id IN (SELECT user_id FROM public.users WHERE LOWER(email) = LOWER($1)) LIMIT 1', [identifier.trim()]);
         
         if (globalCheck.rows.length > 0) {
-           return NextResponse.json({ error: "Access denied: Account does not belong to the selected Institute or Program." }, { status: 403 });
+           return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
         }
         return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
       }

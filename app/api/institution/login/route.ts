@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
       // Standardized Error Response (Prevent Enumeration)
       const invalidCredsResponse = () =>
-        NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+        NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
 
       if (!institution || !institution.password_hash) {
         // Fake comparison to prevent timing attacks (optional but good practice)

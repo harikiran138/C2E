@@ -37,10 +37,9 @@ export async function POST(request: NextRequest) {
     if (!instituteId || !programId || !stakeholderId || !stakeholderPassword) {
       return NextResponse.json(
         {
-          error:
-            "Institute, Program, Stakeholder ID and password are required.",
+          error: "Invalid email or password.",
         },
-        { status: 400 },
+        { status: 401 },
       );
     }
 
@@ -76,7 +75,7 @@ export async function POST(request: NextRequest) {
           "$2b$10$abcdefghijklmnopqrstuv",
         );
         return NextResponse.json(
-          { error: "Invalid credentials." },
+          { error: "Invalid email or password." },
           { status: 401 },
         );
       }
@@ -84,18 +83,17 @@ export async function POST(request: NextRequest) {
       const stakeholder = result.rows[0];
       if (!stakeholder.is_approved) {
         return NextResponse.json(
-          { error: "Stakeholder is not approved for feedback access." },
-          { status: 403 },
+          { error: "Invalid email or password." },
+          { status: 401 },
         );
       }
 
       if (!stakeholder.login_password_hash) {
         return NextResponse.json(
           {
-            error:
-              "Stakeholder login password is not configured. Please contact Program Admin.",
+            error: "Invalid email or password.",
           },
-          { status: 403 },
+          { status: 401 },
         );
       }
 
@@ -105,7 +103,7 @@ export async function POST(request: NextRequest) {
       );
       if (!passwordMatch) {
         return NextResponse.json(
-          { error: "Invalid credentials." },
+          { error: "Invalid email or password." },
           { status: 401 },
         );
       }
@@ -171,8 +169,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Stakeholder login error:", error);
     return NextResponse.json(
-      { error: error.message || "Login failed" },
-      { status: 500 },
+      { error: "Invalid email or password." },
+      { status: 401 },
     );
   }
 }

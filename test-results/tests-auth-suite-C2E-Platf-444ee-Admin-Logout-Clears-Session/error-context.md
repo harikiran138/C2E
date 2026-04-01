@@ -7,24 +7,27 @@
 # Test info
 
 - Name: tests/auth-suite.spec.ts >> C2E Platform v5.1 - Authentication Suite >> TC-1.18: Institute Admin Logout Clears Session
-- Location: tests/auth-suite.spec.ts:145:7
+- Location: tests/auth-suite.spec.ts:148:7
 
 # Error details
 
 ```
-Error: locator.click: Error: strict mode violation: locator('main button:has-text("Sign In")') resolved to 2 elements:
-    1) <button class="relative z-10 flex-1 rounded-lg py-2.5 text-xs font-bold transition-all text-primary-foreground">Sign In</button> aka locator('button').filter({ hasText: /^Sign In$/ })
-    2) <button class="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">…</button> aka getByRole('button', { name: 'Sign In' }).nth(1)
+Error: expect(page).toHaveURL(expected) failed
+
+Expected pattern: /.*\/institution\/dashboard/
+Received string:  "http://localhost:3000/institution/login"
+Timeout: 5000ms
 
 Call log:
-  - waiting for locator('main button:has-text("Sign In")')
+  - Expect "toHaveURL" with timeout 5000ms
+    9 × unexpected value "http://localhost:3000/institution/login"
 
 ```
 
 # Page snapshot
 
 ```yaml
-- generic [ref=e1]:
+- generic [active] [ref=e1]:
   - main [ref=e2]:
     - generic [ref=e7]:
       - link "Back" [ref=e8] [cursor=pointer]:
@@ -59,11 +62,10 @@ Call log:
                 - img [ref=e44]
                 - text: Password
               - generic [ref=e48]:
-                - textbox "••••••••" [active] [ref=e49]: TestPass123!
+                - textbox "••••••••" [ref=e49]: TestPass123!
                 - button [ref=e50]:
                   - img [ref=e51]
-            - button "Sign In" [ref=e54]:
-              - text: Sign In
+            - button [disabled] [ref=e54]:
               - img [ref=e55]
           - generic [ref=e59]: Database Connected Securely
   - button "Open Next.js Dev Tools" [ref=e65] [cursor=pointer]:
@@ -74,141 +76,135 @@ Call log:
 # Test source
 
 ```ts
-  50  |     await page.goto(`${BASE_URL}/institution/login`);
-  51  |     await page.fill('input[placeholder="institution@example.com"]', 'inst-a@test.com');
-  52  |     await page.fill('input[placeholder="••••••••"]', 'WrongPass!');
-  53  |     await page.click('main button:has-text("Sign In")');
-  54  |     
-  55  |     const errorMsg = page.locator('text=Invalid email or password.');
-  56  |     await expect(errorMsg).toBeVisible();
-  57  |   });
-  58  | 
-  59  |   test('TC-1.06: Institute Admin Rejects "Super Admin" Login on /institution/login', async ({ page }) => {
-  60  |     await page.goto(`${BASE_URL}/institution/login`);
-  61  |     await page.fill('input[placeholder="institution@example.com"]', 'super@c2e.com');
-  62  |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
-  63  |     await page.locator('main button:has-text("Sign In")').click();
-  64  |     
-  65  |     const errorMsg = page.locator('text=Invalid email or password.');
-  66  |     await expect(errorMsg).toBeVisible();
-  67  |   });
-  68  | 
-  69  |   test('TC-1.07: Program Admin Login Redirects to /program/dashboard', async ({ page }) => {
-  70  |     await page.goto(`${BASE_URL}/institution/login`);
-  71  |     // Click Program tab
-  72  |     await page.click('button:has-text("Program")');
-  73  | 
-  74  |     await page.fill('input[placeholder="e.g. mech@nsrit.c2x.ai"]', 'prog-a@test.com');
-  75  |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
-  76  |     await page.click('button:has-text("Program Sign In")');
-  77  |     
-  78  |     await expect(page).toHaveURL(/.*\/program\/dashboard/);
-  79  |   });
-  80  | 
-  81  |   test('TC-1.10: Super Admin Login Page Is Not Linked Anywhere', async ({ page }) => {
-  82  |     await page.goto(`${BASE_URL}`);
-  83  |     const loginLinkCount = await page.locator('a[href="/login"]').count();
-  84  |     expect(loginLinkCount).toBe(0);
-  85  |   });
-  86  | 
-  87  |   test('TC-1.12: All Logins Have Identical Error Messages', async ({ page }) => {
-  88  |     // 1. Check Super Admin Login error text
-  89  |     await page.goto(`${BASE_URL}/login`);
-  90  |     await page.fill('input[placeholder="admin@c2x.com"]', 'invalid@test.com');
-  91  |     await page.fill('input[placeholder="••••••••"]', 'invalid');
-  92  |     await page.click('button:has-text("Secure Login")');
-  93  |     await expect(page.locator('text=Invalid email or password.')).toBeVisible();
-  94  | 
-  95  |     // 2. Check Institute/Program Admin Login error text
-  96  |     await page.goto(`${BASE_URL}/institution/login`);
-  97  |     await page.fill('input[placeholder="institution@example.com"]', 'invalid@test.com');
-  98  |     await page.fill('input[placeholder="••••••••"]', 'invalid');
-  99  |     await page.locator('main button:has-text("Sign In")').click();
-  100 |     await expect(page.locator('text=Invalid email or password.')).toBeVisible();
-  101 |   });
-  102 | 
-  103 |   test('TC-1.13: Unauthorized Access Redirects to /institution/login', async ({ page }) => {
-  104 |     await page.goto(`${BASE_URL}/institution/dashboard`);
-  105 |     await expect(page).toHaveURL(/.*\/institution\/login/);
+  53  |     await page.fill('input[placeholder="••••••••"]', 'WrongPass!');
+  54  |     await page.locator('button:has-text("Sign In")').nth(1).click();
+  55  |     
+  56  |     const errorMsg = page.locator('text=Invalid email or password.');
+  57  |     await expect(errorMsg).toBeVisible();
+  58  |   });
+  59  | 
+  60  |   test('TC-1.06: Institute Admin Rejects "Super Admin" Login on /institution/login', async ({ page }) => {
+  61  |     await page.goto(`${BASE_URL}/institution/login`);
+  62  |     await page.fill('input[placeholder="institution@example.com"]', 'super@c2e.com');
+  63  |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
+  64  |     await page.locator('button:has-text("Sign In")').nth(1).click();
+  65  |     
+  66  |     // v5.1 API/Service layer specifically rejects roles not matching the login context
+  67  |     const errorMsg = page.locator('text=Invalid email or password.');
+  68  |     await expect(errorMsg).toBeVisible();
+  69  |   });
+  70  | 
+  71  |   test('TC-1.07: Program Admin Login Redirects to /dashboard/[id]', async ({ page }) => {
+  72  |     await page.goto(`${BASE_URL}/institution/login`);
+  73  |     await page.click('button:has-text("Program")');
+  74  | 
+  75  |     await page.fill('input[placeholder="e.g. mech@nsrit.c2x.ai"]', 'prog-a@test.com');
+  76  |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
+  77  |     await page.click('button:has-text("Program Sign In")');
+  78  |     
+  79  |     // Program dashboard in v5.1 is at /dashboard/[id]
+  80  |     await expect(page).toHaveURL(/.*\/dashboard\/.*/);
+  81  |   });
+  82  | 
+  83  |   test('TC-1.10: Super Admin Login Page Is Not Linked Anywhere', async ({ page }) => {
+  84  |     await page.goto(`${BASE_URL}`);
+  85  |     const loginLinkCount = await page.locator('a[href="/login"]').count();
+  86  |     expect(loginLinkCount).toBe(0);
+  87  |   });
+  88  | 
+  89  |   test('TC-1.12: All Logins Have Identical Error Messages', async ({ page }) => {
+  90  |     // 1. Check Super Admin Login error text
+  91  |     await page.goto(`${BASE_URL}/login`);
+  92  |     await page.fill('input[placeholder="admin@c2x.com"]', 'invalid@test.com');
+  93  |     await page.fill('input[placeholder="••••••••"]', 'invalid');
+  94  |     await page.click('button:has-text("Secure Login")');
+  95  |     const msg1 = page.locator('text=Invalid email or password.');
+  96  |     await expect(msg1).toBeVisible();
+  97  | 
+  98  |     // 2. Check Institute Admin Login error text
+  99  |     await page.goto(`${BASE_URL}/institution/login`);
+  100 |     await page.fill('input[placeholder="institution@example.com"]', 'invalid@test.com');
+  101 |     await page.fill('input[placeholder="••••••••"]', 'invalid');
+  102 |     await page.locator('button:has-text("Sign In")').nth(1).click();
+  103 |     const msg2 = page.locator('text=Invalid email or password.');
+  104 |     await expect(msg2).toBeVisible();
+  105 |   });
   106 | 
-  107 |     await page.goto(`${BASE_URL}/program/dashboard`);
-  108 |     await expect(page).toHaveURL(/.*\/institution\/login/);
-  109 |   });
-  110 | 
-  111 |   test('TC-1.14: Logged-in Program Admin Cannot Reach /login', async ({ page }) => {
-  112 |     await page.goto(`${BASE_URL}/institution/login`);
-  113 |     await page.click('button:has-text("Program")');
-  114 | 
-  115 |     await page.fill('input[placeholder="e.g. mech@nsrit.c2x.ai"]', 'prog-a@test.com');
-  116 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
-  117 |     await page.click('button:has-text("Program Sign In")');
-  118 | 
-  119 |     await expect(page).toHaveURL(/.*\/program\/dashboard/);
-  120 | 
-  121 |     // Try to go to /login
-  122 |     await page.goto(`${BASE_URL}/login`);
-  123 |     await expect(page).toHaveURL(/.*\/program\/dashboard/);
-  124 |   });
+  107 |   test('TC-1.13: Unauthorized Access Redirects to /institution/login', async ({ page }) => {
+  108 |     // Session is cleared on load of login page (v5.1 requirement)
+  109 |     await page.goto(`${BASE_URL}/institution/dashboard`);
+  110 |     await expect(page).toHaveURL(/.*\/institution\/login/);
+  111 | 
+  112 |     await page.goto(`${BASE_URL}/program/dashboard`); // Old path redirects to login or 404/dashboard/[id]
+  113 |     await expect(page).toHaveURL(/.*\/institution\/login/);
+  114 |   });
+  115 | 
+  116 |   test('TC-1.14: Logged-in Program Admin Cannot Reach /login', async ({ page }) => {
+  117 |     await page.goto(`${BASE_URL}/institution/login`);
+  118 |     await page.click('button:has-text("Program")');
+  119 | 
+  120 |     await page.fill('input[placeholder="e.g. mech@nsrit.c2x.ai"]', 'prog-a@test.com');
+  121 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
+  122 |     await page.click('button:has-text("Program Sign In")');
+  123 | 
+  124 |     await expect(page).toHaveURL(/.*\/dashboard\/.*/);
   125 | 
-  126 |   test('TC-1.17: Super Admin Logout Clears Session', async ({ page }) => {
-  127 |     // 1. Login
-  128 |     await page.goto(`${BASE_URL}/login`);
-  129 |     await page.fill('input[placeholder="admin@c2x.com"]', 'super@c2e.com');
-  130 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
-  131 |     await page.click('button:has-text("Secure Login")');
-  132 |     await expect(page).toHaveURL(/.*\/dashboard/);
-  133 | 
-  134 |     // 2. Logout
-  135 |     await page.click('button[title="Sign Out"]');
-  136 |     
-  137 |     // 3. Verify redirection
-  138 |     await expect(page).toHaveURL(/.*\/login/);
-  139 | 
-  140 |     // 4. Verify access is revoked
-  141 |     await page.goto(`${BASE_URL}/dashboard`);
-  142 |     await expect(page).toHaveURL(/.*\/login/);
-  143 |   });
-  144 | 
-  145 |   test('TC-1.18: Institute Admin Logout Clears Session', async ({ page }) => {
-  146 |     // 1. Login
-  147 |     await page.goto(`${BASE_URL}/institution/login`);
-  148 |     await page.fill('input[placeholder="institution@example.com"]', 'inst-a@test.com');
-  149 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
-> 150 |     await page.locator('main button:has-text("Sign In")').click();
-      |                                                           ^ Error: locator.click: Error: strict mode violation: locator('main button:has-text("Sign In")') resolved to 2 elements:
-  151 |     await expect(page).toHaveURL(/.*\/institution\/dashboard/);
-  152 | 
-  153 |     // 2. Logout
-  154 |     await page.click('button[title="Logout"]');
-  155 |     
-  156 |     // 3. Verify redirection
+  126 |     // Try to go to /login (Super Admin login)
+  127 |     await page.goto(`${BASE_URL}/login`);
+  128 |     // Should be redirected back to their dashboard
+  129 |     await expect(page).toHaveURL(/.*\/dashboard\/.*/);
+  130 |   });
+  131 | 
+  132 |   test('TC-1.17: Super Admin Logout Clears Session', async ({ page }) => {
+  133 |     await page.goto(`${BASE_URL}/login`);
+  134 |     await page.fill('input[placeholder="admin@c2x.com"]', 'super@c2e.com');
+  135 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
+  136 |     await page.click('button:has-text("Secure Login")');
+  137 |     await expect(page).toHaveURL(/.*\/dashboard/);
+  138 | 
+  139 |     // Logout
+  140 |     await page.click('button[title="Logout"]');
+  141 |     await expect(page).toHaveURL(/.*\/login/);
+  142 | 
+  143 |     // Verify access is revoked
+  144 |     await page.goto(`${BASE_URL}/dashboard`);
+  145 |     await expect(page).toHaveURL(/.*\/login/);
+  146 |   });
+  147 | 
+  148 |   test('TC-1.18: Institute Admin Logout Clears Session', async ({ page }) => {
+  149 |     await page.goto(`${BASE_URL}/institution/login`);
+  150 |     await page.fill('input[placeholder="institution@example.com"]', 'inst-a@test.com');
+  151 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
+  152 |     await page.locator('button:has-text("Sign In")').nth(1).click();
+> 153 |     await expect(page).toHaveURL(/.*\/institution\/dashboard/);
+      |                        ^ Error: expect(page).toHaveURL(expected) failed
+  154 | 
+  155 |     // Logout
+  156 |     await page.click('button[title="Logout"]');
   157 |     await expect(page).toHaveURL(/.*\/institution\/login/);
   158 | 
-  159 |     // 4. Verify access is revoked
+  159 |     // Verify access revoked
   160 |     await page.goto(`${BASE_URL}/institution/dashboard`);
   161 |     await expect(page).toHaveURL(/.*\/institution\/login/);
   162 |   });
   163 | 
   164 |   test('TC-1.20: Program Admin Logout Clears Session', async ({ page }) => {
-  165 |     // 1. Login
-  166 |     await page.goto(`${BASE_URL}/institution/login`);
-  167 |     await page.click('button:has-text("Program")');
-  168 | 
-  169 |     await page.fill('input[placeholder="e.g. mech@nsrit.c2x.ai"]', 'prog-a@test.com');
-  170 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
-  171 |     await page.click('button:has-text("Program Sign In")');
-  172 |     await expect(page).toHaveURL(/.*\/program\/dashboard/);
-  173 | 
-  174 |     // 2. Logout
-  175 |     await page.click('button[title="Logout"]');
+  165 |     await page.goto(`${BASE_URL}/institution/login`);
+  166 |     await page.click('button:has-text("Program")');
+  167 | 
+  168 |     await page.fill('input[placeholder="e.g. mech@nsrit.c2x.ai"]', 'prog-a@test.com');
+  169 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
+  170 |     await page.click('button:has-text("Program Sign In")');
+  171 |     await expect(page).toHaveURL(/.*\/dashboard\/.*/);
+  172 | 
+  173 |     // Logout
+  174 |     await page.click('button[title="Logout"]');
+  175 |     await expect(page).toHaveURL(/.*\/institution\/login/);
   176 | 
-  177 |     // 3. Verify redirection
-  178 |     await expect(page).toHaveURL(/.*\/institution\/login/);
-  179 | 
-  180 |     // 4. Verify access is revoked
-  181 |     await page.goto(`${BASE_URL}/program/dashboard`);
-  182 |     await expect(page).toHaveURL(/.*\/institution\/login/);
-  183 |   });
-  184 | });
-  185 | 
+  177 |     // Verify access revoked
+  178 |     await page.goto(`${BASE_URL}/dashboard/some-id`);
+  179 |     await expect(page).toHaveURL(/.*\/institution\/login/);
+  180 |   });
+  181 | });
+  182 | 
 ```

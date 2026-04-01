@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: "Email and password are required." },
-        { status: 400 },
+        { error: "Invalid email or password." },
+        { status: 401 },
       );
     }
 
@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Program login error:", error);
     return NextResponse.json(
-      { error: "Login failed. Please try again." },
-      { status: 500 },
+      { error: "Invalid email or password." },
+      { status: 401 },
     );
   }
 }

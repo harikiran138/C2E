@@ -1,28 +1,19 @@
 import pool from "@/lib/postgres";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { authorize, isAuthorized } from "@/lib/api-utils";
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
+
     const body = await request.json();
     const vision =
       typeof body?.vision === "string" ? body.vision.trim() : null;
     const mission =
       typeof body?.mission === "string" ? body.mission.trim() : null;
-
-    const cookieStore = await cookies();
-    const token = cookieStore.get("institution_token")?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const tokenPayload = await verifyToken(token);
-    if (!tokenPayload || !tokenPayload.id) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    const institutionId = tokenPayload.id as string;
 
     const client = await pool.connect();
     try {

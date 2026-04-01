@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: tests/auth-suite.spec.ts >> C2E Platform v5.1 - Authentication Suite >> TC-1.14: Logged-in Program Admin Cannot Reach /login
-- Location: tests/auth-suite.spec.ts:116:7
+- Name: tests/auth-suite.spec.ts >> C2E Platform v5.1 - Authentication Suite >> TC-1.07: Program Admin Login Redirects to /dashboard/[id]
+- Location: tests/auth-suite.spec.ts:71:7
 
 # Error details
 
@@ -91,6 +91,29 @@ Call log:
 # Test source
 
 ```ts
+  1   | import { test, expect } from '@playwright/test';
+  2   | 
+  3   | test.describe('C2E Platform v5.1 - Authentication Suite', () => {
+  4   |   const BASE_URL = 'http://localhost:3000';
+  5   | 
+  6   |   test('TC-1.01: Super Admin Login Redirects to /dashboard', async ({ page }) => {
+  7   |     await page.goto(`${BASE_URL}/login`);
+  8   |     await page.fill('input[placeholder="admin@c2x.com"]', 'super@c2e.com');
+  9   |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
+  10  |     await page.click('button:has-text("Secure Login")');
+  11  |     
+  12  |     // Should navigate to /dashboard
+  13  |     await expect(page).toHaveURL(/.*\/dashboard/);
+  14  |     // Ensure it's not the program dashboard
+  15  |     expect(page.url()).not.toContain('/dashboard/');
+  16  |   });
+  17  | 
+  18  |   test('TC-1.02: Super Admin Rejects Wrong Credentials', async ({ page }) => {
+  19  |     await page.goto(`${BASE_URL}/login`);
+  20  |     await page.fill('input[placeholder="admin@c2x.com"]', 'super@c2e.com');
+  21  |     await page.fill('input[placeholder="••••••••"]', 'WrongPass!');
+  22  |     await page.click('button:has-text("Secure Login")');
+  23  |     
   24  |     const errorMsg = page.locator('text=Invalid email or password.');
   25  |     await expect(errorMsg).toBeVisible();
   26  |     await expect(page).toHaveURL(/.*\/login/);
@@ -147,7 +170,8 @@ Call log:
   77  |     await page.click('button:has-text("Program Sign In")');
   78  |     
   79  |     // Program dashboard in v5.1 is at /dashboard/[id]
-  80  |     await expect(page).toHaveURL(/.*\/dashboard\/.*/);
+> 80  |     await expect(page).toHaveURL(/.*\/dashboard\/.*/);
+      |                        ^ Error: expect(page).toHaveURL(expected) failed
   81  |   });
   82  | 
   83  |   test('TC-1.10: Super Admin Login Page Is Not Linked Anywhere', async ({ page }) => {
@@ -191,8 +215,7 @@ Call log:
   121 |     await page.fill('input[placeholder="••••••••"]', 'TestPass123!');
   122 |     await page.click('button:has-text("Program Sign In")');
   123 | 
-> 124 |     await expect(page).toHaveURL(/.*\/dashboard\/.*/);
-      |                        ^ Error: expect(page).toHaveURL(expected) failed
+  124 |     await expect(page).toHaveURL(/.*\/dashboard\/.*/);
   125 | 
   126 |     // Try to go to /login (Super Admin login)
   127 |     await page.goto(`${BASE_URL}/login`);
@@ -249,6 +272,4 @@ Call log:
   178 |     await page.goto(`${BASE_URL}/dashboard/some-id`);
   179 |     await expect(page).toHaveURL(/.*\/institution\/login/);
   180 |   });
-  181 | });
-  182 | 
 ```

@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
-import { verifyToken } from "@/lib/auth";
+import { authorize, isAuthorized } from "@/lib/api-utils";
 import { validateInstitutionDetailsPayload } from "@/lib/validation/onboarding";
 
-async function getInstitutionId(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get("institution_token")?.value;
-  if (!token) return null;
-  const tokenPayload = await verifyToken(token);
-  return (tokenPayload?.id as string) || null;
-}
+
 
 export async function GET(request: NextRequest) {
   try {
-    const institutionId = await getInstitutionId(request);
-    if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
 
     const client = await pool.connect();
     try {
@@ -103,10 +98,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const institutionId = await getInstitutionId(request);
-    if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
 
     const body = await request.json();
     const tokenPayload = {

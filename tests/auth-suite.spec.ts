@@ -137,7 +137,7 @@ test.describe('C2E Platform v5.1 - Authentication Suite', () => {
     await expect(page).toHaveURL(/.*\/dashboard/);
 
     // Logout
-    await page.click('button[title="Sign Out"]');
+    await page.click('button[title="Logout"]');
     await expect(page).toHaveURL(/.*\/login/);
 
     // Verify access is revoked

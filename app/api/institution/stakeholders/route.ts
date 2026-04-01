@@ -1,15 +1,9 @@
 import pool from "@/lib/postgres";
 import bcrypt from "bcrypt";
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { authorize, isAuthorized } from "@/lib/api-utils";
 
-async function getInstitutionId(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get("institution_token")?.value;
-  if (!token) return null;
-  const tokenPayload = await verifyToken(token);
-  if (!tokenPayload?.id) return null;
-  return String(tokenPayload.id);
-}
+
 
 const SELECT_FIELDS = `
   rs.id,
@@ -123,10 +117,10 @@ async function generateStakeholderId(
 
 export async function GET(request: NextRequest) {
   try {
-    const institutionId = await getInstitutionId(request);
-    if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
 
     const { searchParams } = new URL(request.url);
     const programId = searchParams.get("programId");
@@ -174,10 +168,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const institutionId = await getInstitutionId(request);
-    if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
 
     const body = await request.json();
 
@@ -273,10 +267,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const institutionId = await getInstitutionId(request);
-    if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
 
     const body = await request.json();
     const { id, ...fields } = body;
@@ -364,10 +358,10 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const institutionId = await getInstitutionId(request);
-    if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
