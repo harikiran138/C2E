@@ -102,6 +102,9 @@ ${benchmarksText}
 5. WEAK VERB CORRECTION: Replace "enhance, improve, support, facilitate" with "analyze, design, evaluate, develop, implement".
 6. DOMAIN ENFORCEMENT: Include discipline-specific keywords. Avoid "engineering systems"; use "power systems", "embedded systems", etc.
 7. TOOL GENERALIZATION: Replace specific tools (MATLAB, Python) with "appropriate engineering tools", unless domain-critical.
+8. PO NON-OVERLAP: Strictly ensure PSOs do not conceptually repeat or overlap with general Program Outcomes (POs/SOs).
+9. ACCREDITATION ALIGNMENT: Align with Washington Accord Knowledge Profile (WK1-WK8) and latest ABET EAC criteria for complex engineering problems.
+
 
 ---
 📝 INSTRUCTIONS
