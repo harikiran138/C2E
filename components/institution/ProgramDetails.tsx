@@ -4,9 +4,17 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "../../utils/supabase/client";
 import { useRouter } from "next/navigation";
 
+import { DEGREES, LEVELS } from "@/lib/validation/onboarding";
+
 interface Program {
   id: string;
   program_name: string;
+  program_code: string;
+  degree: string;
+  level: string;
+  duration: number;
+  intake: number;
+  academic_year: string;
   program_chair?: string;
   nba_coordinator?: string;
   vision?: string;
@@ -94,17 +102,15 @@ export default function ProgramDetails() {
   const handleProgramUpdate = async () => {
     if (!currentProgram || !selectedProgramId) return;
     try {
-      const { error } = await supabase
-        .from("programs")
-        .update({
-          program_chair: currentProgram.program_chair,
-          nba_coordinator: currentProgram.nba_coordinator,
-          vision: currentProgram.vision,
-          mission: currentProgram.mission,
-        })
-        .eq("id", selectedProgramId);
+      const res = await fetch(`/api/institution/programs?id=${selectedProgramId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(currentProgram),
+      });
 
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update program");
+
       alert("Program details updated!");
       // Update local programs list
       setPrograms((prev) =>
@@ -242,6 +248,140 @@ export default function ProgramDetails() {
                 </span>
                 Program Details
               </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    Program Name
+                  </label>
+                  <input
+                    value={currentProgram.program_name || ""}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        program_name: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec]"
+                    placeholder="e.g. Computer Science and Engineering"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    Program Code
+                  </label>
+                  <input
+                    value={currentProgram.program_code || ""}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        program_code: e.target.value.toUpperCase(),
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec]"
+                    placeholder="e.g. CSE"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    Degree
+                  </label>
+                  <select
+                    value={currentProgram.degree}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        degree: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec]"
+                  >
+                    {DEGREES.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    Level
+                  </label>
+                  <select
+                    value={currentProgram.level}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        level: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec]"
+                  >
+                    {LEVELS.map((l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    Academic Year
+                  </label>
+                  <input
+                    value={currentProgram.academic_year || ""}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        academic_year: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec]"
+                    placeholder="e.g. 2024-25"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    Duration (Years)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={6}
+                    value={currentProgram.duration || 0}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        duration: parseInt(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    Student Intake
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={currentProgram.intake || 0}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        intake: parseInt(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec]"
+                  />
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>

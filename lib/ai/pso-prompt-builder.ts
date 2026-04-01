@@ -63,8 +63,8 @@ export function buildPSOGenerationPrompt(
 
   return `
 🧠 🔥 ACCREDITATION-READY PSO GENERATION
-You are a Senior Academic Auditor specializing in NBA Tier-I and ABET EAC standards.
-Generate exactly ${count} high-quality Program Specific Outcomes (PSOs) for: ${programName}.
+Role: Expert in Outcome-Based Education (OBE), NBA accreditation (India), Washington Accord standards, and ABET Engineering Accreditation Commission (EAC) frameworks.
+Task: Analyze, refine, and enhance Program Specific Outcomes (PSOs) for: ${programName}.
 
 ---
 🎯 CONTEXT & INPUTS
@@ -85,20 +85,29 @@ Use these high-scoring technical phrases as inspiration for depth and tone:
 ${benchmarksText}
 
 ---
-🧠 CORE REQUIREMENTS
-1. ACTION VERBS: Start ONLY with strong Bloom's levels: Apply, Design, Analyze, Develop, Evaluate, Integrate, Optimize, Implement, Formulate, Model.
-2. DOMAIN DEPTH: Statements MUST include discipline-specific technical keywords. Reject generic terms.
-3. ABET MAPPING: Map each PSO to 1-2 Student Outcomes (SO1-SO7).
-   - SO1: Complex Problem Solving (Analysis)
-   - SO2: Engineering Design (Synthesis)
-   - SO4: Ethics & Impact
-   - SO6: Experimentation & Data
-4. SEMANTIC DIVERSITY: Each PSO must cover a unique technical dimension. Ensure distinct focus areas.
-5. REAL-WORLD CONTEXT: Include measurable constraints (Safety, Cost, Efficiency, Reliability, Standards).
-6. NO VAGUE TERMS: Avoid "understand", "learn", "aware", "know".
+🚀 OBJECTIVES
+1. Ensure each PSO is outcome-oriented, measurable, and assessable.
+2. Align PSOs with ABET EAC Student Outcomes (SO1–SO7).
+3. Ensure compliance with NBA (India) expectations for PSOs (SAR Section 2.5).
+4. Strengthen program-specific depth and avoid generic engineering statements.
+5. Remove redundancy and overlap across PSOs.
+6. Limit cognitive overload by avoiding multiple outcomes in a single PSO.
+7. Use precise and measurable action verbs from Bloom’s Taxonomy (Analyze, Design, optimize, etc.).
+8. Ensure each PSO can be mapped clearly to courses, labs, and assessments.
 
 ---
-🟡 INTERNAL SELF-VERIFICATION
+📝 INSTRUCTIONS
+1. Start each PSO with 'Graduates will be able to...'.
+2. STRUCTURAL FORMULA: [Strong Verb] + [Specific Technical Object] + [Real-world Constraint/Standard/Tool].
+3. COGNITIVE LEVEL: Use Bloom's Taxonomy Levels 4-6 (Analyze, Evaluate, Create).
+4. VERB RESTRICTION: Avoid 'understand', 'enhance', 'optimize', 'efficient', unless tied to measurable criteria.
+5. DOMAIN DEPTH: Use discipline-specific technical keywords (ASME, IEEE, ISO, specific algorithms/methods).
+6. CONCISENESS: Keep PSOs between 20–30 words (one sentence).
+7. INTEGRATION: Subtly integrate sustainability, ethics, or societal relevance where technically appropriate.
+8. DISTINCT COMPETENCY: Ensure each of the ${count} PSOs represents a distinct technical competency area.
+
+---
+🧠 INTERNAL SELF-VERIFICATION
 Before producing output, internally verify:
 1. Does each PSO start with a strong measurable verb?
 2. Is the technical granularity deep enough for ${programName}?
@@ -107,14 +116,6 @@ Before producing output, internally verify:
 5. Do the ${count} PSOs together provide broad program coverage without repetition?
 
 DO NOT output this reasoning block.
-
----
-🟢 NBA SAR SECTION 2.5 ALIGNMENT
-- PSOs must reflect program specialization.
-- Must demonstrate industry/professional readiness.
-- Must result in measurable outcomes aligning with PEOs.
-
-Every PSO must explicitly reflect the provided criteria.
 
 ---
 📦 OUTPUT FORMAT (STRICT JSON)
@@ -126,6 +127,11 @@ Every PSO must explicitly reflect the provided criteria.
       "mapped_abet_elements": ["SO1", "SO2"]
     }
   ],
+  "compliance_check": {
+    "obe_alignment": "Explanation of how outcome-orientation is achieved",
+    "nba_alignment": "Justification for Section 2.5 compliance",
+    "abet_alignment": "Summary mapping to SO1-SO7"
+  },
   "meta": {
     "mode": "${mode}",
     "compliance": "NBA Tier-I + ABET EAC"

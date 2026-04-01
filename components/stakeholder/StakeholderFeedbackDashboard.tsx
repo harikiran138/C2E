@@ -36,6 +36,7 @@ type ContextResponse = {
   mission: string;
   peos: Array<{ id: string; peoNumber: number; statement: string }>;
   latestSubmissionAt: string | null;
+  steps: Record<string, boolean>;
 };
 
 type PEOFeedbackState = Record<string, { rating: number; comment: string }>;
@@ -79,11 +80,42 @@ export default function StakeholderFeedbackDashboard() {
 
       setContext(payload);
 
-      const initialPEOState: PEOFeedbackState = {};
-      payload.peos.forEach((peo: any) => {
-        initialPEOState[peo.id] = { rating: 0, comment: "" };
-      });
-      setPeoFeedback(initialPEOState);
+      // Fetch existing feedback to pre-fill
+      const feedbackResponse = await fetch("/api/stakeholder/feedback");
+      if (feedbackResponse.ok) {
+        const feedbackPayload = await feedbackResponse.json();
+        if (feedbackPayload.data) {
+          const { entries } = feedbackPayload.data;
+          
+          const visionEntry = entries.find((e: any) => e.category === "vision");
+          if (visionEntry) {
+            setVisionRating(visionEntry.rating);
+            setVisionComment(visionEntry.comment || "");
+          }
+
+          const missionEntry = entries.find((e: any) => e.category === "mission");
+          if (missionEntry) {
+            setMissionRating(missionEntry.rating);
+            setMissionComment(missionEntry.comment || "");
+          }
+
+          const initialPEOState: PEOFeedbackState = {};
+          payload.peos.forEach((peo: any) => {
+            const entry = entries.find((e: any) => e.peo_id === peo.id);
+            initialPEOState[peo.id] = {
+              rating: entry?.rating || 0,
+              comment: entry?.comment || "",
+            };
+          });
+          setPeoFeedback(initialPEOState);
+        } else {
+          const initialPEOState: PEOFeedbackState = {};
+          payload.peos.forEach((peo: any) => {
+            initialPEOState[peo.id] = { rating: 0, comment: "" };
+          });
+          setPeoFeedback(initialPEOState);
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load data");
     } finally {
@@ -363,6 +395,8 @@ export default function StakeholderFeedbackDashboard() {
           </div>
         ) : view === "validation" ? (
           <>
+            <ReviewTimeline steps={context.steps} cycle={context.feedbackWindow.cycle} />
+
             <div
               className={cn(
                 "rounded-2xl border p-4 text-sm",
@@ -422,11 +456,20 @@ export default function StakeholderFeedbackDashboard() {
             />
 
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-slate-900">PEO Feedback</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Provide rating and comments for each Program Educational
-                Objective.
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">PEO Feedback</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Provide rating and comments for each Program Educational
+                    Objective.
+                  </p>
+                </div>
+                {context.latestSubmissionAt && (
+                   <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold ring-1 ring-emerald-200">
+                     Submitted
+                   </span>
+                )}
+              </div>
 
               <div className="mt-5 space-y-5">
                 {context.peos.length === 0 && (
@@ -492,7 +535,7 @@ export default function StakeholderFeedbackDashboard() {
                     Submitting...
                   </>
                 ) : (
-                  "Submit Feedback"
+                  "Update Feedback"
                 )}
               </button>
               {pendingFields > 0 && (
@@ -503,6 +546,61 @@ export default function StakeholderFeedbackDashboard() {
             </div>
           </>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ReviewTimeline({ steps, cycle }: { steps: Record<string, boolean>, cycle: string }) {
+  const stages = [
+    { key: "vision_mission_drafting", label: "Drafting", description: "Internal preparation" },
+    { key: "stakeholder_feedback_open", label: "Consultation", description: "Feedback phase" },
+    { key: "pac_review_in_progress", label: "PAC Review", description: "Committee review" },
+    { key: "bos_final_approval", label: "BOS Approval", description: "Admin approval" },
+    { key: "vision_mission_published", label: "Published", description: "V-M finalized" },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-bold text-slate-900 mb-6 px-1">Review Timeline</h2>
+      <div className="relative flex justify-between">
+        {/* Connection Line */}
+        <div className="absolute top-5 left-0 h-0.5 w-full bg-slate-100 -z-0" />
+        
+        {stages.map((stage, index) => {
+          const isCompleted = !!steps[stage.key];
+          const isCurrent = (stage.key === 'stakeholder_feedback_open'); // Manual override for now as this is the stakeholder dashboard
+          
+          return (
+            <div key={stage.key} className="relative z-10 flex flex-col items-center flex-1">
+              <div className={cn(
+                "size-10 rounded-full border-4 flex items-center justify-center transition-all duration-500",
+                isCompleted 
+                  ? "bg-emerald-500 border-emerald-100 text-white" 
+                  : isCurrent 
+                  ? "bg-indigo-600 border-indigo-100 text-white shadow-lg shadow-indigo-100 scale-110"
+                  : "bg-white border-slate-100 text-slate-300"
+              )}>
+                {isCompleted ? (
+                  <CheckSquare className="size-5" />
+                ) : (
+                  <span className="text-sm font-bold">{index + 1}</span>
+                )}
+              </div>
+              <div className="mt-3 text-center">
+                <p className={cn(
+                  "text-xs font-bold uppercase tracking-wider",
+                  isCurrent ? "text-indigo-600" : isCompleted ? "text-emerald-600" : "text-slate-500"
+                )}>
+                  {stage.label}
+                </p>
+                <p className="mt-0.5 text-[10px] font-medium text-slate-400 hidden md:block">
+                  {stage.description}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -50,6 +50,56 @@ async function getStakeholderPayload(
   return payload;
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const stakeholder = await getStakeholderPayload(request);
+    if (!stakeholder) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const client = await pool.connect();
+    try {
+      const submissionRes = await client.query(
+        `SELECT id, submitted_at, feedback_cycle
+         FROM program_vmpeo_feedback_submissions
+         WHERE program_id = $1 AND stakeholder_ref_id = $2
+         ORDER BY submitted_at DESC
+         LIMIT 1`,
+        [stakeholder.program_id, stakeholder.stakeholder_ref_id],
+      );
+
+      if (submissionRes.rows.length === 0) {
+        return NextResponse.json({ data: null });
+      }
+
+      const submission = submissionRes.rows[0];
+      const entriesRes = await client.query(
+        `SELECT category, rating, comment, peo_id
+         FROM program_vmpeo_feedback_entries
+         WHERE submission_id = $1`,
+        [submission.id],
+      );
+
+      return NextResponse.json({
+        data: {
+          submissionId: submission.id,
+          submittedAt: submission.submitted_at,
+          feedbackCycle: submission.feedback_cycle,
+          entries: entriesRes.rows,
+        },
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error("Stakeholder feedback fetch error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch feedback" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const stakeholder = await getStakeholderPayload(request);

@@ -135,7 +135,11 @@ export async function GET(request: NextRequest) {
     const client = await pool.connect();
     try {
       let queryText = `
-        SELECT ${SELECT_FIELDS}
+        SELECT ${SELECT_FIELDS},
+               EXISTS (
+                 SELECT 1 FROM program_vmpeo_feedback_submissions f
+                 WHERE f.stakeholder_ref_id = rs.id
+               ) as has_submitted_feedback
         FROM representative_stakeholders rs
         INNER JOIN programs p ON p.id = rs.program_id
         WHERE p.institution_id = $1

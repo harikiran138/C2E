@@ -106,6 +106,13 @@ export async function GET(request: NextRequest) {
         lockReason = `Feedback window ended on ${endAt.toLocaleDateString()}.`;
       }
 
+      const stepsRes = await client.query(
+        `SELECT step_key, is_completed
+         FROM program_step_completions
+         WHERE program_id = $1`,
+        [payload.program_id],
+      );
+
       return NextResponse.json({
         stakeholder: {
           stakeholderRefId: stakeholder.id,
@@ -135,6 +142,10 @@ export async function GET(request: NextRequest) {
         latestSubmissionAt: latestSubmissionRes.rows[0]?.submitted_at
           ? new Date(latestSubmissionRes.rows[0].submitted_at).toISOString()
           : null,
+        steps: stepsRes.rows.reduce((acc: any, row: any) => {
+          acc[row.step_key] = row.is_completed;
+          return acc;
+        }, {}),
       });
     } finally {
       client.release();

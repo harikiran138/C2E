@@ -138,13 +138,15 @@ class StrategicClassifier:
         "ity",
         "ship",
         "ing",
+        "ly",
+        "al",
         "ed",
         "es",
         "s",
     ]
     REDUNDANCY_STOP_WORDS = {
         "the", "and", "for", "with", "that", "this", "from", "into", "through", "toward", "towards", "to", "of", "in", "on", "a", "an", "by", "be", "or", "is", "are", "as", "at", 
-        "program", "engineering", "institutional", "strategic", "global", "globally", "international", "internationally", "future", "long", "term", "sustained",
+        "program", "engineering", "institutional", "strategic", "future", "long", "term", "sustained",
     }
     
     # ── PSO scoring constants ─────────────────────────────────────────────────
@@ -228,10 +230,14 @@ class StrategicClassifier:
 
     def _normalize_root(self, token: str) -> str:
         root = token.lower()
-        for suffix in self.REDUNDANCY_SUFFIXES:
-            if root.endswith(suffix) and len(root) > len(suffix) + 3:
-                root = root[: -len(suffix)]
-                break
+        changed = True
+        while changed:
+            changed = False
+            for suffix in self.REDUNDANCY_SUFFIXES:
+                if root.endswith(suffix) and len(root) > len(suffix) + 3:
+                    root = root[: -len(suffix)]
+                    changed = True
+                    break
         return root
 
     def _tokenize_and_clean(self, text: str) -> List[str]:
@@ -240,7 +246,7 @@ class StrategicClassifier:
 
     def _extract_core_tokens(self, text: str) -> List[str]:
         tokens = re.findall(r"[a-z0-9]+", text.lower())
-        return [token for token in tokens if len(token) >= 5 and token not in self.REDUNDANCY_STOP_WORDS]
+        return [token for token in tokens if len(token) >= 4 and token not in self.REDUNDANCY_STOP_WORDS]
 
     def _repeated_roots(self, text: str) -> List[str]:
         counts: Dict[str, int] = {}
@@ -374,9 +380,9 @@ class StrategicClassifier:
         # Assessed by presence of long-term horizon signals and depth of phrasing
         long_term = any(self._contains_bounded_term(lower, t) for t in self.LONG_TERM_SIGNALS)
         # Also check for preferred starters
-        has_starter = any(lower.startswith(s.lower()) for s in ["To be", "To become", "A vision to"])
+        has_starter = any(lower.startswith(s.lower()) for s in ["To be", "To become", "A vision to", "To emerge as"])
         
-        strategic_depth = 20 if long_term else (15 if has_starter else 10)
+        strategic_depth = 20 if long_term else (20 if has_starter else 10)
         
         # 2. Global / Future Orientation (20)
         global_concepts = self._extract_global_concepts(lower)

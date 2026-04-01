@@ -188,16 +188,58 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { vision, mission } = body;
+    const payload = {
+      program_name: String(body.program_name || ""),
+      degree: String(body.degree || ""),
+      level: String(body.level || ""),
+      duration: Number(body.duration),
+      intake: Number(body.intake),
+      academic_year: String(body.academic_year || ""),
+      program_code: String(body.program_code || ""),
+      vision: body.vision ? String(body.vision) : null,
+      mission: body.mission ? String(body.mission) : null,
+      program_chair: body.program_chair ? String(body.program_chair) : null,
+      nba_coordinator: body.nba_coordinator ? String(body.nba_coordinator) : null,
+    };
+
+    const validationError = validateProgramPayload(payload);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
 
     const client = await pool.connect();
     try {
       const updateResult = await client.query(
         `UPDATE programs 
-         SET vision = $1, mission = $2, updated_at = NOW() 
-         WHERE id = $3 AND institution_id = $4
+         SET program_name = $1, 
+             degree = $2, 
+             level = $3, 
+             duration = $4, 
+             intake = $5, 
+             academic_year = $6, 
+             program_code = $7, 
+             vision = $8, 
+             mission = $9, 
+             program_chair = $10, 
+             nba_coordinator = $11, 
+             updated_at = NOW() 
+         WHERE id = $12 AND institution_id = $13
          RETURNING id`,
-        [vision || null, mission || null, id, institutionId],
+        [
+          payload.program_name.trim(),
+          payload.degree,
+          payload.level,
+          payload.duration,
+          payload.intake,
+          payload.academic_year.trim(),
+          payload.program_code.trim().toUpperCase(),
+          payload.vision?.trim() || null,
+          payload.mission?.trim() || null,
+          payload.program_chair?.trim() || null,
+          payload.nba_coordinator?.trim() || null,
+          id,
+          institutionId,
+        ],
       );
 
       if (updateResult.rows.length === 0) {
@@ -215,7 +257,7 @@ export async function PUT(request: NextRequest) {
         ipAddress: ip,
         details: {
           programId: id,
-          updates: { vision: !!vision, mission: !!mission },
+          updates: payload,
         },
       });
 

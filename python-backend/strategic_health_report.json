@@ -1,26 +1,16 @@
 {
     "summary": {
         "total_tests": 22,
-        "passed": 19,
-        "failed": 3,
+        "passed": 21,
+        "failed": 1,
         "errors": 0,
-        "pass_rate": 86.36363636363636
+        "pass_rate": 95.45454545454545
     },
     "details": [
         {
-            "test": "test_empty_string_scoring (tests.obe_test_suite.OBETestSuite)",
-            "status": "FAIL",
-            "message": "Traceback (most recent call last):\n  File \"/Users/chepuriharikiran/Desktop/github/C2E/Untitled/python-backend/tests/obe_test_suite.py\", line 164, in test_empty_string_scoring\n    self.assertEqual(res['score'], 0)\nAssertionError: 20 != 0\n"
-        },
-        {
             "test": "test_vision_mission_alignment (tests.obe_test_suite.OBETestSuite)",
             "status": "FAIL",
-            "message": "Traceback (most recent call last):\n  File \"/Users/chepuriharikiran/Desktop/github/C2E/Untitled/python-backend/tests/obe_test_suite.py\", line 150, in test_vision_mission_alignment\n    self.assertGreater(alignment, 0.5)\nAssertionError: 0.2857142857142857 not greater than 0.5\n"
-        },
-        {
-            "test": "test_vision_starter (tests.obe_test_suite.OBETestSuite)",
-            "status": "FAIL",
-            "message": "Traceback (most recent call last):\n  File \"/Users/chepuriharikiran/Desktop/github/C2E/Untitled/python-backend/tests/obe_test_suite.py\", line 21, in test_vision_starter\n    self.assertGreaterEqual(score_info['score'], 50)\nAssertionError: 40 not greater than or equal to 50\n"
+            "message": "Traceback (most recent call last):\n  File \"/Users/chepuriharikiran/Desktop/github/C2E/Untitled/python-backend/tests/obe_test_suite.py\", line 150, in test_vision_mission_alignment\n    self.assertGreater(alignment, 0.5)\nAssertionError: 0.4444444444444444 not greater than 0.5\n"
         }
     ]
 }

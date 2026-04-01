@@ -21,6 +21,8 @@ import {
   UserCog,
   CheckCircle2,
   XCircle,
+  Clock,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -749,6 +751,11 @@ function StakeholdersFormContent() {
                           >
                             {member.is_approved ? "Approved" : "Pending"}
                           </span>
+                          {member.has_submitted_feedback && (
+                            <span className="rounded-full px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 className="size-2.5" /> Feedback Received
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -844,16 +851,15 @@ function StakeholdersFormContent() {
                             />
 
                             <InfoCard
-                              icon={Award}
-                              label="Specialisation"
-                              value={member.specialisation}
+                              icon={Clock}
+                              label="Last Login"
+                              value={member.last_login_at ? new Date(member.last_login_at).toLocaleString() : "Never logged in"}
                               secondary
                             />
                             <InfoCard
-                              icon={Linkedin}
-                              label="LinkedIn"
-                              value={member.linkedin_id}
-                              isLink
+                              icon={Activity}
+                              label="Feedback Status"
+                              value={member.has_submitted_feedback ? "Submitted" : "Not yet submitted"}
                               secondary
                             />
 
