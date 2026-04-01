@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { blockToken, verifyToken } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get("c2e_auth_token")?.value;
+  const token = request.cookies.get("c2e_auth_token")?.value || 
+                request.cookies.get("institution_token")?.value;
 
   if (token) {
     const payload = await verifyToken(token);
@@ -14,11 +15,32 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.json({ ok: true });
   
-  // Clear the master auth cookie
-  response.cookies.set("c2e_auth_token", "", {
-    httpOnly: true,
-    expires: new Date(0),
-    path: "/",
+  // Clear all potential auth cookies
+  const allCookies = request.cookies.getAll();
+  const cookiesToClear = [
+    "c2e_auth_token",
+    "institution_token",
+    "institution_refresh",
+    "stakeholder_token",
+    "sb-access-token",
+    "sb-refresh-token",
+  ];
+
+  // Also catch any Supabase-prefixed cookies
+  allCookies.forEach(cookie => {
+    if (cookie.name.startsWith("sb-")) {
+      cookiesToClear.push(cookie.name);
+    }
+  });
+
+  cookiesToClear.forEach(name => {
+    response.cookies.set(name, "", {
+      httpOnly: true,
+      maxAge: 0,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production"
+    });
   });
 
   return response;

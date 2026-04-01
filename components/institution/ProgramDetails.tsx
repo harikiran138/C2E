@@ -49,6 +49,8 @@ export default function ProgramDetails() {
     email: "",
   });
   const [isAddingStakeholder, setIsAddingStakeholder] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [bulkPassword, setBulkPassword] = useState("progemas");
 
   const supabase = createClient();
   const router = useRouter();
@@ -99,6 +101,27 @@ export default function ProgramDetails() {
       .eq("program_id", progId);
     if (data) setStakeholders(data);
     else setStakeholders([]);
+  };
+
+  const handleBulkPasswordUpdate = async () => {
+    if (!confirm(`Are you sure you want to set the password for ALL ${programs.length} programs to "${bulkPassword}"?`)) return;
+    
+    try {
+      const res = await fetch("/api/institution/programs/bulk-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: bulkPassword }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update passwords");
+
+      alert(`Successfully updated ${data.count} programs!`);
+      setIsBulkUpdating(false);
+    } catch (error: any) {
+      console.error("Error bulk updating password:", error);
+      alert("Error: " + error.message);
+    }
   };
 
   const handleProgramUpdate = async () => {
@@ -213,12 +236,45 @@ export default function ProgramDetails() {
 
         {/* Program Selection Card */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
-          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#137fec]">
-              school
-            </span>
-            Select Program
-          </h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#137fec]">
+                school
+              </span>
+              Select Program
+            </h2>
+            <button
+              onClick={() => setIsBulkUpdating(!isBulkUpdating)}
+              className="text-xs font-bold text-amber-600 dark:text-amber-500 hover:underline flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">lock_reset</span>
+              Bulk Set Passwords
+            </button>
+          </div>
+
+          {isBulkUpdating && (
+            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800 rounded-xl flex flex-col md:flex-row items-center gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Set Global Program Password</p>
+                <p className="text-[11px] text-amber-600 dark:text-amber-500">This will update precisely ALL programs registered under your institution.</p>
+              </div>
+              <div className="flex gap-2 w-full md:w-auto">
+                <input
+                  type="text"
+                  value={bulkPassword}
+                  onChange={(e) => setBulkPassword(e.target.value)}
+                  className="bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-amber-500 flex-1 md:w-32"
+                  placeholder="New Password"
+                />
+                <button
+                  onClick={handleBulkPasswordUpdate}
+                  className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-amber-700 transition-all whitespace-nowrap"
+                >
+                  Set for All
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {programs.map((program) => (
@@ -298,7 +354,7 @@ export default function ProgramDetails() {
                   <div className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-500 dark:text-slate-400 select-all cursor-copy">
                     {currentProgram.email || "Pending generation..."}
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1 italic">Format: program_code@shortform.c2x.ai</p>
+
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-500 mb-2">

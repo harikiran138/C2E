@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Icons from "lucide-react";
+import ChangePasswordModal from "./ChangePasswordModal";
 import {
   LayoutDashboard,
   FileText,
@@ -86,6 +87,7 @@ export default function InstitutionWorkspace({
   const { institution, programs, selectProgram, selectedProgram } =
     useInstitution();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isProgramDropdownOpen, setIsProgramDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -135,10 +137,19 @@ export default function InstitutionWorkspace({
 
   const handleLogout = async () => {
     try {
-      // Use unified logout API
+      const supabase = createClient();
+      
+      // Clear Supabase session specifically
+      await supabase.auth.signOut();
+
+      // Use unified logout API to clear server-side cookies
       await fetch("/api/auth/logout", { method: "POST" });
+      
+      // Clear all local storage & session
       localStorage.clear();
       sessionStorage.clear();
+      
+      // Force hard redirect to clear memory state and avoid middleware race
       window.location.href = "/institution/login";
     } catch (error) {
       console.error("Logout error:", error);
@@ -321,6 +332,15 @@ export default function InstitutionWorkspace({
                   <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white" />
                 </button>
 
+                {/* Change Password Trigger */}
+                <button
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  title="Change Password"
+                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                >
+                  <Shield className="size-4" />
+                </button>
+
                 {/* Help */}
                 <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors hidden sm:block">
                   <Icons.HelpCircle className="size-5" />
@@ -392,6 +412,11 @@ export default function InstitutionWorkspace({
           </div>
         </main>
       </div>
+
+      <ChangePasswordModal 
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
     </div>
   );
 }
