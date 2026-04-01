@@ -202,6 +202,8 @@ Improve the PSO set so that it is:
 5. WEAK VERB CORRECTION: Replace "enhance, improve, support, facilitate" with "analyze, design, evaluate, develop, implement".
 6. DOMAIN ENFORCEMENT: Include discipline-specific keywords. Avoid "engineering systems"; use "power systems", "embedded systems", etc.
 7. TOOL GENERALIZATION: Replace specific tools (MATLAB, Python) with "appropriate engineering tools", unless domain-critical.
+8. Strictly ensure that it is not conceptually repeating or overlapping with Program Outcomes
+9. Align this with WK i.e. Knowledge profile of Washinton Accord and the latest version Engineering Accreditation Comminsion (EAC) 
 
 ---
 🔴 FEEDBACK FROM MASTER EVALUATOR
@@ -224,7 +226,7 @@ ${JSON.stringify((feedback?.psoAnalyses || []).map(pa => ({
     "Refined Statement 2..."
   ],
   "fix_summary": {
-    "issues_detected": ["List exactly what was wrong based on the 7 rules"],
+    "issues_detected": ["List exactly what was wrong based on the 9 rules"],
     "changes_made": ["What specifically was changed for each PSO"],
     "final_quality": "Accreditation Ready"
   }
