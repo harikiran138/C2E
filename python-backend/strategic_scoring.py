@@ -92,7 +92,8 @@ class StrategicClassifier:
         "research or innovation": ["research", "innovation", "innovative", "pioneering", "advanced technology", "advancement"],
         "societal impact": ["society", "societal impact", "community", "human welfare", "transform society", "impact", "social responsibility"],
         "sustainability": ["sustainable", "sustainability", "green technology", "sustainable development"],
-        "future technologies": ["future", "emerging technologies", "next-generation", "future-ready", "long horizon"]
+        "future technologies": ["future", "emerging technologies", "next-generation", "future-ready", "long horizon"],
+        "ethics and integrity": ["ethics", "integrity", "responsibility", "professional values", "ethical", "professional ethics", "responsible"]
     }
 
     OPERATIONAL_TERMS = [
@@ -354,17 +355,34 @@ class StrategicClassifier:
         Master scoring logic based on the 100-point rubric.
         """
         normalized = self.normalize_whitespace(vision)
+        if not normalized:
+            return {
+                "score": 0,
+                "breakdown": {
+                    "strategic_depth": 0,
+                    "global_future_orientation": 0,
+                    "innovation_research": 0,
+                    "societal_ethical": 0,
+                    "language_clarity": 0,
+                    "non_operational_purity": 0
+                },
+                "issues": ["Empty statement"]
+            }
         lower = normalized.lower()
         
         # 1. Strategic Depth (20)
         # Assessed by presence of long-term horizon signals and depth of phrasing
         long_term = any(self._contains_bounded_term(lower, t) for t in self.LONG_TERM_SIGNALS)
-        strategic_depth = 20 if long_term else 10
+        # Also check for preferred starters
+        has_starter = any(lower.startswith(s.lower()) for s in ["To be", "To become", "A vision to"])
+        
+        strategic_depth = 20 if long_term else (15 if has_starter else 10)
         
         # 2. Global / Future Orientation (20)
         global_concepts = self._extract_global_concepts(lower)
         global_future_score = len(global_concepts) * 10
-        if "future technologies" in self._check_vision_structure(normalized)["matched_themes"]:
+        structure = self._check_vision_structure(normalized)
+        if "future technologies" in structure.get("matched_themes", []):
             global_future_score += 5
         global_future_score = min(20, global_future_score)
 
@@ -492,14 +510,18 @@ class StrategicClassifier:
         return self._clamp((alignment_raw * 75) + boost + 15) # Base 15 for intent
 
     def calculate_alignment(self, vision: str, mission: str) -> float:
-        vision_words = set(self._extract_core_tokens(vision))
-        mission_words = set(self._extract_core_tokens(mission))
+        vision_tokens = [self._normalize_root(t) for t in self._extract_core_tokens(vision)]
+        mission_tokens = [self._normalize_root(t) for t in self._extract_core_tokens(mission)]
         
-        if not vision_words:
+        v_set = set(vision_tokens)
+        m_set = set(mission_tokens)
+        
+        if not v_set or not m_set:
             return 0.0
             
-        overlap = vision_words.intersection(mission_words)
-        return len(overlap) / len(vision_words)
+        overlap = v_set.intersection(m_set)
+        # Dice coefficient: (2 * overlap) / (total unique tokens)
+        return (2.0 * len(overlap)) / (len(v_set) + len(m_set))
 
     def enforce_peo_quality(self, raw_statement: str, priority: str, program_name: str) -> str:
         source = re.sub(r'^(?i)(option|peo)\s*\d+\s*:\s*', '', raw_statement or "")
@@ -719,35 +741,95 @@ class StrategicClassifier:
         }
 
 
-classifier = StrategicClassifier()
+class StrategicGuard:
+    """
+    A unified entry point for validating and repairing OBE entities.
+    Integrates all StrategicClassifier scoring logic into a single guard.
+    """
+
+    def __init__(self):
+        self.classifier = StrategicClassifier()
+
+    def validate_vision(self, vision: str, focus_areas: List[str] = None) -> Dict[str, Any]:
+        """
+        Calculates score, identifies issues, and provides repair suggestions.
+        """
+        score_info = self.classifier.calculate_master_vision_score(vision, focus_areas)
+        
+        # Repair logic: if score < 90, find missing themes and suggest keywords
+        if score_info['score'] < 90:
+            missing_themes = []
+            for theme, keywords in self.classifier.STRATEGIC_THEMES.items():
+                if not any(self.classifier._contains_bounded_term(vision.lower(), kw) for kw in keywords):
+                    missing_themes.append(theme)
+            
+            score_info['repair_suggestions'] = [
+                f"Incorporate '{theme}' concepts. Try: {', '.join(self.classifier.STRATEGIC_THEMES[theme][:2])}"
+                for theme in missing_themes[:2]
+            ]
+        
+        return score_info
+
+    def validate_mission(self, mission_list: List[Dict[str, str]], vision: str) -> Dict[str, Any]:
+        """
+        Validates mission coverage and alignment.
+        """
+        return self.classifier.score_master_mission(mission_list, vision)
+
+    def validate_peo(self, statement: str, priority: str, program_name: str) -> Dict[str, Any]:
+        """
+        Validates PEO and suggests an auto-fix if it's below parity.
+        """
+        res = self.classifier.score_smart_abet(statement)
+        if res['percentage'] < 85:
+            res['auto_fix'] = self.classifier.enforce_peo_quality(statement, priority, program_name)
+        return res
+
+    def validate_pso(self, statement: str) -> Dict[str, Any]:
+        """
+        Validates PSO with focus on technical verbs and prefix.
+        """
+        return self.classifier.score_pso(statement)
+
+
+guard = StrategicGuard()
 
 
 def score_vision(vision: str, focus_areas: List[str] = None, institute_vision: str = None) -> Dict[str, Any]:
-    return classifier.calculate_score(vision, focus_areas, institute_vision)
+    return classifier.calculate_master_vision_score(vision, focus_areas)
+
 
 def score_mission(mission: str) -> Dict[str, Any]:
     return classifier.score_mission(mission)
 
+
 def calculate_alignment(vision: str, mission: str) -> float:
     return classifier.calculate_alignment(vision, mission)
+
 
 def calculate_peo_vision_alignment(vision: str, peo: str) -> float:
     return classifier.calculate_peo_vision_alignment(vision, peo)
 
+
 def peo_similarity(peo1: str, peo2: str) -> float:
     return classifier.peo_similarity(peo1, peo2)
+
 
 def enforce_peo_quality(raw_statement: str, priority: str, program_name: str) -> str:
     return classifier.enforce_peo_quality(raw_statement, priority, program_name)
 
+
 def enforce_po_quality(raw_po: str) -> str:
     return classifier.enforce_po_quality(raw_po)
+
 
 def score_peo(statement: str) -> Dict[str, Any]:
     return classifier.score_smart_abet(statement)
 
+
 def score_pso(statement: str) -> Dict[str, Any]:
     return classifier.score_pso(statement)
+
 
 def pso_similarity(pso1: str, pso2: str) -> float:
     return classifier.pso_similarity(pso1, pso2)

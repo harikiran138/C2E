@@ -16,17 +16,33 @@ class VMService:
         custom_inputs: str = "",
         vision_count: int = 1,
         mode: str = "accreditation",
-        discipline: str = "Engineering"
+        discipline: str = "Engineering",
+        seen_statements: List[str] = None
     ) -> Dict[str, Any]:
         """
         Orchestrates the entire VM generation using the Master Prompt.
+        Includes a diversity engine to ensure varied results on regeneration.
         """
+        # Diversity Engine: Select a focus based on seen statements or random rotation
+        seen_statements = seen_statements or []
+        focus_index = len(seen_statements) % 5
+        focus_options = [
+            "Innovation & Emerging Tech", 
+            "Sustainability & Social Impact", 
+            "Global Leadership & Academic Excellence",
+            "Professional Ethics & Industry Alignment",
+            "Research Excellence & Scholarly Conduct"
+        ]
+        dynamic_focus = focus_options[focus_index]
+
         # Prepare the master prompt
         prompt = MASTER_PROMPT_TEMPLATE.format(
             program_name=program_name,
             discipline=discipline,
             focus_areas=", ".join(focus_areas),
             custom_inputs=custom_inputs,
+            dynamic_focus=dynamic_focus,
+            seen_statements=", ".join(seen_statements) if seen_statements else "None",
             vision_count=vision_count,
             mode=mode
         )

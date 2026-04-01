@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import * as Icons from "lucide-react";
 import { useInstitution } from "@/context/InstitutionContext";
+import { DEGREES, LEVELS } from "@/lib/validation/onboarding";
 
 const cn = (...classes: (string | boolean | undefined)[]) =>
   classes.filter(Boolean).join(" ");
@@ -210,7 +211,7 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
     degree: "B.Tech",
     academic_year: "2024-25",
     program_code: "",
-    level: "Undergraduate",
+    level: "UG",
     duration: 4,
     intake: 60,
   });
@@ -297,7 +298,7 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
           degree: "B.Tech",
           academic_year: "2024-25",
           program_code: "",
-          level: "Undergraduate",
+          level: "UG",
           duration: 4,
           intake: 60,
         });
@@ -678,6 +679,7 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                       }
                     />
                   </div>
+
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                       Degree Type
@@ -689,12 +691,67 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                         setFormData({ ...formData, degree: e.target.value })
                       }
                     >
-                      <option>B.Tech</option>
-                      <option>M.Tech</option>
-                      <option>B.Sc</option>
-                      <option>M.Sc</option>
-                      <option>PhD</option>
+                      {DEGREES.map((deg) => (
+                        <option key={deg} value={deg}>
+                          {deg}
+                        </option>
+                      ))}
                     </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      Academic Level
+                    </label>
+                    <select
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                      value={formData.level}
+                      onChange={(e) =>
+                        setFormData({ ...formData, level: e.target.value })
+                      }
+                    >
+                      {LEVELS.map((lvl) => (
+                        <option key={lvl} value={lvl}>
+                          {lvl}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      Duration (Years)
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                      value={formData.duration}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          duration: parseInt(e.target.value) || 0,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      Student Intake
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                      value={formData.intake}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          intake: parseInt(e.target.value) || 0,
+                        })
+                      }
+                    />
                   </div>
                 </div>
 

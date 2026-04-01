@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "../../utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { DEGREES, LEVELS } from "@/lib/validation/onboarding";
 
 interface Program {
   id?: string;
@@ -407,11 +408,11 @@ export default function BasicDetailsForm() {
                   }
                   className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
                 >
-                  <option>B.Tech</option>
-                  <option>B.E</option>
-                  <option>M.Tech</option>
-                  <option>M.E</option>
-                  <option>MBA</option>
+                  {DEGREES.map((deg) => (
+                    <option key={deg} value={deg}>
+                      {deg}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -425,9 +426,11 @@ export default function BasicDetailsForm() {
                   }
                   className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
                 >
-                  <option>UG</option>
-                  <option>PG</option>
-                  <option>Integrated</option>
+                  {LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {lvl}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

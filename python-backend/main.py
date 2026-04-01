@@ -12,6 +12,7 @@ from services.vm_service import VMService
 from services.peo_service import PEOService
 from services.pso_service import PSOService
 from services.po_service import POService
+from strategic_scoring import guard
 
 load_dotenv()
 
@@ -106,12 +107,27 @@ class LocalChatRequest(BaseModel):
 class LocalChatResponse(BaseModel):
     text: str
 
+class VisionValidateRequest(BaseModel):
+    vision: str
+    focus_areas: Optional[List[str]] = None
+
+class MissionValidateRequest(BaseModel):
+    mission_list: List[Dict[str, str]]
+    vision: str
+
+class PEOValidateRequest(BaseModel):
+    statement: str
+    priority: str
+    program_name: str
+
+class PSOValidateRequest(BaseModel):
+    statement: str
+
 # Initialize Governance Services
 vm_service = VMService()
 peo_service = PEOService()
 pso_service = PSOService()
 po_service = POService()
-classifier = classifier
 
 @app.post("/ai/local-chat", response_model=LocalChatResponse)
 async def local_chat(request: LocalChatRequest) -> LocalChatResponse:
@@ -220,6 +236,37 @@ async def generate_psos(request: PSOGenerateRequest) -> PSOGenerateResponse:
         return PSOGenerateResponse(**result)
     except Exception as e:
         print(f"CRITICAL ERROR generating PSOs: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Validation Endpoints ---
+
+@app.post("/ai/validate-vision")
+async def validate_vision(request: VisionValidateRequest) -> Dict[str, Any]:
+    try:
+        return guard.validate_vision(request.vision, request.focus_areas)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ai/validate-mission")
+async def validate_mission(request: MissionValidateRequest) -> Dict[str, Any]:
+    try:
+        return guard.validate_mission(request.mission_list, request.vision)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/validate-peo")
+async def validate_peo(request: PEOValidateRequest) -> Dict[str, Any]:
+    try:
+        return guard.validate_peo(request.statement, request.priority, request.program_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/validate-pso")
+async def validate_pso(request: PSOValidateRequest) -> Dict[str, Any]:
+    try:
+        return guard.validate_pso(request.statement)
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 

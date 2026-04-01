@@ -596,7 +596,7 @@ export default function PsoGenerator() {
                             key={`${i}-map-${midx}`}
                             className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-indigo-700 border border-indigo-100"
                           >
-                            {mapping}
+                            {mapping.split(':')[0].trim()}
                           </span>
                         ))}
                         {Boolean(detail.skill) && (

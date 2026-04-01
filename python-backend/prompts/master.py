@@ -15,10 +15,12 @@ You MUST follow a structured multi-stage pipeline:
 
 Program Name: {program_name}
 Discipline: {discipline}
-Focus Areas Selected (from UI): {focus_areas}
-Custom Focus Inputs: {custom_inputs}
-Number of Vision Statements Required: {vision_count}
-Mode: {mode}  # "draft" or "accreditation"
+Focus Areas (UI): {focus_areas}
+Custom Focus: {custom_inputs}
+Dynamic Focus: {dynamic_focus} 
+Seen Statements: {seen_statements} 
+Vision Count: {vision_count}
+Mode: {mode} 
 
 -----------------------------------
 🎯 OBJECTIVE
