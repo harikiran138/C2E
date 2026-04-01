@@ -5,6 +5,8 @@
  */
 
 export interface PromptParams {
+  institution_id:    string; // v5.1 Mandatory Scope
+  program_id:        string; // v5.1 Mandatory Scope
   programName:       string;
   priorities:        string[];
   count:             number;

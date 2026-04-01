@@ -14,7 +14,8 @@ export default function ClientLayout({
   const pathname = usePathname();
   const isInstitutionSection = pathname?.startsWith("/institution");
   const isStakeholderSection = pathname?.startsWith("/stakeholder");
-  const isPortalSection = isInstitutionSection || isStakeholderSection;
+  const isSystemLogin = pathname === "/login";
+  const isPortalSection = isInstitutionSection || isStakeholderSection || isSystemLogin;
   const { loading } = useInstitution();
 
   const showLoading =

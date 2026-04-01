@@ -1,13 +1,37 @@
 import { NextResponse } from "next/server";
 import { callAI } from "@/lib/curriculum/ai-model-router";
+import { resolveProgramAcademicContext, normalizeText } from "@/lib/curriculum/program-context";
 
 export async function POST(request: Request) {
   try {
-    const { missions, peos } = await request.json();
+    const { programId } = await request.json();
 
-    if (!missions || !peos) {
+    if (!programId) {
       return NextResponse.json(
-        { error: "Missions and PEOs required" },
+        { error: "programId is required for isolation-aware consistency mapping" },
+        { status: 400 },
+      );
+    }
+
+    // 1. Resolve Academic Context (Security Boundary)
+    const { context, errors: contextErrors } = await resolveProgramAcademicContext(programId);
+    if (!context || contextErrors.length > 0) {
+      return NextResponse.json(
+        { error: contextErrors[0] || "Failed to resolve program isolation context" },
+        { status: 404 },
+      );
+    }
+
+    const { peos, mission } = context;
+    // Split mission into meaningful statements (punctuation or bullets)
+    const missions = mission
+      .split(/[.!?]\s+/)
+      .map(s => normalizeText(s))
+      .filter(s => s.length > 10);
+
+    if (!peos || peos.length === 0 || missions.length === 0) {
+      return NextResponse.json(
+        { error: "Mission statements and PEOs must exist for the program" },
         { status: 400 },
       );
     }

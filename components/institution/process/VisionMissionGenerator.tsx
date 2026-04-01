@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Sparkles, Save, Check, RefreshCw, AlertCircle, Wand2 } from "lucide-react";
-import { AI_API_URL } from "@/lib/api";
 import PeoGenerator from "@/components/institution/process/PeoGenerator";
 
 const VISION_APPROVAL_THRESHOLD = 90;
@@ -476,31 +475,29 @@ export default function VisionMissionGenerator() {
         visionGenerationHistory,
         visionOptions,
       );
-      const response = await fetch(`${AI_API_URL}/ai/generate-vision-mission`, {
+      const response = await fetch("/api/generate/vision-mission", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: "vision",
+          type: "vision",
+          programId: programId,
           program_name: program.program_name || "Engineering Program",
-          institute_vision: institution.vision || "",
-          institute_mission: institution.mission || "",
-          vision_inputs: selectedVisionPriorities || [],
-          mission_inputs: selectedMissionPriorities || [],
-          vision_count: visionGenerateCount || 3,
-          exclude_visions: excludedVisions || [],
+          institutionContext: {
+            vision: institution.vision || "",
+            mission: institution.mission || "",
+            name: institution.name || "the Institution"
+          },
+          priorities: selectedVisionPriorities || [],
+          count: visionGenerateCount || 3,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Fallback to reading the visions array we specifically requested
-        const newVisions =
-          data.visions && data.visions.length > 0
-            ? data.visions
-            : data.vision
-              ? [data.vision]
-              : [];
+        const newVisions = data.visions || [];
         setVisionOptions(newVisions);
+        
+        // Handle scores from data.scores
         const extractedVisionScores = extractScoreMap(data.scores, "vision");
         if (data.scores) {
           setVisionScores((prev) => ({ ...prev, ...extractedVisionScores }));
@@ -581,27 +578,28 @@ export default function VisionMissionGenerator() {
         missionOptions,
       );
       const response = await fetch(
-        "/api/institution/program/generate-mission",
+        "/api/generate/vision-mission",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            program_id: programId,
-            mission_inputs: selectedMissionPriorities,
-            mission_count: missionGenerateCount,
-            exclude_missions: excludedMissions,
+            type: "mission",
+            programId: programId,
+            program_name: program.program_name || "Engineering Program",
+            institutionContext: {
+              vision: institution.vision || "",
+              mission: institution.mission || "",
+              name: institution.name || "the Institution"
+            },
+            priorities: selectedMissionPriorities,
+            count: missionGenerateCount,
           }),
         },
       );
 
       if (response.ok) {
         const data = await response.json();
-        const newMissions =
-          data.missions && data.missions.length > 0
-            ? data.missions
-            : data.mission
-              ? [data.mission]
-              : [];
+        const newMissions = data.missions || [];
         setMissionOptions(newMissions);
         if (data.scores) {
           const extractedMissionScores = extractScoreMap(

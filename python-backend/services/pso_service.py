@@ -35,7 +35,7 @@ class PSOService:
             pass
         return []
 
-    async def generate_psos(self, program_name: str, vision: str, missions: List[str], peos: List[str], priorities: List[str], count: int = 3) -> Dict[str, Any]:
+    async def generate_psos(self, program_name: str, vision: str, missions: List[str], peos: List[str], priorities: List[str], count: int = 3, program_id: Optional[str] = None) -> Dict[str, Any]:
         normalized_count = min(10, max(1, count))
         
         pso_prompt = f"""

@@ -7,7 +7,8 @@ import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context"
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { selected_societies, number_of_psos, program_name, mode = "standard", program_id } = body;
+    const { selected_societies, number_of_psos, program_name, mode = "standard", program_id, programId } = body;
+    const effectiveProgramId = programId || program_id;
 
     const hasSelection =
       Boolean(selected_societies?.lead?.length) ||
@@ -30,34 +31,39 @@ export async function POST(request: Request) {
       );
     }
 
-    let vision = "";
-    let mission = "";
-    let peos: string[] = [];
-
-    if (program_id) {
-      try {
-        const { context } = await resolveProgramAcademicContext(program_id);
-        if (context) {
-          vision = context.vision;
-          mission = context.mission;
-          peos = context.peos;
-        }
-      } catch (contextError) {
-        console.warn("Failed to resolve program context for PSO generation:", contextError);
-      }
+    if (!effectiveProgramId) {
+      return NextResponse.json(
+        { error: "program_id is required for isolation-aware PSO generation" },
+        { status: 400 },
+      );
     }
+
+    // 1. Resolve Academic Context (Security Boundary)
+    const { context, errors: contextErrors } = await resolveProgramAcademicContext(effectiveProgramId);
+    if (!context || contextErrors.length > 0) {
+      return NextResponse.json(
+        { error: contextErrors[0] || "Failed to resolve program isolation context" },
+        { status: 404 },
+      );
+    }
+
+    const { vision, mission, peos, programName, institutionId } = context;
 
     let result: any = null;
 
     // Primary: Python Backend
     try {
-      const response = await fetch("http://localhost:8000/api/v1/generate-psos", {
+      const response = await fetch("http://localhost:8001/api/v1/generate-psos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          selected_societies,
-          number_of_psos: count,
-          program_name: program_name || "Engineering Program",
+          program_name: programName,
+          count: count,
+          priorities: selected_societies?.lead || [],
+          program_id: effectiveProgramId,
+          vision: vision || "",
+          missions: mission ? [mission] : [],
+          peos: peos || []
         }),
       });
 
@@ -86,7 +92,7 @@ export async function POST(request: Request) {
     if (!result) {
       console.warn("Falling back to PSO TS Agent...");
       result = await psoAgent({
-        programName: program_name || "Engineering Program",
+        programName,
         count,
         selectedSocieties: selected_societies,
         mode,
@@ -104,17 +110,17 @@ export async function POST(request: Request) {
     }
 
     // Auto-save to database
-    if (program_id && result.results && result.results.length > 0) {
+    if (effectiveProgramId && result.results && result.results.length > 0) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
-        await client.query("DELETE FROM program_psos WHERE program_id = $1", [program_id]);
+        await client.query("DELETE FROM program_psos WHERE program_id = $1", [effectiveProgramId]);
         
         for (let i = 0; i < result.results.length; i++) {
           const pso = result.results[i];
           await client.query(
-            "INSERT INTO program_psos (program_id, pso_statement, pso_number) VALUES ($1, $2, $3)",
-            [program_id, pso.statement, i + 1]
+            "INSERT INTO program_psos (program_id, institution_id, pso_statement, pso_number) VALUES ($1, $2, $3, $4)",
+            [effectiveProgramId, institutionId, pso.statement, i + 1]
           );
         }
         await client.query("COMMIT");

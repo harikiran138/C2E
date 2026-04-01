@@ -7,33 +7,40 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { programName, count = 3, priorities, institutionName, programId } = body;
-
-    let vision = "";
-    let mission = "";
-
-    if (programId) {
-      try {
-        const { context } = await resolveProgramAcademicContext(programId);
-        if (context) {
-          vision = context.vision;
-          mission = context.mission;
-        }
-      } catch (contextError) {
-        console.warn("Failed to resolve program context for PEO generation:", contextError);
-      }
+    const { programId, count = 3, priorities, institutionName: clientInstitutionName } = body;
+    
+    if (!programId) {
+      return NextResponse.json(
+        { error: "programId is required for isolation-aware PEO generation" },
+        { status: 400 },
+      );
     }
+
+    // 1. Resolve Academic Context (Security Boundary)
+    const { context, errors: contextErrors } = await resolveProgramAcademicContext(programId);
+    if (!context || contextErrors.length > 0) {
+      return NextResponse.json(
+        { error: contextErrors[0] || "Failed to resolve program isolation context" },
+        { status: 404 },
+      );
+    }
+
+    const { vision, mission, programName, institutionId } = context;
+    const effectiveInstitutionName = clientInstitutionName || "the Institution";
 
     // Primary: Python Backend (Robust LLM Loop + Scoring)
     try {
-      const response = await fetch("http://localhost:8000/api/v1/generate-peos", {
+      const response = await fetch("http://localhost:8001/api/v1/generate-peos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           program_name: programName,
           count: count,
           priorities: priorities,
-          institution_name: institutionName
+          institution_context: effectiveInstitutionName,
+          program_id: programId,
+          vision: vision || "",
+          missions: mission ? [mission] : []
         }),
       });
 
@@ -78,7 +85,7 @@ export async function POST(request: Request) {
         programName,
         priorities,
         count,
-        institutionName,
+        institutionName: effectiveInstitutionName,
         vision,
         mission,
         geminiApiKey: GEMINI_API_KEY,

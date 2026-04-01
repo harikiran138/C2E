@@ -5,9 +5,11 @@
  */
 
 export interface AcademicContext {
-  programName: string;
+  institution_id:   string; // v5.1 Multi-tenant ID
+  program_id:       string; // v5.1 Program ID
+  programName:      string;
   institutionName?: string;
-  vision?: string;
-  mission?: string;
-  peos?: string[]; // Program Educational Objectives (for PO/PSO alignment)
+  vision?:          string;
+  mission?:         string;
+  peos?:            string[]; 
 }

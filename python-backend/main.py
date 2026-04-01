@@ -2,17 +2,17 @@ import os
 import json
 import asyncio
 from typing import Any, List, Optional, Dict
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# Governance Services
+from strategic_scoring import guard
+from utils.auth import get_current_user, verify_program_context, AuthenticatedUser
 from services.vm_service import VMService
 from services.peo_service import PEOService
 from services.pso_service import PSOService
 from services.po_service import POService
-from strategic_scoring import guard
 
 load_dotenv()
 
@@ -54,6 +54,7 @@ class VMGenerateRequest(BaseModel):
     vision_count: Optional[int] = 1
     mission_count: Optional[int] = 1
     selected_program_vision: Optional[str] = ""
+    program_id: Optional[str] = None
 
 class VMGenerateResponse(BaseModel):
     vision_statements: List[Dict[str, Any]]
@@ -62,12 +63,13 @@ class VMGenerateResponse(BaseModel):
     quality_summary: Dict[str, Any]
 
 class PEOGenerateRequest(BaseModel):
-    programName: str
+    program_name: str
     vision: Optional[str] = ""
     missions: Optional[List[str]] = []
     priorities: List[str]
     count: Optional[int] = 4
-    institutionContext: Optional[str] = ""
+    institution_context: Optional[str] = ""
+    program_id: Optional[str] = None
 
 class PEOGenerateResponse(BaseModel):
     results: List[str]
@@ -76,10 +78,11 @@ class PEOGenerateResponse(BaseModel):
     scores: Optional[Dict[str, Dict]] = None
 
 class POGenerateRequest(BaseModel):
-    programName: str
+    program_name: str
     peos: List[str]
     count: Optional[int] = 12
     context: Optional[str] = ""
+    program_id: Optional[str] = None
 
 class POGenerateResponse(BaseModel):
     pos: List[str]
@@ -87,13 +90,14 @@ class POGenerateResponse(BaseModel):
     quality: List[Dict[str, Any]]
 
 class PSOGenerateRequest(BaseModel):
-    programName: str
+    program_name: str
     vision: Optional[str] = ""
     missions: Optional[List[str]] = []
     peos: Optional[List[str]] = []
     priorities: List[str]
     count: Optional[int] = 3
-    institutionContext: Optional[str] = ""
+    institution_context: Optional[str] = ""
+    program_id: Optional[str] = None
 
 class PSOGenerateResponse(BaseModel):
     results: List[str]
@@ -146,15 +150,18 @@ async def root() -> Dict[str, str]:
     return {"message": "AI Generation Backend (REST) is running with Async & Cache"}
 
 @app.post("/ai/generate-vision-mission", response_model=VMGenerateResponse)
-async def generate_vision_mission(request: VMGenerateRequest) -> VMGenerateResponse:
+async def generate_vision_mission(
+    request: VMGenerateRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+) -> VMGenerateResponse:
     """
-    Production-grade orchestrated VM generation using the AI Governance Engine.
+    Production-grade orchestrated VM generation with Zero-Trust context locking.
     """
+    verify_program_context(user, request.program_id)
     try:
         # 1. Prepare inputs
         program_name = request.program_name
-        focus_areas = request.vision_inputs
-        # Map selected_program_vision to custom_inputs if provided
+        focus_areas = (request.vision_inputs or []) + (request.mission_inputs or [])
         custom_inputs = request.selected_program_vision or ""
         vision_count = request.vision_count or 1
         
@@ -172,7 +179,8 @@ async def generate_vision_mission(request: VMGenerateRequest) -> VMGenerateRespo
             focus_areas=focus_areas,
             custom_inputs=custom_inputs,
             vision_count=vision_count,
-            discipline=discipline
+            discipline=discipline,
+            program_id=request.program_id
         )
 
         return VMGenerateResponse(**result)
@@ -183,18 +191,20 @@ async def generate_vision_mission(request: VMGenerateRequest) -> VMGenerateRespo
 
 
 @app.post("/api/v1/generate-peos", response_model=PEOGenerateResponse)
-async def generate_peos(request: PEOGenerateRequest) -> PEOGenerateResponse:
-    """
-    Orchestrated PEO generation via PEOService.
-    """
+async def generate_peos(
+    request: PEOGenerateRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+) -> PEOGenerateResponse:
+    verify_program_context(user, request.program_id)
     try:
         result = await peo_service.generate_peos(
-            program_name=request.programName,
+            program_name=request.program_name,
             vision=request.vision or "",
             missions=request.missions or [],
             priorities=request.priorities or [],
             count=request.count or 4,
-            institution_context=request.institutionContext
+            institution_context=request.institution_context,
+            program_id=request.program_id
         )
         return PEOGenerateResponse(**result)
     except Exception as e:
@@ -203,15 +213,17 @@ async def generate_peos(request: PEOGenerateRequest) -> PEOGenerateResponse:
 
 
 @app.post("/api/v1/generate-pos", response_model=POGenerateResponse)
-async def generate_pos(request: POGenerateRequest) -> POGenerateResponse:
-    """
-    Orchestrated PO generation via POService.
-    """
+async def generate_pos(
+    request: POGenerateRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+) -> POGenerateResponse:
+    verify_program_context(user, request.program_id)
     try:
         result = await po_service.generate_pos(
-            program_name=request.programName,
+            program_name=request.program_name,
             peos=request.peos or [],
-            count=request.count or 12
+            count=request.count or 12,
+            program_id=request.program_id
         )
         return POGenerateResponse(**result)
     except Exception as e:
@@ -220,18 +232,20 @@ async def generate_pos(request: POGenerateRequest) -> POGenerateResponse:
 
 
 @app.post("/api/v1/generate-psos", response_model=PSOGenerateResponse)
-async def generate_psos(request: PSOGenerateRequest) -> PSOGenerateResponse:
-    """
-    Orchestrated PSO generation via PSOService.
-    """
+async def generate_psos(
+    request: PSOGenerateRequest,
+    user: AuthenticatedUser = Depends(get_current_user)
+) -> PSOGenerateResponse:
+    verify_program_context(user, request.program_id)
     try:
         result = await pso_service.generate_psos(
-            program_name=request.programName,
+            program_name=request.program_name,
             vision=request.vision or "",
             missions=request.missions or [],
             peos=request.peos or [],
             priorities=request.priorities or [],
-            count=request.count or 3
+            count=request.count or 3,
+            program_id=request.program_id
         )
         return PSOGenerateResponse(**result)
     except Exception as e:

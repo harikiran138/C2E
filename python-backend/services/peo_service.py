@@ -46,14 +46,14 @@ class PEOService:
         lines = [re.sub(r'^\d+\.\s*', '', line).strip() for line in cleaned.split('\n')]
         return [line for line in lines if len(line) > 10]
 
-    async def generate_peos(self, program_name: str, vision: str, missions: List[str], priorities: List[str], count: int = 4, context: str = "") -> Dict[str, Any]:
+    async def generate_peos(self, program_name: str, vision: str, missions: List[str], priorities: List[str], count: int = 4, institution_context: str = "", program_id: Optional[str] = None) -> Dict[str, Any]:
         normalized_count = min(12, max(1, count))
         
         peo_prompt = f"""
         You are an Accreditation-Aware Academic Policy Designer.
         
         Program: "{program_name}".
-        Context: {context or "N/A"}
+        Context: {institution_context or "N/A"}
         Program Vision: "{vision}"
         Program Missions: {json.dumps(missions, indent=2)}
         Priority Anchors: {", ".join(priorities)}.

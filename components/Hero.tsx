@@ -35,9 +35,9 @@ export default function Hero() {
             </h1>
 
             <div className="flex flex-col items-start gap-6 md:gap-8 mt-4">
-              <p className="text-[14px] sm:text-[16px] md:text-[18px] text-white/90 font-bold tracking-[0.2em] text-left leading-relaxed max-w-xl">
+              <p className="text-[10px] sm:text-[12px] md:text-[14px] text-white/90 font-bold tracking-[0.15em] text-left leading-relaxed">
                 QUIETLY POWERFUL.{" "}
-                <span className="text-[#c9a961] block sm:inline">
+                <span className="text-[#c9a961] inline">
                   UNCOMPROMISINGLY EXCELLENT
                 </span>
               </p>

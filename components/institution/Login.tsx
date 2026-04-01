@@ -22,7 +22,7 @@ import SignUp from "./SignUp";
 import { motion, AnimatePresence } from "framer-motion";
 import AuthBackground from "../ui/AuthBackground";
 
-type AuthMode = "institution" | "stakeholder";
+type AuthMode = "institution" | "program" | "stakeholder";
 
 interface InstituteOption {
   id: string;
@@ -66,6 +66,9 @@ export default function Login() {
   const [stakeholderId, setStakeholderId] = useState("");
   const [stakeholderPassword, setStakeholderPassword] = useState("");
 
+  const [programAdminId, setProgramAdminId] = useState("");
+  const [programPassword, setProgramPassword] = useState("");
+
   // Password Reset State
   const [isResetMode, setIsResetMode] = useState(false);
   const [resetStakeholderRefId, setResetStakeholderRefId] = useState("");
@@ -102,7 +105,7 @@ export default function Login() {
       }
     };
 
-    if (authMode === "stakeholder" && institutes.length === 0) {
+    if ((authMode === "stakeholder" || authMode === "program") && institutes.length === 0) {
       loadInstitutes();
     }
   }, [authMode, institutes.length]);
@@ -133,7 +136,7 @@ export default function Login() {
       }
     };
 
-    if (authMode === "stakeholder") {
+    if (authMode === "stakeholder" || authMode === "program") {
       loadPrograms();
     }
   }, [authMode, selectedInstituteId]);
@@ -142,6 +145,8 @@ export default function Login() {
     const params = new URLSearchParams(searchParams.toString());
     if (mode === "stakeholder") {
       params.set("type", "stakeholder");
+    } else if (mode === "program") {
+      params.set("type", "program");
     } else {
       params.delete("type");
     }
@@ -171,10 +176,10 @@ export default function Login() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch("/api/institution/login", {
+      const res = await fetch("/api/auth/institute/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password }),
+        body: JSON.stringify({ identifier: trimmedEmail, password }),
       });
 
       const data = await res.json();
@@ -187,15 +192,66 @@ export default function Login() {
         JSON.stringify({
           id: data.id,
           email: trimmedEmail,
-          role: "institution_admin",
+          role: data.role || "INSTITUTE_ADMIN",
         }),
       );
 
       localStorage.removeItem("onboarding_data");
       localStorage.removeItem("onboarding_step");
-      window.location.href = "/institution/dashboard";
+      
+      window.location.href = data.role === "SUPER_ADMIN" ? "/dashboard" : "/institution/dashboard";
     } catch (err: any) {
       console.error("Institution Login Error:", err);
+      setErrorMsg(
+        err.message || "Authentication failed. Please check your connection.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProgramSignIn = async () => {
+    const trimmedId = programAdminId.trim();
+    if (!selectedInstituteId || !selectedProgramId || !trimmedId || !programPassword) {
+      setErrorMsg("Please select institute, program, and enter your ID and password.");
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch("/api/auth/institute/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          identifier: trimmedId, 
+          password: programPassword,
+          institution_id: selectedInstituteId,
+          program_id: selectedProgramId 
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Program login failed");
+      }
+
+      localStorage.setItem(
+        "inst_session",
+        JSON.stringify({
+          id: data.id,
+          email: trimmedId,
+          role: data.role || "PROGRAM_ADMIN",
+        }),
+      );
+
+      localStorage.removeItem("onboarding_data");
+      localStorage.removeItem("onboarding_step");
+      
+      window.location.href = data.redirect || "/program/dashboard";
+    } catch (err: any) {
+      console.error("Program Login Error:", err);
       setErrorMsg(
         err.message || "Authentication failed. Please check your connection.",
       );
@@ -236,7 +292,6 @@ export default function Login() {
 
       if (!res.ok) {
         if (res.status === 403 && data.requires_password_change) {
-          // Intercept for first-time login password change
           setResetStakeholderRefId(data.stakeholder_ref_id);
           setIsResetMode(true);
           setLoading(false);
@@ -292,7 +347,6 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Password reset failed");
 
-      // Success! Return to login and auto-fill password
       setIsResetMode(false);
       setStakeholderPassword(newPassword);
       setNewPassword("");
@@ -306,6 +360,289 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderAuthForm = () => {
+    return (
+      <AnimatePresence mode="wait" initial={false}>
+        {authMode === "institution" && isSignUp ? (
+          <motion.div
+            key="institution-signup"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          >
+            <SignUp />
+          </motion.div>
+        ) : authMode === "institution" ? (
+          <motion.div
+            key="institution-signin"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="space-y-4"
+          >
+            <div className="space-y-3">
+              <FieldLabel icon={Mail} text="Email Address" />
+              <InputField
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="institution@example.com"
+                leadingIcon={Mail}
+              />
+
+              <FieldLabel icon={ShieldCheck} text="Password" />
+              <PasswordField
+                value={password}
+                onChange={setPassword}
+                showPassword={showInstPassword}
+                setShowPassword={setShowInstPassword}
+              />
+            </div>
+
+            {errorMsg && <ErrorMessage text={errorMsg} />}
+
+            <button
+              onClick={handleInstitutionSignIn}
+              disabled={loading}
+              className="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <>
+                  Sign In{" "}
+                  <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
+          </motion.div>
+        ) : isResetMode ? (
+          <motion.div
+            key="stakeholder-reset"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="space-y-4"
+          >
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-500 mb-4">
+              <p className="font-semibold flex items-center gap-2">
+                <AlertTriangle className="size-4" /> Action Required
+              </p>
+              <p className="mt-1 text-xs">
+                For security reasons, you must change your default password before accessing the system.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <FieldLabel icon={ShieldCheck} text="New Password" />
+              <PasswordField
+                value={newPassword}
+                onChange={setNewPassword}
+                showPassword={showNewPassword}
+                setShowPassword={setShowNewPassword}
+              />
+
+              <FieldLabel icon={ShieldCheck} text="Confirm New Password" />
+              <PasswordField
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                showPassword={showConfirmPassword}
+                setShowPassword={setShowConfirmPassword}
+              />
+            </div>
+
+            {errorMsg && !errorMsg.includes("updated successfully") && <ErrorMessage text={errorMsg} />}
+            {errorMsg && errorMsg.includes("updated successfully") && (
+              <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/10 p-4 text-sm text-green-500">
+                {errorMsg}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handlePasswordReset}
+                disabled={loading}
+                className="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="size-5 animate-spin" /> : <>Update Password & Continue</>}
+              </button>
+              <button
+                onClick={() => {
+                  setIsResetMode(false);
+                  setErrorMsg(null);
+                }}
+                className="text-muted-foreground hover:text-foreground text-xs font-semibold py-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        ) : authMode === "stakeholder" ? (
+          <motion.div
+            key="stakeholder-signin"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="space-y-4"
+          >
+            <div className="space-y-3">
+              <FieldLabel icon={Building2} text="Institute Name" />
+              <select
+                value={selectedInstituteId}
+                onChange={(event) => {
+                  setSelectedInstituteId(event.target.value);
+                  setSelectedProgramId("");
+                }}
+                className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+              >
+                <option value="">{loadingInstitutes ? "Loading institutes..." : "Select Institute"}</option>
+                {institutes.map((institute) => (
+                  <option key={institute.id} value={institute.id}>
+                    {institute.name}
+                  </option>
+                ))}
+              </select>
+
+              <FieldLabel icon={BookOpen} text="Program" />
+              <select
+                value={selectedProgramId}
+                onChange={(event) => setSelectedProgramId(event.target.value)}
+                disabled={!selectedInstituteId || loadingPrograms}
+                className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">
+                  {!selectedInstituteId ? "Select Institute first" : loadingPrograms ? "Loading programs..." : "Select Program"}
+                </option>
+                {programs.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.name} {program.code ? `(${program.code})` : ""}
+                  </option>
+                ))}
+              </select>
+
+              <FieldLabel icon={IdCard} text="Stakeholder ID" />
+              <InputField
+                type="text"
+                value={stakeholderId}
+                onChange={setStakeholderId}
+                placeholder="e.g. NSRIT-MECH-001"
+                leadingIcon={Users}
+              />
+
+              <FieldLabel icon={ShieldCheck} text="Password" />
+              <PasswordField
+                value={stakeholderPassword}
+                onChange={setStakeholderPassword}
+                showPassword={showStakePassword}
+                setShowPassword={setShowStakePassword}
+              />
+            </div>
+
+            {errorMsg && <ErrorMessage text={errorMsg} />}
+
+            <button
+              onClick={handleStakeholderSignIn}
+              disabled={loading}
+              className="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <>
+                  Stakeholder Sign In
+                  <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
+          </motion.div>
+        ) : authMode === "program" ? (
+          <motion.div
+            key="program-signin"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="space-y-4"
+          >
+            <div className="space-y-3">
+              <FieldLabel icon={Building2} text="Institute Name" />
+              <select
+                value={selectedInstituteId}
+                onChange={(event) => {
+                  setSelectedInstituteId(event.target.value);
+                  setSelectedProgramId("");
+                }}
+                className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+              >
+                <option value="">{loadingInstitutes ? "Loading institutes..." : "Select Institute"}</option>
+                {institutes.map((institute) => (
+                  <option key={institute.id} value={institute.id}>
+                    {institute.name}
+                  </option>
+                ))}
+              </select>
+
+              <FieldLabel icon={BookOpen} text="Program" />
+              <select
+                value={selectedProgramId}
+                onChange={(event) => setSelectedProgramId(event.target.value)}
+                disabled={!selectedInstituteId || loadingPrograms}
+                className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">
+                  {!selectedInstituteId ? "Select Institute first" : loadingPrograms ? "Loading programs..." : "Select Program"}
+                </option>
+                {programs.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.name} {program.code ? `(${program.code})` : ""}
+                  </option>
+                ))}
+              </select>
+
+              <FieldLabel icon={IdCard} text="Program ID / Email" />
+              <InputField
+                type="text"
+                value={programAdminId}
+                onChange={setProgramAdminId}
+                placeholder="e.g. MECH-2026 or admin@example.com"
+                leadingIcon={Users}
+              />
+
+              <FieldLabel icon={ShieldCheck} text="Password" />
+              <PasswordField
+                value={programPassword}
+                onChange={setProgramPassword}
+                showPassword={showNewPassword}
+                setShowPassword={setShowNewPassword}
+              />
+            </div>
+
+            {errorMsg && <ErrorMessage text={errorMsg} />}
+
+            <button
+              onClick={handleProgramSignIn}
+              disabled={loading}
+              className="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <>
+                  Program Sign In
+                  <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    );
   };
 
   return (
@@ -362,12 +699,14 @@ export default function Login() {
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">
                   {authMode === "stakeholder"
                     ? "Stakeholder Login"
-                    : isSignUp
-                      ? "Create Account"
-                      : "Welcome Back"}
+                    : authMode === "program"
+                      ? "Program Login"
+                      : isSignUp
+                        ? "Create Account"
+                        : "Welcome Back"}
                 </h1>
 
-                <div className="relative flex w-full items-center gap-2 rounded-xl border border-border/20 bg-muted/50 p-1">
+                <div className="relative flex w-full items-center gap-1 rounded-xl border border-border/20 bg-muted/50 p-1">
                   <button
                     onClick={() => switchAuthMode("institution")}
                     className={`relative z-10 flex-1 rounded-lg py-2.5 text-xs font-bold transition-all ${
@@ -377,6 +716,16 @@ export default function Login() {
                     }`}
                   >
                     Institute
+                  </button>
+                  <button
+                    onClick={() => switchAuthMode("program")}
+                    className={`relative z-10 flex-1 rounded-lg py-2.5 text-xs font-bold transition-all ${
+                      authMode === "program"
+                        ? "text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Program
                   </button>
                   <button
                     onClick={() => switchAuthMode("stakeholder")}
@@ -389,9 +738,12 @@ export default function Login() {
                     Stakeholder
                   </button>
                   <motion.div
-                    className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-primary shadow-lg"
+                    className="absolute inset-y-1 left-1 w-[calc(33.33%-2.66px)] rounded-lg bg-primary shadow-lg"
                     initial={false}
-                    animate={{ x: authMode === "stakeholder" ? "100%" : "0%" }}
+                    animate={{ 
+                      x: authMode === "institution" ? "0%" : authMode === "program" ? "100%" : "200%",
+                      marginLeft: authMode === "institution" ? "0px" : authMode === "program" ? "4px" : "8px"
+                    }}
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
                   />
                 </div>
@@ -432,226 +784,15 @@ export default function Login() {
                 )}
               </div>
 
-              <AnimatePresence mode="wait" initial={false}>
-                {authMode === "institution" && isSignUp ? (
-                  <motion.div
-                    key="institution-signup"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                  >
-                    <SignUp />
-                  </motion.div>
-                ) : authMode === "institution" ? (
-                  <motion.div
-                    key="institution-signin"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-3">
-                      <FieldLabel icon={Mail} text="Email Address" />
-                      <InputField
-                        type="email"
-                        value={email}
-                        onChange={setEmail}
-                        placeholder="institution@example.com"
-                        leadingIcon={Mail}
-                      />
+              {/* v5.1: Content rendered via helper to avoid deep nesting and parser errors */}
+              {renderAuthForm()}
 
-                      <FieldLabel icon={ShieldCheck} text="Password" />
-                      <PasswordField
-                        value={password}
-                        onChange={setPassword}
-                        showPassword={showInstPassword}
-                        setShowPassword={setShowInstPassword}
-                      />
-                    </div>
-
-                    {errorMsg && <ErrorMessage text={errorMsg} />}
-
-                    <button
-                      onClick={handleInstitutionSignIn}
-                      disabled={loading}
-                      className="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <Loader2 className="size-5 animate-spin" />
-                      ) : (
-                        <>
-                          Sign In{" "}
-                          <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
-                        </>
-                      )}
-                    </button>
-                  </motion.div>
-                ) : isResetMode ? (
-                  <motion.div
-                    key="stakeholder-reset"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                    className="space-y-4"
-                  >
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-500 mb-4">
-                      <p className="font-semibold flex items-center gap-2">
-                        <AlertTriangle className="size-4" /> Action Required
-                      </p>
-                      <p className="mt-1 text-xs">
-                        For security reasons, you must change your default
-                        password before accessing the system.
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <FieldLabel icon={ShieldCheck} text="New Password" />
-                      <PasswordField
-                        value={newPassword}
-                        onChange={setNewPassword}
-                        showPassword={showNewPassword}
-                        setShowPassword={setShowNewPassword}
-                      />
-
-                      <FieldLabel
-                        icon={ShieldCheck}
-                        text="Confirm New Password"
-                      />
-                      <PasswordField
-                        value={confirmPassword}
-                        onChange={setConfirmPassword}
-                        showPassword={showConfirmPassword}
-                        setShowPassword={setShowConfirmPassword}
-                      />
-                    </div>
-
-                    {errorMsg && !errorMsg.includes("updated successfully") && (
-                      <ErrorMessage text={errorMsg} />
-                    )}
-                    {errorMsg && errorMsg.includes("updated successfully") && (
-                      <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/10 p-4 text-sm text-green-500">
-                        {errorMsg}
-                      </div>
-                    )}
-
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={handlePasswordReset}
-                        disabled={loading}
-                        className="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {loading ? (
-                          <Loader2 className="size-5 animate-spin" />
-                        ) : (
-                          <>Update Password & Continue</>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsResetMode(false);
-                          setErrorMsg(null);
-                        }}
-                        className="text-muted-foreground hover:text-foreground text-xs font-semibold py-2"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="stakeholder-signin"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-3">
-                      <FieldLabel icon={Building2} text="Institute Name" />
-                      <select
-                        value={selectedInstituteId}
-                        onChange={(event) => {
-                          setSelectedInstituteId(event.target.value);
-                          setSelectedProgramId("");
-                        }}
-                        className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                      >
-                        <option value="">
-                          {loadingInstitutes
-                            ? "Loading institutes..."
-                            : "Select Institute"}
-                        </option>
-                        {institutes.map((institute) => (
-                          <option key={institute.id} value={institute.id}>
-                            {institute.name}
-                          </option>
-                        ))}
-                      </select>
-
-                      <FieldLabel icon={BookOpen} text="Program" />
-                      <select
-                        value={selectedProgramId}
-                        onChange={(event) =>
-                          setSelectedProgramId(event.target.value)
-                        }
-                        disabled={!selectedInstituteId || loadingPrograms}
-                        className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <option value="">
-                          {!selectedInstituteId
-                            ? "Select Institute first"
-                            : loadingPrograms
-                              ? "Loading programs..."
-                              : "Select Program"}
-                        </option>
-                        {programs.map((program) => (
-                          <option key={program.id} value={program.id}>
-                            {program.name}{" "}
-                            {program.code ? `(${program.code})` : ""}
-                          </option>
-                        ))}
-                      </select>
-
-                      <FieldLabel icon={IdCard} text="Stakeholder ID" />
-                      <InputField
-                        type="text"
-                        value={stakeholderId}
-                        onChange={setStakeholderId}
-                        placeholder="e.g. NSRIT-MECH-001"
-                        leadingIcon={Users}
-                      />
-
-                      <FieldLabel icon={ShieldCheck} text="Password" />
-                      <PasswordField
-                        value={stakeholderPassword}
-                        onChange={setStakeholderPassword}
-                        showPassword={showStakePassword}
-                        setShowPassword={setShowStakePassword}
-                      />
-                    </div>
-
-                    {errorMsg && <ErrorMessage text={errorMsg} />}
-
-                    <button
-                      onClick={handleStakeholderSignIn}
-                      disabled={loading}
-                      className="group flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-4 text-sm font-bold text-primary-foreground shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <Loader2 className="size-5 animate-spin" />
-                      ) : (
-                        <>
-                          Stakeholder Sign In
-                          <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
-                        </>
-                      )}
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div className="flex items-center justify-center gap-2 mt-4 opacity-50">
+                <div className="size-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Database Connected Securely
+                </span>
+              </div>
             </div>
           </motion.main>
         </section>

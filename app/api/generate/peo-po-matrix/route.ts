@@ -1,14 +1,38 @@
 import { NextResponse } from "next/server";
 import { computeSemanticSimilarity } from "@/lib/ai-validation";
 import { callAI } from "@/lib/curriculum/ai-model-router";
+import { resolveProgramAcademicContext, normalizeText } from "@/lib/curriculum/program-context";
 
 export async function POST(request: Request) {
   try {
-    const { peos, pos } = await request.json();
+    const { programId } = await request.json();
 
-    if (!peos || !pos) {
+    if (!programId) {
       return NextResponse.json(
-        { error: "PEOs and POs required" },
+        { error: "programId is required for isolation-aware mapping" },
+        { status: 400 },
+      );
+    }
+
+    // 1. Resolve Academic Context (Security Boundary)
+    const { context, errors: contextErrors } = await resolveProgramAcademicContext(programId);
+    if (!context || contextErrors.length > 0) {
+      return NextResponse.json(
+        { error: contextErrors[0] || "Failed to resolve program isolation context" },
+        { status: 404 },
+      );
+    }
+
+    const { peos, pos: rawPos } = context;
+    // Map to the format expected by the prompt logic
+    const pos = rawPos.map((p, i) => ({ 
+      code: `PO${i+1}`, 
+      description: p 
+    }));
+
+    if (!peos || peos.length === 0 || !pos || pos.length === 0) {
+      return NextResponse.json(
+        { error: "PEOs and POs must exist for the program to generate a matrix" },
         { status: 400 },
       );
     }
@@ -23,7 +47,7 @@ export async function POST(request: Request) {
       ${peos.map((p: string, i: number) => `PEO ${i + 1}: ${p}`).join("\n")}
       
       Program Outcomes (POs):
-      ${pos.map((p: any, i: number) => `PO ${i + 1} (${p.po_code || p.code}): ${p.po_description || p.description}`).join("\n")}
+      ${pos.map((p: any, i: number) => `PO ${i + 1} (${p.code}): ${p.description}`).join("\n")}
       
       Mapping Logic:
       - 1 = Slight (Low) correlation
@@ -60,7 +84,7 @@ export async function POST(request: Request) {
       const peo = peos[i];
       for (let j = 0; j < pos.length; j++) {
         const po = pos[j];
-        const poText = po.po_description || po.description || "";
+        const poText = po.description || "";
 
         if (!poText || !peo) {
           similarityTasks.push(Promise.resolve({ peoIdx: i, poIdx: j, similarity: 0 }));

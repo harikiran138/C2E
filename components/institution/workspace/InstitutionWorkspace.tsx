@@ -406,6 +406,9 @@ function SidebarContent({
   statsData,
 }: any) {
   const [isProgramListOpen, setIsProgramListOpen] = useState(false);
+  
+  // v5.1 Role Detection: If exactly 1 program is returned, it's likely a Program Admin session
+  const isProgramAdmin = programs?.length === 1;
 
   const selectedProgramName = useMemo(() => {
     if (!selectedProgramId) return "Select Program";
@@ -442,133 +445,137 @@ function SidebarContent({
 
   return (
     <div className="flex flex-col gap-6 py-4">
-      {/* GROUP 1 — Institution (Always Visible) */}
-      <SidebarGroup title="Institution Dashboard" variant="blue">
-        <SidebarNavItem
-          href="/institution/dashboard"
-          active={
-            (!activeStepKey || activeStepKey === "dashboard") &&
-            !selectedProgramId
-          }
-          onClick={() => {
-            onSelectProgram("");
-            if (window.innerWidth < 1024) onClose();
-          }}
-          icon={<LayoutDashboard className="size-4" />}
-        >
-          Institution Dashboard
-        </SidebarNavItem>
-
-        {SIDE_MENU_STEPS.map((step) => {
-          const Icon = (Icons as any)[step.icon || "FileText"] || FileText;
-          const isActive = activeStepKey === step.key;
-
-          return (
+      {/* GROUP 1 — Institution (Hidden for Program Admins) */}
+      {!isProgramAdmin && (
+        <SidebarGroup title="Institution Dashboard" variant="blue">
             <SidebarNavItem
-              key={step.key}
-              href={buildHref(step.key)}
-              active={isActive}
-              onClick={onClose}
-              icon={<Icon className="size-4" />}
-            >
-              {step.title}
-            </SidebarNavItem>
-          );
-        })}
-      </SidebarGroup>
-
-      {/* PROGRAM SELECTOR (Dropdown Section) */}
-      <div className="space-y-3 px-1">
-        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 px-4">
-          Program Selection
-        </p>
-        <div className="relative">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              setIsProgramListOpen(!isProgramListOpen);
+            href="/institution/dashboard"
+            active={
+                (!activeStepKey || activeStepKey === "dashboard") &&
+                !selectedProgramId
+            }
+            onClick={() => {
+                onSelectProgram("");
+                if (window.innerWidth < 1024) onClose();
             }}
-            className={cn(
-              "flex items-center gap-3 w-full text-left px-5 py-4 rounded-2xl transition-all group border-2 shadow-sm",
-              isProgramListOpen
-                ? "bg-white border-slate-900 ring-4 ring-slate-900/5 shadow-xl shadow-slate-200"
-                : "bg-slate-50 border-transparent hover:border-slate-200 hover:bg-white hover:shadow-md",
-            )}
-          >
-            <div
-              className={cn(
-                "size-8 flex items-center justify-center rounded-xl transition-colors",
-                isProgramListOpen
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-400 border border-slate-100 shadow-sm",
-              )}
+            icon={<LayoutDashboard className="size-4" />}
             >
-              <BookOpen className="size-4" />
-            </div>
-            <span
-              className={cn(
-                "flex-1 text-sm font-bold",
-                selectedProgramId ? "text-slate-900" : "text-slate-400",
-              )}
-            >
-              {selectedProgramName}
-            </span>
-            <ChevronRight
-              className={cn(
-                "size-4 text-slate-300 transition-transform duration-500",
-                isProgramListOpen
-                  ? "rotate-90 text-slate-900"
-                  : "group-hover:text-slate-600",
-              )}
-            />
-          </button>
+            Institution Dashboard
+            </SidebarNavItem>
 
-          <AnimatePresence>
-            {isProgramListOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                className="absolute top-full left-0 right-0 mt-2 z-50 p-2 bg-white border border-slate-100 rounded-[24px] shadow-2xl shadow-slate-300/50 space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar"
-              >
-                {programs && programs.length > 0 ? (
-                  programs.map((program: any) => (
-                    <button
-                      key={program.id}
-                      onClick={() => {
-                        onSelectProgram(program.id);
-                        setIsProgramListOpen(false);
-                      }}
-                      className={cn(
-                        "w-full flex items-center px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left",
-                        selectedProgramId === program.id
-                          ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                      )}
-                    >
-                      <span className="flex-1 pr-2">
-                        {program.program_name}
-                      </span>
-                      {selectedProgramId === program.id && (
-                        <div className="size-4 rounded-full bg-white flex items-center justify-center">
-                          <CheckSquare className="size-2.5 text-slate-900" />
-                        </div>
-                      )}
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-6 text-xs text-slate-400 font-medium italic text-center">
-                    No programs available
-                  </div>
+            {SIDE_MENU_STEPS.map((step) => {
+            const Icon = (Icons as any)[step.icon || "FileText"] || FileText;
+            const isActive = activeStepKey === step.key;
+
+            return (
+                <SidebarNavItem
+                key={step.key}
+                href={buildHref(step.key)}
+                active={isActive}
+                onClick={onClose}
+                icon={<Icon className="size-4" />}
+                >
+                {step.title}
+                </SidebarNavItem>
+            );
+            })}
+        </SidebarGroup>
+      )}
+
+      {/* PROGRAM SELECTOR (Locked if Program Admin) */}
+      {!isProgramAdmin && (
+        <div className="space-y-3 px-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 px-4">
+            Program Selection
+            </p>
+            <div className="relative">
+            <button
+                onClick={(e) => {
+                e.preventDefault();
+                setIsProgramListOpen(!isProgramListOpen);
+                }}
+                className={cn(
+                "flex items-center gap-3 w-full text-left px-5 py-4 rounded-2xl transition-all group border-2 shadow-sm",
+                isProgramListOpen
+                    ? "bg-white border-slate-900 ring-4 ring-slate-900/5 shadow-xl shadow-slate-200"
+                    : "bg-slate-50 border-transparent hover:border-slate-200 hover:bg-white hover:shadow-md",
                 )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+            >
+                <div
+                className={cn(
+                    "size-8 flex items-center justify-center rounded-xl transition-colors",
+                    isProgramListOpen
+                    ? "bg-slate-900 text-white"
+                    : "bg-white text-slate-400 border border-slate-100 shadow-sm",
+                )}
+                >
+                <BookOpen className="size-4" />
+                </div>
+                <span
+                className={cn(
+                    "flex-1 text-sm font-bold",
+                    selectedProgramId ? "text-slate-900" : "text-slate-400",
+                )}
+                >
+                {selectedProgramName}
+                </span>
+                <ChevronRight
+                className={cn(
+                    "size-4 text-slate-300 transition-transform duration-500",
+                    isProgramListOpen
+                    ? "rotate-90 text-slate-900"
+                    : "group-hover:text-slate-600",
+                )}
+                />
+            </button>
 
-      {/* GROUP 2 — Program (Visible After Selection) */}
+            <AnimatePresence>
+                {isProgramListOpen && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                    className="absolute top-full left-0 right-0 mt-2 z-50 p-2 bg-white border border-slate-100 rounded-[24px] shadow-2xl shadow-slate-300/50 space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar"
+                >
+                    {programs && programs.length > 0 ? (
+                    programs.map((program: any) => (
+                        <button
+                        key={program.id}
+                        onClick={() => {
+                            onSelectProgram(program.id);
+                            setIsProgramListOpen(false);
+                        }}
+                        className={cn(
+                            "w-full flex items-center px-4 py-3 rounded-xl text-xs font-semibold transition-all text-left",
+                            selectedProgramId === program.id
+                            ? "bg-slate-900 text-white shadow-lg shadow-slate-200"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                        )}
+                        >
+                        <span className="flex-1 pr-2">
+                            {program.program_name}
+                        </span>
+                        {selectedProgramId === program.id && (
+                            <div className="size-4 rounded-full bg-white flex items-center justify-center">
+                            <CheckSquare className="size-2.5 text-slate-900" />
+                            </div>
+                        )}
+                        </button>
+                    ))
+                    ) : (
+                    <div className="px-4 py-6 text-xs text-slate-400 font-medium italic text-center">
+                        No programs available
+                    </div>
+                    )}
+                </motion.div>
+                )}
+            </AnimatePresence>
+            </div>
+        </div>
+      )}
+
+      {/* GROUP 2 — Program (Visible After Selection or for Program Admin) */}
       <AnimatePresence mode="wait">
         {selectedProgramId && (
           <motion.div
@@ -578,7 +585,7 @@ function SidebarContent({
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
             <SidebarGroup
-              title="Program Execution"
+              title={isProgramAdmin ? "Academic OBE Management" : "Program Execution"}
               variant="purple"
               progress={progressData}
             >

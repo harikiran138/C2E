@@ -225,6 +225,7 @@ export default function PeoGenerator({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          programId,
           priorities: selectedPriorities,
           count: peoCount,
           vision: program?.program_vision || program?.vision || "",

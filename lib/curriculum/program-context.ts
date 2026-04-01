@@ -7,6 +7,7 @@ interface ProgramRow {
   degree: string | null;
   vision: string | null;
   mission: string | null;
+  institution_id: string;
   peo_po_matrix: unknown;
   consistency_matrix: unknown;
 }
@@ -14,6 +15,7 @@ interface ProgramRow {
 export interface ProgramAcademicContext {
   programId: string;
   programName: string;
+  institutionId: string;
   degree: string | null;
   displayName: string;
   vision: string;
@@ -43,7 +45,7 @@ const DEFAULT_MIN_PEOS = 3;
 const DEFAULT_MIN_POS = 12;
 const DEFAULT_MIN_PSOS = 2;
 
-function normalizeText(value: unknown): string {
+export function normalizeText(value: unknown): string {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
@@ -186,6 +188,7 @@ export async function resolveProgramAcademicContext(
           degree,
           vision,
           mission,
+          institution_id,
           peo_po_matrix,
           consistency_matrix
          FROM programs
@@ -204,7 +207,8 @@ export async function resolveProgramAcademicContext(
             program_name,
             degree,
             vision,
-            mission
+            mission,
+            institution_id
            FROM programs
            WHERE id = $1
            LIMIT 1`,
@@ -255,6 +259,7 @@ export async function resolveProgramAcademicContext(
     const context: ProgramAcademicContext = {
       programId: program.id,
       programName: normalizeText(program.program_name),
+      institutionId: program.institution_id,
       degree: normalizeText(program.degree) || null,
       displayName: buildDisplayProgramName(program.degree, program.program_name),
       vision: effectiveVision,

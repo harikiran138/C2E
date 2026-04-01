@@ -19,7 +19,7 @@ class POService:
         lines = [re.sub(r'^\d+\.\s*', '', line).strip() for line in cleaned.split('\n')]
         return [line for line in lines if len(line) > 10]
 
-    async def generate_pos(self, program_name: str, peos: List[str], count: int = 12) -> Dict[str, Any]:
+    async def generate_pos(self, program_name: str, peos: List[str], count: int = 12, program_id: Optional[str] = None) -> Dict[str, Any]:
         normalized_count = min(15, max(1, count))
         
         po_prompt = f"""

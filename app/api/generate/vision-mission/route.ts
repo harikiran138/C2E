@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { computeSemanticSimilarity, calculateLexicalRichness } from "@/lib/ai-validation";
 import { visionAgent }  from "@/lib/ai/vision-agent";
 import { missionAgent } from "@/lib/ai/mission-agent";
+import { resolveProgramAcademicContext, normalizeText } from "@/lib/curriculum/program-context";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const API_URL =
@@ -535,15 +536,32 @@ function buildSafeVisionVariant(programName: string, index: number) {
 
 export async function POST(request: Request) {
   try {
-    const { type, priorities, count, institutionContext, programName } =
+    const { type, priorities, count, programId, institutionContext, programName: clientProgramName } =
       await request.json();
 
+    if (!programId) {
+      return NextResponse.json(
+        { error: "programId is required for isolation-aware generation" },
+        { status: 400 },
+      );
+    }
+
+    // 1. Resolve Academic Context (Security Boundary)
+    const { context, errors } = await resolveProgramAcademicContext(programId);
+    if (!context || errors.length > 0) {
+      return NextResponse.json(
+        { error: errors[0] || "Failed to resolve program isolation context" },
+        { status: 404 },
+      );
+    }
+
+    const { institutionId, programName, displayName, vision: activeVision, mission: activeMission } = context;
+
     const cacheKey = JSON.stringify({
+      programId,
       type,
       priorities,
       count,
-      institutionContext,
-      programName,
     });
     if (aiCache.has(cacheKey)) {
       return NextResponse.json({ results: aiCache.get(cacheKey) });
@@ -558,13 +576,44 @@ export async function POST(request: Request) {
 
     let results: string[] = [];
 
+    // Primary: Python Backend
+    try {
+      const response = await fetch("http://localhost:8001/api/v1/generate-vision-mission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          program_name: programName,
+          institute_vision: institutionContext?.vision || "",
+          institute_mission: institutionContext?.mission || "",
+          vision_inputs: type === "vision" ? priorities : [],
+          mission_inputs: type === "mission" ? priorities : [],
+          mode: type,
+          vision_count: type === "vision" ? count : 1,
+          mission_count: type === "mission" ? count : 1,
+          program_id: programId
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Return full content (visions, missions, and scores) for UI
+        return NextResponse.json({
+          visions: data.visions || [],
+          missions: data.missions || [],
+          scores: data.scores || []
+        });
+      }
+    } catch (backendError) {
+      console.warn("Python Backend connection failed for Vision/Mission:", backendError);
+    }
+
     // ── Vision path: AI Agent architecture (Template + Gemini + Mutation) ─────
     if (type === "vision") {
       const agentResult = await visionAgent({
         programName,
         priorities,
         count,
-        institutionName: institutionContext?.name,
+        institutionName: institutionContext?.name || "the Institution", // Use context name if available
         existingVisions: [],
         geminiApiKey:    GEMINI_API_KEY,
       });
@@ -576,8 +625,8 @@ export async function POST(request: Request) {
         programName,
         priorities,
         count,
-        visionRef:       normalizeWhitespace(String(institutionContext || "")),
-        institutionName: institutionContext?.name,
+        visionRef:       activeVision || normalizeText(String(institutionContext || "")),
+        institutionName: institutionContext?.name || "the Institution",
         geminiApiKey:    GEMINI_API_KEY,
       });
       results = agentResult.missions;

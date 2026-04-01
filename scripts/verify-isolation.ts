@@ -1,7 +1,7 @@
-import { resolveProgramAcademicContext } from "./lib/curriculum/program-context";
-import { peoAgent } from "./lib/ai/peo-agent";
-import { poAgent } from "./lib/ai/po-agent";
-import { psoAgent } from "./lib/ai/pso-agent";
+import { resolveProgramAcademicContext } from "../lib/curriculum/program-context";
+import { peoAgent } from "../lib/ai/peo-agent";
+import { poAgent } from "../lib/ai/po-agent";
+import { psoAgent } from "../lib/ai/pso-agent";
 
 async function testFullPipeline() {
   const testProgramId = "96d4b29f-8557-4b71-b01f-0e122709f196"; // Use a real ID from your DB if possible
@@ -53,7 +53,7 @@ async function testFullPipeline() {
   const psoResult = await psoAgent({
     programName: context.programName,
     count: 3,
-    selectedSocieties: { lead: ["IEEE"] },
+    selectedSocieties: { lead: ["IEEE"], co_lead: [], cooperating: [] },
     vision: context.vision,
     mission: context.mission,
     peos: context.peos

@@ -7,40 +7,40 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { programName, count = 3, priorities, institutionName, programId } = body;
+    const { programId, count = 3, priorities, institutionName: clientInstitutionName } = body;
 
-    if (!programName) {
+    if (!programId) {
       return NextResponse.json(
-        { error: "programName is required" },
+        { error: "programId is required for isolation-aware PO generation" },
         { status: 400 },
       );
     }
 
-    let mission = "";
-    let peos: string[] = [];
-
-    if (programId) {
-      try {
-        const { context } = await resolveProgramAcademicContext(programId);
-        if (context) {
-          mission = context.mission;
-          peos = context.peos;
-        }
-      } catch (contextError) {
-        console.warn("Failed to resolve program context for PO generation:", contextError);
-      }
+    // 1. Resolve Academic Context (Security Boundary)
+    const { context, errors: contextErrors } = await resolveProgramAcademicContext(programId);
+    if (!context || contextErrors.length > 0) {
+      return NextResponse.json(
+        { error: contextErrors[0] || "Failed to resolve program isolation context" },
+        { status: 404 },
+      );
     }
+
+    const { mission, peos, programName, institutionId } = context;
+    const effectiveInstitutionName = clientInstitutionName || "the Institution";
+
+    // Use mission and peos from resolved context
 
     // Primary: Python Backend
     try {
-      const response = await fetch("http://localhost:8000/api/v1/generate-pos", {
+      const response = await fetch("http://localhost:8001/api/v1/generate-pos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           program_name: programName,
-          institution_name: institutionName,
-          priorities: priorities,
-          count: Math.min(count, 12)
+          context: effectiveInstitutionName,
+          peos: peos || [],
+          count: Math.min(count, 12),
+          program_id: programId
         }),
       });
 
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       programName,
       count: Math.min(count, 12),
       priorities,
-      institutionName,
+      institutionName: effectiveInstitutionName,
       mission,
       peos,
       geminiApiKey: GEMINI_API_KEY,

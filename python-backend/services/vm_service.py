@@ -17,7 +17,8 @@ class VMService:
         vision_count: int = 1,
         mode: str = "accreditation",
         discipline: str = "Engineering",
-        seen_statements: List[str] = None
+        seen_statements: List[str] = None,
+        program_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Orchestrates the entire VM generation using the Master Prompt.
