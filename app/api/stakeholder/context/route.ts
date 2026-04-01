@@ -132,8 +132,8 @@ export async function GET(request: NextRequest) {
           canSubmit,
           lockReason,
         },
-        vision: stakeholder.vision || "",
-        mission: stakeholder.mission || "",
+        vision: stakeholder.vision || "Vision statement is currently being finalized by the Department.",
+        mission: stakeholder.mission || "Mission statement is currently being finalized by the Department.",
         peos: peosRes.rows.map((row) => ({
           id: String(row.id),
           peoNumber: Number(row.peo_number),

@@ -62,9 +62,18 @@ export function buildPSOGenerationPrompt(
     .join("\n\n");
 
   return `
-🧠 🔥 ACCREDITATION-READY PSO GENERATION
+🧠 🔥 EXPERT ACCREDITATION AUDITOR: PSO GENERATION
 Role: Expert in Outcome-Based Education (OBE), NBA accreditation (India), Washington Accord standards, and ABET Engineering Accreditation Commission (EAC) frameworks.
-Task: Analyze, refine, and enhance Program Specific Outcomes (PSOs) for: ${programName}.
+Task: Clean, Fix, and Optimize Program Specific Outcomes (PSOs) for: ${programName}.
+
+---
+🎯 OBJECTIVE
+Improve the PSO set so that it is:
+- Non-redundant
+- Domain-specific
+- Single-competency focused
+- Measurable and clear
+- Accreditation-ready
 
 ---
 🎯 CONTEXT & INPUTS
@@ -85,58 +94,36 @@ Use these high-scoring technical phrases as inspiration for depth and tone:
 ${benchmarksText}
 
 ---
-🚀 OBJECTIVES
-1. Ensure each PSO is outcome-oriented, measurable, and assessable.
-2. Align PSOs with ABET EAC Student Outcomes (SO1–SO7).
-3. Ensure compliance with NBA (India) expectations for PSOs (SAR Section 2.5).
-4. Strengthen program-specific depth and avoid generic engineering statements.
-5. Remove redundancy and overlap across PSOs.
-6. Limit cognitive overload by avoiding multiple outcomes in a single PSO.
-7. Use precise and measurable action verbs from Bloom’s Taxonomy (Analyze, Design, optimize, etc.).
-8. Ensure each PSO can be mapped clearly to courses, labs, and assessments.
+🧠 CORE FIX RULES (CRITICAL)
+1. REDUNDANCY / OVERLAP REMOVAL: Detect PSOs with similar meaning. Merge or refine to differentiate.
+2. REMOVE GENERIC / PO-LIKE PSOs: Remove/Fix ethics-only or generic engineering statements (e.g. "understand engineering principles"). Convert to domain-specific PSOs.
+3. SINGLE ACTION VERB ENFORCEMENT: Each PSO MUST contain EXACTLY ONE primary action verb.
+4. HIDDEN MULTI-ACTION CLEANUP: Detect "by applying", "and ensuring", "to improve". Simplify to ONE clear measurable outcome.
+5. WEAK VERB CORRECTION: Replace "enhance, improve, support, facilitate" with "analyze, design, evaluate, develop, implement".
+6. DOMAIN ENFORCEMENT: Include discipline-specific keywords. Avoid "engineering systems"; use "power systems", "embedded systems", etc.
+7. TOOL GENERALIZATION: Replace specific tools (MATLAB, Python) with "appropriate engineering tools", unless domain-critical.
 
 ---
 📝 INSTRUCTIONS
 1. Start each PSO with 'Graduates will be able to...'.
-2. STRUCTURAL FORMULA: [Strong Verb] + [Specific Technical Object] + [Real-world Constraint/Standard/Tool].
-3. COGNITIVE LEVEL: Use Bloom's Taxonomy Levels 4-6 (Analyze, Evaluate, Create).
-4. VERB RESTRICTION: Avoid 'understand', 'enhance', 'optimize', 'efficient', unless tied to measurable criteria.
-5. DOMAIN DEPTH: Use discipline-specific technical keywords (ASME, IEEE, ISO, specific algorithms/methods).
-6. CONCISENESS: Keep PSOs between 20–30 words (one sentence).
-7. INTEGRATION: Subtly integrate sustainability, ethics, or societal relevance where technically appropriate.
-8. DISTINCT COMPETENCY: Ensure each of the ${count} PSOs represents a distinct technical competency area.
-
----
-🧠 INTERNAL SELF-VERIFICATION
-Before producing output, internally verify:
-1. Does each PSO start with a strong measurable verb?
-2. Is the technical granularity deep enough for ${programName}?
-3. Does each PSO reflect a real-world engineering constraint?
-4. Is the ABET SO mapping logically consistent with the statement text?
-5. Do the ${count} PSOs together provide broad program coverage without repetition?
-
-DO NOT output this reasoning block.
+2. COGNITIVE LEVEL: Use Bloom's Taxonomy Levels 4-6 (Analyze, Evaluate, Create).
+3. CONCISENESS: Keep PSOs between 20–30 words (one sentence).
+4. DISTINCT COMPETENCY: Ensure each of the ${count} PSOs represents a distinct technical competency area.
 
 ---
 📦 OUTPUT FORMAT (STRICT JSON)
 {
-  "PSOs": [
-    {
-      "statement": "Graduates will be able to [Strong Verb] [Deep Technical Subspace] within the context of [Real-world Constraint]...",
-      "focus_area": "Technical subspace",
-      "mapped_abet_elements": ["SO1", "SO2"]
-    }
+  "final_psos": [
+    "Graduates will be able to [Strong Verb] [Deep Technical Subspace] within the context of [Real-world Constraint]..."
   ],
-  "compliance_check": {
-    "obe_alignment": "Explanation of how outcome-orientation is achieved",
-    "nba_alignment": "Justification for Section 2.5 compliance",
-    "abet_alignment": "Summary mapping to SO1-SO7"
-  },
-  "meta": {
-    "mode": "${mode}",
-    "compliance": "NBA Tier-I + ABET EAC"
+  "fix_summary": {
+    "issues_detected": ["List of detected issues"],
+    "changes_made": ["Detailed list of changes"],
+    "final_quality": "Accreditation Ready"
   }
 }
+
+IMPORTANT: RESPONSE MUST BE VALID JSON ONLY. NO PREAMBLE. NO EXPLANATION. NO MARKDOWN CODE BLOCKS. START THE RESPONSE WITH '{' AND END WITH '}'.
 `.trim();
 }
 
@@ -150,7 +137,8 @@ export function buildRetryPrompt(
 ): string {
   const issues = [
     ...feedback.globalIssues,
-    ...feedback.psos.flatMap(p => p.score.issues)
+    ...feedback.detailedDrawbacks,
+    ...feedback.psoAnalyses.flatMap(pa => pa.issues)
   ].filter((v, i, a) => a.indexOf(v) === i);
 
   const prevText = previousResults.length > 0 
@@ -167,16 +155,16 @@ ${issues.map(issue => `- ❌ ${issue}`).join("\n")}
 
 STRICT RETRY INSTRUCTIONS:
 1. Fix all ❌ issues mentioned above.
-2. Maintain the technical complexity for ${feedback.psos.length} outcomes.
+2. Maintain the technical complexity for ${feedback.psoAnalyses.length} outcomes.
 3. Ensure deeper granularity — avoid repeating any patterns from the previous failed attempt.
 4. If an ABET mapping was flagged as incorrect, re-map correctly (e.g. Design -> SO2).
-5. Output ONLY the corrected valid JSON.
+5. Output ONLY the corrected valid JSON. NO PREAMBLE. NO MARKDOWN.
 `.trim();
 }
 
 /**
- * Master Evaluator Improvement Prompt
- * Functions as an intelligent audit engine that preserves high-quality PSOs while surgically refining others.
+ * Master PSO Refinement Engine v2
+ * Functions as an intelligent audit and cleaning engine.
  */
 export function buildPSOEvaluatorPrompt(params: {
   programName: string;
@@ -186,63 +174,62 @@ export function buildPSOEvaluatorPrompt(params: {
   const { programName, existingPSOs, feedback } = params;
 
   return `
-🧠 🔥 MASTER PSO EVALUATOR & AUDIT ENGINE
-Role: Expert Evaluator in OBE, NBA accreditation (India), Washington Accord, and ABET EAC standards.
-Task: Evaluate, score, and selectively improve Program Specific Outcomes (PSOs) for: ${programName}.
+🧠 🔥 EXPERT ACCREDITATION AUDITOR: PSO REFINEMENT
+Role: Expert Evaluator and Auditor in OBE, NBA accreditation (India), Washington Accord, and ABET EAC standards.
+Task: CLEAN, FIX, and OPTIMIZE the given Program Specific Outcomes (PSOs) for: ${programName}.
 
 ---
-🚨 CRITICAL BEHAVIOR RULE (NON-DESTRUCTIVE INTELLIGENCE)
-1. DO NOT MODIFY HIGH-QUALITY PSOs (Score ≥ 85).
-   - If a PSO is already strong: KEEP IT UNCHANGED.
-   - Do NOT rewrite unnecessarily.
-2. MINIMAL REFINEMENT FOR MEDIUM QUALITY (Score 70–84).
-   - Improve ONLY the weak parts.
-   - Preserve original structure and intent.
-3. FULL REWRITE ONLY IF NECESSARY (Score < 70).
-   - Rewrite completely while preserving technical intent.
+🎯 OBJECTIVE
+Improve the PSO set so that it is:
+- Non-redundant
+- Domain-specific
+- Single-competency focused
+- Measurable and clear
+- Accreditation-ready
 
 ---
-🧠 DIRECTOR ENFORCED RULES (MANDATORY)
-🔴 SINGLE ACTION VERB RULE: Each PSO MUST contain EXACTLY ONE primary action verb. If multiple exist, split or refine.
-🔵 TOOL GENERALIZATION RULE: Avoid specific tools (MATLAB, Python, etc.) unless domain-critical. Use "modern computational tools" or "appropriate engineering tools."
-🟡 NO OVER-MODIFICATION RULE: Do NOT rephrase for style. Do NOT reduce clarity.
+🚨 NON-DESTRUCTIVE RULE (CRITICAL)
+- DO NOT rewrite strong PSOs (Score ≥ 85) unnecessarily.
+- ONLY modify when quality improvement is clearly needed.
+- PRESERVE original technical intent always.
 
 ---
-🧠 EVALUATION & REWRITE LOGIC
-- Detect multiple action verbs → FLAG.
-- Detect over-specific tools → FLAG.
-- Detect unnecessary rewriting → AVOID.
-- Detect already optimal PSOs → PRESERVE.
-- Target ONLY weak components (intent, measurability, depth).
-- Keep each PSO concise (20–30 words).
+🧠 CORE FIX RULES (STRICT ENFORCEMENT)
+1. REDUNDANCY / OVERLAP REMOVAL: Detect PSOs with similar meaning. If overlap exists, merge or refine to differentiate. Remove generic duplicates.
+2. REMOVE GENERIC / PO-LIKE PSOs: Detect and fix/remove generic engineering statements or ethics-only PSOs without domain context. Convert to domain-specific PSOs.
+3. SINGLE ACTION VERB ENFORCEMENT: Each PSO MUST contain EXACTLY ONE primary action verb.
+4. HIDDEN MULTI-ACTION CLEANUP: Detect "by applying", "and ensuring", "to improve". Simplify to ONE clear measurable outcome.
+5. WEAK VERB CORRECTION: Replace "enhance, improve, support, facilitate" with "analyze, design, evaluate, develop, implement".
+6. DOMAIN ENFORCEMENT: Include discipline-specific keywords. Avoid "engineering systems"; use "power systems", "embedded systems", etc.
+7. TOOL GENERALIZATION: Replace specific tools (MATLAB, Python) with "appropriate engineering tools", unless domain-critical.
 
 ---
-📥 INPUT DATA
-Program Name: ${programName}
-Existing PSOs & Scores:
-${JSON.stringify(existingPSOs.map((p, i) => ({
-  id: i + 1,
-  statement: p.statement,
-  score: Math.round(feedback.psos[i]?.score.total || 0),
-  issues: feedback.psos[i]?.score.issues || []
+🔴 FEEDBACK FROM MASTER EVALUATOR
+${(feedback?.detailedDrawbacks || []).map(d => `- ❌ ${d}`).join("\n")}
+
+---
+📥 INPUT PSOs:
+${JSON.stringify((feedback?.psoAnalyses || []).map(pa => ({
+  id: (pa?.index || 0) + 1,
+  statement: pa?.statement || "",
+  score: pa?.score || 0,
+  issues: pa?.issues || []
 })), null, 2)}
 
 ---
 📦 OUTPUT FORMAT (STRICT JSON)
 {
-  "PSOs": [
-    {
-      "statement": "Preserved or Refined Statement...",
-      "focus_area": "Technical subspace",
-      "mapped_abet_elements": ["SO1", "SO2"],
-      "eval_action": "PRESERVED | REFINED | REWRITTEN",
-      "justification": "Why this action was taken relative to the score"
-    }
+  "final_psos": [
+    "Refined Statement 1...",
+    "Refined Statement 2..."
   ],
-  "compliance_check": {
-    "verb_rule_check": "Validation of Single Action Verb rule",
-    "tool_rule_check": "Validation of Tool Generalization rule"
+  "fix_summary": {
+    "issues_detected": ["List exactly what was wrong based on the 7 rules"],
+    "changes_made": ["What specifically was changed for each PSO"],
+    "final_quality": "Accreditation Ready"
   }
 }
+
+IMPORTANT: RESPONSE MUST BE VALID JSON ONLY. NO PREAMBLE. NO EXPLANATION. NO MARKDOWN CODE BLOCKS. START THE RESPONSE WITH '{' AND END WITH '}'.
 `.trim();
 }

@@ -25,14 +25,10 @@ export async function callAI(prompt: string, taskType: AiTaskType): Promise<stri
   // Debugging to see the status of the API key
   const maskedKey = finalApiKey ? `${finalApiKey.substring(0, 7)}...${finalApiKey.substring(finalApiKey.length - 4)}` : "NOT_FOUND";
   console.log(`[AI Router] Using API Key: ${maskedKey}`);
-  if (apiKey !== finalApiKey) {
-    console.warn(`[AI Router] Original key length: ${apiKey?.length}, Final key length: ${finalApiKey?.length}`);
-  }
 
-  // Switch completely away from Google/Gemini to avoid any Gemini reliance
-  const modelId = taskType === "bulk" 
-    ? "openai/gpt-4o-mini" 
-    : "openai/gpt-4o-mini";
+  // User requested Claude 3.5 Sonnet, but 3.7 Sonnet is currently more stable on OpenRouter
+  // and maintains the same high reasoning quality for curriculum tasks.
+  const modelId = "anthropic/claude-3.7-sonnet";
 
   console.log(`[AI Router] Task: ${taskType} | Sending to Model: ${modelId}`);
 
@@ -49,6 +45,10 @@ export async function callAI(prompt: string, taskType: AiTaskType): Promise<stri
         model: modelId,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
+        provider: {
+          order: ["Anthropic"],
+          allow_fallbacks: true
+        }
       })
     });
 

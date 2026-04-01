@@ -6,6 +6,7 @@
  * Program Outcomes (POs) with deep domain reasoning and semantic diversity.
  */
 
+import { z } from "zod";
 import { scorePO, POScore, PO_APPROVAL_THRESHOLD } from "./po-scoring";
 import { buildPOAgentPrompt } from "./po-prompt-builder";
 import { callAI } from "@/lib/curriculum/ai-model-router";
@@ -37,6 +38,35 @@ export interface POAgentResult {
 
 function normalizeWhitespace(text: string) {
   return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Normalizes varied AI response formats into a clean string array.
+ */
+const POResponseSchema = z.object({
+  pos: z.array(z.string()).optional(),
+  POs: z.array(z.string()).optional(),
+  statements: z.array(z.string()).optional(),
+  refined_pos: z.array(z.string()).optional(),
+}).passthrough();
+
+function normalizeAIResponse(parsed: any): string[] {
+  const data = POResponseSchema.safeParse(parsed);
+  if (!data.success) {
+    console.warn("[PO Agent] Zod validation failed:", data.error);
+  }
+
+  const list = parsed?.pos || 
+               parsed?.POs || 
+               parsed?.statements || 
+               parsed?.refined_pos || 
+               (Array.isArray(parsed) ? parsed : []);
+
+  return list.map((item: any) => {
+    if (typeof item === "string") return item;
+    if (item?.statement) return item.statement;
+    return String(item);
+  }).filter((s: string) => typeof s === "string" && s.length > 20);
 }
 
 function diversityBonus(candidate: string, selected: string[]): number {
@@ -87,22 +117,15 @@ async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<s
     const text = await callAI(prompt, "po");
 
     try {
-      const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
-      const parsed  = JSON.parse(cleaned);
-      let arr: any[] = [];
-      if (Array.isArray(parsed)) {
-        arr = parsed;
-      } else if (parsed && typeof parsed === "object") {
-        for (const key of Object.keys(parsed)) {
-          if (Array.isArray(parsed[key])) { arr = parsed[key]; break; }
-        }
-      }
-      return arr.map(String).filter((s) => s.length > 10);
+      const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleanJson);
+      return normalizeAIResponse(parsed);
     } catch {
+      // Robust fallback to line-splitting if JSON fails
       return text
         .split("\n")
         .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())
-        .filter((l: string) => l.length > 10);
+        .filter((l: string) => l.length > 20);
     }
   } catch (error) {
     console.error("[PO Agent] AI fetch failed:", error);

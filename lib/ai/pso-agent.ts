@@ -1,8 +1,4 @@
-/**
- * lib/ai/pso-agent.ts
- * Advanced autonomous agent for generating Program Specific Outcomes (PSOs).
- */
-
+import { z } from "zod";
 import { 
   buildPSOGenerationPrompt, 
   buildRetryPrompt, 
@@ -13,6 +9,8 @@ import { validatePSOs, PSOValidationResult, PSO } from "./pso-scoring";
 import { resolveProgramCriteria } from "../curriculum/program-mapping";
 import { callAI } from "@/lib/curriculum/ai-model-router";
 
+// --- TYPES ---
+
 export interface SelectedSocietiesInput {
   lead: string[];
   co_lead: string[];
@@ -22,6 +20,7 @@ export interface SelectedSocietiesInput {
 export interface PSOAgentParams {
   programName: string;
   count?: number;
+  initialPSOs?: string[]; // Pre-seed PSOs for refinement testing
   selectedSocieties?: SelectedSocietiesInput;
   focusAreas?: string[];
   mode?: PSOGenerationMode;
@@ -40,16 +39,66 @@ export interface PSOAgentResult {
   error?: string;
 }
 
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 4;
+
+// --- SCHEMAS ---
+
+const PSOResponseSchema = z.object({
+  final_psos: z.array(z.string()).optional(),
+  refined_psos: z.array(z.string()).optional(),
+  PSOs: z.array(z.union([z.string(), z.object({ statement: z.string() })])).optional(),
+  psos: z.array(z.any()).optional(),
+  fix_summary: z.object({
+    issues_detected: z.array(z.string()).optional(),
+    changes_made: z.array(z.string()).optional(),
+    final_quality: z.string().optional()
+  }).optional()
+}).passthrough();
+
+// --- UTILITIES ---
+
+/**
+ * Normalizes varied AI response formats into a clean string array.
+ */
+function normalizeAIResponse(parsed: any): string[] {
+  const data = PSOResponseSchema.safeParse(parsed);
+  if (!data.success) {
+    console.warn("[PSO Agent] Zod validation failed, attempting manual extraction:", data.error);
+  }
+
+  const psoList = parsed?.final_psos || 
+                  parsed?.refined_psos || 
+                  parsed?.PSOs || 
+                  parsed?.psos || 
+                  [];
+
+  return psoList.map((item: any) => {
+    if (typeof item === "string") return item;
+    if (item?.statement) return item.statement;
+    if (item?.PSO_statement) return item.PSO_statement;
+    return String(item);
+  }).filter((s: string) => typeof s === "string" && s.length > 10); // Filter out junk
+}
+
+/**
+ * Backend cleaning logic for PSOs.
+ */
+function cleanPSOs(psos: PSO[]): PSO[] {
+  return psos.map(p => ({
+    ...p,
+    statement: p.statement
+      .replace(/etc\./g, "")
+      .replace(/including but not limited to/gi, "including")
+      .trim()
+  }));
+}
 
 /**
  * Orchestrates the generation, scoring, and refinement of PSOs.
- * Uses a non-destructive evaluator layer to preserve high-quality outputs.
  */
 export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> {
-  const { programName, count = 3, selectedSocieties, focusAreas = [], mode = "standard" } = params;
+  const { programName, count = 3, initialPSOs, selectedSocieties, focusAreas = [], mode = "standard" } = params;
 
-  // Resolve relevant ABET program criteria
   const programCriteria = resolveProgramCriteria(programName);
 
   let bestResult: PSOAgentResult = {
@@ -57,21 +106,32 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
     results: [],
     validation: null,
     attempts: 0,
-    meta: {
-      mode,
-      compliance: "NBA Tier-I + ABET EAC",
-      score: 0,
-    }
+    meta: { mode, compliance: "NBA Tier-I + ABET EAC", score: 0 }
   };
 
   let currentPSOs: PSO[] = [];
 
+  // 1. Initial Seeding
+  if (initialPSOs && initialPSOs.length > 0) {
+    currentPSOs = initialPSOs.map(s => ({
+      statement: s,
+      abetMappings: [],
+    }));
+    bestResult.results = currentPSOs;
+    bestResult.validation = validatePSOs(currentPSOs, programName, currentPSOs.length);
+    if (bestResult.meta) bestResult.meta.score = Math.round(bestResult.validation.score);
+  }
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     bestResult.attempts = attempt;
     
-    // Choose prompt based on attempt number
     let prompt: string;
-    if (attempt === 1) {
+    
+    // DECISION LOGIC: Generate or Refine?
+    const needsInitialGen = !initialPSOs && attempt === 1;
+    const previousFailed = attempt > 1 && (!bestResult.validation || currentPSOs.length === 0);
+
+    if (needsInitialGen || previousFailed) {
       prompt = buildPSOGenerationPrompt({
         programName,
         count,
@@ -81,11 +141,17 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
         mode,
       });
     } else {
-      // refinement pass using Master Evaluator
+      currentPSOs = cleanPSOs(currentPSOs);
       prompt = buildPSOEvaluatorPrompt({
         programName,
         existingPSOs: currentPSOs,
-        feedback: bestResult.validation!
+        feedback: bestResult.validation || {
+          passed: false,
+          score: 0,
+          psoAnalyses: [],
+          globalIssues: ["Previous validation missing"],
+          detailedDrawbacks: ["System error: lost context"]
+        }
       });
     }
 
@@ -93,42 +159,58 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
       const rawText = await callAI(prompt, "pso");
       if (!rawText) throw new Error("Empty response from AI model.");
 
-      // Parse JSON
-      const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(cleanJson);
+      let parsed: any;
+      try {
+        const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+        parsed = JSON.parse(cleanJson);
+      } catch (e) {
+        console.error("[PSO Agent] JSON Parse Error. Raw response:", rawText);
+        throw new Error("Invalid format: AI did not return valid JSON.");
+      }
       
-      const newPSOs: PSO[] = (parsed.PSOs || parsed.psos || []).map((p: any) => ({
-        statement: p.statement || p.PSO_statement,
-        abetMappings: p.mapped_abet_elements || p.abetMappings || [],
-        focusArea: p.focus_area,
-        skill: p.skill,
-      }));
+      const psoStrings = normalizeAIResponse(parsed);
 
-      // Validate and Score
-      const validation = validatePSOs(newPSOs, programName, count);
+      if (!psoStrings.length) {
+        throw new Error("Incomplete response: No valid PSOs found.");
+      }
 
-      // NON-DESTRUCTIVE LOGIC: 
-      // If we already had PSOs, and some were high quality (>= 85), 
-      // check if the AI changed them. If it did and the score dropped, we might want to revert.
-      // However, the prompt specifically tells the AI to PRESERVE >= 85.
-      
+      if (parsed?.fix_summary) {
+        console.log(`[PSO Agent] Auditor Fix Summary:`, JSON.stringify(parsed.fix_summary, null, 2));
+      }
+
+      const newPSOs: PSO[] = psoStrings.map((s, i) => {
+        const existing = currentPSOs[i];
+        return {
+          statement: s,
+          abetMappings: existing?.abetMappings || [],
+          focusArea: existing?.focusArea,
+          skill: existing?.skill,
+        };
+      });
+
+      const validation = validatePSOs(newPSOs, programName, newPSOs.length);
+
       currentPSOs = newPSOs;
       bestResult.results = newPSOs;
       bestResult.validation = validation;
       if (bestResult.meta) bestResult.meta.score = Math.round(validation.score);
 
-      if (validation.passed) {
+      // HURDLE CHECK
+      if (validation.score > 80 && validation.globalIssues.length === 0) {
         bestResult.success = true;
+        console.log(`[PSO Agent] Target score reached: ${validation.score} (Attempt ${attempt})`);
         return bestResult;
+      } else {
+        console.log(`[PSO Agent] Score ${validation.score} below target 80. Retrying...`);
       }
       
     } catch (error: any) {
-      console.error(`Attempt ${attempt} failed:`, error.message);
+      console.error(`[PSO Agent] Attempt ${attempt} critical failure:`, error.message);
       bestResult.error = error.message;
-      if (attempt === MAX_ATTEMPTS) break;
+      // We continue the loop to retry, potentially falling back to Generation prompt
     }
   }
 
-  bestResult.success = bestResult.results.length > 0;
+  bestResult.success = (bestResult.meta?.score || 0) > 80;
   return bestResult;
 }

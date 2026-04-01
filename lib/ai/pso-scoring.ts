@@ -25,18 +25,37 @@ export interface PSOScore {
 }
 
 export interface PSOValidationResult {
-  score: number;
   passed: boolean;
-  psos: Array<{
-    pso: PSO;
-    score: PSOScore;
-  }>;
+  score: number;
   globalIssues: string[];
+  detailedDrawbacks: string[]; // Explicit feedback for AI refinement
+  psoAnalyses: {
+    index: number;
+    statement: string;
+    score: number;
+    issues: string[];
+  }[];
 }
 
 const STRONG_VERBS = ["analyze", "design", "implement", "evaluate", "develop", "apply", "optimize", "integrate", "formulate", "conduct", "model"];
-const WEAK_VERBS = ["understand", "know", "learn", "aware", "familiar"];
+const WEAK_VERBS = ["understand", "know", "learn", "aware", "familiar", "enhance", "improve", "support", "facilitate"];
+const HIDDEN_MULTI_ACTION_PATTERNS = ["by applying", "and ensuring", "to improve"];
 const CONTEXT_KEYWORDS = ["safety", "cost", "sustainable", "efficiency", "standards", "constraints", "ethics", "environmental", "security", "reliable", "economics", "compliance"];
+
+const PO_LIKE_GENERIC_PHRASES = [
+  "engineering principles", "understand engineering", "ethical implications", 
+  "professional ethics", "lifelong learning", "teamwork", "communication skills",
+  "project management", "environment and sustainability", "social responsibility"
+];
+
+/**
+ * Detects if a PSO statement is too generic (more like a Program Outcome).
+ */
+export function isPOLike(statement: string): boolean {
+  const text = statement.toLowerCase();
+  return PO_LIKE_GENERIC_PHRASES.some(phrase => text.includes(phrase)) && 
+         !getDomainKeywords("general").some(k => text.includes(k)); // No specific domain keywords
+}
 
 /**
  * Scores a single PSO statement.
@@ -55,11 +74,17 @@ export function scorePSO(pso: PSO, programName: string): PSOScore {
     realWorldContext: 0,
   };
 
+  // 0. PO-like Detection (Cleanup Rule 1)
+  if (isPOLike(pso.statement)) {
+    score -= 30;
+    issues.push("PO-like statement detected. PSO is too generic (e.g. ethics-only). Convert to a domain-specific technical outcome.");
+  }
+
   // 1. Action Verb (20 pts)
   const firstWord = words[0]?.replace(/[^a-z]/g, "");
-  if (STRONG_VERBS.some(v => firstWord?.startsWith(v))) {
+  if (STRONG_VERBS.some((v: string) => firstWord?.startsWith(v))) {
     breakdown.actionVerb = 20;
-  } else if (WEAK_VERBS.some(v => firstWord?.startsWith(v))) {
+  } else if (WEAK_VERBS.some((v: string) => firstWord?.startsWith(v))) {
     breakdown.actionVerb = 0;
     issues.push(`Weak action verb "${firstWord}" used. Use measurable Bloom's taxonomy verbs.`);
   } else {
@@ -67,11 +92,18 @@ export function scorePSO(pso: PSO, programName: string): PSOScore {
     issues.push(`Action verb "${firstWord}" is acceptable but could be stronger.`);
   }
 
-  // 1a. Single Action Verb Rule (NBA requirement)
-  const actionVerbsFound = words.filter(w => [...STRONG_VERBS, ...WEAK_VERBS].some(v => w.startsWith(v)));
+  // 1a. Single Action Verb Rule (Cleanup Rule 2)
+  const actionVerbsFound = words.filter(w => [...STRONG_VERBS, ...WEAK_VERBS].some((v: string) => w.startsWith(v)));
   if (actionVerbsFound.length > 1) {
     breakdown.actionVerb -= 10;
-    issues.push(`Multiple action verbs detected (${actionVerbsFound.join(", ")}). NBA requires one primary outcome per PSO.`);
+    issues.push(`Multiple action verbs detected (${actionVerbsFound.join(", ")}). Each PSO MUST target EXACTLY ONE primary measurable competency.`);
+  }
+
+  // 1a-ii. Hidden Multi-action Detection (Cleanup Rule 4)
+  const hasHiddenMultiAction = HIDDEN_MULTI_ACTION_PATTERNS.some(p => text.includes(p));
+  if (hasHiddenMultiAction) {
+    breakdown.actionVerb -= 10;
+    issues.push("Hidden multi-action detected ('by applying', 'and ensuring', etc.). Simplify to ONE clear measurable outcome.");
   }
 
   // 1b. Tool Generalization (Director Rule)
@@ -79,7 +111,13 @@ export function scorePSO(pso: PSO, programName: string): PSOScore {
   const foundTools = discouragedTools.filter(t => text.includes(t));
   if (foundTools.length > 0) {
     breakdown.depth -= 5;
-    issues.push(`Avoid specific tool names like "${foundTools.join(", ")}". Generalize to "modern computational tools" or "appropriate engineering tools."`);
+    issues.push(`Tool Generalization: Avoid specific tool names like "${foundTools.join(", ")}". Use "appropriate engineering tools" instead.`);
+  }
+
+  // 1c. Domain Enforcement (Cleanup Rule 5)
+  if (text.includes("engineering systems") || text.includes("technical systems")) {
+    breakdown.domainRelevance -= 5;
+    issues.push("Domain Enforcement: Avoid generic terms like 'engineering systems'. Use program-specific terms (e.g. 'power systems', 'embedded systems').");
   }
 
   // 2. ABET Mapping Integrity (20 pts)
@@ -121,7 +159,7 @@ export function scorePSO(pso: PSO, programName: string): PSOScore {
   }
 
   // 5. Real-world Context / Constraints (20 pts)
-  const foundContext = CONTEXT_KEYWORDS.filter(k => text.includes(k));
+  const foundContext = CONTEXT_KEYWORDS.filter((k: string) => text.includes(k));
   breakdown.realWorldContext = Math.min(20, foundContext.length * 10);
   if (breakdown.realWorldContext === 0) {
     issues.push("Lacks mention of real-world constraints (safety, cost, standards, etc.).");
@@ -144,8 +182,9 @@ export function validatePSOs(psos: PSO[], programName: string, expectedCount: nu
   const avgScore = results.reduce((acc, curr) => acc + curr.score.total, 0) / (psos.length || 1);
   const globalIssues: string[] = [];
 
-  if (psos.length < expectedCount) {
-    globalIssues.push(`Count mismatch: Generated ${psos.length} PSOs, but ${expectedCount} were requested.`);
+  // Adapt to input count - no longer enforcing fixed number
+  if (psos.length === 0) {
+    globalIssues.push("No PSOs provided for validation.");
   }
 
   // Coverage Checks (NBA/ABET Requirement)
@@ -157,21 +196,44 @@ export function validatePSOs(psos: PSO[], programName: string, expectedCount: nu
     globalIssues.push("Coverage GAP: At least one PSO must cover Engineering Design (SO2).");
   }
 
-  // Check for excessive similarity (Prevent repetitive pattern)
+  let overlapPenalty = 0;
+  // 6. Overlap Detection (Cleanup Rule 3)
   for (let i = 0; i < psos.length; i++) {
     for (let j = i + 1; j < psos.length; j++) {
       const similarity = calculateSimilarity(psos[i].statement, psos[j].statement);
-      if (similarity > 0.65) {
-        globalIssues.push(`Redundancy Error: PSO ${i+1} and PSO ${j+1} are too similar (${Math.round(similarity * 100)}% overlap).`);
+      if (similarity > 0.6) {
+        overlapPenalty += 10;
+        globalIssues.push(`Overlap Detected: PSO ${i+1} and PSO ${j+1} are redundant. Merge or differentiate them to ensure unique competencies.`);
       }
     }
   }
 
+  const countMismatch = psos.length !== expectedCount;
+  const totalScore = Math.max(0, avgScore - overlapPenalty);
+
+  const psoAnalyses = results.map((pr, i) => ({
+    index: i,
+    statement: pr.pso.statement,
+    score: pr.score.total,
+    issues: pr.score.issues
+  }));
+
+  const detailedDrawbacks: string[] = [];
+  psoAnalyses.forEach(pa => {
+    if (pa.score < 80) {
+      detailedDrawbacks.push(`PSO ${pa.index + 1} is weak (Score: ${pa.score}). Issues: ${pa.issues.join(", ")}`);
+    }
+  });
+
+  if (overlapPenalty > 0) detailedDrawbacks.push(`Redundancy Detected: High overlap between PSOs (Penalty: -${overlapPenalty}).`);
+  if (countMismatch) detailedDrawbacks.push(`Count Mismatch: Expected ${expectedCount} PSOs but found ${psos.length}.`);
+
   return {
-    score: avgScore,
-    passed: avgScore >= 85 && globalIssues.length === 0,
-    psos: results,
-    globalIssues
+    passed: totalScore >= 80 && !countMismatch && globalIssues.length === 0,
+    score: totalScore,
+    globalIssues,
+    detailedDrawbacks,
+    psoAnalyses
   };
 }
 

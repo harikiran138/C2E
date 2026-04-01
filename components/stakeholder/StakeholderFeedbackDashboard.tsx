@@ -11,9 +11,18 @@ import {
   FileText,
   CheckSquare,
   Settings,
+  ArrowLeft,
+  Star,
+  Quote,
+  Sparkles,
+  MessageSquarePlus,
+  HelpCircle,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import StakeholderSurvey from "@/components/institution/StakeholderSurvey";
+import StakeholderLayout from "./StakeholderLayout";
+import { Badge } from "@/components/ui/badge";
 
 type ContextResponse = {
   stakeholder: {
@@ -261,128 +270,92 @@ export default function StakeholderFeedbackDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 md:px-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                Stakeholder Portal
-              </h1>
-              <p className="mt-1 text-sm text-slate-600">
-                {context.stakeholder.institutionName} |{" "}
-                {context.stakeholder.programName}
-              </p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-                {context.stakeholder.stakeholderId} •{" "}
-                {context.stakeholder.category}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setView("settings")}
-                className={cn(
-                  "p-2 rounded-lg border transition-all",
-                  view === "settings"
-                    ? "bg-indigo-50 border-indigo-200 text-indigo-600"
-                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
-                )}
-                title="Account Settings"
-              >
-                <Settings className="size-5" />
-              </button>
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-              >
-                <LogOut className="size-4" /> Logout
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 flex gap-2 border-t border-slate-100 pt-6">
-            <button
-              onClick={() => setView("validation")}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                view === "validation"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
-                  : "text-slate-500 hover:bg-slate-50",
-              )}
-            >
-              <CheckSquare className="size-4" />
-              Validation Feedback
-            </button>
-            <button
-              onClick={() => setView("consultation")}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                view === "consultation"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
-                  : "text-slate-500 hover:bg-slate-50",
-              )}
-            >
-              <FileText className="size-4" />
-              PEO Consultation Survey
-            </button>
-          </div>
-        </header>
+    <StakeholderLayout
+      stakeholder={{
+        stakeholderName: context.stakeholder.stakeholderName,
+        category: context.stakeholder.category,
+        institutionName: context.stakeholder.institutionName,
+        programName: context.stakeholder.programName,
+      }}
+      onLogout={handleLogout}
+      activeView={view}
+      setActiveView={setView}
+    >
+      <div className="space-y-8 pb-20">
+        {/* Header removed as it is now in StakeholderLayout */}
 
         {view === "settings" ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <button
-                onClick={() => setView("validation")}
-                className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="size-5 text-slate-500" />
-              </button>
-              <h2 className="text-xl font-bold text-slate-900">
-                Account Settings
-              </h2>
-            </div>
-            <p className="mt-1 text-sm text-slate-500">
-              Update your stakeholder login password.
-            </p>
-            <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                placeholder="Current password"
-                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-              />
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                placeholder="New password"
-                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-              />
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="Confirm new password"
-                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-              />
-            </div>
-            <div className="mt-6 flex items-center gap-3">
-              <button
-                onClick={handleChangePassword}
-                disabled={passwordLoading}
-                className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-              >
-                {passwordLoading ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : null}
-                Update Password
-              </button>
-              {passwordMessage && (
-                <p className="text-sm font-medium text-slate-600">
-                  {passwordMessage}
+          <section className="rounded-3xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/50">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="size-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500">
+                <Settings className="size-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Account Settings
+                </h2>
+                <p className="text-sm text-slate-500">
+                   Manage your security credentials and profile.
                 </p>
-              )}
+              </div>
+            </div>
+            
+            <div className="space-y-6 max-w-2xl">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Current Password</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    placeholder="••••••••"
+                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">New Password</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="••••••••"
+                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="••••••••"
+                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
+              </div>
+              
+              <div className="pt-4 flex items-center gap-4">
+                <button
+                  onClick={handleChangePassword}
+                  disabled={passwordLoading}
+                  className="inline-flex h-12 items-center rounded-2xl bg-slate-900 px-8 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-60 shadow-lg shadow-slate-200 transition-all active:scale-95"
+                >
+                  {passwordLoading ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  ) : null}
+                  Update Password
+                </button>
+                {passwordMessage && (
+                  <p className={cn(
+                    "text-sm font-bold",
+                    passwordMessage.includes("success") ? "text-emerald-600" : "text-red-500"
+                  )}>
+                    {passwordMessage}
+                  </p>
+                )}
+              </div>
             </div>
           </section>
         ) : view === "consultation" ? (
@@ -395,159 +368,234 @@ export default function StakeholderFeedbackDashboard() {
           </div>
         ) : view === "validation" ? (
           <>
-            <ReviewTimeline steps={context.steps} cycle={context.feedbackWindow.cycle} />
-
-            <div
-              className={cn(
-                "rounded-2xl border p-4 text-sm",
-                canSubmit
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-amber-200 bg-amber-50 text-amber-700",
-              )}
-            >
-              <div className="flex items-center gap-2 font-semibold">
-                {canSubmit ? (
-                  <ShieldCheck className="size-4" />
-                ) : (
-                  <CalendarClock className="size-4" />
-                )}
-                Feedback Cycle: {context.feedbackWindow.cycle}
-              </div>
-              <p className="mt-1">
-                Window:{" "}
-                {context.feedbackWindow.startAt
-                  ? new Date(context.feedbackWindow.startAt).toLocaleString()
-                  : "Not set"}{" "}
-                to{" "}
-                {context.feedbackWindow.endAt
-                  ? new Date(context.feedbackWindow.endAt).toLocaleString()
-                  : "Not set"}
-              </p>
-              {!canSubmit && context.feedbackWindow.lockReason && (
-                <p className="mt-1 flex items-center gap-1 font-medium">
-                  <AlertCircle className="size-4" />{" "}
-                  {context.feedbackWindow.lockReason}
-                </p>
-              )}
-              {context.latestSubmissionAt && (
-                <p className="mt-1 text-xs font-semibold text-slate-600">
-                  Last submitted at:{" "}
-                  {new Date(context.latestSubmissionAt).toLocaleString()}
-                </p>
-              )}
-            </div>
-
-            <FeedbackSection
-              title="Vision Feedback"
-              statement={context.vision}
-              rating={visionRating}
-              comment={visionComment}
-              onRating={setVisionRating}
-              onComment={setVisionComment}
-            />
-
-            <FeedbackSection
-              title="Mission Feedback"
-              statement={context.mission}
-              rating={missionRating}
-              comment={missionComment}
-              onRating={setMissionRating}
-              onComment={setMissionComment}
-            />
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">PEO Feedback</h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Provide rating and comments for each Program Educational
-                    Objective.
-                  </p>
-                </div>
-                {context.latestSubmissionAt && (
-                   <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold ring-1 ring-emerald-200">
-                     Submitted
-                   </span>
-                )}
-              </div>
-
-              <div className="mt-5 space-y-5">
-                {context.peos.length === 0 && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
-                    No PEOs are configured for this program yet.
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-8">
+                <div
+                  className={cn(
+                    "rounded-[32px] border p-6 flex items-center gap-4 transition-all duration-500",
+                    canSubmit
+                      ? "border-emerald-100 bg-emerald-50/30 text-emerald-900 shadow-sm"
+                      : "border-amber-100 bg-amber-50/30 text-amber-900 shadow-sm",
+                  )}
+                >
+                  <div className={cn(
+                    "size-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:rotate-3",
+                    canSubmit ? "bg-emerald-500 text-white shadow-emerald-200" : "bg-amber-500 text-white shadow-amber-200"
+                  )}>
+                    {canSubmit ? (
+                      <ShieldCheck className="size-6" />
+                    ) : (
+                      <CalendarClock className="size-6" />
+                    )}
                   </div>
-                )}
-
-                {context.peos.map((peo) => (
-                  <div
-                    key={peo.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <p className="text-sm font-bold text-slate-800">
-                      PEO-{String(peo.peoNumber).padStart(2, "0")}:
-                    </p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {peo.statement}
-                    </p>
-                    <div className="mt-3">
-                      <RatingSelector
-                        value={peoFeedback[peo.id]?.rating || 0}
-                        onChange={(rating) => {
-                          setPeoFeedback((prev) => ({
-                            ...prev,
-                            [peo.id]: {
-                              rating,
-                              comment: prev[peo.id]?.comment || "",
-                            },
-                          }));
-                        }}
-                      />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                       <h3 className="font-bold text-sm">Feedback Cycle: {context.feedbackWindow.cycle}</h3>
+                       <Badge variant="outline" className={cn(
+                         "text-[10px] uppercase tracking-widest px-2 py-0",
+                         canSubmit ? "border-emerald-200 text-emerald-600" : "border-amber-200 text-amber-600"
+                       )}>
+                         {canSubmit ? "Active" : "Locked"}
+                       </Badge>
                     </div>
-                    <textarea
-                      value={peoFeedback[peo.id]?.comment || ""}
-                      onChange={(event) => {
-                        const comment = event.target.value;
-                        setPeoFeedback((prev) => ({
-                          ...prev,
-                          [peo.id]: {
-                            rating: prev[peo.id]?.rating || 0,
-                            comment,
-                          },
-                        }));
-                      }}
-                      placeholder="Comment for this PEO..."
-                      className="mt-3 min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Window:{" "}
+                      {context.feedbackWindow.startAt
+                        ? new Date(context.feedbackWindow.startAt).toLocaleString()
+                        : "Not set"}{" "}
+                      -{" "}
+                      {context.feedbackWindow.endAt
+                        ? new Date(context.feedbackWindow.endAt).toLocaleString()
+                        : "Not set"}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </section>
+                  {context.latestSubmissionAt && (
+                    <div className="text-right hidden sm:block">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Last Submitted</p>
+                      <p className="text-xs font-black text-emerald-600">
+                        {new Date(context.latestSubmissionAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
 
-            <div className="pb-8">
-              <button
-                onClick={handleSubmit}
-                disabled={submitting || !canSubmit || context.peos.length === 0}
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-indigo-600 px-6 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 size-4 animate-spin" />{" "}
-                    Submitting...
-                  </>
-                ) : (
-                  "Update Feedback"
-                )}
-              </button>
-              {pendingFields > 0 && (
-                <p className="mt-2 text-xs font-semibold text-slate-500">
-                  Pending ratings: {pendingFields}
-                </p>
-              )}
+                <div className="space-y-8">
+                  <FeedbackSection
+                    title="Vision Review"
+                    statement={context.vision}
+                    rating={visionRating}
+                    comment={visionComment}
+                    onRating={setVisionRating}
+                    onComment={setVisionComment}
+                    isVision={true}
+                  />
+
+                  <FeedbackSection
+                    title="Mission Review"
+                    statement={context.mission}
+                    rating={missionRating}
+                    comment={missionComment}
+                    onRating={setMissionRating}
+                    onComment={setMissionComment}
+                    isVision={false}
+                  />
+
+                  <section className="rounded-[40px] border border-slate-100 bg-white p-8 shadow-2xl shadow-slate-200/40 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                       <MessageSquarePlus className="size-24 text-slate-900" />
+                    </div>
+                    
+                    <div className="flex items-center justify-between mb-8">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="size-8 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                            <Star className="size-4" />
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-[.25em] text-slate-400">Section 03</span>
+                        </div>
+                        <h2 className="text-3xl font-black text-slate-900">PEO Evaluation</h2>
+                        <p className="mt-2 text-slate-500 max-w-lg">
+                          Review and rate each Program Educational Objective based on its relevance and clarity.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      {context.peos.length === 0 && (
+                        <div className="rounded-[24px] border-2 border-dashed border-slate-200 p-12 text-center">
+                          <p className="text-slate-400 font-medium italic">No PEOs configured for this program yet.</p>
+                        </div>
+                      )}
+
+                      {context.peos.map((peo, idx) => (
+                        <div
+                          key={peo.id}
+                          className="rounded-[32px] border border-slate-100 bg-slate-50/50 p-6 hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="size-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center font-black text-xs text-slate-900 shadow-sm shrink-0">
+                              {String(idx + 1).padStart(2, "0")}
+                            </div>
+                            <div className="flex-1 space-y-4">
+                              <p className="text-sm font-bold text-slate-800 leading-relaxed italic">
+                                "{peo.statement}"
+                              </p>
+                              
+                              <div className="flex flex-col md:flex-row md:items-center gap-6 pt-2">
+                                <RatingSelector
+                                  value={peoFeedback[peo.id]?.rating || 0}
+                                  onChange={(rating) => {
+                                    setPeoFeedback((prev) => ({
+                                      ...prev,
+                                      [peo.id]: {
+                                        rating,
+                                        comment: prev[peo.id]?.comment || "",
+                                      },
+                                    }));
+                                  }}
+                                />
+                                <div className="flex-1">
+                                  <input
+                                    type="text"
+                                    value={peoFeedback[peo.id]?.comment || ""}
+                                    onChange={(event) => {
+                                      const comment = event.target.value;
+                                      setPeoFeedback((prev) => ({
+                                        ...prev,
+                                        [peo.id]: {
+                                          rating: prev[peo.id]?.rating || 0,
+                                          comment,
+                                        },
+                                      }));
+                                    }}
+                                    placeholder="Add specific observations..."
+                                    className="w-full bg-transparent border-b border-slate-200 py-1 text-sm outline-none focus:border-indigo-600 transition-colors placeholder:text-slate-400"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-12 flex flex-col items-center gap-4">
+                      <button
+                        onClick={handleSubmit}
+                        disabled={submitting || !canSubmit || context.peos.length === 0}
+                        className="w-full sm:w-auto min-w-[240px] h-14 rounded-[20px] bg-indigo-600 px-10 text-sm font-black text-white shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 disabled:scale-100 disabled:opacity-40 disabled:cursor-not-allowed group flex items-center justify-center gap-3"
+                      >
+                        {submitting ? (
+                          <Loader2 className="size-5 animate-spin" />
+                        ) : (
+                          <>
+                            <Sparkles className="size-5" />
+                            Submit Feedback
+                          </>
+                        )}
+                      </button>
+                      
+                      {pendingFields > 0 && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100 translate-y-2">
+                           <div className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                           <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+                             {pendingFields} Ratings Pending completion
+                           </p>
+                        </div>
+                      )}
+                      
+                      {success && (
+                        <p className="text-xs font-bold text-emerald-600 animate-in fade-in slide-in-from-top-2">
+                          {success}
+                        </p>
+                      )}
+                      {error && !success && (
+                        <p className="text-xs font-bold text-red-500 animate-in fade-in slide-in-from-top-2">
+                          {error}
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              {/* Sidebar Info/Timeline */}
+              <div className="space-y-6">
+                 <ReviewTimeline steps={context.steps} cycle={context.feedbackWindow.cycle} />
+                 
+                 <div className="rounded-[32px] bg-slate-900 p-8 text-white shadow-2xl shadow-indigo-200/20 relative overflow-hidden">
+                    <div className="absolute -top-10 -right-10 size-40 bg-indigo-500/20 blur-[80px] rounded-full" />
+                    <h3 className="text-lg font-black mb-4">Program Context</h3>
+                    <div className="space-y-4">
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Institution</p>
+                          <p className="text-sm font-bold truncate">{context.stakeholder.institutionName}</p>
+                       </div>
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Department</p>
+                          <p className="text-sm font-bold truncate">{context.stakeholder.programName}</p>
+                       </div>
+                       <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Academic Year</p>
+                          <p className="text-sm font-bold">2024 - 2025</p>
+                       </div>
+                    </div>
+                    <div className="mt-8 pt-6 border-t border-white/10">
+                       <div className="flex items-center gap-2 mb-2 text-indigo-400">
+                          <HelpCircle className="size-4" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Need Help?</span>
+                       </div>
+                       <p className="text-[11px] text-white/50 leading-relaxed font-medium">
+                          Contact the program coordinator if you have questions about the review process.
+                       </p>
+                    </div>
+                 </div>
+              </div>
             </div>
           </>
         ) : null}
       </div>
-    </div>
+    </StakeholderLayout>
   );
 }
 
@@ -606,23 +654,6 @@ function ReviewTimeline({ steps, cycle }: { steps: Record<string, boolean>, cycl
   );
 }
 
-function ArrowLeft({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M10 19l-7-7m0 0l7-7m-7 7h18"
-      />
-    </svg>
-  );
-}
 
 function FeedbackSection({
   title,
@@ -631,6 +662,7 @@ function FeedbackSection({
   comment,
   onRating,
   onComment,
+  isVision
 }: {
   title: string;
   statement: string;
@@ -638,22 +670,46 @@ function FeedbackSection({
   comment: string;
   onRating: (value: number) => void;
   onComment: (value: string) => void;
+  isVision: boolean;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-bold text-slate-900">{title}</h2>
-      <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
-        {statement || "Not configured"}
-      </p>
-      <div className="mt-4">
-        <RatingSelector value={rating} onChange={onRating} />
+    <section className="rounded-[40px] border border-slate-100 bg-white p-8 shadow-2xl shadow-slate-200/40 relative overflow-hidden group">
+      <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+         {isVision ? <Sparkles className="size-24 text-slate-900" /> : <Quote className="size-24 text-slate-900" />}
       </div>
-      <textarea
-        value={comment}
-        onChange={(event) => onComment(event.target.value)}
-        placeholder="Write your comments..."
-        className="mt-4 min-h-24 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-      />
+      
+      <div className="flex items-center gap-2 mb-2 px-1">
+        <div className="size-8 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+          <Quote className="size-4" />
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-[.25em] text-slate-400">Section {isVision ? '01' : '02'}</span>
+      </div>
+      
+      <h2 className="text-3xl font-black text-slate-900">{title}</h2>
+      
+      <div className="mt-6 flex gap-4">
+         <div className="w-1 bg-indigo-600 rounded-full my-1 shrink-0" />
+         <p className="text-lg font-bold text-slate-700 leading-relaxed italic">
+           "{statement || "The statement is currently under finalization."}"
+         </p>
+      </div>
+
+      <div className="mt-10 flex flex-col md:flex-row md:items-center gap-8 border-t border-slate-50 pt-8">
+        <RatingSelector value={rating} onChange={onRating} />
+        
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2 ml-1 text-slate-400">
+             <MessageSquarePlus className="size-3.5" />
+             <span className="text-[10px] font-black uppercase tracking-widest">Constructive Feedback</span>
+          </div>
+          <textarea
+            value={comment}
+            onChange={(event) => onComment(event.target.value)}
+            placeholder="Type your feedback here..."
+            className="w-full min-h-[80px] rounded-[24px] border border-slate-100 bg-slate-50/50 p-4 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium placeholder:text-slate-300"
+          />
+        </div>
+      </div>
     </section>
   );
 }
@@ -666,25 +722,34 @@ function RatingSelector({
   onChange: (rating: number) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-        Rating:
-      </span>
-      {[1, 2, 3, 4, 5].map((rating) => (
-        <button
-          key={rating}
-          type="button"
-          onClick={() => onChange(rating)}
-          className={cn(
-            "flex size-9 items-center justify-center rounded-lg border text-sm font-bold transition",
-            rating <= value
-              ? "border-indigo-600 bg-indigo-600 text-white"
-              : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600",
-          )}
-        >
-          {rating}
-        </button>
-      ))}
+    <div className="space-y-3 shrink-0">
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Overall Satisfaction</p>
+      <div className="flex items-center gap-2">
+        {[1, 2, 3, 4, 5].map((rating) => {
+          const isActive = rating <= value;
+          return (
+            <button
+              key={rating}
+              type="button"
+              onClick={() => onChange(rating)}
+              className={cn(
+                "group relative flex size-11 items-center justify-center rounded-2xl border-2 transition-all duration-300 overflow-hidden",
+                isActive
+                  ? "border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-200 scale-105"
+                  : "border-slate-100 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-900"
+              )}
+            >
+              {isActive && (
+                <motion.div 
+                  layoutId={`rating-glow-${rating}`}
+                  className="absolute inset-0 bg-white/10" 
+                />
+              )}
+              <span className="text-sm font-black relative z-10">{rating}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

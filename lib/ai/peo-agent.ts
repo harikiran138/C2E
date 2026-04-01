@@ -6,6 +6,7 @@
  * Program Educational Objectives (PEOs) with deep domain reasoning and semantic diversity.
  */
 
+import { z } from "zod";
 import { scorePEO, PEOScore, PEO_APPROVAL_THRESHOLD } from "./peo-scoring";
 import { buildPEOAgentPrompt } from "./peo-prompt-builder";
 import { callAI } from "@/lib/curriculum/ai-model-router";
@@ -36,6 +37,35 @@ export interface PEOAgentResult {
 
 function normalizeWhitespace(text: string) {
   return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Normalizes varied AI response formats into a clean string array.
+ */
+const PEOResponseSchema = z.object({
+  peos: z.array(z.string()).optional(),
+  PEOs: z.array(z.string()).optional(),
+  statements: z.array(z.string()).optional(),
+  refined_peos: z.array(z.string()).optional(),
+}).passthrough();
+
+function normalizeAIResponse(parsed: any): string[] {
+  const data = PEOResponseSchema.safeParse(parsed);
+  if (!data.success) {
+    console.warn("[PEO Agent] Zod validation failed:", data.error);
+  }
+
+  const list = parsed?.peos || 
+               parsed?.PEOs || 
+               parsed?.statements || 
+               parsed?.refined_peos || 
+               (Array.isArray(parsed) ? parsed : []);
+
+  return list.map((item: any) => {
+    if (typeof item === "string") return item;
+    if (item?.statement) return item.statement;
+    return String(item);
+  }).filter((s: string) => typeof s === "string" && s.length > 20);
 }
 
 function diversityBonus(candidate: string, selected: string[]): number {
@@ -83,18 +113,11 @@ async function fetchGeminiPEOs(params: PEOAgentParams, attempt: number): Promise
     const text = await callAI(prompt, "peo");
 
     try {
-      const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
-      const parsed  = JSON.parse(cleaned);
-      let arr: any[] = [];
-      if (Array.isArray(parsed)) {
-        arr = parsed;
-      } else if (parsed && typeof parsed === "object") {
-        for (const key of Object.keys(parsed)) {
-          if (Array.isArray(parsed[key])) { arr = parsed[key]; break; }
-        }
-      }
-      return arr.map(String).filter((s) => s.length > 10);
+      const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleanJson);
+      return normalizeAIResponse(parsed);
     } catch {
+      // Robust fallback to line-splitting if JSON fails
       return text
         .split("\n")
         .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())

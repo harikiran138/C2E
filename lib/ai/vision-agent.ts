@@ -6,6 +6,7 @@
  * Vision statements with deep domain reasoning and semantic diversity.
  */
 
+import { z } from "zod";
 import { scoreVision, VisionScore, VISION_APPROVAL_THRESHOLD } from "./scoring";
 import { deduplicateVisions }                      from "./similarity";
 import { rankVisions, RankedVision }               from "./ranking-engine";
@@ -30,39 +31,55 @@ async function semanticDedup(candidates: string[], threshold = 0.82): Promise<st
   return kept;
 }
 
+/**
+ * Normalizes varied AI response formats into a clean string array.
+ */
+const VisionResponseSchema = z.object({
+  visions: z.array(z.string()).optional(),
+  Visions: z.array(z.string()).optional(),
+  statements: z.array(z.string()).optional(),
+}).passthrough();
+
+function normalizeAIResponse(parsed: any): string[] {
+  const data = VisionResponseSchema.safeParse(parsed);
+  if (!data.success) {
+    console.warn("[Vision Agent] Zod validation failed:", data.error);
+  }
+
+  const list = parsed?.visions || 
+               parsed?.Visions || 
+               parsed?.statements || 
+               (Array.isArray(parsed) ? parsed : []);
+
+  return list.map((item: any) => {
+    if (typeof item === "string") return item;
+    if (item?.statement) return item.statement;
+    return String(item);
+  }).filter((s: string) => typeof s === "string" && s.length > 20);
+}
+
 // ── AI call ───────────────────────────────────────────────────────────────
 
 async function fetchVisionAI(
   prompt: string
 ): Promise<string[]> {
-  const text = await callAI(prompt, "vision");
-
-  // Try to parse numbered list first (our prompt format), then fall back to JSON
-  const numbered = text
-    .split(/\n/)
-    .map((l) => l.replace(/^\d+\.\s*/, "").trim())
-    .filter((l) => l.length > 20);
-
-  if (numbered.length > 0 && !text.includes("{") && !text.includes("[")) return numbered;
-
   try {
-    const cleaned = text.replace(/```(?:json)?|```/g, "").trim();
-    const parsed  = JSON.parse(cleaned);
-    let arr: any[] = [];
-    if (Array.isArray(parsed)) {
-      arr = parsed;
-    } else if (parsed && typeof parsed === "object") {
-      const keys = Object.keys(parsed);
-      for (const key of keys) {
-        if (Array.isArray(parsed[key])) {
-          arr = parsed[key];
-          break;
-        }
-      }
+    const text = await callAI(prompt, "vision");
+
+    try {
+      const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleanJson);
+      return normalizeAIResponse(parsed);
+    } catch {
+      // Robust fallback to line-splitting if JSON fails
+      return text
+        .split("\n")
+        .map((l: string) => l.replace(/^\d+\.\s*/, "").trim())
+        .filter((l: string) => l.length > 20);
     }
-    return arr.map(String).filter(s => s.length > 20);
-  } catch {
-    return numbered;
+  } catch (error) {
+    console.error("[Vision Agent] AI fetch failed:", error);
+    return [];
   }
 }
 
