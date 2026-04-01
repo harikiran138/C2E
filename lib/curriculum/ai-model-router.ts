@@ -7,11 +7,26 @@
 export type AiTaskType = "vision" | "peo" | "po" | "mission" | "pso" | "co" | "accreditation" | "bulk";
 
 export async function callAI(prompt: string, taskType: AiTaskType): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
+  const rawApiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = rawApiKey?.trim();
+  
+  if (apiKey && (apiKey.includes(' ') || apiKey.includes('\n'))) {
+    console.warn(`[AI Router] WARNING: API Key contains spaces or newlines. Trimming first part...`);
+  }
+  
+  const finalApiKey = apiKey?.split(/\s/)[0];
+
+  if (!finalApiKey) {
     const errorMsg = "OPENROUTER_API_KEY is not defined in environment variables.";
     console.error(`[AI Router] ${errorMsg}`);
     throw new Error(errorMsg);
+  }
+
+  // Debugging to see the status of the API key
+  const maskedKey = finalApiKey ? `${finalApiKey.substring(0, 7)}...${finalApiKey.substring(finalApiKey.length - 4)}` : "NOT_FOUND";
+  console.log(`[AI Router] Using API Key: ${maskedKey}`);
+  if (apiKey !== finalApiKey) {
+    console.warn(`[AI Router] Original key length: ${apiKey?.length}, Final key length: ${finalApiKey?.length}`);
   }
 
   // Switch completely away from Google/Gemini to avoid any Gemini reliance
@@ -25,7 +40,7 @@ export async function callAI(prompt: string, taskType: AiTaskType): Promise<stri
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${finalApiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://c2e.ai",
         "X-Title": "C2E Curriculum Engine"
@@ -53,8 +68,13 @@ export async function callAI(prompt: string, taskType: AiTaskType): Promise<stri
 
     return content;
   } catch (error: any) {
-    console.error(`[AI Router] Failed to call ${modelId}:`, error.message);
-    throw error;
+    // Sanitize error message to prevent leaking keys
+    let safeMessage = error.message;
+    if (finalApiKey && safeMessage.includes(finalApiKey)) {
+      safeMessage = safeMessage.replace(finalApiKey, "[REDACTED]");
+    }
+    console.error(`[AI Router] Failed to call ${modelId}:`, safeMessage);
+    throw new Error(safeMessage);
   }
 }
 
