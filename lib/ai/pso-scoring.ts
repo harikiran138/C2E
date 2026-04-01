@@ -67,6 +67,21 @@ export function scorePSO(pso: PSO, programName: string): PSOScore {
     issues.push(`Action verb "${firstWord}" is acceptable but could be stronger.`);
   }
 
+  // 1a. Single Action Verb Rule (NBA requirement)
+  const actionVerbsFound = words.filter(w => [...STRONG_VERBS, ...WEAK_VERBS].some(v => w.startsWith(v)));
+  if (actionVerbsFound.length > 1) {
+    breakdown.actionVerb -= 10;
+    issues.push(`Multiple action verbs detected (${actionVerbsFound.join(", ")}). NBA requires one primary outcome per PSO.`);
+  }
+
+  // 1b. Tool Generalization (Director Rule)
+  const discouragedTools = ["matlab", "python", "java", "autocad", "solidworks", "ansys", "excel", "labview"];
+  const foundTools = discouragedTools.filter(t => text.includes(t));
+  if (foundTools.length > 0) {
+    breakdown.depth -= 5;
+    issues.push(`Avoid specific tool names like "${foundTools.join(", ")}". Generalize to "modern computational tools" or "appropriate engineering tools."`);
+  }
+
   // 2. ABET Mapping Integrity (20 pts)
   const abetMappings = pso.abetMappings || [];
   if (abetMappings.length > 0) {
@@ -114,7 +129,7 @@ export function scorePSO(pso: PSO, programName: string): PSOScore {
 
   score = breakdown.actionVerb + breakdown.abetMapping + breakdown.domainRelevance + breakdown.depth + breakdown.realWorldContext;
 
-  return { total: Math.min(100, score), breakdown, issues };
+  return { total: Math.max(0, Math.min(100, score)), breakdown, issues };
 }
 
 /**

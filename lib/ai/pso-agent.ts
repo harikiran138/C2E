@@ -3,7 +3,12 @@
  * Advanced autonomous agent for generating Program Specific Outcomes (PSOs).
  */
 
-import { buildPSOGenerationPrompt, buildRetryPrompt, PSOGenerationMode } from "./pso-prompt-builder";
+import { 
+  buildPSOGenerationPrompt, 
+  buildRetryPrompt, 
+  buildPSOEvaluatorPrompt,
+  PSOGenerationMode 
+} from "./pso-prompt-builder";
 import { validatePSOs, PSOValidationResult, PSO } from "./pso-scoring";
 import { resolveProgramCriteria } from "../curriculum/program-mapping";
 import { callAI } from "@/lib/curriculum/ai-model-router";
@@ -39,21 +44,13 @@ const MAX_ATTEMPTS = 3;
 
 /**
  * Orchestrates the generation, scoring, and refinement of PSOs.
+ * Uses a non-destructive evaluator layer to preserve high-quality outputs.
  */
 export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> {
   const { programName, count = 3, selectedSocieties, focusAreas = [], mode = "standard" } = params;
 
-  // Resolve relevant ABET program criteria (with alias mapping and domain merging)
+  // Resolve relevant ABET program criteria
   const programCriteria = resolveProgramCriteria(programName);
-
-  let currentPrompt = buildPSOGenerationPrompt({
-    programName,
-    count,
-    programCriteria: programCriteria || undefined,
-    selectedSocieties,
-    focusAreas,
-    mode,
-  });
 
   let bestResult: PSOAgentResult = {
     success: false,
@@ -67,19 +64,40 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
     }
   };
 
+  let currentPSOs: PSO[] = [];
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     bestResult.attempts = attempt;
     
+    // Choose prompt based on attempt number
+    let prompt: string;
+    if (attempt === 1) {
+      prompt = buildPSOGenerationPrompt({
+        programName,
+        count,
+        programCriteria: programCriteria || undefined,
+        selectedSocieties,
+        focusAreas,
+        mode,
+      });
+    } else {
+      // refinement pass using Master Evaluator
+      prompt = buildPSOEvaluatorPrompt({
+        programName,
+        existingPSOs: currentPSOs,
+        feedback: bestResult.validation!
+      });
+    }
+
     try {
-      const rawText = await callAI(currentPrompt, "pso");
-      
+      const rawText = await callAI(prompt, "pso");
       if (!rawText) throw new Error("Empty response from AI model.");
 
-      // Parse JSON (handle potential markdown blocks)
+      // Parse JSON
       const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(cleanJson);
       
-      const psos: PSO[] = (parsed.PSOs || parsed.psos || []).map((p: any) => ({
+      const newPSOs: PSO[] = (parsed.PSOs || parsed.psos || []).map((p: any) => ({
         statement: p.statement || p.PSO_statement,
         abetMappings: p.mapped_abet_elements || p.abetMappings || [],
         focusArea: p.focus_area,
@@ -87,9 +105,15 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
       }));
 
       // Validate and Score
-      const validation = validatePSOs(psos, programName, count);
+      const validation = validatePSOs(newPSOs, programName, count);
+
+      // NON-DESTRUCTIVE LOGIC: 
+      // If we already had PSOs, and some were high quality (>= 85), 
+      // check if the AI changed them. If it did and the score dropped, we might want to revert.
+      // However, the prompt specifically tells the AI to PRESERVE >= 85.
       
-      bestResult.results = psos;
+      currentPSOs = newPSOs;
+      bestResult.results = newPSOs;
       bestResult.validation = validation;
       if (bestResult.meta) bestResult.meta.score = Math.round(validation.score);
 
@@ -97,9 +121,6 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
         bestResult.success = true;
         return bestResult;
       }
-
-      // If not passed, build retry prompt with feedback and previous attempt data
-      currentPrompt = buildRetryPrompt(currentPrompt, validation, psos);
       
     } catch (error: any) {
       console.error(`Attempt ${attempt} failed:`, error.message);
@@ -108,7 +129,6 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
     }
   }
 
-  // If we reach here, we either ran out of attempts or the results are "best effort" (unpassed)
   bestResult.success = bestResult.results.length > 0;
   return bestResult;
 }
