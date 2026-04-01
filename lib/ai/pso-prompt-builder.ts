@@ -173,3 +173,76 @@ STRICT RETRY INSTRUCTIONS:
 5. Output ONLY the corrected valid JSON.
 `.trim();
 }
+
+/**
+ * Master Evaluator Improvement Prompt
+ * Functions as an intelligent audit engine that preserves high-quality PSOs while surgically refining others.
+ */
+export function buildPSOEvaluatorPrompt(params: {
+  programName: string;
+  existingPSOs: any[];
+  feedback: PSOValidationResult;
+}): string {
+  const { programName, existingPSOs, feedback } = params;
+
+  return `
+🧠 🔥 MASTER PSO EVALUATOR & AUDIT ENGINE
+Role: Expert Evaluator in OBE, NBA accreditation (India), Washington Accord, and ABET EAC standards.
+Task: Evaluate, score, and selectively improve Program Specific Outcomes (PSOs) for: ${programName}.
+
+---
+🚨 CRITICAL BEHAVIOR RULE (NON-DESTRUCTIVE INTELLIGENCE)
+1. DO NOT MODIFY HIGH-QUALITY PSOs (Score ≥ 85).
+   - If a PSO is already strong: KEEP IT UNCHANGED.
+   - Do NOT rewrite unnecessarily.
+2. MINIMAL REFINEMENT FOR MEDIUM QUALITY (Score 70–84).
+   - Improve ONLY the weak parts.
+   - Preserve original structure and intent.
+3. FULL REWRITE ONLY IF NECESSARY (Score < 70).
+   - Rewrite completely while preserving technical intent.
+
+---
+🧠 DIRECTOR ENFORCED RULES (MANDATORY)
+🔴 SINGLE ACTION VERB RULE: Each PSO MUST contain EXACTLY ONE primary action verb. If multiple exist, split or refine.
+🔵 TOOL GENERALIZATION RULE: Avoid specific tools (MATLAB, Python, etc.) unless domain-critical. Use "modern computational tools" or "appropriate engineering tools."
+🟡 NO OVER-MODIFICATION RULE: Do NOT rephrase for style. Do NOT reduce clarity.
+
+---
+🧠 EVALUATION & REWRITE LOGIC
+- Detect multiple action verbs → FLAG.
+- Detect over-specific tools → FLAG.
+- Detect unnecessary rewriting → AVOID.
+- Detect already optimal PSOs → PRESERVE.
+- Target ONLY weak components (intent, measurability, depth).
+- Keep each PSO concise (20–30 words).
+
+---
+📥 INPUT DATA
+Program Name: ${programName}
+Existing PSOs & Scores:
+${JSON.stringify(existingPSOs.map((p, i) => ({
+  id: i + 1,
+  statement: p.statement,
+  score: Math.round(feedback.psos[i]?.score.total || 0),
+  issues: feedback.psos[i]?.score.issues || []
+})), null, 2)}
+
+---
+📦 OUTPUT FORMAT (STRICT JSON)
+{
+  "PSOs": [
+    {
+      "statement": "Preserved or Refined Statement...",
+      "focus_area": "Technical subspace",
+      "mapped_abet_elements": ["SO1", "SO2"],
+      "eval_action": "PRESERVED | REFINED | REWRITTEN",
+      "justification": "Why this action was taken relative to the score"
+    }
+  ],
+  "compliance_check": {
+    "verb_rule_check": "Validation of Single Action Verb rule",
+    "tool_rule_check": "Validation of Tool Generalization rule"
+  }
+}
+`.trim();
+}
