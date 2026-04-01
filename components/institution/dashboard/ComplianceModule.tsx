@@ -214,6 +214,7 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
     level: "UG",
     duration: 4,
     intake: 60,
+    password: "",
   });
 
   const [filter, setFilter] = useState<string>("all");
@@ -301,6 +302,7 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
           level: "UG",
           duration: 4,
           intake: 60,
+          password: "",
         });
       } else {
         const err = await response.json();
@@ -771,6 +773,25 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                       })
                     }
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Program Password
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                    placeholder="Enter login password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        password: e.target.value,
+                      })
+                    }
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Defaults to 'Password@123' if left blank.</p>
                 </div>
 
                 <div className="pt-2">

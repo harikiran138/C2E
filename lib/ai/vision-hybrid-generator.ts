@@ -18,6 +18,8 @@ export interface VisionHybridParams {
   priorities:         string[];
   count:              number;
   institutionName?:   string;
+  institution_id:    string;
+  program_id:        string;
   existingVisions?:   string[];
   attempt?:           number;
   geminiApiKey?:      string;
@@ -72,6 +74,8 @@ export async function generateVisionHybrid(params: VisionHybridParams): Promise<
     priorities,
     count,
     institutionName,
+    institution_id,
+    program_id,
     existingVisions = [],
     attempt = 0,
     geminiApiKey,
@@ -81,6 +85,8 @@ export async function generateVisionHybrid(params: VisionHybridParams): Promise<
   let aiCandidates: string[] = [];
   try {
     const promptParams: PromptParams = {
+      institution_id,
+      program_id,
       programName,
       priorities,
       count:          count + 4, // request extra for headroom

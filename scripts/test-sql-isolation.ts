@@ -52,7 +52,7 @@ async function testRLS() {
     }
 
     await client.query("ROLLBACK");
-  } catch (err) {
+  } catch (err: any) {
     console.error("Error:", err.message);
   } finally {
     await client.end();

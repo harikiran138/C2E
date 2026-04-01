@@ -60,7 +60,7 @@ async function simulateAttack(client: any, userKey: string, targetTable: string,
     
     console.log(`📊 Target ${targetTable}: Found ${count} rows.`);
     return count;
-  } catch (err) {
+  } catch (err: any) {
     console.log(`❌ Query failed (Expected if blocked): ${err.message}`);
     return 0;
   } finally {

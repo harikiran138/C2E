@@ -107,6 +107,8 @@ async function testAgent() {
     programName:  "Computer Engineering",
     priorities:   SAMPLE_PRIORITIES,
     count:        3,
+    institution_id: "00000000-0000-0000-0000-000000000001",
+    program_id:     "00000000-0000-0000-0000-000000000002",
     geminiApiKey: undefined, // no key → template-only
   });
 

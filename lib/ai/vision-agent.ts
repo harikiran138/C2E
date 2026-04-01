@@ -88,6 +88,8 @@ export interface AgentParams {
   priorities:         string[];
   count:              number;
   institutionName?:   string;
+  institution_id:    string;
+  program_id:        string;
   existingVisions?:   string[];
   geminiApiKey?:      string;
 }
@@ -108,6 +110,8 @@ export async function visionAgent(params: AgentParams): Promise<AgentResult> {
     priorities,
     count,
     institutionName,
+    institution_id,
+    program_id,
     existingVisions = [],
     geminiApiKey,
   } = params;
@@ -121,6 +125,8 @@ export async function visionAgent(params: AgentParams): Promise<AgentResult> {
     let batch: string[] = [];
     try {
       const promptParams: PromptParams = {
+        institution_id,
+        program_id,
         programName,
         priorities,
         count:           count + 4, // request extra for headroom

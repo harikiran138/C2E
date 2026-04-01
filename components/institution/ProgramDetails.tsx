@@ -19,6 +19,8 @@ interface Program {
   nba_coordinator?: string;
   vision?: string;
   mission?: string;
+  email?: string;
+  password?: string;
 }
 
 interface Stakeholder {
@@ -111,7 +113,11 @@ export default function ProgramDetails() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update program");
 
-      alert("Program details updated!");
+      alert("Program details and credentials updated!");
+      // Clear password field locally after success
+      if (currentProgram.password) {
+        setCurrentProgram({ ...currentProgram, password: "" });
+      }
       // Update local programs list
       setPrograms((prev) =>
         prev.map((p) => (p.id === selectedProgramId ? currentProgram : p)),
@@ -281,6 +287,36 @@ export default function ProgramDetails() {
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec]"
                     placeholder="e.g. CSE"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    System Email (Auto-generated)
+                  </label>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-500 dark:text-slate-400 select-all cursor-copy">
+                    {currentProgram.email || "Pending generation..."}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1 italic">Format: program_code@shortform.c2x.ai</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 mb-2">
+                    Set/Update Password
+                  </label>
+                  <input
+                    type="password"
+                    value={currentProgram.password || ""}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        password: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#e11d48]"
+                    placeholder="••••••••"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 italic">Leave blank to keep existing password.</p>
                 </div>
               </div>
 

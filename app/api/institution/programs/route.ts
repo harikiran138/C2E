@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { validateProgramPayload } from "@/lib/validation/onboarding";
 import { verifyToken } from "@/lib/auth";
 import { logAudit, ACTION_TYPES } from "@/lib/audit";
+import bcrypt from "bcrypt";
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("institution_token")?.value;
@@ -43,15 +44,24 @@ export async function POST(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      // Check for duplicate code
+      // 1. Fetch institution shortform for email generation
+      const instRes = await client.query("SELECT shortform FROM institutions WHERE id = $1", [institutionId]);
+      const shortform = instRes.rows[0]?.shortform || "edu";
+      const programEmail = `${normalizedProgramCode.toLowerCase()}@${shortform}.c2x.ai`;
+
+      // 2. Hash password if provided
+      const rawPassword = body.password || "Password@123"; // Default if not provided
+      const passwordHash = await bcrypt.hash(rawPassword, 10);
+
+      // Check for duplicate code or email
       const checkResult = await client.query(
-        "SELECT id FROM programs WHERE institution_id = $1 AND UPPER(program_code) = $2 LIMIT 1",
-        [institutionId, normalizedProgramCode],
+        "SELECT id FROM programs WHERE institution_id = $1 AND (UPPER(program_code) = $2 OR email = $3) LIMIT 1",
+        [institutionId, normalizedProgramCode, programEmail],
       );
 
       if (checkResult.rows.length > 0) {
         return NextResponse.json(
-          { error: "Program code already exists for this institution." },
+          { error: "Program code or email already exists for this institution." },
           { status: 409 },
         );
       }
@@ -69,9 +79,12 @@ export async function POST(request: NextRequest) {
           program_code,
           vision,
           mission,
+          email,
+          password_hash,
+          is_password_set,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())`,
         [
           newId,
           institutionId,
@@ -84,6 +97,9 @@ export async function POST(request: NextRequest) {
           normalizedProgramCode,
           tokenPayload.vision?.trim() || null,
           tokenPayload.mission?.trim() || null,
+          programEmail,
+          passwordHash,
+          !!body.password
         ],
       );
 
@@ -93,22 +109,15 @@ export async function POST(request: NextRequest) {
         programId: newId,
         action: "PROGRAM_CREATED",
         ipAddress: ip,
-        details: { programId: newId, programCode: normalizedProgramCode },
+        details: { programId: newId, programCode: normalizedProgramCode, email: programEmail },
       });
 
       return NextResponse.json({
         ok: true,
         program: {
           id: newId,
-          program_name: tokenPayload.program_name.trim(),
-          degree: tokenPayload.degree,
-          level: tokenPayload.level,
-          duration: tokenPayload.duration,
-          intake: tokenPayload.intake,
-          academic_year: tokenPayload.academic_year.trim(),
-          program_code: normalizedProgramCode,
-          vision: tokenPayload.vision,
-          mission: tokenPayload.mission,
+          ...tokenPayload,
+          email: programEmail,
         },
       });
     } finally {
@@ -209,6 +218,12 @@ export async function PUT(request: NextRequest) {
 
     const client = await pool.connect();
     try {
+      // Handle password update separately if provided
+      let passwordUpdateValue = null;
+      if (body.password) {
+        passwordUpdateValue = await bcrypt.hash(body.password, 10);
+      }
+
       const updateResult = await client.query(
         `UPDATE programs 
          SET program_name = $1, 
@@ -222,8 +237,10 @@ export async function PUT(request: NextRequest) {
              mission = $9, 
              program_chair = $10, 
              nba_coordinator = $11, 
+             password_hash = COALESCE($12, password_hash),
+             is_password_set = CASE WHEN $12 IS NOT NULL THEN true ELSE is_password_set END,
              updated_at = NOW() 
-         WHERE id = $12 AND institution_id = $13
+         WHERE id = $13 AND institution_id = $14
          RETURNING id`,
         [
           payload.program_name.trim(),
@@ -237,6 +254,7 @@ export async function PUT(request: NextRequest) {
           payload.mission?.trim() || null,
           payload.program_chair?.trim() || null,
           payload.nba_coordinator?.trim() || null,
+          passwordUpdateValue,
           id,
           institutionId,
         ],

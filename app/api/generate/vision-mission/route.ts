@@ -614,6 +614,8 @@ export async function POST(request: Request) {
         priorities,
         count,
         institutionName: institutionContext?.name || "the Institution", // Use context name if available
+        institution_id:  institutionId,
+        program_id:      programId,
         existingVisions: [],
         geminiApiKey:    GEMINI_API_KEY,
       });

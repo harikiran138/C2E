@@ -6,7 +6,10 @@ import { verifyToken } from "@/lib/auth";
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("c2e_auth_token")?.value;
+    // Try both cookie names: 'institution_token' (set by login) and legacy 'c2e_auth_token'
+    const token =
+      cookieStore.get("institution_token")?.value ||
+      cookieStore.get("c2e_auth_token")?.value;
 
     if (!token) {
       return NextResponse.json({ authenticated: false, error: "Unauthorized" }, { status: 401 });
@@ -34,7 +37,12 @@ export async function GET() {
         });
       }
 
-      if (payload.role === 'INSTITUTE_ADMIN' || payload.role === 'PROGRAM_ADMIN') {
+      if (
+        payload.role === 'INSTITUTE_ADMIN' ||
+        payload.role === 'institution_admin' ||
+        payload.role === 'PROGRAM_ADMIN' ||
+        payload.role === 'program_admin'
+      ) {
         const instId = payload.institution_id || payload.id;
         
         // Fetch Institution
@@ -48,9 +56,9 @@ export async function GET() {
         let progQuery = "SELECT id, program_name, program_code, degree FROM programs WHERE institution_id = $1";
         const queryParams = [instId];
 
-        if (payload.role === 'PROGRAM_ADMIN' && payload.program_id) {
+        if ((payload.role === 'PROGRAM_ADMIN' || payload.role === 'program_admin') && payload.program_id) {
             progQuery += " AND id = $2";
-            queryParams.push(payload.program_id);
+            queryParams.push(payload.program_id as string);
         }
 
         const progRes = await client.query(progQuery, queryParams);

@@ -17,6 +17,8 @@ async function runVerification() {
   const testParams = {
     programName: "Computer Science and Engineering",
     institutionName: "KITS Engineering College",
+    institution_id: "00000000-0000-0000-0000-000000000001",
+    program_id: "00000000-0000-0000-0000-000000000002",
     priorities: ["Technical Excellence", "Ethics", "Global Leadership"],
     count: 2,
   };

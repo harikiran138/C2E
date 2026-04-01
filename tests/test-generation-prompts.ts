@@ -33,6 +33,8 @@ function main() {
     priorities: ["Global Engineering Excellence", "Ethics and integrity"],
     count: 3,
     institutionName: "NSRIT",
+    institution_id: "00000000-0000-0000-0000-000000000001",
+    program_id: "00000000-0000-0000-0000-000000000002",
   });
 
   const missionPrompt = buildMissionAgentPrompt({

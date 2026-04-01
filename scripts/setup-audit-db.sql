@@ -33,6 +33,11 @@ CREATE TABLE public.profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 0. Mock Functions for RLS (Bypasses Supabase auth schema restrictions)
+CREATE OR REPLACE FUNCTION public.mock_jwt() RETURNS jsonb AS $$
+  SELECT current_setting('request.jwt.claims', true)::jsonb;
+$$ LANGUAGE sql STABLE;
+
 -- 3. Enable RLS on all relevant tables
 ALTER TABLE public.institutions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.programs ENABLE ROW LEVEL SECURITY;
@@ -43,31 +48,31 @@ ALTER TABLE public.program_psos ENABLE ROW LEVEL SECURITY;
 -- Super Admin Policy
 DROP POLICY IF EXISTS "super_admin_all" ON public.institutions;
 CREATE POLICY "super_admin_all" ON public.institutions FOR ALL TO authenticated 
-    USING ((auth.jwt() ->> 'role') = 'SUPER_ADMIN');
+    USING ((public.mock_jwt() ->> 'role') = 'SUPER_ADMIN');
 
 DROP POLICY IF EXISTS "super_admin_all" ON public.programs;
 CREATE POLICY "super_admin_all" ON public.programs FOR ALL TO authenticated 
-    USING ((auth.jwt() ->> 'role') = 'SUPER_ADMIN');
+    USING ((public.mock_jwt() ->> 'role') = 'SUPER_ADMIN');
 
 DROP POLICY IF EXISTS "super_admin_all" ON public.program_psos;
 CREATE POLICY "super_admin_all" ON public.program_psos FOR ALL TO authenticated 
-    USING ((auth.jwt() ->> 'role') = 'SUPER_ADMIN');
+    USING ((public.mock_jwt() ->> 'role') = 'SUPER_ADMIN');
 
 -- Institution Admin Policy
 DROP POLICY IF EXISTS "institute_admin_access" ON public.programs;
 CREATE POLICY "institute_admin_access" ON public.programs FOR ALL TO authenticated 
-    USING (institution_id = (auth.jwt() ->> 'institution_id')::uuid);
+    USING (institution_id = (public.mock_jwt() ->> 'institution_id')::uuid);
 
 DROP POLICY IF EXISTS "institute_admin_access" ON public.program_psos;
 CREATE POLICY "institute_admin_access" ON public.program_psos FOR ALL TO authenticated 
-    USING (institution_id = (auth.jwt() ->> 'institution_id')::uuid);
+    USING (institution_id = (public.mock_jwt() ->> 'institution_id')::uuid);
 
 -- Program Admin Policy
 DROP POLICY IF EXISTS "program_admin_access" ON public.program_psos;
 CREATE POLICY "program_admin_access" ON public.program_psos FOR ALL TO authenticated 
     USING (
-        institution_id = (auth.jwt() ->> 'institution_id')::uuid AND 
-        program_id = (auth.jwt() ->> 'program_id')::uuid
+        institution_id = (public.mock_jwt() ->> 'institution_id')::uuid AND 
+        program_id = (public.mock_jwt() ->> 'program_id')::uuid
     );
 
 COMMIT;

@@ -1,31 +1,31 @@
 {
   "institutions": {
     "A": {
-      "id": "30f16817-06e6-43a4-93c3-8f13b0ebf744",
+      "id": "406203ee-28c2-4d10-b98e-79061f5baade",
       "name": "Institution A (Test)"
     },
     "B": {
-      "id": "36cb69c3-3c1d-46a4-9e9f-1a54217d5fc5",
+      "id": "86b4dcca-4c87-4c43-b210-b6cb74db3fb8",
       "name": "Institution B (Test)"
     }
   },
   "programs": {
     "P1": {
-      "id": "2c59303e-1f28-4016-a3cd-989b797cf54f",
+      "id": "b307e7c9-5c36-4de2-880d-e739fb1bdb35",
       "name": "CSE (Program P1)",
       "degree": "B.Tech",
       "years": 4,
       "level": "UG"
     },
     "P2": {
-      "id": "c1fcdae9-b78e-40c0-ab7f-d65e9a6563e5",
+      "id": "3cd381e6-d337-4e95-b236-663719026810",
       "name": "ECE (Program P2)",
       "degree": "B.Tech",
       "years": 4,
       "level": "UG"
     },
     "P3": {
-      "id": "914cbb40-c000-4d42-a5a3-80a50568f658",
+      "id": "53bed1d1-cdbf-4f19-b866-19e17559bcdd",
       "name": "MECH (Program P3)",
       "degree": "B.Tech",
       "years": 4,
@@ -34,32 +34,32 @@
   },
   "users": {
     "SA1": {
-      "id": "484f49da-cd7e-4e4d-8ec5-650a454c2731",
+      "id": "c2f10d42-03fc-4cd7-9e4e-910c90b163ff",
       "email": "sa1@test.com",
       "role": "SUPER_ADMIN"
     },
     "IA1": {
-      "id": "19c389fd-2311-4b5c-ad45-d356d7141ad9",
+      "id": "a698c80f-2049-4e5e-b6ac-ddd267daeea5",
       "email": "ia1@test.com",
       "role": "INSTITUTE_ADMIN"
     },
     "IB1": {
-      "id": "b6760983-1c9d-4da1-b9b2-2585919adb75",
+      "id": "da3dd1fe-c868-44f0-b7da-fab23a327dac",
       "email": "ib1@test.com",
       "role": "INSTITUTE_ADMIN"
     },
     "PA1": {
-      "id": "16855181-30cb-41c8-91ba-4ba28df0b6eb",
+      "id": "d20f3279-1ac0-4df1-a25f-0835b07c19e8",
       "email": "pa1@test.com",
       "role": "PROGRAM_ADMIN"
     },
     "PA2": {
-      "id": "a7169895-111d-408d-b1a8-2027eaea5d70",
+      "id": "224a3acf-2e01-4766-9c4c-edde881e558d",
       "email": "pa2@test.com",
       "role": "PROGRAM_ADMIN"
     },
     "PB1": {
-      "id": "6a2670b1-f509-44a2-8c4f-18d9ab043465",
+      "id": "44396b61-4289-41d9-b501-d532631b8d24",
       "email": "pb1@test.com",
       "role": "PROGRAM_ADMIN"
     }
