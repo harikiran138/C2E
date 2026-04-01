@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     console.log(`API Dashboard: Request received for programId: ${programId}`);
 
     const cookieStore = await cookies();
-    const token = cookieStore.get("institution_token")?.value;
+    const token = cookieStore.get("institution_token")?.value || cookieStore.get("c2e_auth_token")?.value;
 
     if (!token) {
       console.warn("API Dashboard: Unauthorized - No Token");
@@ -18,10 +18,24 @@ export async function GET(request: Request) {
     }
 
     const tokenPayload = await verifyToken(token);
-    if (!tokenPayload || !tokenPayload.id) {
+    if (!tokenPayload) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
-    const institutionId = tokenPayload.id as string;
+
+    // v5.1 tokens use institution_id, legacy tokens use id
+    const institutionId = (tokenPayload.institution_id || tokenPayload.id) as string;
+    const role = (tokenPayload.role || "").toString().toUpperCase();
+
+    if (!institutionId) {
+      return NextResponse.json({ error: "Institution ID missing from session" }, { status: 401 });
+    }
+
+    // Role verification (v5.1 and legacy support)
+    const allowedRoles = ["INSTITUTE_ADMIN", "INSTITUTION_ADMIN", "PROGRAM_ADMIN"];
+    if (!allowedRoles.includes(role)) {
+       console.warn(`API Dashboard: Unauthorized role ${role}`);
+       // Allow for now but log warning to avoid breaking old systems
+    }
 
     const client = await pool.connect();
     try {

@@ -34,11 +34,15 @@ async function semanticDedup(candidates: string[], threshold = 0.82): Promise<st
 /**
  * Normalizes varied AI response formats into a clean string array.
  */
-const VisionResponseSchema = z.object({
-  visions: z.array(z.string()).optional(),
-  Visions: z.array(z.string()).optional(),
-  statements: z.array(z.string()).optional(),
-}).passthrough();
+const VisionResponseSchema = z.union([
+  z.object({
+    visions: z.array(z.string()).optional(),
+    Visions: z.array(z.string()).optional(),
+    statements: z.array(z.string()).optional(),
+  }).passthrough(),
+  z.array(z.string()),
+  z.array(z.object({ statement: z.string() }).passthrough()),
+]);
 
 function normalizeAIResponse(parsed: any): string[] {
   const data = VisionResponseSchema.safeParse(parsed);
@@ -46,9 +50,9 @@ function normalizeAIResponse(parsed: any): string[] {
     console.warn("[Vision Agent] Zod validation failed:", data.error);
   }
 
-  const list = parsed?.visions || 
-               parsed?.Visions || 
-               parsed?.statements || 
+  const list = (parsed as any)?.visions || 
+               (parsed as any)?.Visions || 
+               (parsed as any)?.statements || 
                (Array.isArray(parsed) ? parsed : []);
 
   return list.map((item: any) => {

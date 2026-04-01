@@ -16,6 +16,7 @@ import {
   GraduationCap,
   LayoutGrid,
   Loader2,
+  Lock,
 } from "lucide-react";
 import * as Icons from "lucide-react";
 import { useInstitution } from "@/context/InstitutionContext";
@@ -202,7 +203,7 @@ const getStatusIcon = (status: string) => {
 
 export default function ComplianceModule({ statsData }: { statsData: any }) {
   const router = useRouter();
-  const { refreshData } = useInstitution();
+  const { refreshData, institution } = useInstitution();
   const [selectedItem, setSelectedItem] = useState<ComplianceItem | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -216,6 +217,10 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
     intake: 60,
     password: "",
   });
+
+  const [isSetPasswordModalOpen, setIsSetPasswordModalOpen] = useState(false);
+  const [selectedProgramForAuth, setSelectedProgramForAuth] = useState<any>(null);
+  const [newProgramPassword, setNewProgramPassword] = useState("");
 
   const [filter, setFilter] = useState<string>("all");
   const stats = calculateStats(DEMO_COMPLIANCE_DATA);
@@ -310,6 +315,37 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
       }
     } catch (error) {
       console.error("Error creating program:", error);
+      alert("Internal Server Error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProgramForAuth) return;
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/institution/programs/set-password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          program_id: selectedProgramForAuth.id,
+          new_password: newProgramPassword,
+        }),
+      });
+
+      if (response.ok) {
+        setIsSetPasswordModalOpen(false);
+        setNewProgramPassword("");
+        setSelectedProgramForAuth(null);
+        alert("Password updated successfully");
+      } else {
+        const err = await response.json();
+        alert(err.error || "Failed to update password");
+      }
+    } catch (error) {
+      console.error("Error setting password:", error);
       alert("Internal Server Error");
     } finally {
       setIsSubmitting(false);
@@ -452,9 +488,19 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                     <h3 className="text-base font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
                       {prog.program_name}
                     </h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                      {prog.level} • {prog.academic_year}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {prog.level} • {prog.academic_year}
+                      </p>
+                      {institution?.shortform && (
+                        <>
+                          <div className="h-1 w-1 bg-slate-200 rounded-full" />
+                          <span className="text-[10px] font-black text-emerald-600 lowercase tracking-tight">
+                            {prog.program_code.toLowerCase()}@{institution.shortform}.c2x.ai
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -467,14 +513,26 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                       {new Date(prog.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <button
-                    onClick={() =>
-                      router.push(`/institution/programs?id=${prog.id}`)
-                    }
-                    className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-100 hover:shadow-lg transition-all"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedProgramForAuth(prog);
+                        setIsSetPasswordModalOpen(true);
+                      }}
+                      title="Set/Change Password"
+                      className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-100 transition-all"
+                    >
+                      <Lock className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        router.push(`/institution/programs?id=${prog.id}`)
+                      }
+                      className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-100 hover:shadow-lg transition-all"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))
@@ -608,6 +666,83 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                   Update Progress
                 </Button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Set Password Modal */}
+      <AnimatePresence>
+        {isSetPasswordModalOpen && selectedProgramForAuth && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-[110] p-4"
+            onClick={() => setIsSetPasswordModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-xl relative"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Update Program Password
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Credentials for {selectedProgramForAuth.program_code}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsSetPasswordModalOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 flex items-center justify-center transition-colors group"
+                >
+                  <X className="w-4 h-4 text-slate-400 group-hover:text-slate-900" />
+                </button>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-6">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Generated Login Email</p>
+                <code className="text-sm font-black text-blue-600">
+                  {selectedProgramForAuth.program_code.toLowerCase()}@{institution?.shortform || 'institution'}.c2x.ai
+                </code>
+              </div>
+
+              <form onSubmit={handleSetPassword} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    New Program Password
+                  </label>
+                  <input
+                    required
+                    type="password"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-sm"
+                    placeholder="Enter new password"
+                    value={newProgramPassword}
+                    onChange={(e) => setNewProgramPassword(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-400 italic">This will update the login credentials for this program immediately.</p>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                    Update Credentials
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

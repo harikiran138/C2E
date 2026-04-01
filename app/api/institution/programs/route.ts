@@ -2,23 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
 import { v4 as uuidv4 } from "uuid";
 import { validateProgramPayload } from "@/lib/validation/onboarding";
-import { verifyToken } from "@/lib/auth";
+import { authorize, isAuthorized } from "@/lib/api-utils";
 import { logAudit, ACTION_TYPES } from "@/lib/audit";
 import bcrypt from "bcrypt";
-
-async function getInstitutionId(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get("institution_token")?.value;
-  if (!token) return null;
-  const tokenPayload = await verifyToken(token);
-  return (tokenPayload?.id as string) || null;
-}
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
   try {
-    const institutionId = await getInstitutionId(request);
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
     if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "No institution context found" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -50,7 +46,7 @@ export async function POST(request: NextRequest) {
       const programEmail = `${normalizedProgramCode.toLowerCase()}@${shortform}.c2x.ai`;
 
       // 2. Hash password if provided
-      const rawPassword = body.password || "Password@123"; // Default if not provided
+      const rawPassword = body.password || "progemas"; // Default if not provided
       const passwordHash = await bcrypt.hash(rawPassword, 10);
 
       // Check for duplicate code or email
@@ -132,9 +128,12 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
   try {
-    const institutionId = await getInstitutionId(request);
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
     if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "No institution context found" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -182,9 +181,12 @@ export async function DELETE(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
   try {
-    const institutionId = await getInstitutionId(request);
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const institutionId = auth.institutionId;
     if (!institutionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "No institution context found" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);

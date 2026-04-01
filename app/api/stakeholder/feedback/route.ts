@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
-import { verifyToken } from "@/lib/auth";
-
-type StakeholderTokenPayload = {
-  role?: string;
-  stakeholder_ref_id?: string;
-  stakeholder_member_id?: string;
-  stakeholder_name?: string;
-  stakeholder_category?: string;
-  institution_name?: string;
-  program_id?: string;
-};
+import { authorize, isAuthorized } from "@/lib/api-utils";
 
 type FeedbackInputBlock = {
   rating: number;
@@ -32,29 +22,14 @@ function isValidRating(value: unknown): value is number {
   );
 }
 
-async function getStakeholderPayload(
-  request: NextRequest,
-): Promise<StakeholderTokenPayload | null> {
-  const token = request.cookies.get("stakeholder_token")?.value;
-  if (!token) return null;
-
-  const payload = (await verifyToken(token)) as StakeholderTokenPayload | null;
-  if (!payload || payload.role !== "stakeholder") return null;
-  if (
-    !payload.stakeholder_ref_id ||
-    !payload.stakeholder_member_id ||
-    !payload.program_id
-  )
-    return null;
-
-  return payload;
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const stakeholder = await getStakeholderPayload(request);
-    if (!stakeholder) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await authorize(request, ["stakeholder", "SUPER_ADMIN", "INSTITUTE_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const { programId, stakeholderId } = auth;
+    if (!programId || !stakeholderId) {
+        return NextResponse.json({ error: "Missing identity context" }, { status: 403 });
     }
 
     const client = await pool.connect();
@@ -65,7 +40,7 @@ export async function GET(request: NextRequest) {
          WHERE program_id = $1 AND stakeholder_ref_id = $2
          ORDER BY submitted_at DESC
          LIMIT 1`,
-        [stakeholder.program_id, stakeholder.stakeholder_ref_id],
+        [programId, stakeholderId],
       );
 
       if (submissionRes.rows.length === 0) {
@@ -102,9 +77,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const stakeholder = await getStakeholderPayload(request);
-    if (!stakeholder) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await authorize(request, ["stakeholder"]);
+    if (!isAuthorized(auth)) return auth;
+
+    const { programId, stakeholderId } = auth;
+    if (!programId || !stakeholderId) {
+        return NextResponse.json({ error: "Missing identity context" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -143,7 +121,7 @@ export async function POST(request: NextRequest) {
          INNER JOIN institutions i ON i.id = p.institution_id
          WHERE rs.id = $1 AND rs.program_id = $2
          LIMIT 1`,
-        [stakeholder.stakeholder_ref_id, stakeholder.program_id],
+        [stakeholderId, programId],
       );
 
       if (stakeholderRes.rows.length === 0) {
@@ -183,7 +161,7 @@ export async function POST(request: NextRequest) {
          FROM program_peos
          WHERE program_id = $1
          ORDER BY peo_number ASC`,
-        [stakeholder.program_id],
+        [programId],
       );
 
       const peoRows = peoRes.rows;
@@ -229,9 +207,9 @@ export async function POST(request: NextRequest) {
          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
          RETURNING id, submitted_at`,
         [
-          stakeholder.program_id,
-          stakeholder.stakeholder_ref_id,
-          stakeholder.stakeholder_member_id,
+          programId,
+          stakeholderId,
+          auth.userId, // This is stakeholder_member_id from payload
           stakeholderRow.member_name,
           stakeholderRow.category || null,
           stakeholderRow.institution_name,
@@ -251,7 +229,7 @@ export async function POST(request: NextRequest) {
          ) VALUES ($1, $2, 'vision', $3, $4)`,
         [
           submissionId,
-          stakeholder.program_id,
+          programId,
           vision.rating,
           String(vision.comment || "").trim() || null,
         ],
@@ -267,7 +245,7 @@ export async function POST(request: NextRequest) {
          ) VALUES ($1, $2, 'mission', $3, $4)`,
         [
           submissionId,
-          stakeholder.program_id,
+          programId,
           mission.rating,
           String(mission.comment || "").trim() || null,
         ],
@@ -290,7 +268,7 @@ export async function POST(request: NextRequest) {
            ) VALUES ($1, $2, 'peo', $3, $4, $5, $6, $7)`,
           [
             submissionId,
-            stakeholder.program_id,
+            programId,
             peo.id,
             peo.peo_number,
             peo.peo_statement,

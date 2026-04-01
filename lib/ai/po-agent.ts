@@ -45,12 +45,16 @@ function normalizeWhitespace(text: string) {
 /**
  * Normalizes varied AI response formats into a clean string array.
  */
-const POResponseSchema = z.object({
-  pos: z.array(z.string()).optional(),
-  POs: z.array(z.string()).optional(),
-  statements: z.array(z.string()).optional(),
-  refined_pos: z.array(z.string()).optional(),
-}).passthrough();
+const POResponseSchema = z.union([
+  z.object({
+    pos: z.array(z.string()).optional(),
+    POs: z.array(z.string()).optional(),
+    statements: z.array(z.string()).optional(),
+    refined_pos: z.array(z.string()).optional(),
+  }).passthrough(),
+  z.array(z.string()),
+  z.array(z.object({ statement: z.string() }).passthrough()),
+]);
 
 function normalizeAIResponse(parsed: any): string[] {
   const data = POResponseSchema.safeParse(parsed);
@@ -58,10 +62,10 @@ function normalizeAIResponse(parsed: any): string[] {
     console.warn("[PO Agent] Zod validation failed:", data.error);
   }
 
-  const list = parsed?.pos || 
-               parsed?.POs || 
-               parsed?.statements || 
-               parsed?.refined_pos || 
+  const list = (parsed as any)?.pos || 
+               (parsed as any)?.POs || 
+               (parsed as any)?.statements || 
+               (parsed as any)?.refined_pos || 
                (Array.isArray(parsed) ? parsed : []);
 
   return list.map((item: any) => {

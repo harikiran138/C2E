@@ -43,11 +43,15 @@ function normalizeWhitespace(text: string) {
 /**
  * Normalizes varied AI response formats into a clean string array.
  */
-const MissionResponseSchema = z.object({
-  missions: z.array(z.string()).optional(),
-  Missions: z.array(z.string()).optional(),
-  statements: z.array(z.string()).optional(),
-}).passthrough();
+const MissionResponseSchema = z.union([
+  z.object({
+    missions: z.array(z.string()).optional(),
+    Missions: z.array(z.string()).optional(),
+    statements: z.array(z.string()).optional(),
+  }).passthrough(),
+  z.array(z.string()),
+  z.array(z.object({ statement: z.string() }).passthrough()),
+]);
 
 function normalizeAIResponse(parsed: any): string[] {
   const data = MissionResponseSchema.safeParse(parsed);
@@ -55,9 +59,9 @@ function normalizeAIResponse(parsed: any): string[] {
     console.warn("[Mission Agent] Zod validation failed:", data.error);
   }
 
-  const list = parsed?.missions || 
-               parsed?.Missions || 
-               parsed?.statements || 
+  const list = (parsed as any)?.missions || 
+               (parsed as any)?.Missions || 
+               (parsed as any)?.statements || 
                (Array.isArray(parsed) ? parsed : []);
 
   return list.map((item: any) => {

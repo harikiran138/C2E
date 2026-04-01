@@ -204,8 +204,15 @@ export default function StakeholderFeedbackDashboard() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/stakeholder/logout", { method: "POST" });
-    router.push("/institution/login?type=stakeholder");
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      localStorage.clear();
+      sessionStorage.clear();
+      router.push("/institution/login?type=stakeholder");
+    } catch (error) {
+      console.error("Logout error:", error);
+      router.push("/institution/login?type=stakeholder");
+    }
   };
 
   const handleChangePassword = async () => {

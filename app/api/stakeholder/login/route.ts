@@ -154,7 +154,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      response.cookies.set("stakeholder_token", stakeholderToken, {
+      // Point #2 & Point #3: Standardize on unified token and clear previous sessions
+      response.cookies.set("institution_token", "", { maxAge: 0, path: "/" });
+      response.cookies.set("c2e_auth_token", stakeholderToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",

@@ -135,8 +135,10 @@ export default function InstitutionWorkspace({
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      await fetch("/api/institution/logout", { method: "POST" });
+      // Use unified logout API
+      await fetch("/api/auth/logout", { method: "POST" });
+      localStorage.clear();
+      sessionStorage.clear();
       window.location.href = "/institution/login";
     } catch (error) {
       console.error("Logout error:", error);

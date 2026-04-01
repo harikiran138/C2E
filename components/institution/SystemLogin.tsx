@@ -12,13 +12,15 @@ import {
   ShieldCheck,
   AlertTriangle,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AuthBackground from "../ui/AuthBackground";
 
 export default function SystemLogin() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get("redirect") || "/dashboard";
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,7 @@ export default function SystemLogin() {
       );
 
       // Hard refresh to ensure middleware picks up the new cookie
-      window.location.href = data.redirect || "/super-admin/dashboard";
+      window.location.href = redirectPath;
     } catch (err: any) {
       console.error("Super Admin Login Error:", err);
       setErrorMsg(

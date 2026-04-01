@@ -44,12 +44,16 @@ function normalizeWhitespace(text: string) {
 /**
  * Normalizes varied AI response formats into a clean string array.
  */
-const PEOResponseSchema = z.object({
-  peos: z.array(z.string()).optional(),
-  PEOs: z.array(z.string()).optional(),
-  statements: z.array(z.string()).optional(),
-  refined_peos: z.array(z.string()).optional(),
-}).passthrough();
+const PEOResponseSchema = z.union([
+  z.object({
+    peos: z.array(z.string()).optional(),
+    PEOs: z.array(z.string()).optional(),
+    statements: z.array(z.string()).optional(),
+    refined_peos: z.array(z.string()).optional(),
+  }).passthrough(),
+  z.array(z.string()),
+  z.array(z.object({ statement: z.string() }).passthrough()),
+]);
 
 function normalizeAIResponse(parsed: any): string[] {
   const data = PEOResponseSchema.safeParse(parsed);
@@ -57,10 +61,10 @@ function normalizeAIResponse(parsed: any): string[] {
     console.warn("[PEO Agent] Zod validation failed:", data.error);
   }
 
-  const list = parsed?.peos || 
-               parsed?.PEOs || 
-               parsed?.statements || 
-               parsed?.refined_peos || 
+  const list = (parsed as any)?.peos || 
+               (parsed as any)?.PEOs || 
+               (parsed as any)?.statements || 
+               (parsed as any)?.refined_peos || 
                (Array.isArray(parsed) ? parsed : []);
 
   return list.map((item: any) => {

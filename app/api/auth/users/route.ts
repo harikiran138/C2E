@@ -1,22 +1,19 @@
 import pool from "@/lib/postgres";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { authorize, isAuthorized } from "@/lib/api-utils";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("c2e_auth_token")?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
 
-    const payload = await verifyToken(token);
-    if (!payload || payload.role !== 'INSTITUTE_ADMIN') {
-        return NextResponse.json({ error: "Forbidden: Institute Admin only" }, { status: 403 });
+    const instId = auth.institutionId;
+    if (!instId) {
+        return NextResponse.json({ error: "No institution context found" }, { status: 403 });
     }
 
-    const instId = payload.institution_id || payload.id;
     const client = await pool.connect();
     try {
       // List all program admins for this institution
@@ -37,23 +34,20 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("c2e_auth_token")?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await authorize(request, ["INSTITUTE_ADMIN", "SUPER_ADMIN"]);
+    if (!isAuthorized(auth)) return auth;
 
-    const payload = await verifyToken(token);
-    if (!payload || payload.role !== 'INSTITUTE_ADMIN') {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const instId = auth.institutionId;
+    if (!instId) {
+        return NextResponse.json({ error: "No institution context found" }, { status: 403 });
     }
 
     const { email, password, program_id } = await request.json();
     if (!email || !password || !program_id) {
         return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
-
-    const instId = payload.institution_id || payload.id;
     const hashedPassword = await bcrypt.hash(password, 10);
     const userId = uuidv4();
 

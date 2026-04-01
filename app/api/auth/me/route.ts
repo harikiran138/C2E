@@ -47,7 +47,7 @@ export async function GET() {
         
         // Fetch Institution
         const instRes = await client.query(
-            "SELECT i.id, i.institution_name, i.email, id.vision, id.mission FROM institutions i LEFT JOIN institution_details id ON i.id = id.institution_id WHERE i.id = $1",
+            "SELECT i.id, i.institution_name, i.email, i.shortform, id.vision, id.mission FROM institutions i LEFT JOIN institution_details id ON i.id = id.institution_id WHERE i.id = $1",
             [instId]
         );
         institution = instRes.rows[0];

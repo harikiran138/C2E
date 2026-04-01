@@ -14,6 +14,7 @@ interface Institution {
   state: string;
   vision?: string;
   mission?: string;
+  shortform?: string;
 }
 
 interface Program {

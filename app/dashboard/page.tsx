@@ -1,274 +1,266 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Building2,
-  GraduationCap,
-  Users,
-  Sparkles,
-  LogOut,
-  TrendingUp,
-  Activity,
-  ShieldCheck,
-} from "lucide-react";
-
-interface Metrics {
-  institutions: number;
-  programs: number;
-  users: number;
-  ai_generations: number;
-}
-
-interface Institution {
-  id: string;
-  institution_name: string;
-  email: string;
-  onboarding_status: string;
-  shortform: string;
-  created_at: string;
-}
+import React, { useState, useEffect } from 'react';
+import { 
+    Shield, 
+    LogOut,
+    Plus,
+    Activity,
+    ShieldCheck,
+    Database,
+    Zap,
+    LayoutDashboard,
+    Globe,
+    Lock,
+    Clock
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import OverviewCards from '@/components/super-admin/OverviewCards';
+import InstitutionTable from '@/components/super-admin/InstitutionTable';
+import SecurityPanel from '@/components/super-admin/SecurityPanel';
+import ActivityLogs from '@/components/super-admin/ActivityLogs';
+import CreateInstitutionModal from '@/components/super-admin/CreateInstitutionModal';
 
 export default function SuperAdminDashboard() {
-  const router = useRouter();
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+    const [metrics, setMetrics] = useState(null);
+    const [institutions, setInstitutions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState('overview');
+    const router = useRouter();
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/super-admin/metrics").then((r) => r.json()),
-      fetch("/api/super-admin/institutions").then((r) => r.json()),
-    ])
-      .then(([m, i]) => {
-        setMetrics(m);
-        setInstitutions(i.institutions || []);
-      })
-      .catch(() => setError("Failed to load dashboard data."))
-      .finally(() => setLoading(false));
-  }, []);
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // 1. Verify Auth & Role
+                const authRes = await fetch('/api/auth/me');
+                if (!authRes.ok) {
+                    router.push('/login');
+                    return;
+                }
+                const userData = await authRes.json();
+                if (userData.role !== 'SUPER_ADMIN') {
+                    // Redirect non-super-admins to their correct dashboard
+                    const rolePathMap: Record<string, string> = {
+                        'INSTITUTE_ADMIN': '/institution/dashboard',
+                        'PROGRAM_ADMIN': '/program/dashboard'
+                    };
+                    router.push(rolePathMap[userData.role] || '/institution/login');
+                    return;
+                }
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/super/login", { method: "DELETE" }).catch(() => {});
-    document.cookie = "c2e_auth_token=; Max-Age=0; path=/";
-    router.push("/login");
-  };
+                // 2. Fetch Dashboard Data
+                const [metricsRes, instRes] = await Promise.all([
+                    fetch('/api/super-admin/metrics'),
+                    fetch('/api/super-admin/institutions')
+                ]);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      {/* Header */}
-      <header className="border-b border-white/5 bg-slate-900/60 backdrop-blur-xl sticky top-0 z-40">
-        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg">
-              <ShieldCheck className="size-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-black tracking-tight text-white">C2X Plus+</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400">
-                Super Admin Console
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 transition-all hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
-          >
-            <LogOut className="size-3.5" /> Sign Out
-          </button>
-        </div>
-      </header>
+                if (metricsRes.ok) setMetrics(await metricsRes.json());
+                if (instRes.ok) setInstitutions(await instRes.json());
 
-      <main className="mx-auto max-w-7xl px-6 py-10 space-y-10">
-        {/* Page Title */}
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-white">
-            Platform Overview
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Real-time insights across all institutions on the C2X platform.
-          </p>
-        </div>
+            } catch (err) {
+                console.error('Failed to fetch dashboard data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [router]);
 
-        {/* Metrics */}
-        {loading ? (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="h-32 rounded-2xl bg-white/5 animate-pulse border border-white/5"
-              />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6 text-sm text-red-400">
-            {error}
-          </div>
-        ) : metrics ? (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {[
-              {
-                label: "Institutions",
-                value: metrics.institutions,
-                icon: Building2,
-                color: "from-blue-500 to-indigo-600",
-                glow: "shadow-blue-500/20",
-              },
-              {
-                label: "Programs",
-                value: metrics.programs,
-                icon: GraduationCap,
-                color: "from-violet-500 to-purple-600",
-                glow: "shadow-violet-500/20",
-              },
-              {
-                label: "Users",
-                value: metrics.users,
-                icon: Users,
-                color: "from-emerald-500 to-teal-600",
-                glow: "shadow-emerald-500/20",
-              },
-              {
-                label: "AI Generations",
-                value: metrics.ai_generations,
-                icon: Sparkles,
-                color: "from-amber-500 to-orange-600",
-                glow: "shadow-amber-500/20",
-              },
-            ].map(({ label, value, icon: Icon, color, glow }) => (
-              <div
-                key={label}
-                className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm"
-              >
-                <div
-                  className={`absolute -top-4 -right-4 flex size-16 items-center justify-center rounded-full bg-gradient-to-br ${color} opacity-20 blur-xl`}
-                />
-                <div
-                  className={`mb-4 inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${color} shadow-lg ${glow}`}
-                >
-                  <Icon className="size-5 text-white" />
+    const handleLogout = async () => {
+        try {
+            // 1. Unified Logout API (Clears all HTTP-only cookies)
+            await fetch('/api/auth/logout', { method: 'POST' }); 
+            
+            // 2. Client-side storage cleanup
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // 3. Redirect to login
+            router.replace('/login');
+        } catch (err) {
+            console.error('Logout failed:', err);
+            router.replace('/login');
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-6">
+                    <div className="relative">
+                      <div className="size-16 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin" />
+                      <Shield className="size-6 text-slate-900 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Secure Environment</p>
+                      <p className="text-sm font-bold text-slate-600 mt-1">Initializing Master Node Control Tower...</p>
+                    </div>
                 </div>
-                <p className="text-3xl font-black text-white">
-                  {value.toLocaleString()}
-                </p>
-                <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {/* Institutions Table */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
-            <div className="flex items-center gap-3">
-              <Activity className="size-4 text-violet-400" />
-              <h2 className="text-sm font-black text-white">All Institutions</h2>
             </div>
-            <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-violet-400">
-              {institutions.length} Total
-            </span>
-          </div>
+        );
+    }
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/[0.02]">
-                  {["Institution", "Short Form", "Email", "Status", "Joined"].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-500"
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">
-                      Loading...
-                    </td>
-                  </tr>
-                ) : institutions.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">
-                      No institutions registered yet.
-                    </td>
-                  </tr>
-                ) : (
-                  institutions.map((inst) => (
-                    <tr
-                      key={inst.id}
-                      className="border-b border-white/[0.03] transition-colors hover:bg-white/[0.03]"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-black text-white">
-                            {(inst.shortform || inst.institution_name?.charAt(0) || "?").toUpperCase().slice(0, 2)}
-                          </div>
-                          <span className="text-sm font-semibold text-white">
-                            {inst.institution_name}
-                          </span>
+    return (
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
+            {/* Top Navigation */}
+            <nav className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-100 flex items-center justify-between px-12 fixed top-0 w-full z-50">
+                <div className="flex items-center gap-5">
+                    <div className="size-11 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg shadow-slate-200">
+                        <Shield className="size-6 text-white" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                          <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none uppercase italic">C2E CENTRAL</h1>
+                          <span className="px-2 py-0.5 bg-slate-100 rounded-md text-[8px] font-black uppercase tracking-tighter text-slate-500">v1.1</span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <code className="rounded-md bg-white/10 px-2 py-0.5 text-xs font-bold text-violet-300">
-                          {inst.shortform || "—"}
-                        </code>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-400">{inst.email}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${
-                            inst.onboarding_status === "COMPLETE"
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-1">Platform Governance Interface</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-8">
+                    <div className="hidden lg:flex items-center p-1.5 bg-slate-100/50 rounded-2xl border border-slate-100/50">
+                      {[
+                        { id: 'overview', icon: LayoutDashboard },
+                        { id: 'nodes', icon: Globe },
+                        { id: 'security', icon: Lock },
+                        { id: 'audit', icon: Clock }
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveTab(item.id)}
+                          className={`flex items-center gap-2.5 px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.15em] transition-all rounded-xl ${
+                            activeTab === item.id 
+                              ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 translate-y-[-1px]' 
+                              : 'text-slate-400 hover:text-slate-600 hover:bg-white'
                           }`}
                         >
-                          <span
-                            className={`size-1.5 rounded-full ${
-                              inst.onboarding_status === "COMPLETE"
-                                ? "bg-emerald-400"
-                                : "bg-amber-400 animate-pulse"
-                            }`}
-                          />
-                          {inst.onboarding_status || "PENDING"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">
-                        {inst.created_at
-                          ? new Date(inst.created_at).toLocaleDateString("en-IN", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                          <item.icon className={`size-3.5 ${activeTab === item.id ? 'animate-pulse' : ''}`} />
+                          {item.id}
+                        </button>
+                      ))}
+                    </div>
 
-        {/* Quick Links */}
-        <div className="flex items-center gap-4 flex-wrap">
-          <a
-            href="/institution/login"
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-300 transition-all hover:bg-white/10 hover:text-white"
-          >
-            <TrendingUp className="size-4 text-violet-400" />
-            Back to Institution Login
-          </a>
+                    <div className="h-8 w-px bg-slate-100" />
+
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-50/50 rounded-2xl border border-emerald-100/50">
+                            <div className="size-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.1em]">Core Node Online</span>
+                        </div>
+                        <button 
+                            onClick={handleLogout}
+                            className="size-11 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 rounded-2xl transition-all text-slate-400 group relative"
+                            title="Sign Out"
+                        >
+                            <LogOut className="size-5 group-hover:scale-110 transition-transform" />
+                            <span className="absolute -bottom-1 w-1 h-1 bg-rose-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <main className="mt-28 flex-1 p-12 max-w-7xl mx-auto w-full space-y-12">
+                {/* Header Section */}
+                <header className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1 w-8 bg-slate-900 rounded-full" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Current Vector</span>
+                    </div>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-none uppercase italic">
+                      {activeTab === 'overview' && "System Cluster State"}
+                      {activeTab === 'nodes' && "Node Registry"}
+                      {activeTab === 'security' && "Isolation Protocols"}
+                      {activeTab === 'audit' && "Omni Audit Trail"}
+                    </h2>
+                  </div>
+                  
+                  <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="group bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-[24px] flex items-center gap-3 transition-all shadow-2xl shadow-slate-200 hover:scale-[1.02] active:scale-95 border-b-4 border-slate-700 active:border-b-0 active:translate-y-[4px]"
+                  >
+                    <Plus className="size-5 group-hover:rotate-90 transition-transform" />
+                    <span className="text-xs font-black uppercase tracking-[0.2em]">Provision Entity</span>
+                  </button>
+                </header>
+
+                {/* Dashboard Views */}
+                <div className="space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+                  {activeTab === 'overview' && (
+                    <>
+                      <OverviewCards metrics={metrics} />
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                        <section className="space-y-8">
+                          <header className="flex items-center justify-between px-4">
+                            <div className="flex items-center gap-3">
+                              <ShieldCheck className="size-5 text-slate-900" />
+                              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Recent Node Activation</h3>
+                            </div>
+                            <button onClick={() => setActiveTab('nodes')} className="text-[9px] font-black uppercase tracking-widest text-blue-500 hover:underline">View All Registry</button>
+                          </header>
+                          <InstitutionTable institutions={institutions.slice(0, 3)} />
+                        </section>
+                        <section className="space-y-8">
+                          <header className="flex items-center gap-3 px-4">
+                            <Activity className="size-5 text-slate-900" />
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Global Pulse Stream</h3>
+                          </header>
+                          <ActivityLogs />
+                        </section>
+                      </div>
+                    </>
+                  )}
+
+                  {activeTab === 'nodes' && (
+                    <div className="animate-in fade-in duration-500">
+                      <InstitutionTable institutions={institutions} />
+                    </div>
+                  )}
+
+                  {activeTab === 'security' && (
+                    <div className="bg-white border border-slate-100 rounded-[48px] p-12 shadow-sm animate-in zoom-in-95 duration-500">
+                      <SecurityPanel />
+                    </div>
+                  )}
+
+                  {activeTab === 'audit' && (
+                    <div className="bg-white border border-slate-100 rounded-[48px] p-12 shadow-sm animate-in zoom-in-95 duration-500">
+                      <ActivityLogs />
+                    </div>
+                  )}
+                </div>
+            </main>
+
+            {/* Modals */}
+            <CreateInstitutionModal 
+              isOpen={isModalOpen} 
+              onClose={() => setIsModalOpen(false)} 
+              onCreated={() => window.location.reload()}
+            />
+
+            {/* Bottom Status Bar */}
+            <footer className="h-14 bg-slate-900 flex items-center justify-between px-12 fixed bottom-0 w-full z-50 border-t border-slate-800">
+              <div className="flex items-center gap-10">
+                <div className="flex items-center gap-3 group cursor-help">
+                  <Database className="size-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">PostgreSQL Status: <span className="text-emerald-400">Synchronized</span></span>
+                </div>
+                <div className="flex items-center gap-3 group cursor-help">
+                  <ShieldCheck className="size-3.5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Compliance Buffer: <span className="text-white font-black">100% SECURE</span></span>
+                </div>
+              </div>
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-3">
+                  <Zap className="size-3.5 text-amber-500 animate-pulse" />
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">System Uptime: 99.998%</span>
+                </div>
+                <div className="px-3 py-1 bg-slate-800 rounded-lg">
+                  <span className="text-[8px] font-black text-slate-500 tabular-nums">NODE_CLUSTER://0X4F9E...B21</span>
+                </div>
+              </div>
+            </footer>
         </div>
-      </main>
-    </div>
-  );
+    );
 }

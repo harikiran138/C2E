@@ -42,6 +42,7 @@ export default function Login() {
     () => searchParams.get("type") === "stakeholder",
     [searchParams],
   );
+  const redirectPath = searchParams.get("redirect");
 
   const [authMode, setAuthMode] = useState<AuthMode>(
     stakeholderRequested ? "stakeholder" : "institution",
@@ -66,7 +67,7 @@ export default function Login() {
   const [stakeholderId, setStakeholderId] = useState("");
   const [stakeholderPassword, setStakeholderPassword] = useState("");
 
-  const [programAdminId, setProgramAdminId] = useState("");
+  const [programEmail, setProgramEmail] = useState("");
   const [programPassword, setProgramPassword] = useState("");
 
   // Password Reset State
@@ -76,6 +77,11 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
+    // Point #3: Always clear existing sessions before entering login flow
+    localStorage.clear();
+    sessionStorage.clear();
+    document.cookie = 'c2e_auth_token=; Max-Age=0; path=/;';
+    
     localStorage.removeItem("isDemo");
     localStorage.removeItem("demoInstName");
   }, []);
@@ -187,6 +193,10 @@ export default function Login() {
         throw new Error(data.error || "Login failed");
       }
 
+      // Point #3: Clear old session data before setting new one
+      localStorage.clear();
+      sessionStorage.clear();
+
       localStorage.setItem(
         "inst_session",
         JSON.stringify({
@@ -199,7 +209,8 @@ export default function Login() {
       localStorage.removeItem("onboarding_data");
       localStorage.removeItem("onboarding_step");
       
-      window.location.href = data.role === "SUPER_ADMIN" ? "/dashboard" : "/institution/dashboard";
+
+      window.location.href = redirectPath || (data.role === "SUPER_ADMIN" ? "/dashboard" : "/institution/dashboard");
     } catch (err: any) {
       console.error("Institution Login Error:", err);
       setErrorMsg(
@@ -211,9 +222,15 @@ export default function Login() {
   };
 
   const handleProgramSignIn = async () => {
-    const trimmedId = programAdminId.trim();
-    if (!selectedInstituteId || !selectedProgramId || !trimmedId || !programPassword) {
-      setErrorMsg("Please select institute, program, and enter your ID and password.");
+    const trimmedEmail = programEmail.trim().toLowerCase();
+    if (!trimmedEmail || !programPassword) {
+      setErrorMsg("Please enter your program email and password.");
+      return;
+    }
+
+    // Basic email validation
+    if (!trimmedEmail.includes("@")) {
+      setErrorMsg("Enter a valid program email (e.g. mech@nsrit.c2x.ai)");
       return;
     }
 
@@ -221,15 +238,10 @@ export default function Login() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch("/api/auth/institute/login", {
+      const res = await fetch("/api/program/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          identifier: trimmedId, 
-          password: programPassword,
-          institution_id: selectedInstituteId,
-          program_id: selectedProgramId 
-        }),
+        body: JSON.stringify({ email: trimmedEmail, password: programPassword }),
       });
 
       const data = await res.json();
@@ -240,20 +252,22 @@ export default function Login() {
       localStorage.setItem(
         "inst_session",
         JSON.stringify({
-          id: data.id,
-          email: trimmedId,
-          role: data.role || "PROGRAM_ADMIN",
+          id: data.program?.id,
+          email: trimmedEmail,
+          role: "PROGRAM_ADMIN",
+          programCode: data.program?.code,
         }),
       );
 
       localStorage.removeItem("onboarding_data");
       localStorage.removeItem("onboarding_step");
-      
-      window.location.href = data.redirect || "/program/dashboard";
+
+
+      window.location.href = redirectPath || data.redirect || `/dashboard/${data.program?.id}`;
     } catch (err: any) {
       console.error("Program Login Error:", err);
       setErrorMsg(
-        err.message || "Authentication failed. Please check your connection.",
+        err.message || "Authentication failed. Please check your credentials.",
       );
     } finally {
       setLoading(false);
@@ -311,7 +325,7 @@ export default function Login() {
         }),
       );
 
-      window.location.href = "/stakeholder/dashboard";
+      window.location.href = redirectPath || "/stakeholder/dashboard";
     } catch (err: any) {
       console.error("Stakeholder Login Error:", err);
       setErrorMsg(err.message || "Stakeholder login failed.");
@@ -570,48 +584,24 @@ export default function Login() {
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             className="space-y-4"
           >
+            {/* Info box */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <p className="text-[11px] font-semibold text-primary/80">
+                Your program email is auto-generated by your institution admin.
+              </p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                Format: <code className="bg-muted/50 px-1 py-0.5 rounded text-[10px]">{`{program_code}@{institution}.c2x.ai`}</code>
+              </p>
+            </div>
+
             <div className="space-y-3">
-              <FieldLabel icon={Building2} text="Institute Name" />
-              <select
-                value={selectedInstituteId}
-                onChange={(event) => {
-                  setSelectedInstituteId(event.target.value);
-                  setSelectedProgramId("");
-                }}
-                className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-              >
-                <option value="">{loadingInstitutes ? "Loading institutes..." : "Select Institute"}</option>
-                {institutes.map((institute) => (
-                  <option key={institute.id} value={institute.id}>
-                    {institute.name}
-                  </option>
-                ))}
-              </select>
-
-              <FieldLabel icon={BookOpen} text="Program" />
-              <select
-                value={selectedProgramId}
-                onChange={(event) => setSelectedProgramId(event.target.value)}
-                disabled={!selectedInstituteId || loadingPrograms}
-                className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <option value="">
-                  {!selectedInstituteId ? "Select Institute first" : loadingPrograms ? "Loading programs..." : "Select Program"}
-                </option>
-                {programs.map((program) => (
-                  <option key={program.id} value={program.id}>
-                    {program.name} {program.code ? `(${program.code})` : ""}
-                  </option>
-                ))}
-              </select>
-
-              <FieldLabel icon={IdCard} text="Program ID / Email" />
+              <FieldLabel icon={Mail} text="Program Email" />
               <InputField
-                type="text"
-                value={programAdminId}
-                onChange={setProgramAdminId}
-                placeholder="e.g. MECH-2026 or admin@example.com"
-                leadingIcon={Users}
+                type="email"
+                value={programEmail}
+                onChange={setProgramEmail}
+                placeholder="e.g. mech@nsrit.c2x.ai"
+                leadingIcon={Mail}
               />
 
               <FieldLabel icon={ShieldCheck} text="Password" />

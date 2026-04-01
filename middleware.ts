@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { verifyToken } from './lib/auth';
+import { verifyToken, AUTH_COOKIE_NAME } from './lib/auth';
 import { checkRateLimit } from './lib/rate-limit';
 
 const PUBLIC_PATHS = [
@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   '/institution/login', // Public Branded Login
   '/api/auth/super/login',
   '/api/auth/institute/login',
+  '/api/auth/logout',
   '/api/auth/verify',
   '/api/stakeholder/login',
   '/api/stakeholder/first-password',
@@ -24,7 +25,7 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // 1. Skip static files
@@ -33,23 +34,22 @@ export async function proxy(request: NextRequest) {
   }
 
   // 2. Rate Limiting for Auth
-  // We only rate limit API requests, to prevent blocking Next.js page chunks during render.
   if (request.method === 'POST' && pathname.startsWith('/api/auth')) {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
-    if (!checkRateLimit({ ip, limit: 10, windowMs: 60000 })) {
+    if (!checkRateLimit({ ip, limit: 20, windowMs: 60000 })) {
       return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
     }
   }
 
-  // 3. Identification
-  const token = request.cookies.get('c2e_auth_token')?.value;
+  // 3. Identification (Unified v5.1)
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value || 
+                request.cookies.get('institution_token')?.value;
   
   // 4. Handle Public Paths & Already Logged In
   if (!token) {
     if (isPublicPath(pathname)) return NextResponse.next();
     
     // v5.1 RULE: Never reveal /login for Super Admin.
-    // Default unauthorized redirect is ALWAYS /institute/login
     const loginUrl = new URL('/institution/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
@@ -59,8 +59,14 @@ export async function proxy(request: NextRequest) {
   const payload = await verifyToken(token);
   if (!payload || !payload.id) {
     if (isPublicPath(pathname)) return NextResponse.next();
-    const res = NextResponse.redirect(new URL('/institution/login', request.url));
-    res.cookies.delete('c2e_auth_token');
+    
+    // EXPLICIT CLEARING: If token is present but invalid, clear it and redirect to login
+    const loginUrl = new URL('/institution/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    const res = NextResponse.redirect(loginUrl);
+    
+    res.cookies.set(AUTH_COOKIE_NAME, '', { maxAge: 0, path: '/' });
+    res.cookies.set('institution_token', '', { maxAge: 0, path: '/' });
     return res;
   }
 
@@ -69,35 +75,39 @@ export async function proxy(request: NextRequest) {
   const programId = payload.program_id as string;
 
   // 6. Support for Logged In users hitting public login pages
-  if (isPublicPath(pathname) && token) {
-    // If hitting /login or /institute/login, redirect to their dashboard
+  if (isPublicPath(pathname)) {
+    // If hitting login pages while already authorized, move to dashboard
     if (pathname === '/login' || pathname === '/institution/login') {
-        return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole] || '/institution/dashboard', request.url));
+        const dashboard = ROLE_DASHBOARDS[userRole] || '/institution/dashboard';
+        return NextResponse.redirect(new URL(dashboard, request.url));
     }
     return NextResponse.next();
   }
 
-  // 7. Hidden Route Protection
-  // Only Super Admin can hit /super-admin/*
-  if (pathname.startsWith('/super-admin') && userRole !== 'SUPER_ADMIN') {
-    return NextResponse.redirect(new URL('/institution/login', request.url));
+  // 7. Role-Based Path Isolation (The v5.1 "Zero-Trust" Wall)
+  
+  // Super Admin Zone
+  if (pathname.startsWith('/super-admin') || pathname.startsWith('/dashboard')) {
+      if (userRole !== 'SUPER_ADMIN') {
+          return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole] || '/institution/dashboard', request.url));
+      }
   }
 
-  // Only Super Admin can hit /login (once logged in, they move to their dashboard)
-  if (pathname === '/login' && userRole !== 'SUPER_ADMIN' && token) {
-      return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole] || '/institution/dashboard', request.url));
+  // Institution Zone
+  if (pathname.startsWith('/institution') && !pathname.startsWith('/institution/login')) {
+      if (userRole !== 'INSTITUTE_ADMIN' && userRole !== 'SUPER_ADMIN') {
+          return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole] || '/program/dashboard', request.url));
+      }
   }
 
-  // 8. Role-Based Path Isolation (The "Zero-Trust" Wall)
-  if (pathname.startsWith('/institution') && userRole !== 'INSTITUTE_ADMIN' && userRole !== 'SUPER_ADMIN') {
-    return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], request.url));
+  // Program Zone
+  if (pathname.startsWith('/program')) {
+      if (userRole !== 'PROGRAM_ADMIN' && userRole !== 'SUPER_ADMIN' && userRole !== 'INSTITUTE_ADMIN') {
+          return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole] || '/institution/dashboard', request.url));
+      }
   }
 
-  if (pathname.startsWith('/program') && userRole !== 'PROGRAM_ADMIN' && userRole !== 'SUPER_ADMIN' && userRole !== 'INSTITUTE_ADMIN') {
-    return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole], request.url));
-  }
-
-  // 9. Context Injection for Backend (Injecing x-headers)
+  // 8. Context Injection & Security Headers
   const requestHeaders = new Headers(request.headers);
   if (institutionId) requestHeaders.set('x-institution-id', institutionId);
   if (programId) requestHeaders.set('x-program-id', programId);
@@ -109,7 +119,6 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Attach Security Headers (Previously from attachSecurityHeaders)
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline';
@@ -135,3 +144,4 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
+

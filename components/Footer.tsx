@@ -38,7 +38,7 @@ export default function Footer() {
                 viewport={{ once: true }}
               >
                 <Link
-                  href={item === "Login" ? "/login" : `/#${item.toLowerCase()}`}
+                  href={item === "Login" ? "/institution/login" : `/#${item.toLowerCase()}`}
                   className="text-[11px] md:text-[12px] font-black tracking-[0.2em] text-gray-400 hover:text-primary-gold transition-all duration-300 relative group"
                 >
                   {item}

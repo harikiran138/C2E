@@ -1,6 +1,7 @@
 import * as jose from "jose";
 
 const alg = "HS256";
+export const AUTH_COOKIE_NAME = "c2e_auth_token";
 
 function getSecret() {
   const secret = process.env.JWT_SECRET;
@@ -75,19 +76,46 @@ export async function verifyTokenAndBlocklist(token: string) {
     const pool = (await import("./postgres")).default;
     const client = await pool.connect();
     try {
-      const result = await client.query(
+      // 1. Check Blocklist (Point #4)
+      const blockResult = await client.query(
         "SELECT 1 FROM jwt_blocklist WHERE token = $1 LIMIT 1",
         [token],
       );
-      if (result.rows.length > 0) {
-        return null; // Token is blocklisted
+      if (blockResult.rows.length > 0) {
+        return null; // Token is explicitly revoked
       }
+
+      // 2. Check User Existence (Point #1)
+      // Standardizing verification: If user is deleted from DB, session is invalid.
+      if (tokenPayload.id || (tokenPayload.role === 'stakeholder' && tokenPayload.stakeholder_ref_id)) {
+        if (tokenPayload.role === 'stakeholder') {
+            const stakeholderId = tokenPayload.stakeholder_ref_id || tokenPayload.id;
+            const stakeResult = await client.query(
+                "SELECT id FROM representative_stakeholders WHERE id = $1 AND is_approved = true LIMIT 1",
+                [stakeholderId]
+            );
+            if (stakeResult.rows.length === 0) {
+                console.warn(`Security Warning: Stakeholder ID ${stakeholderId} missing or revoked.`);
+                return null;
+            }
+        } else {
+            const userResult = await client.query(
+                "SELECT id FROM public.users WHERE id = $1 LIMIT 1",
+                [tokenPayload.id]
+            );
+            if (userResult.rows.length === 0) {
+                console.warn(`Security Warning: User ID ${tokenPayload.id} no longer exists.`);
+                return null;
+            }
+        }
+      }
+
     } finally {
       client.release();
     }
   } catch (err) {
-    console.error("Blocklist check failed:", err);
-    // Fail open if DB is down? or fail closed?
+    console.error("Auth security verification failed:", err);
+    // Optional: could fail closed check for maximum security
   }
 
   return tokenPayload;
@@ -117,4 +145,15 @@ export async function verifyRefreshToken(token: string) {
   } catch (error) {
     return null;
   }
+}
+
+/**
+ * v5.1 Unified Token Verification Utility
+ * Use this in API routes to get the current user session
+ */
+export async function getSession(request: any) {
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value || 
+                request.cookies.get("institution_token")?.value;
+  if (!token) return null;
+  return await verifyTokenAndBlocklist(token);
 }
