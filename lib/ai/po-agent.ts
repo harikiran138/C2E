@@ -18,6 +18,8 @@ export interface POAgentParams {
   count:            number;
   priorities?:      string[];
   institutionName?: string;
+  mission?:         string;
+  peos?:            string[];
   geminiApiKey?:    string;
 }
 
@@ -110,6 +112,8 @@ async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<s
     count: params.count,
     priorities: params.priorities,
     institutionName: params.institutionName,
+    mission: params.mission,
+    peos: params.peos,
     attempt,
   });
 
@@ -140,6 +144,8 @@ export async function poAgent(params: POAgentParams): Promise<POAgentResult> {
     count,
     priorities,
     institutionName: params.institutionName,
+    mission: params.mission,
+    peos: params.peos,
     attempt: 0,
   });
 

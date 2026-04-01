@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { psoAgent } from "@/lib/ai/pso-agent";
 import pool from "@/lib/postgres";
+import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
 
 
 export async function POST(request: Request) {
@@ -27,6 +28,23 @@ export async function POST(request: Request) {
         { error: "Invalid number of PSOs (1-10)." },
         { status: 400 },
       );
+    }
+
+    let vision = "";
+    let mission = "";
+    let peos: string[] = [];
+
+    if (program_id) {
+      try {
+        const { context } = await resolveProgramAcademicContext(program_id);
+        if (context) {
+          vision = context.vision;
+          mission = context.mission;
+          peos = context.peos;
+        }
+      } catch (contextError) {
+        console.warn("Failed to resolve program context for PSO generation:", contextError);
+      }
     }
 
     let result: any = null;
@@ -72,6 +90,9 @@ export async function POST(request: Request) {
         count,
         selectedSocieties: selected_societies,
         mode,
+        vision,
+        mission,
+        peos,
       });
     }
 

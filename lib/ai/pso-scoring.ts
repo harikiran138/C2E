@@ -37,10 +37,14 @@ export interface PSOValidationResult {
   }[];
 }
 
-const STRONG_VERBS = ["analyze", "design", "implement", "evaluate", "develop", "apply", "optimize", "integrate", "formulate", "conduct", "model"];
-const WEAK_VERBS = ["understand", "know", "learn", "aware", "familiar", "enhance", "improve", "support", "facilitate"];
-const HIDDEN_MULTI_ACTION_PATTERNS = ["by applying", "and ensuring", "to improve"];
-const CONTEXT_KEYWORDS = ["safety", "cost", "sustainable", "efficiency", "standards", "constraints", "ethics", "environmental", "security", "reliable", "economics", "compliance"];
+const STRONG_VERBS = [
+  "analyze", "design", "evaluate", "develop", "construct", "formulate", "synthesize", "architect", "engineer", "propose", "generate",
+  "differentiate", "examine", "deconstruct", "compare", "investigate", "diagnose", "categorize",
+  "assess", "critique", "justify", "optimize", "validate", "benchmark", "prioritize", "appraise"
+];
+const WEAK_VERBS = ["understand", "know", "learn", "aware", "familiar", "enhance", "improve", "support", "facilitate", "utilize", "apply", "use", "demonstrate", "familiarize", "appreciate", "perform", "implement"];
+const HIDDEN_MULTI_ACTION_PATTERNS = ["by applying", "and ensuring", "to improve", "while adhering to"];
+const CONTEXT_KEYWORDS = ["safety", "cost", "sustainable", "efficiency", "standards", "constraints", "ethics", "environmental", "security", "reliable", "economics", "compliance", "regulatory", "technical", "lifecycle"];
 
 const PO_LIKE_GENERIC_PHRASES = [
   "engineering principles", "understand engineering", "ethical implications", 
@@ -81,19 +85,28 @@ export function scorePSO(pso: PSO, programName: string): PSOScore {
   }
 
   // 1. Action Verb (20 pts)
-  const firstWord = words[0]?.replace(/[^a-z]/g, "");
-  if (STRONG_VERBS.some((v: string) => firstWord?.startsWith(v))) {
+  // Handle "Graduates will be able to" prefix
+  let verbIndex = 0;
+  if (text.startsWith("graduates will be able to")) {
+    verbIndex = 5; // Skip the first 5 words
+  }
+  
+  const targetVerb = words[verbIndex]?.replace(/[^a-z]/g, "");
+  
+  if (STRONG_VERBS.some((v: string) => targetVerb === v || targetVerb?.startsWith(v))) {
     breakdown.actionVerb = 20;
-  } else if (WEAK_VERBS.some((v: string) => firstWord?.startsWith(v))) {
+  } else if (WEAK_VERBS.some((v: string) => targetVerb === v || targetVerb?.startsWith(v))) {
     breakdown.actionVerb = 0;
-    issues.push(`Weak action verb "${firstWord}" used. Use measurable Bloom's taxonomy verbs.`);
+    issues.push(`Weak action verb "${targetVerb}" used. Use measurable Bloom's taxonomy verbs (L4-L6).`);
   } else {
     breakdown.actionVerb = 10;
-    issues.push(`Action verb "${firstWord}" is acceptable but could be stronger.`);
+    issues.push(`Action verb "${targetVerb}" is acceptable but could be stronger.`);
   }
 
   // 1a. Single Action Verb Rule (Cleanup Rule 2)
-  const actionVerbsFound = words.filter(w => [...STRONG_VERBS, ...WEAK_VERBS].some((v: string) => w.startsWith(v)));
+  // Only look for verbs AFTER the prefix
+  const wordsToCheck = words.slice(verbIndex + 1);
+  const actionVerbsFound = wordsToCheck.filter(w => [...STRONG_VERBS, ...WEAK_VERBS].some((v: string) => w.startsWith(v)));
   if (actionVerbsFound.length > 1) {
     breakdown.actionVerb -= 10;
     issues.push(`Multiple action verbs detected (${actionVerbsFound.join(", ")}). Each PSO MUST target EXACTLY ONE primary measurable competency.`);
@@ -208,7 +221,12 @@ export function validatePSOs(psos: PSO[], programName: string, expectedCount: nu
     }
   }
 
-  const countMismatch = psos.length !== expectedCount;
+  // v4: Count flexibility for hybrid programs
+  const isHybrid = psos.length >= 4; // Programs requiring multiple focus areas
+  const countMismatch = isHybrid 
+    ? (psos.length < expectedCount) 
+    : (psos.length !== expectedCount);
+  
   const totalScore = Math.max(0, avgScore - overlapPenalty);
 
   const psoAnalyses = results.map((pr, i) => ({
@@ -229,7 +247,7 @@ export function validatePSOs(psos: PSO[], programName: string, expectedCount: nu
   if (countMismatch) detailedDrawbacks.push(`Count Mismatch: Expected ${expectedCount} PSOs but found ${psos.length}.`);
 
   return {
-    passed: totalScore >= 80 && !countMismatch && globalIssues.length === 0,
+    passed: totalScore >= 75 && !countMismatch && globalIssues.length === 0,
     score: totalScore,
     globalIssues,
     detailedDrawbacks,

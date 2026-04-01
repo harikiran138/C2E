@@ -4,17 +4,27 @@ import {
   buildPSOEnforcementPrompt, 
   buildRetryPrompt, 
   buildPSOEvaluatorPrompt,
+  buildCoverageAnalysisPrompt,
   PSOGenerationMode 
 } from "./pso-prompt-builder";
 import { 
   needsLLMClassification, 
   buildDomainClassificationPrompt 
 } from "./domain-inference";
-import { validatePSOs, PSOValidationResult, PSO } from "./pso-scoring";
+import { validatePSOs, PSOValidationResult } from "./pso-scoring";
 import { resolveProgramCriteria } from "../curriculum/program-mapping";
-import { callAI } from "@/lib/curriculum/ai-model-router";
+import { callAI } from "../curriculum/ai-model-router";
 
 // --- TYPES ---
+
+export interface PSO {
+  statement: string;
+  abetMappings: string[];
+  focusArea?: string;
+  bloomLevel?: string;
+  wkAttribute?: string;
+  abetOutcome?: string;
+}
 
 export interface SelectedSocietiesInput {
   lead: string[];
@@ -25,10 +35,16 @@ export interface SelectedSocietiesInput {
 export interface PSOAgentParams {
   programName: string;
   count?: number;
+  vision?: string;
+  mission?: string;
+  peos?: string[];
   initialPSOs?: string[]; // Pre-seed PSOs for refinement testing
   selectedSocieties?: SelectedSocietiesInput;
   focusAreas?: string[];
   mode?: PSOGenerationMode;
+  // NEW v4: Domain hints
+  expectedDomains?: string[];
+  emergingAreas?: string[];
 }
 
 export interface PSOAgentResult {
@@ -40,6 +56,7 @@ export interface PSOAgentResult {
     mode: PSOGenerationMode;
     compliance: string;
     score: number;
+    coverage?: any;
   };
   error?: string;
 }
@@ -49,7 +66,12 @@ const MAX_ATTEMPTS = 4;
 // --- SCHEMAS ---
 
 const PSOObjectSchema = z.object({
+  PSO_number: z.string().optional(),
   statement: z.string(),
+  focus_area: z.string().optional(),
+  bloom_level: z.string().optional(),
+  wk_attribute: z.string().optional(),
+  abet_outcome: z.string().optional(),
   abet_mappings: z.array(z.string()).optional()
 });
 
@@ -59,6 +81,17 @@ const PSOResponseSchema = z.object({
   "refined_psos": z.array(z.union([z.string(), PSOObjectSchema])).optional(),
   "PSOs": z.array(z.union([z.string(), PSOObjectSchema])).optional(),
   "psos": z.array(z.any()).optional(),
+  "coverage_analysis": z.object({
+    covered_domains: z.array(z.string()).optional(),
+    missing_domains: z.array(z.string()).optional(),
+    over_represented: z.array(z.string()).optional(),
+    generic_psos: z.array(z.string()).optional(),
+    emerging_covered: z.boolean().optional(),
+    holistic_score: z.number().optional(),
+    nba_sar_2025_compliant: z.boolean().optional(),
+    remarks: z.string().optional()
+  }).optional(),
+  "gap_instructions": z.array(z.string()).optional(),
   "fix_summary": z.object({
     issues_detected: z.array(z.string()).optional(),
     changes_made: z.array(z.string()).optional(),
@@ -92,7 +125,7 @@ function normalizeAIResponseToPSO(parsed: any): PSO[] {
     }
     return {
       statement: item.statement || item.PSO_statement || String(item),
-      abetMappings: item.abet_mappings || item.abetMappings || []
+      abetMappings: item.abet_mappings || (item.abet_outcome ? [item.abet_outcome] : [])
     };
   }).filter((p: PSO) => p.statement.length > 10);
 }
@@ -114,7 +147,19 @@ function cleanPSOs(psos: PSO[]): PSO[] {
  * Orchestrates the generation, scoring, and refinement of PSOs.
  */
 export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> {
-  let { programName, count = 3, initialPSOs, selectedSocieties, focusAreas = [], mode = "standard" } = params;
+  let { 
+    programName, 
+    count = 3, 
+    vision,
+    mission,
+    peos,
+    initialPSOs, 
+    selectedSocieties, 
+    focusAreas = [], 
+    mode = "standard",
+    expectedDomains,
+    emergingAreas
+  } = params;
 
   // 1. Domain Inference & LLM Fallback
   if (needsLLMClassification(programName)) {
@@ -141,20 +186,46 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
     results: [],
     validation: null,
     attempts: 0,
-    meta: { mode, compliance: "NBA Tier-I + ABET EAC", score: 0 }
+    meta: { mode, compliance: "NBA Tier-I + SAR 2025", score: 0 }
   };
 
   let currentPSOs: PSO[] = [];
+  let coverageGaps: string[] = [];
 
-  // 1. Initial Seeding
+  // 0. STAGE 0: Coverage Analysis (New v4)
+  // Run if initial PSOs are provided to identify what's missing
   if (initialPSOs && initialPSOs.length > 0) {
-    currentPSOs = initialPSOs.map(s => ({
-      statement: s,
-      abetMappings: [],
-    }));
-    bestResult.results = currentPSOs;
-    bestResult.validation = validatePSOs(currentPSOs, programName, currentPSOs.length);
-    if (bestResult.meta) bestResult.meta.score = Math.round(bestResult.validation.score);
+    console.log(`[PSO Agent] Stage 0: Running Coverage Analysis on existing PSOs...`);
+    const coveragePrompt = buildCoverageAnalysisPrompt({
+      programName,
+      vision,
+      mission,
+      peos,
+      existingPSOs: initialPSOs,
+      expectedDomains,
+      emergingAreas
+    });
+
+    try {
+      const coverageRaw = await callAI(coveragePrompt, "pso");
+      const cleanJson = coverageRaw.replace(/```json/g, "").replace(/```/g, "").trim();
+      const coverageParsed = JSON.parse(cleanJson);
+      
+      if (coverageParsed?.gap_instructions) {
+        coverageGaps = coverageParsed.gap_instructions;
+        console.log(`[PSO Agent] Coverage Gaps detected:`, coverageGaps.join(" | "));
+      }
+      
+      currentPSOs = initialPSOs.map(s => ({ statement: s, abetMappings: [] }));
+      bestResult.results = currentPSOs;
+      bestResult.validation = validatePSOs(currentPSOs, programName, count);
+      if (bestResult.meta) {
+        bestResult.meta.score = Math.round(bestResult.validation.score);
+        bestResult.meta.coverage = coverageParsed.coverage_analysis;
+      }
+    } catch (e) {
+      console.warn("[PSO Agent] Coverage Analysis failed. Proceeding to refinement.");
+    }
   }
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -170,15 +241,23 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
       prompt = buildPSOGenerationPrompt({
         programName,
         count,
+        vision,
+        mission,
+        peos,
         programCriteria: programCriteria || undefined,
         selectedSocieties,
         focusAreas,
         mode,
+        expectedDomains,
+        emergingAreas
       });
     } else {
       currentPSOs = cleanPSOs(currentPSOs);
       prompt = buildPSOEvaluatorPrompt({
         programName,
+        vision,
+        mission,
+        peos,
         existingPSOs: currentPSOs,
         feedback: bestResult.validation || {
           passed: false,
@@ -186,7 +265,9 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
           psoAnalyses: [],
           globalIssues: ["Previous validation missing"],
           detailedDrawbacks: ["System error: lost context"]
-        }
+        },
+        expectedDomains,
+        emergingAreas
       });
     }
 
@@ -215,8 +296,14 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
         const enforcementPrompt = buildPSOEnforcementPrompt({
           programName,
           rawPSOs: psoObjects.map(p => p.statement),
+          vision,
+          mission,
+          peos,
           mode,
-          selectedSocieties
+          selectedSocieties,
+          expectedDomains,
+          emergingAreas,
+          coverageGaps
         });
 
         const enforcementRaw = await callAI(enforcementPrompt, "pso");
@@ -226,6 +313,10 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
         psoObjects = normalizeAIResponseToPSO(enforcementParsed);
         if (enforcementParsed?.fix_summary) {
           console.log(`[PSO Agent] Enforcement Fix Summary:`, JSON.stringify(enforcementParsed.fix_summary, null, 2));
+        }
+        if (enforcementParsed?.coverage_analysis) {
+          console.log(`[PSO Agent] Final Coverage Analysis:`, JSON.stringify(enforcementParsed.coverage_analysis, null, 2));
+          if (bestResult.meta) bestResult.meta.coverage = enforcementParsed.coverage_analysis;
         }
       }
 
@@ -240,22 +331,29 @@ export async function psoAgent(params: PSOAgentParams): Promise<PSOAgentResult> 
       bestResult.results = newPSOs;
       bestResult.validation = validation;
       bestResult.meta = { 
+        ...bestResult.meta,
         mode, 
-        compliance: validation.passed ? "High" : "Needs Review",
+        compliance: validation.passed ? "High (NBA SAR 2025)" : "Needs Review",
         score: validation.score 
       };
 
-      if (validation.passed) {
+      // v4: Agent orchestration completion logic
+      // Prioritize the Stage 2 AI auditor's "Accreditation Ready" status over rule-based heuristics.
+      const isAcceptableCount = Math.abs(newPSOs.length - count) <= 4; 
+      const isHighQuality = validation.score >= 65; 
+      const isAccreditationReady = rawText.includes("Accreditation Ready");
+
+      if (validation.passed || (isHighQuality && isAcceptableCount) || (isAccreditationReady && isHighQuality)) {
+        console.log(`[PSO Agent] Quality Target Met (Score: ${validation.score}, Count: ${newPSOs.length}/${count}). Completing orchestration.`);
         bestResult.success = true;
         break;
       }
 
-      console.log(`[PSO Agent] Score ${validation.score} below target 80. Retrying...`);
+      console.log(`[PSO Agent] Validation Failed (Score: ${validation.score}, Passed: ${validation.passed}). Retrying (Attempt ${attempt}/${MAX_ATTEMPTS})...`);
       
     } catch (error: any) {
       console.error(`[PSO Agent] Attempt ${attempt} critical failure:`, error.message);
       bestResult.error = error.message;
-      // We continue the loop to retry, potentially falling back to Generation prompt
     }
   }
 

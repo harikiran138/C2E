@@ -21,6 +21,8 @@ export interface ProgramAcademicContext {
   peoCount: number | null;
   poCount: number | null;
   psoCount: number | null;
+  peos: string[];
+  pos: string[];
   hasPeoPoMatrix: boolean;
   hasConsistencyMatrix: boolean;
 }
@@ -96,6 +98,38 @@ async function tryReadActiveMission(client: PoolClient, programId: string): Prom
     if (String(error?.code) === "42P01") {
       return null;
     }
+    throw error;
+  }
+}
+
+async function tryReadPeos(client: PoolClient, programId: string): Promise<string[]> {
+  try {
+    const result = await client.query<{ peo_text: string }>(
+      `SELECT peo_text
+       FROM program_peos
+       WHERE program_id = $1
+       ORDER BY peo_number ASC`,
+      [programId],
+    );
+    return result.rows.map(r => normalizeText(r.peo_text)).filter(Boolean);
+  } catch (error: any) {
+    if (String(error?.code) === "42P01") return [];
+    throw error;
+  }
+}
+
+async function tryReadPos(client: PoolClient, programId: string): Promise<string[]> {
+  try {
+    const result = await client.query<{ outcome_text: string }>(
+      `SELECT outcome_text
+       FROM program_outcomes
+       WHERE program_id = $1
+       ORDER BY outcome_number ASC`,
+      [programId],
+    );
+    return result.rows.map(r => normalizeText(r.outcome_text)).filter(Boolean);
+  } catch (error: any) {
+    if (String(error?.code) === "42P01") return [];
     throw error;
   }
 }
@@ -189,8 +223,10 @@ export async function resolveProgramAcademicContext(
 
     const selectedVision = await tryReadActiveVision(client, normalizedProgramId);
     const activeMission = await tryReadActiveMission(client, normalizedProgramId);
-    const peoCount = await tryCountRows(client, "program_peos", normalizedProgramId);
-    const poCount = await tryCountRows(client, "program_outcomes", normalizedProgramId);
+    const peos = await tryReadPeos(client, normalizedProgramId);
+    const pos = await tryReadPos(client, normalizedProgramId);
+    const peoCount = peos.length || (await tryCountRows(client, "program_peos", normalizedProgramId));
+    const poCount = pos.length || (await tryCountRows(client, "program_outcomes", normalizedProgramId));
     const psoCount = await tryCountRows(client, "program_psos", normalizedProgramId);
 
     if (peoCount === null) {
@@ -226,6 +262,8 @@ export async function resolveProgramAcademicContext(
       peoCount,
       poCount,
       psoCount,
+      peos,
+      pos,
       hasPeoPoMatrix: !!program.peo_po_matrix,
       hasConsistencyMatrix: !!program.consistency_matrix,
     };

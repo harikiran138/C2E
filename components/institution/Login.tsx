@@ -47,7 +47,10 @@ export default function Login() {
     stakeholderRequested ? "stakeholder" : "institution",
   );
   const [isSignUp, setIsSignUp] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showInstPassword, setShowInstPassword] = useState(false);
+  const [showStakePassword, setShowStakePassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -329,7 +332,7 @@ export default function Login() {
               duration: 0.4,
               layout: { type: "spring", stiffness: 200, damping: 25 },
             }}
-            layout="size"
+            layout="position"
             className="relative w-full max-w-[520px] overflow-hidden rounded-3xl border border-border/40 bg-card/40 p-8 shadow-2xl backdrop-blur-3xl lg:p-12"
           >
             <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
@@ -386,12 +389,9 @@ export default function Login() {
                     Stakeholder
                   </button>
                   <motion.div
-                    layoutId="portalTab"
-                    className="absolute inset-y-1 w-[calc(50%-4px)] rounded-lg bg-primary shadow-lg"
+                    className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-primary shadow-lg"
                     initial={false}
-                    animate={{
-                      x: authMode === "stakeholder" ? "calc(100% + 4px)" : "0%",
-                    }}
+                    animate={{ x: authMode === "stakeholder" ? "100%" : "0%" }}
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
                   />
                 </div>
@@ -419,10 +419,9 @@ export default function Login() {
                       Sign Up
                     </button>
                     <motion.div
-                      layoutId="institutionTab"
-                      className="absolute inset-y-1 w-[calc(50%-4px)] rounded-lg bg-primary shadow-lg"
+                      className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-primary shadow-lg"
                       initial={false}
-                      animate={{ x: isSignUp ? "calc(100% + 4px)" : "0%" }}
+                      animate={{ x: isSignUp ? "100%" : "0%" }}
                       transition={{
                         type: "spring",
                         stiffness: 300,
@@ -437,7 +436,6 @@ export default function Login() {
                 {authMode === "institution" && isSignUp ? (
                   <motion.div
                     key="institution-signup"
-                    layout
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -15 }}
@@ -448,7 +446,6 @@ export default function Login() {
                 ) : authMode === "institution" ? (
                   <motion.div
                     key="institution-signin"
-                    layout
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -15 }}
@@ -469,8 +466,8 @@ export default function Login() {
                       <PasswordField
                         value={password}
                         onChange={setPassword}
-                        showPassword={showPassword}
-                        setShowPassword={setShowPassword}
+                        showPassword={showInstPassword}
+                        setShowPassword={setShowInstPassword}
                       />
                     </div>
 
@@ -494,7 +491,6 @@ export default function Login() {
                 ) : isResetMode ? (
                   <motion.div
                     key="stakeholder-reset"
-                    layout
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -15 }}
@@ -516,8 +512,8 @@ export default function Login() {
                       <PasswordField
                         value={newPassword}
                         onChange={setNewPassword}
-                        showPassword={showPassword}
-                        setShowPassword={setShowPassword}
+                        showPassword={showNewPassword}
+                        setShowPassword={setShowNewPassword}
                       />
 
                       <FieldLabel
@@ -527,8 +523,8 @@ export default function Login() {
                       <PasswordField
                         value={confirmPassword}
                         onChange={setConfirmPassword}
-                        showPassword={showPassword}
-                        setShowPassword={setShowPassword}
+                        showPassword={showConfirmPassword}
+                        setShowPassword={setShowConfirmPassword}
                       />
                     </div>
 
@@ -567,7 +563,6 @@ export default function Login() {
                 ) : (
                   <motion.div
                     key="stakeholder-signin"
-                    layout
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -15 }}
@@ -633,8 +628,8 @@ export default function Login() {
                       <PasswordField
                         value={stakeholderPassword}
                         onChange={setStakeholderPassword}
-                        showPassword={showPassword}
-                        setShowPassword={setShowPassword}
+                        showPassword={showStakePassword}
+                        setShowPassword={setShowStakePassword}
                       />
                     </div>
 

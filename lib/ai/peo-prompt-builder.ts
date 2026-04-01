@@ -10,6 +10,8 @@ export interface PEOPromptParams {
   priorities:       string[];
   count:            number;
   institutionName?: string;
+  vision?:          string;
+  mission?:         string;
   attempt?:         number;
 }
 
@@ -17,7 +19,7 @@ export interface PEOPromptParams {
  * Build a structured Gemini prompt for PEO generation.
  */
 export function buildPEOAgentPrompt(params: PEOPromptParams): string {
-  const { programName, priorities, count, institutionName, attempt = 0 } = params;
+  const { programName, priorities, count, institutionName, vision, mission, attempt = 0 } = params;
 
   // Selective benchmarks based on priorities
   const benchmarks: string[] = [];
@@ -38,14 +40,19 @@ export function buildPEOAgentPrompt(params: PEOPromptParams): string {
 You are a Senior Academic Auditor and NBA/ABET Accreditation Specialist.
 Task: Generate exactly ${count} Program Educational Objective(s) (PEOs) for the ${programName} program${institutionName ? ` at ${institutionName}` : ""}.
 
+ACADEMIC CONTEXT (MANDATORY ALIGNMENT):
+- Program Vision: ${vision || "Standard professional excellence"}
+- Program Mission: ${mission || "Standard academic and professional development"}
+
 PEO DEFINITION:
-PEOs are broad statements that describe what graduates are expected to attain within 3 to 5 years of graduation. They are based on the needs of the program's constituencies.
+PEOs are broad statements that describe what graduates are expected to attain within 3 to 5 years of graduation.
 
 CORE PRINCIPLES (NBA/ABET CRITERION 2):
-1. 100% AI-GENERATED: Use deep domain reasoning for ${programName}. Do not use generic templates.
-2. CAREER-LONG ACHIEVEMENTS: Focus on professional accomplishments 3-5 years POST-GRADUATION.
-3. SEMANTIC DIVERSITY: Ensure PEOs cover distinct dimensions: Technical Competence, Leadership, Ethics, and Lifelong Growth.
-4. ACTION ORIENTATION: Each PEO must focus on achievement, not state of being.
+1. MISSION ALIGNMENT: PEOs MUST directly support the program Mission. Each PEO should be a mechanism to achieve specific components of the Mission.
+2. 100% AI-GENERATED: Use deep domain reasoning for ${programName}. Do not use generic templates.
+3. CAREER-LONG ACHIEVEMENTS: Focus on professional accomplishments 3-5 years POST-GRADUATION.
+4. SEMANTIC DIVERSITY: Ensure PEOs cover distinct dimensions: Technical Competence, Leadership, Ethics, and Lifelong Growth.
+5. ACTION ORIENTATION: Each PEO must focus on achievement, not state of being.
 
 STRICT ACCREDITATION RULES:
 - Every PEO statement MUST start exactly with: "${PEO_REQUIRED_PREFIX} ..."

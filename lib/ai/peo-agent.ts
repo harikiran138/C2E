@@ -18,6 +18,8 @@ export interface PEOAgentParams {
   priorities?:      string[];
   count:            number;
   institutionName?: string;
+  vision?:          string;
+  mission?:         string;
   geminiApiKey?:    string;
 }
 

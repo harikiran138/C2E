@@ -798,6 +798,7 @@ class StrategicGuard:
         return self.classifier.score_pso(statement)
 
 
+classifier = StrategicClassifier()
 guard = StrategicGuard()
 
 

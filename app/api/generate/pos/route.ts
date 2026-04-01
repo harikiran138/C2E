@@ -1,18 +1,34 @@
 import { NextResponse } from "next/server";
 import { poAgent }     from "@/lib/ai/po-agent";
+import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { programName, count = 3, priorities, institutionName } = body;
+    const { programName, count = 3, priorities, institutionName, programId } = body;
 
     if (!programName) {
       return NextResponse.json(
         { error: "programName is required" },
         { status: 400 },
       );
+    }
+
+    let mission = "";
+    let peos: string[] = [];
+
+    if (programId) {
+      try {
+        const { context } = await resolveProgramAcademicContext(programId);
+        if (context) {
+          mission = context.mission;
+          peos = context.peos;
+        }
+      } catch (contextError) {
+        console.warn("Failed to resolve program context for PO generation:", contextError);
+      }
     }
 
     // Primary: Python Backend
@@ -55,6 +71,8 @@ export async function POST(request: Request) {
       count: Math.min(count, 12),
       priorities,
       institutionName,
+      mission,
+      peos,
       geminiApiKey: GEMINI_API_KEY,
     });
 

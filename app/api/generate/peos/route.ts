@@ -1,12 +1,28 @@
 import { NextResponse } from "next/server";
-import { peoAgent }    from "@/lib/ai/peo-agent";
+import { peoAgent } from "@/lib/ai/peo-agent";
+import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { programName, count = 3, priorities, institutionName } = body;
+    const { programName, count = 3, priorities, institutionName, programId } = body;
+
+    let vision = "";
+    let mission = "";
+
+    if (programId) {
+      try {
+        const { context } = await resolveProgramAcademicContext(programId);
+        if (context) {
+          vision = context.vision;
+          mission = context.mission;
+        }
+      } catch (contextError) {
+        console.warn("Failed to resolve program context for PEO generation:", contextError);
+      }
+    }
 
     // Primary: Python Backend (Robust LLM Loop + Scoring)
     try {
@@ -63,6 +79,8 @@ export async function POST(request: Request) {
         priorities,
         count,
         institutionName,
+        vision,
+        mission,
         geminiApiKey: GEMINI_API_KEY,
       });
       return NextResponse.json({ results: result.peos, quality: result.ranked });
