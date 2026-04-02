@@ -21,7 +21,7 @@ import {
 import * as Icons from "lucide-react";
 import { useInstitution } from "@/context/InstitutionContext";
 import { DEGREES, LEVELS } from "@/lib/validation/onboarding";
-import { buildProgramLoginEmail } from "@/lib/program-login";
+
 
 const cn = (...classes: (string | boolean | undefined)[]) =>
   classes.filter(Boolean).join(" ");
@@ -222,6 +222,7 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
   const [isSetPasswordModalOpen, setIsSetPasswordModalOpen] = useState(false);
   const [selectedProgramForAuth, setSelectedProgramForAuth] = useState<any>(null);
   const [newProgramPassword, setNewProgramPassword] = useState("");
+  const [programEmail, setProgramEmail] = useState("");
 
   const [filter, setFilter] = useState<string>("all");
   const stats = calculateStats(DEMO_COMPLIANCE_DATA);
@@ -333,14 +334,16 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
         body: JSON.stringify({
           program_id: selectedProgramForAuth.id,
           new_password: newProgramPassword,
+          email: programEmail,
         }),
       });
 
       if (response.ok) {
         setIsSetPasswordModalOpen(false);
         setNewProgramPassword("");
+        setProgramEmail("");
         setSelectedProgramForAuth(null);
-        alert("Password updated successfully");
+        alert("Credentials updated successfully");
       } else {
         const err = await response.json();
         alert(err.error || "Failed to update password");
@@ -495,16 +498,12 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                       </p>
                       {institution?.shortform && (
                         <>
-                          <div className="h-1 w-1 bg-slate-200 rounded-full" />
-                          <span className="text-[10px] font-black text-emerald-600 lowercase tracking-tight">
-                            {buildProgramLoginEmail(
-                              prog.program_code,
-                              institution.shortform,
-                              institution.institution_name,
-                            )}
-                          </span>
-                        </>
-                      )}
+                      <div className="h-1 w-1 bg-slate-200 rounded-full" />
+                      <span className="text-[10px] font-black text-emerald-600 lowercase tracking-tight">
+                        {prog.email}
+                      </span>
+                    </>
+                  )}
                     </div>
                   </div>
                 </div>
@@ -522,9 +521,10 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                     <button
                       onClick={() => {
                         setSelectedProgramForAuth(prog);
+                        setProgramEmail(prog.email || "");
                         setIsSetPasswordModalOpen(true);
                       }}
-                      title="Set/Change Password"
+                      title="Update Credentials"
                       className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-100 transition-all"
                     >
                       <Lock className="w-4 h-4" />
@@ -710,15 +710,21 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                 </button>
               </div>
 
-              <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-6">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Generated Login Email</p>
-                <code className="text-sm font-black text-blue-600">
-                  {buildProgramLoginEmail(
-                    selectedProgramForAuth.program_code,
-                    institution?.shortform,
-                    institution?.institution_name,
-                  )}
-                </code>
+              <div className="space-y-4 mb-6">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Program Login Email
+                  </label>
+                  <input
+                    required
+                    type="email"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-semibold"
+                    placeholder="program@institution.c2x.ai"
+                    value={programEmail}
+                    onChange={(e) => setProgramEmail(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-400 italic">This is the email the program will use to log in.</p>
+                </div>
               </div>
 
               <form onSubmit={handleSetPassword} className="space-y-4">

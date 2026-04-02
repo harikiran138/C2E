@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest) {
     const institutionId = auth.institutionId;
 
     const body = await request.json();
-    const { program_id, new_password, old_password } = body;
+    const { program_id, new_password, old_password, email } = body;
 
     if (!program_id || !new_password) {
       return NextResponse.json(
@@ -61,6 +61,20 @@ export async function PUT(request: NextRequest) {
         );
       }
 
+      // Check for duplicate email if updating
+      if (email && email.toLowerCase() !== program.email.toLowerCase()) {
+        const duplicateCheck = await client.query(
+          "SELECT id FROM programs WHERE institution_id = $1 AND LOWER(email) = LOWER($2) AND id <> $3 LIMIT 1",
+          [institutionId, email.trim(), program_id],
+        );
+        if (duplicateCheck.rows.length > 0) {
+          return NextResponse.json(
+            { error: "This email is already in use by another program." },
+            { status: 409 },
+          );
+        }
+      }
+
       // If password is already set and old_password provided, verify it
       if (program.is_password_set && program.password_hash && old_password) {
         const match = await bcrypt.compare(old_password, program.password_hash);
@@ -74,12 +88,16 @@ export async function PUT(request: NextRequest) {
 
       // Hash and save new password
       const newHash = await bcrypt.hash(new_password, 10);
+      const finalEmail = email ? email.trim() : program.email;
 
       await client.query(
         `UPDATE programs 
-         SET password_hash = $1, is_password_set = true, updated_at = NOW() 
-         WHERE id = $2 AND institution_id = $3`,
-        [newHash, program_id, institutionId],
+         SET password_hash = $1, 
+             email = $2,
+             is_password_set = true, 
+             updated_at = NOW() 
+         WHERE id = $3 AND institution_id = $4`,
+        [newHash, finalEmail, program_id, institutionId],
       );
 
       // Audit log
@@ -88,15 +106,19 @@ export async function PUT(request: NextRequest) {
         programId: program_id,
         action: program.is_password_set ? "PROGRAM_PASSWORD_CHANGED" : "PROGRAM_PASSWORD_SET",
         ipAddress: ip,
-        details: { programCode: program.program_code, email: program.email },
+        details: { 
+          programCode: program.program_code, 
+          email: finalEmail,
+          emailChanged: finalEmail !== program.email
+        },
       });
 
       return NextResponse.json({
         ok: true,
         message: program.is_password_set
-          ? "Password updated successfully."
-          : "Password set successfully. Program can now log in.",
-        email: program.email,
+          ? "Credentials updated successfully."
+          : "Credentials set successfully. Program can now log in.",
+        email: finalEmail,
       });
     } finally {
       client.release();

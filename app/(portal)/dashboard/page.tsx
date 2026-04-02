@@ -17,9 +17,17 @@ import {
 import { useRouter } from 'next/navigation';
 import OverviewCards from '@/components/super-admin/OverviewCards';
 import InstitutionTable from '@/components/super-admin/InstitutionTable';
-import SecurityPanel from '@/components/super-admin/SecurityPanel';
-import ActivityLogs from '@/components/super-admin/ActivityLogs';
-import CreateInstitutionModal from '@/components/super-admin/CreateInstitutionModal';
+import dynamic from "next/dynamic";
+
+const SecurityPanel = dynamic(() => import("@/components/super-admin/SecurityPanel"), {
+  loading: () => <div className="p-12 text-center text-slate-500 animate-pulse">Initializing Isolation Protocols...</div>
+});
+const ActivityLogs = dynamic(() => import("@/components/super-admin/ActivityLogs"), {
+  loading: () => <div className="p-12 text-center text-slate-500 animate-pulse">Synchronizing Pulse Stream...</div>
+});
+const CreateInstitutionModal = dynamic(() => import("@/components/super-admin/CreateInstitutionModal"), {
+  loading: () => null
+});
 import { getRoleDashboardPath } from '@/lib/auth-routing';
 
 export default function SuperAdminDashboard() {

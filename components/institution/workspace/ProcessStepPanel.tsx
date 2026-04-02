@@ -12,13 +12,29 @@ import ProgramOutcomesForm from "@/components/institution/process/ProgramOutcome
 import PsoGenerator from "@/components/institution/process/PsoGenerator";
 import AcademicCouncilForm from "@/components/institution/process/AcademicCouncilForm";
 import OBEFrameworkForm from "@/components/institution/process/OBEFrameworkForm";
-import IdentifyOBECoursesPanel from "@/components/institution/process/IdentifyOBECoursesPanel";
-import CourseOutcomesPanel from "@/components/institution/process/CourseOutcomesPanel";
-import CurriculumFeedbackPanel from "@/components/institution/process/CurriculumFeedbackPanel";
-import AccreditationReportPanel from "@/components/institution/process/AccreditationReportPanel";
-import AccreditationAnalyticsPanel from "@/components/institution/process/AccreditationAnalyticsPanel";
-import VMPEOFeedbackDashboard from "@/components/institution/VMPEOFeedbackDashboard";
-import DevelopCurriculumPanel from "@/components/institution/process/DevelopCurriculumPanel";
+import dynamic from "next/dynamic";
+
+const AccreditationAnalyticsPanel = dynamic(() => import("@/components/institution/process/AccreditationAnalyticsPanel"), { 
+  loading: () => <div className="p-8 text-center text-slate-500 animate-pulse">Loading Analytics...</div>
+});
+const AccreditationReportPanel = dynamic(() => import("@/components/institution/process/AccreditationReportPanel"), {
+  loading: () => <div className="p-8 text-center text-slate-500 animate-pulse">Preparing Report View...</div>
+});
+const VMPEOFeedbackDashboard = dynamic(() => import("@/components/institution/VMPEOFeedbackDashboard"), {
+  loading: () => <div className="p-8 text-center text-slate-500 animate-pulse">Loading Feedback Analytics...</div>
+});
+const IdentifyOBECoursesPanel = dynamic(() => import("@/components/institution/process/IdentifyOBECoursesPanel"), {
+  loading: () => <div className="p-8 text-center text-slate-500 animate-pulse">Initializing Course Identification...</div>
+});
+const CourseOutcomesPanel = dynamic(() => import("@/components/institution/process/CourseOutcomesPanel"), {
+  loading: () => <div className="p-8 text-center text-slate-500 animate-pulse">Loading Course Outcomes...</div>
+});
+const CurriculumFeedbackPanel = dynamic(() => import("@/components/institution/process/CurriculumFeedbackPanel"), {
+  loading: () => <div className="p-8 text-center text-slate-500 animate-pulse">Loading Curriculum Feedback...</div>
+});
+const DevelopCurriculumPanel = dynamic(() => import("@/components/institution/process/DevelopCurriculumPanel"), {
+  loading: () => <div className="p-8 text-center text-slate-500 animate-pulse">Loading Curriculum Engine...</div>
+});
 import {
   CATEGORY_CODES,
   CategoryCode,

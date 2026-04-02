@@ -1,8 +1,7 @@
 "use client";
 
-import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  CheckCircle2,
   Quote,
   Sparkles,
   Target,
@@ -11,32 +10,15 @@ import {
   Cpu,
   Users,
   ArrowRight,
-  Star,
   Award,
   TrendingUp,
 } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
-import GridPattern from "./GridPattern";
-import { cn } from "@/lib/utils";
 import { SectionHeader } from "./ui/section-header";
 import { FeatureCard } from "./ui/feature-card";
 
 export default function AboutSection() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(sectionRef, { once: false, amount: 0.1 });
-
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
-
-  const goldGlowY = useTransform(scrollYProgress, [0, 1], [0, -100]);
-  const titleUnderline = useTransform(scrollYProgress, [0.1, 0.3], [0, 100]);
-
   return (
     <section
-      ref={sectionRef}
       id="about"
       className="pt-0 pb-16 relative overflow-hidden text-black transition-colors duration-500 bg-white"
     >
@@ -65,7 +47,10 @@ export default function AboutSection() {
             <h2 className="text-4xl md:text-7xl font-bold relative pb-6 mb-10 tracking-tight text-black">
               About Us
               <motion.div
-                style={{ width: `${titleUnderline}%` }}
+                initial={{ width: 0 }}
+                whileInView={{ width: "100%" }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                viewport={{ once: true, amount: 0.4 }}
                 className="absolute bottom-0 left-1/2 -translate-x-1/2 h-1 bg-[#c9a961] rounded-full shadow-[0_0_20px_rgba(201,169,97,0.8)]"
               />
             </h2>
