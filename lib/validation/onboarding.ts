@@ -94,9 +94,12 @@ export function validateProgramPayload(payload: {
   intake: number;
   academic_year: string;
   program_code: string;
+  email: string;
 }) {
   if (!payload.program_name?.trim()) return "Program name is required.";
   if (!payload.program_code?.trim()) return "Program code is required.";
+  if (!payload.email?.trim()) return "Login email is required.";
+  if (!EMAIL_REGEX.test(payload.email.trim())) return "Invalid login email format.";
 
   if (!DEGREES.includes(payload.degree as (typeof DEGREES)[number]))
     return "Invalid degree.";

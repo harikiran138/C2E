@@ -138,22 +138,32 @@ export default function InstitutionWorkspace({
 
   const handleLogout = async () => {
     try {
+      // 1. Clear Supabase session immediately
       const supabase = createClient();
-      
-      // Clear Supabase session specifically
-      await supabase.auth.signOut();
+      await supabase.auth.signOut().catch(console.error);
 
-      // Use unified logout API to clear server-side cookies
-      await fetch("/api/auth/logout", { method: "POST" });
+      // 2. Clear server-side cookies (unified logout API)
+      await fetch("/api/auth/logout", { 
+        method: "POST",
+        cache: "no-store",
+        headers: { "pragma": "no-cache" }
+      }).catch(console.error);
       
-      // Clear all local storage & session
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Force hard redirect to clear memory state and avoid middleware race
-      window.location.href = "/institution/login";
-    } catch (error) {
-      console.error("Logout error:", error);
+      // 3. Destructive local storage and session storage cleanup
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Clear all cookies client-side just in case
+        document.cookie.split(";").forEach(function(c) { 
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        
+        // 4. Force hard redirect to login
+        window.location.href = "/institution/login";
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
       window.location.href = "/institution/login";
     }
   };
@@ -616,7 +626,7 @@ function SidebarContent({
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
             <SidebarGroup
-              title={isProgramAdmin ? "Academic OBE Management" : "Program Execution"}
+              title="Program Execution"
               variant="purple"
               progress={progressData}
             >
@@ -629,32 +639,12 @@ function SidebarContent({
                 Program Dashboard
               </SidebarNavItem>
 
-              {PROCESS_MENU_STEPS.filter(step => {
-                if (!isProgramAdmin) return true;
-                // For Program Admin, only show specific items
-                const allowedKeys = [
-                  "process-13", // Identification of OBE aligned Courses
-                  "process-9",  // Generate Program Outcomes
-                  "process-10", // Formulate Program Specific Outcomes
-                  "process-14", // Generate Course Outcomes
-                  "process-17", // Accreditation Analytics Dashboard (Placeholder for Faculty/Students stats)
-                  "process-18"  // Accreditation Report Generator
-                ];
-                return allowedKeys.includes(step.key);
-              }).map((step) => {
+              {PROCESS_MENU_STEPS.map((step) => {
                 const active = activeStepKey === step.key;
                 const Icon =
                   (Icons as any)[step.icon || "Circle"] || ChevronRight;
 
-                // Rename some titles for Program Admin to match prompt better
-                let displayTitle = step.title;
-                if (isProgramAdmin) {
-                  if (step.key === "process-13") displayTitle = "Courses";
-                  if (step.key === "process-9") displayTitle = "Program Outcomes (PO)";
-                  if (step.key === "process-10") displayTitle = "Program Specific Outcomes (PSO)";
-                  if (step.key === "process-14") displayTitle = "Course Outcomes (CO)";
-                  if (step.key === "process-18") displayTitle = "Reports";
-                }
+                const displayTitle = step.title;
 
                 return (
                   <SidebarNavItem

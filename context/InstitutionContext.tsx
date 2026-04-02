@@ -79,7 +79,10 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
 
   // Initial fetch
   useEffect(() => {
-    if (pathname.startsWith('/institution') && !pathname.includes('/login')) {
+    if (
+      (pathname.startsWith('/institution') || pathname.startsWith('/program')) && 
+      !pathname.includes('/login')
+    ) {
         fetchData();
     } else {
         setLoading(false);

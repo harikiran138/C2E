@@ -5,7 +5,6 @@ import { validateProgramPayload } from "@/lib/validation/onboarding";
 import { authorize, isAuthorized } from "@/lib/api-utils";
 import { logAudit, ACTION_TYPES } from "@/lib/audit";
 import bcrypt from "bcrypt";
-import { buildProgramLoginEmail } from "@/lib/program-login";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
@@ -27,6 +26,7 @@ export async function POST(request: NextRequest) {
       intake: Number(body.intake),
       academic_year: String(body.academic_year || ""),
       program_code: String(body.program_code || ""),
+      email: String(body.email || ""),
       vision: body.vision ? String(body.vision) : null,
       mission: body.mission ? String(body.mission) : null,
     };
@@ -41,21 +41,7 @@ export async function POST(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      const instRes = await client.query(
-        "SELECT shortform, institution_name FROM institutions WHERE id = $1 LIMIT 1",
-        [institutionId],
-      );
-      const institution = instRes.rows[0];
-      
-      // Use provided email or generate one
-      let programEmail = body.email ? String(body.email).trim() : "";
-      if (!programEmail) {
-        programEmail = buildProgramLoginEmail(
-          normalizedProgramCode,
-          institution?.shortform,
-          institution?.institution_name,
-        );
-      }
+      const programEmail = payload.email.trim();
 
       // 2. Hash password if provided
       const rawPassword = body.password || "progemas"; // Default if not provided
@@ -220,6 +206,7 @@ export async function PUT(request: NextRequest) {
       intake: Number(body.intake),
       academic_year: String(body.academic_year || ""),
       program_code: String(body.program_code || ""),
+      email: String(body.email || ""),
       vision: body.vision ? String(body.vision) : null,
       mission: body.mission ? String(body.mission) : null,
       program_chair: body.program_chair ? String(body.program_chair) : null,
@@ -235,21 +222,7 @@ export async function PUT(request: NextRequest) {
 
       const client = await pool.connect();
     try {
-      const instRes = await client.query(
-        "SELECT shortform, institution_name FROM institutions WHERE id = $1 LIMIT 1",
-        [institutionId],
-      );
-      const institution = instRes.rows[0];
-      
-      // Use provided email or generate one
-      let programEmail = body.email ? String(body.email).trim() : "";
-      if (!programEmail) {
-        programEmail = buildProgramLoginEmail(
-          normalizedProgramCode,
-          institution?.shortform,
-          institution?.institution_name,
-        );
-      }
+      const programEmail = payload.email.trim();
 
       const duplicateCheck = await client.query(
         `SELECT id

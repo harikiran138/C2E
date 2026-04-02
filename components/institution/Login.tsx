@@ -316,7 +316,7 @@ export default function Login() {
       localStorage.removeItem("onboarding_step");
 
 
-      window.location.href = redirectPath || data.redirect || `/dashboard/${data.program?.id}`;
+      window.location.href = redirectPath || data.redirect || "/program/dashboard";
     } catch (err: any) {
       console.error("Program Login Error:", err);
       setErrorMsg(

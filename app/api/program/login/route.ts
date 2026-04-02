@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
           email: program.email,
           institution: program.institution_name,
         },
-        redirect: `/dashboard/${program.id}`,
+        redirect: `/program/dashboard`,
       });
 
       response.cookies.set("c2e_auth_token", token, {

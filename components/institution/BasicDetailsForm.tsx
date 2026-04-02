@@ -125,8 +125,8 @@ export default function BasicDetailsForm() {
   };
 
   const handleAddProgram = async () => {
-    if (!newProgram.program_name || !newProgram.program_code) {
-      alert("Program Name and Code are required");
+    if (!newProgram.program_name || !newProgram.program_code || !newProgram.email) {
+      alert("Program Name, Code, and Login Email are required");
       return;
     }
 
@@ -486,10 +486,11 @@ export default function BasicDetailsForm() {
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-bold text-slate-500 mb-1 block">
-                  Login Email (Optional)
+                <label className="text-xs font-bold text-slate-500 mb-1 block flex items-center gap-1">
+                  Login Email <span className="text-red-500">*</span>
                 </label>
                 <input
+                  type="email"
                   value={newProgram.email}
                   onChange={(e) =>
                     setNewProgram({
@@ -497,13 +498,14 @@ export default function BasicDetailsForm() {
                       email: e.target.value,
                     })
                   }
-                  placeholder="Leave blank for auto-generation"
+                  required
+                  placeholder="Enter program email address"
                   className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-bold text-slate-500 mb-1 block">
-                  Login Password (Optional)
+                <label className="text-xs font-bold text-slate-500 mb-1 block flex items-center gap-1">
+                  Login Password <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="password"
@@ -514,7 +516,8 @@ export default function BasicDetailsForm() {
                       password: e.target.value,
                     })
                   }
-                  placeholder="Leave blank for default (progemas)"
+                  required
+                  placeholder="Set login password"
                   className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
                 />
               </div>
