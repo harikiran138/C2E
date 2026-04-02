@@ -3,6 +3,7 @@ import pool from "@/lib/postgres";
 import bcrypt from "bcrypt";
 import { signToken } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { buildProgramLoginEmail } from "@/lib/program-login";
 
 /**
  * Program Login
@@ -28,6 +29,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { email, password } = body;
+    const normalizedEmail = email.trim().toLowerCase();
+    const loginProgramCode = normalizedEmail.split("@")[0] || "";
 
     if (!email || !password) {
       return NextResponse.json(
@@ -53,11 +56,27 @@ export async function POST(request: NextRequest) {
          FROM programs p
          JOIN institutions i ON i.id = p.institution_id
          WHERE LOWER(p.email) = LOWER($1)
-         LIMIT 1`,
-        [email.trim()],
+            OR LOWER(p.program_code) = LOWER($2)
+         ORDER BY CASE WHEN LOWER(p.email) = LOWER($1) THEN 0 ELSE 1 END,
+                  p.updated_at DESC NULLS LAST
+         LIMIT 10`,
+        [normalizedEmail, loginProgramCode],
       );
 
-      const program = result.rows[0];
+      const program =
+        result.rows.find((row) => {
+          if ((row.email || "").toLowerCase() === normalizedEmail) {
+            return true;
+          }
+
+          const generatedEmail = buildProgramLoginEmail(
+            row.program_code,
+            row.institution_shortform,
+            row.institution_name,
+          );
+
+          return generatedEmail === normalizedEmail;
+        }) || null;
 
       const invalidResp = () =>
         NextResponse.json({ error: "Invalid email or password." }, { status: 401 });

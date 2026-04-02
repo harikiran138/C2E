@@ -3,6 +3,7 @@ import pool from "@/lib/postgres";
 import bcrypt from "bcrypt";
 import { signToken } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getRoleDashboardPath } from "@/lib/auth-routing";
 
 /**
  * v5.1 Institute & Program Isolated Login
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
       const response = NextResponse.json({ 
         ok: true, 
         role: user.role,
-        redirect: user.role === 'INSTITUTE_ADMIN' ? '/institution/dashboard' : '/program/dashboard'
+        redirect: getRoleDashboardPath(user.role, user.program_id)
       });
 
       // 6. Master Auth Cookie

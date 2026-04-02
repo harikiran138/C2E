@@ -5,6 +5,7 @@ import { validateProgramPayload } from "@/lib/validation/onboarding";
 import { authorize, isAuthorized } from "@/lib/api-utils";
 import { logAudit, ACTION_TYPES } from "@/lib/audit";
 import bcrypt from "bcrypt";
+import { buildProgramLoginEmail } from "@/lib/program-login";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
@@ -40,18 +41,29 @@ export async function POST(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      // 1. Fetch institution shortform for email generation
-      const instRes = await client.query("SELECT shortform FROM institutions WHERE id = $1", [institutionId]);
-      const shortform = instRes.rows[0]?.shortform || "edu";
-      const programEmail = `${normalizedProgramCode.toLowerCase()}@${shortform}.c2x.ai`;
+      const instRes = await client.query(
+        "SELECT shortform, institution_name FROM institutions WHERE id = $1 LIMIT 1",
+        [institutionId],
+      );
+      const institution = instRes.rows[0];
+      
+      // Use provided email or generate one
+      let programEmail = body.email ? String(body.email).trim() : "";
+      if (!programEmail) {
+        programEmail = buildProgramLoginEmail(
+          normalizedProgramCode,
+          institution?.shortform,
+          institution?.institution_name,
+        );
+      }
 
       // 2. Hash password if provided
       const rawPassword = body.password || "progemas"; // Default if not provided
       const passwordHash = await bcrypt.hash(rawPassword, 10);
 
-      // Check for duplicate code or email
+      // Check for duplicate code or email (case-insensitive)
       const checkResult = await client.query(
-        "SELECT id FROM programs WHERE institution_id = $1 AND (UPPER(program_code) = $2 OR email = $3) LIMIT 1",
+        "SELECT id FROM programs WHERE institution_id = $1 AND (UPPER(program_code) = $2 OR LOWER(email) = LOWER($3)) LIMIT 1",
         [institutionId, normalizedProgramCode, programEmail],
       );
 
@@ -178,6 +190,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 export async function PUT(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
   try {
@@ -213,13 +226,48 @@ export async function PUT(request: NextRequest) {
       nba_coordinator: body.nba_coordinator ? String(body.nba_coordinator) : null,
     };
 
-    const validationError = validateProgramPayload(payload);
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
-    }
+      const validationError = validateProgramPayload(payload);
+      if (validationError) {
+        return NextResponse.json({ error: validationError }, { status: 400 });
+      }
 
-    const client = await pool.connect();
+      const normalizedProgramCode = payload.program_code.trim().toUpperCase();
+
+      const client = await pool.connect();
     try {
+      const instRes = await client.query(
+        "SELECT shortform, institution_name FROM institutions WHERE id = $1 LIMIT 1",
+        [institutionId],
+      );
+      const institution = instRes.rows[0];
+      
+      // Use provided email or generate one
+      let programEmail = body.email ? String(body.email).trim() : "";
+      if (!programEmail) {
+        programEmail = buildProgramLoginEmail(
+          normalizedProgramCode,
+          institution?.shortform,
+          institution?.institution_name,
+        );
+      }
+
+      const duplicateCheck = await client.query(
+        `SELECT id
+         FROM programs
+         WHERE institution_id = $1
+           AND id <> $2
+           AND (UPPER(program_code) = $3 OR LOWER(email) = LOWER($4))
+         LIMIT 1`,
+        [institutionId, id, normalizedProgramCode, programEmail],
+      );
+
+      if (duplicateCheck.rows.length > 0) {
+        return NextResponse.json(
+          { error: "Program code or login email already exists." },
+          { status: 409 },
+        );
+      }
+
       // Handle password update separately if provided
       let passwordUpdateValue = null;
       if (body.password) {
@@ -235,14 +283,15 @@ export async function PUT(request: NextRequest) {
              intake = $5, 
              academic_year = $6, 
              program_code = $7, 
-             vision = $8, 
-             mission = $9, 
-             program_chair = $10, 
-             nba_coordinator = $11, 
-             password_hash = COALESCE($12, password_hash),
-             is_password_set = CASE WHEN $12 IS NOT NULL THEN true ELSE is_password_set END,
+             email = $8,
+             vision = $9, 
+             mission = $10, 
+             program_chair = $11, 
+             nba_coordinator = $12, 
+             password_hash = COALESCE($13, password_hash),
+             is_password_set = CASE WHEN $13 IS NOT NULL THEN true ELSE is_password_set END,
              updated_at = NOW() 
-         WHERE id = $13 AND institution_id = $14
+         WHERE id = $14 AND institution_id = $15
          RETURNING id`,
         [
           payload.program_name.trim(),
@@ -251,7 +300,8 @@ export async function PUT(request: NextRequest) {
           payload.duration,
           payload.intake,
           payload.academic_year.trim(),
-          payload.program_code.trim().toUpperCase(),
+          normalizedProgramCode,
+          programEmail,
           payload.vision?.trim() || null,
           payload.mission?.trim() || null,
           payload.program_chair?.trim() || null,
@@ -277,7 +327,7 @@ export async function PUT(request: NextRequest) {
         ipAddress: ip,
         details: {
           programId: id,
-          updates: payload,
+          updates: { ...payload, email: programEmail },
         },
       });
 

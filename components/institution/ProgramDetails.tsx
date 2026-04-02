@@ -349,12 +349,21 @@ export default function ProgramDetails() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <label className="block text-sm font-semibold text-slate-500 mb-2">
-                    System Email (Auto-generated)
+                    System Email
                   </label>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-500 dark:text-slate-400 select-all cursor-copy">
-                    {currentProgram.email || "Pending generation..."}
-                  </div>
-
+                  <input
+                    type="email"
+                    value={currentProgram.email || ""}
+                    onChange={(e) =>
+                      setCurrentProgram({
+                        ...currentProgram,
+                        email: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#137fec] select-all"
+                    placeholder="program@example.com"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 italic">Used for Program dashboard login. Leave as is for auto-generated.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-500 mb-2">

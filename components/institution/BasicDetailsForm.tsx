@@ -41,6 +41,8 @@ export default function BasicDetailsForm() {
     duration: 4,
     intake: 60,
     academic_year: new Date().getFullYear().toString(),
+    email: "",
+    password: "",
   });
   const [isAddingProgram, setIsAddingProgram] = useState(false);
 
@@ -152,6 +154,8 @@ export default function BasicDetailsForm() {
         duration: 4,
         intake: 60,
         academic_year: new Date().getFullYear().toString(),
+        email: "",
+        password: "",
       });
       setIsAddingProgram(false);
       fetchDetails();
@@ -478,6 +482,39 @@ export default function BasicDetailsForm() {
                     })
                   }
                   placeholder="YYYY"
+                  className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs font-bold text-slate-500 mb-1 block">
+                  Login Email (Optional)
+                </label>
+                <input
+                  value={newProgram.email}
+                  onChange={(e) =>
+                    setNewProgram({
+                      ...newProgram,
+                      email: e.target.value,
+                    })
+                  }
+                  placeholder="Leave blank for auto-generation"
+                  className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs font-bold text-slate-500 mb-1 block">
+                  Login Password (Optional)
+                </label>
+                <input
+                  type="password"
+                  value={newProgram.password}
+                  onChange={(e) =>
+                    setNewProgram({
+                      ...newProgram,
+                      password: e.target.value,
+                    })
+                  }
+                  placeholder="Leave blank for default (progemas)"
                   className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 outline-none focus:border-[#137fec]"
                 />
               </div>

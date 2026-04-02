@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
     "stakeholder_token",
     "sb-access-token",
     "sb-refresh-token",
+    "next-auth.session-token",
+    "next-auth.csrf-token",
+    "next-auth.callback-url",
   ];
 
   // Also catch any Supabase-prefixed cookies

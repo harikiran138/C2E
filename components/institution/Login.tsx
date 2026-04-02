@@ -21,18 +21,21 @@ import Link from "next/link";
 import SignUp from "./SignUp";
 import { motion, AnimatePresence } from "framer-motion";
 import AuthBackground from "../ui/AuthBackground";
+import { buildProgramLoginEmail } from "@/lib/program-login";
 
 type AuthMode = "institution" | "program" | "stakeholder";
 
 interface InstituteOption {
   id: string;
   name: string;
+  shortform?: string;
 }
 
 interface ProgramOption {
   id: string;
   name: string;
   code: string;
+  email?: string;
 }
 
 export default function Login() {
@@ -76,10 +79,34 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const selectedInstitute = useMemo(
+    () => institutes.find((institute) => institute.id === selectedInstituteId) || null,
+    [institutes, selectedInstituteId],
+  );
+  const selectedProgram = useMemo(
+    () => programs.find((program) => program.id === selectedProgramId) || null,
+    [programs, selectedProgramId],
+  );
+  const generatedProgramEmail = useMemo(() => {
+    if (!selectedProgram) {
+      return "";
+    }
+
+    return (
+      selectedProgram.email ||
+      buildProgramLoginEmail(
+        selectedProgram.code,
+        selectedInstitute?.shortform,
+        selectedInstitute?.name,
+      )
+    );
+  }, [selectedInstitute?.name, selectedInstitute?.shortform, selectedProgram]);
+
   useEffect(() => {
     // Point #3: Always clear existing sessions before entering login flow
     const clearSession = async () => {
       try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
         const supabase = (await import("@/utils/supabase/client")).createClient();
         await supabase.auth.signOut();
       } catch (err) {
@@ -135,6 +162,9 @@ export default function Login() {
       if (!selectedInstituteId) {
         setPrograms([]);
         setSelectedProgramId("");
+        if (authMode === "program") {
+          setProgramEmail("");
+        }
         return;
       }
 
@@ -160,6 +190,12 @@ export default function Login() {
       loadPrograms();
     }
   }, [authMode, selectedInstituteId]);
+
+  useEffect(() => {
+    if (authMode === "program") {
+      setProgramEmail(generatedProgramEmail);
+    }
+  }, [authMode, generatedProgramEmail]);
 
   const updateModeInQuery = (mode: AuthMode) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -224,7 +260,10 @@ export default function Login() {
       localStorage.removeItem("onboarding_step");
       
 
-      window.location.href = redirectPath || (data.role === "SUPER_ADMIN" ? "/dashboard" : "/institution/dashboard");
+      window.location.href =
+        redirectPath ||
+        data.redirect ||
+        (data.role === "SUPER_ADMIN" ? "/dashboard" : "/institution/dashboard");
     } catch (err: any) {
       console.error("Institution Login Error:", err);
       setErrorMsg(
@@ -601,14 +640,69 @@ export default function Login() {
 
 
             <div className="space-y-3">
+              <FieldLabel icon={Building2} text="Institute Name" />
+              <select
+                value={selectedInstituteId}
+                onChange={(event) => {
+                  setSelectedInstituteId(event.target.value);
+                  setSelectedProgramId("");
+                  setProgramEmail("");
+                }}
+                className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+              >
+                <option value="">
+                  {loadingInstitutes ? "Loading institutes..." : "Select Institute"}
+                </option>
+                {institutes.map((institute) => (
+                  <option key={institute.id} value={institute.id}>
+                    {institute.name}
+                    {institute.shortform ? ` (${institute.shortform})` : ""}
+                  </option>
+                ))}
+              </select>
+
+              <FieldLabel icon={BookOpen} text="Program" />
+              <select
+                value={selectedProgramId}
+                onChange={(event) => setSelectedProgramId(event.target.value)}
+                disabled={!selectedInstituteId || loadingPrograms}
+                className="w-full rounded-lg border border-border/60 bg-background/50 p-4 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">
+                  {!selectedInstituteId
+                    ? "Select Institute first"
+                    : loadingPrograms
+                      ? "Loading programs..."
+                      : "Select Program"}
+                </option>
+                {programs.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.name} {program.code ? `(${program.code})` : ""}
+                  </option>
+                ))}
+              </select>
+
               <FieldLabel icon={Mail} text="Program Email" />
               <InputField
                 type="email"
                 value={programEmail}
                 onChange={setProgramEmail}
-                placeholder="e.g. program@institution.c2x.ai"
+                placeholder="e.g. mech@nsrit.c2x.ai"
                 leadingIcon={Mail}
               />
+              {generatedProgramEmail ? (
+                <p className="px-1 text-[11px] font-medium text-muted-foreground">
+                  Generated with the institution short form:{" "}
+                  <span className="font-semibold text-foreground">
+                    {generatedProgramEmail}
+                  </span>
+                </p>
+              ) : (
+                <p className="px-1 text-[11px] font-medium text-muted-foreground">
+                  Program email follows{" "}
+                  <code>{`{program_code}@{institution_shortform}.c2x.ai`}</code>.
+                </p>
+              )}
 
               <FieldLabel icon={ShieldCheck} text="Password" />
               <PasswordField

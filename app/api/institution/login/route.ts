@@ -131,7 +131,8 @@ export async function POST(request: NextRequest) {
       const accessToken = await signToken({
         id: institution.id,
         email: email.trim(),
-        role: "institution_admin",
+        role: "INSTITUTE_ADMIN",
+        institution_id: institution.id,
         onboarding_status: institution.onboarding_status || "PENDING",
       });
 
@@ -173,6 +174,11 @@ export async function POST(request: NextRequest) {
       response.cookies.set("institution_token", accessToken, {
         ...cookieOptions,
         maxAge: 15 * 60, // 15 minutes
+      });
+
+      response.cookies.set("c2e_auth_token", accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60,
       });
 
       // Refresh Token (7 days)

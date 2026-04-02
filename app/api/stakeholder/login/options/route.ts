@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     try {
       if (instituteId) {
         const programsRes = await client.query(
-          `SELECT id, program_name, program_code
+          `SELECT id, program_name, program_code, email
            FROM programs
            WHERE institution_id = $1
            ORDER BY program_name ASC`,
@@ -22,12 +22,13 @@ export async function GET(request: NextRequest) {
             id: String(row.id),
             name: String(row.program_name),
             code: row.program_code ? String(row.program_code) : "",
+            email: row.email ? String(row.email) : "",
           })),
         });
       }
 
       const institutesRes = await client.query(
-        `SELECT id, institution_name
+        `SELECT id, institution_name, shortform
          FROM institutions
          ORDER BY institution_name ASC`,
       );
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
         institutes: institutesRes.rows.map((row) => ({
           id: String(row.id),
           name: String(row.institution_name),
+          shortform: row.shortform ? String(row.shortform) : "",
         })),
       });
     } finally {

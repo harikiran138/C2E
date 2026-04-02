@@ -30,6 +30,7 @@ interface InstitutionContextType {
   institution: Institution | null;
   programs: Program[];
   selectedProgram: Program | null;
+  role: string | null;
   loading: boolean;
   authenticated: boolean;
   refreshData: () => Promise<void>;
@@ -42,6 +43,7 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   
@@ -60,8 +62,8 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
         const data = await res.json();
         setInstitution(data.institution);
         setPrograms(data.programs || []);
+        setRole(data.role || null);
         setAuthenticated(true);
-        // Persist role in state if needed or from cookies
       } else if (res.status === 401) {
         setAuthenticated(false);
         if (pathname.startsWith('/institution') && !pathname.includes('/login')) {
@@ -132,6 +134,7 @@ export function InstitutionProvider({ children }: { children: React.ReactNode })
         institution, 
         programs, 
         selectedProgram, 
+        role,
         loading, 
         authenticated,
         refreshData: fetchData,

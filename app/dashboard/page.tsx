@@ -20,6 +20,7 @@ import InstitutionTable from '@/components/super-admin/InstitutionTable';
 import SecurityPanel from '@/components/super-admin/SecurityPanel';
 import ActivityLogs from '@/components/super-admin/ActivityLogs';
 import CreateInstitutionModal from '@/components/super-admin/CreateInstitutionModal';
+import { getRoleDashboardPath } from '@/lib/auth-routing';
 
 export default function SuperAdminDashboard() {
     const [metrics, setMetrics] = useState(null);
@@ -41,11 +42,12 @@ export default function SuperAdminDashboard() {
                 const userData = await authRes.json();
                 if (userData.role !== 'SUPER_ADMIN') {
                     // Redirect non-super-admins to their correct dashboard
-                    const rolePathMap: Record<string, string> = {
-                        'INSTITUTE_ADMIN': '/institution/dashboard',
-                        'PROGRAM_ADMIN': '/program/dashboard'
-                    };
-                    router.push(rolePathMap[userData.role] || '/institution/login');
+                    router.push(
+                      getRoleDashboardPath(
+                        userData.role,
+                        userData.programs?.[0]?.id || userData.user?.id,
+                      ),
+                    );
                     return;
                 }
 

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifyToken, AUTH_COOKIE_NAME } from './lib/auth';
 import { checkRateLimit } from './lib/rate-limit';
+import { getRoleDashboardPath } from './lib/auth-routing';
 
 const PUBLIC_PATHS = [
   '/',                  // Landing Page
@@ -10,16 +11,12 @@ const PUBLIC_PATHS = [
   '/api/auth/institute/login',
   '/api/auth/logout',
   '/api/auth/verify',
+  '/api/program/login',
+  '/api/institution/login',
   '/api/stakeholder/login',
   '/api/stakeholder/first-password',
   '/favicon.ico'
 ];
-
-const ROLE_DASHBOARDS: Record<string, string> = {
-  'SUPER_ADMIN': '/dashboard',
-  'INSTITUTE_ADMIN': '/institution/dashboard',
-  'PROGRAM_ADMIN': '/program/dashboard'
-};
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
@@ -71,15 +68,16 @@ export async function middleware(request: NextRequest) {
   }
 
   const userRole = payload.role as string;
+  const normalizedRole = userRole.toUpperCase();
   const institutionId = payload.institution_id as string;
   const programId = payload.program_id as string;
+  const dashboardPath = getRoleDashboardPath(normalizedRole, programId);
 
   // 6. Support for Logged In users hitting public login pages
   if (isPublicPath(pathname)) {
     // If hitting login pages while already authorized, move to dashboard
-    if (pathname === '/login' || pathname === '/institution/login') {
-        const dashboard = ROLE_DASHBOARDS[userRole] || '/institution/dashboard';
-        return NextResponse.redirect(new URL(dashboard, request.url));
+    if (pathname === '/institution/login') {
+        return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
     return NextResponse.next();
   }
@@ -88,22 +86,22 @@ export async function middleware(request: NextRequest) {
   
   // Super Admin Zone
   if (pathname.startsWith('/super-admin') || pathname.startsWith('/dashboard')) {
-      if (userRole !== 'SUPER_ADMIN') {
-          return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole] || '/institution/dashboard', request.url));
+      if (normalizedRole !== 'SUPER_ADMIN') {
+          return NextResponse.redirect(new URL(dashboardPath, request.url));
       }
   }
 
   // Institution Zone
   if (pathname.startsWith('/institution') && !pathname.startsWith('/institution/login')) {
-      if (userRole !== 'INSTITUTE_ADMIN' && userRole !== 'SUPER_ADMIN') {
-          return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole] || '/program/dashboard', request.url));
+      if (normalizedRole !== 'INSTITUTE_ADMIN' && normalizedRole !== 'SUPER_ADMIN') {
+          return NextResponse.redirect(new URL(dashboardPath, request.url));
       }
   }
 
   // Program Zone
   if (pathname.startsWith('/program')) {
-      if (userRole !== 'PROGRAM_ADMIN' && userRole !== 'SUPER_ADMIN' && userRole !== 'INSTITUTE_ADMIN') {
-          return NextResponse.redirect(new URL(ROLE_DASHBOARDS[userRole] || '/institution/dashboard', request.url));
+      if (normalizedRole !== 'PROGRAM_ADMIN' && normalizedRole !== 'SUPER_ADMIN' && normalizedRole !== 'INSTITUTE_ADMIN') {
+          return NextResponse.redirect(new URL(dashboardPath, request.url));
       }
   }
 
@@ -111,7 +109,7 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   if (institutionId) requestHeaders.set('x-institution-id', institutionId);
   if (programId) requestHeaders.set('x-program-id', programId);
-  requestHeaders.set('x-user-role', userRole);
+  requestHeaders.set('x-user-role', normalizedRole);
 
   const response = NextResponse.next({
     request: {
@@ -144,4 +142,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
-

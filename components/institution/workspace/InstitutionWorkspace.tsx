@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import useSWR from "swr";
 import {
@@ -79,12 +79,13 @@ export default function InstitutionWorkspace({
   headerContent,
 }: InstitutionWorkspaceProps) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
   const desktopSidebarRef = useRef<HTMLDivElement>(null);
   const mobileSidebarRef = useRef<HTMLDivElement>(null);
 
-  const { institution, programs, selectProgram, selectedProgram } =
+  const { institution, programs, selectProgram, selectedProgram, role } =
     useInstitution();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -169,11 +170,13 @@ export default function InstitutionWorkspace({
   const query = searchParams.toString();
 
   const buildHref = (stepKey: string) => {
-    if (stepKey === "dashboard")
-      return query
-        ? `/institution/dashboard?${query}`
-        : "/institution/dashboard";
-    const base = `/institution/process/${stepKey}`;
+    const isProgramPath = pathname.startsWith('/program') || role === 'PROGRAM_ADMIN';
+    
+    if (stepKey === "dashboard") {
+      return isProgramPath ? "/program/dashboard" : (query ? `/institution/dashboard?${query}` : "/institution/dashboard");
+    }
+    
+    const base = isProgramPath ? `/program/process/${stepKey}` : `/institution/process/${stepKey}`;
     return query ? `${base}?${query}` : base;
   };
 
@@ -231,7 +234,7 @@ export default function InstitutionWorkspace({
                     activeStepKey={activeStepKey}
                     buildHref={buildHref}
                     institutionName={institutionName}
-                    onClose={() => setIsSidebarOpen(false)}
+                    role={role}
                     programs={programs}
                     selectedProgramId={selectedProgramId}
                     onSelectProgram={handleProgramSelect}
@@ -280,6 +283,7 @@ export default function InstitutionWorkspace({
                 activeStepKey={activeStepKey}
                 buildHref={buildHref}
                 institutionName={institutionName}
+                role={role}
                 programs={programs}
                 selectedProgramId={selectedProgramId}
                 onSelectProgram={handleProgramSelect}
@@ -352,10 +356,10 @@ export default function InstitutionWorkspace({
                 <div className="flex items-center gap-3 pl-1">
                   <div className="text-right hidden sm:block">
                     <p className="text-sm font-bold text-slate-900 leading-none">
-                      {institution?.institution_name || "Admin"}
+                      {role === 'PROGRAM_ADMIN' ? (selectedProgram?.program_name || 'Program Admin') : (institution?.institution_name || "Admin")}
                     </p>
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      Administrator
+                    <p className="text-[10px] text-slate-500 font-medium whitespace-nowrap">
+                      {role === 'PROGRAM_ADMIN' ? 'Program Administrator' : 'Institution Administrator'}
                     </p>
                   </div>
                   <Avatar className="size-9 bg-white border border-slate-200 shadow-sm cursor-pointer hover:ring-2 hover:ring-indigo-500/20 transition-all">
@@ -430,12 +434,12 @@ function SidebarContent({
   programs,
   selectedProgramId,
   onSelectProgram,
+  role,
   statsData,
 }: any) {
   const [isProgramListOpen, setIsProgramListOpen] = useState(false);
   
-  // v5.1 Role Detection: If exactly 1 program is returned, it's likely a Program Admin session
-  const isProgramAdmin = programs?.length === 1;
+  const isProgramAdmin = role === 'PROGRAM_ADMIN';
 
   const selectedProgramName = useMemo(() => {
     if (!selectedProgramId) return "Select Program";
@@ -617,7 +621,7 @@ function SidebarContent({
               progress={progressData}
             >
               <SidebarNavItem
-                href={`/institution/dashboard?programId=${selectedProgramId}`}
+                href={isProgramAdmin ? "/program/dashboard" : `/institution/dashboard?programId=${selectedProgramId}`}
                 active={activeStepKey === "dashboard" && !!selectedProgramId}
                 onClick={onClose}
                 icon={<LayoutDashboard className="size-4" />}
@@ -625,10 +629,32 @@ function SidebarContent({
                 Program Dashboard
               </SidebarNavItem>
 
-              {PROCESS_MENU_STEPS.map((step) => {
+              {PROCESS_MENU_STEPS.filter(step => {
+                if (!isProgramAdmin) return true;
+                // For Program Admin, only show specific items
+                const allowedKeys = [
+                  "process-13", // Identification of OBE aligned Courses
+                  "process-9",  // Generate Program Outcomes
+                  "process-10", // Formulate Program Specific Outcomes
+                  "process-14", // Generate Course Outcomes
+                  "process-17", // Accreditation Analytics Dashboard (Placeholder for Faculty/Students stats)
+                  "process-18"  // Accreditation Report Generator
+                ];
+                return allowedKeys.includes(step.key);
+              }).map((step) => {
                 const active = activeStepKey === step.key;
                 const Icon =
                   (Icons as any)[step.icon || "Circle"] || ChevronRight;
+
+                // Rename some titles for Program Admin to match prompt better
+                let displayTitle = step.title;
+                if (isProgramAdmin) {
+                  if (step.key === "process-13") displayTitle = "Courses";
+                  if (step.key === "process-9") displayTitle = "Program Outcomes (PO)";
+                  if (step.key === "process-10") displayTitle = "Program Specific Outcomes (PSO)";
+                  if (step.key === "process-14") displayTitle = "Course Outcomes (CO)";
+                  if (step.key === "process-18") displayTitle = "Reports";
+                }
 
                 return (
                   <SidebarNavItem
@@ -640,7 +666,7 @@ function SidebarContent({
                     aiDriven={step.aiDriven}
                     isCompleted={statsData?.stepStatus?.[step.key]}
                   >
-                    {step.title}
+                    {displayTitle}
                   </SidebarNavItem>
                 );
               })}

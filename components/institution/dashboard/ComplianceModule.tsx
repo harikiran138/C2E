@@ -21,6 +21,7 @@ import {
 import * as Icons from "lucide-react";
 import { useInstitution } from "@/context/InstitutionContext";
 import { DEGREES, LEVELS } from "@/lib/validation/onboarding";
+import { buildProgramLoginEmail } from "@/lib/program-login";
 
 const cn = (...classes: (string | boolean | undefined)[]) =>
   classes.filter(Boolean).join(" ");
@@ -496,7 +497,11 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
                         <>
                           <div className="h-1 w-1 bg-slate-200 rounded-full" />
                           <span className="text-[10px] font-black text-emerald-600 lowercase tracking-tight">
-                            {prog.program_code.toLowerCase()}@{institution.shortform}.c2x.ai
+                            {buildProgramLoginEmail(
+                              prog.program_code,
+                              institution.shortform,
+                              institution.institution_name,
+                            )}
                           </span>
                         </>
                       )}
@@ -708,7 +713,11 @@ export default function ComplianceModule({ statsData }: { statsData: any }) {
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-6">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Generated Login Email</p>
                 <code className="text-sm font-black text-blue-600">
-                  {selectedProgramForAuth.program_code.toLowerCase()}@{institution?.shortform || 'institution'}.c2x.ai
+                  {buildProgramLoginEmail(
+                    selectedProgramForAuth.program_code,
+                    institution?.shortform,
+                    institution?.institution_name,
+                  )}
                 </code>
               </div>
 
