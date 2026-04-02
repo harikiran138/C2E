@@ -1,4 +1,4 @@
-import pool from "./lib/postgres";
+import pool from "../../lib/postgres";
 
 async function check() {
   try {
@@ -12,7 +12,7 @@ async function check() {
       console.log(`${exists ? '✅' : '❌'} ${table}`);
     }
 
-  } catch (err) {
+  } catch (err: any) {
     console.error("Database connection failed:", err.message);
   } finally {
     process.exit();
