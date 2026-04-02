@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/postgres";
+import pool, { safeQuery, genericErrorResponse } from "@/lib/postgres";
 import { authorize, isAuthorized } from "@/lib/api-utils";
 import { validateInstitutionDetailsPayload } from "@/lib/validation/onboarding";
 
@@ -12,87 +12,75 @@ export async function GET(request: NextRequest) {
 
     const institutionId = auth.institutionId;
 
-    const client = await pool.connect();
-    try {
-      // Fetch Institution with Details
-      const instResult = await client.query(
-        `SELECT
-          i.id,
-          i.institution_name,
-          i.email,
-          i.onboarding_status,
-          id.type as institution_type,
-          id.status as institution_status,
-          id.established_year,
-          id.affiliation as university_affiliation,
-          id.address,
-          id.city,
-          id.state,
-          id.country,
-          id.vision,
-          id.mission
-         FROM institutions i
-         LEFT JOIN institution_details id ON i.id = id.institution_id
-         WHERE i.id = $1`,
-        [institutionId],
-      );
+    // Fetch Institution with Details
+    const institutions = await safeQuery<any[]>(
+      `SELECT
+        i.id,
+        i.institution_name,
+        i.email,
+        i.onboarding_status,
+        id.type as institution_type,
+        id.status as institution_status,
+        id.established_year,
+        id.affiliation as university_affiliation,
+        id.address,
+        id.city,
+        id.state,
+        id.country,
+        id.vision,
+        id.mission
+       FROM institutions i
+       LEFT JOIN institution_details id ON i.id = id.institution_id
+       WHERE i.id = $1`,
+      [institutionId],
+      [],
+    );
 
-      const institution = instResult.rows[0];
+    const institution = institutions[0];
 
-      // Fetch Programs (Selecting only existing columns)
-      const progResult = await client.query(
-        `SELECT
-          p.id,
-          p.program_name,
-          p.degree,
-          p.level,
-          p.duration,
-          p.intake,
-          p.academic_year,
-          p.program_code,
-          p.vision,
-          p.program_vision,
-          p.mission,
-          p.program_mission,
-          p.vision_score,
-          p.vision_analysis,
-          p.mission_score,
-          p.mission_analysis,
-          p.generated_by_ai,
-          p.vision_inputs_used,
-          p.mission_inputs_used,
-          p.vision_options,
-          p.mission_options,
-          p.vision_priorities,
-          p.mission_priorities,
-          p.lead_society,
-          cm.matrix_data as consistency_matrix
-         FROM programs p
-         LEFT JOIN consistency_matrix cm ON p.id = cm.program_id
-         WHERE p.institution_id = $1
-         ORDER BY p.created_at ASC`,
-        [institutionId],
-      );
+    // Fetch Programs (Selecting only existing columns)
+    const programs = await safeQuery<any[]>(
+      `SELECT
+        p.id,
+        p.program_name,
+        p.degree,
+        p.level,
+        p.duration,
+        p.intake,
+        p.academic_year,
+        p.program_code,
+        p.vision,
+        p.program_vision,
+        p.mission,
+        p.program_mission,
+        p.vision_score,
+        p.vision_analysis,
+        p.mission_score,
+        p.mission_analysis,
+        p.generated_by_ai,
+        p.vision_inputs_used,
+        p.mission_inputs_used,
+        p.vision_options,
+        p.mission_options,
+        p.vision_priorities,
+        p.mission_priorities,
+        p.lead_society,
+        cm.matrix_data as consistency_matrix
+       FROM programs p
+       LEFT JOIN consistency_matrix cm ON p.id = cm.program_id
+       WHERE p.institution_id = $1
+       ORDER BY p.created_at ASC`,
+      [institutionId],
+      [],
+    );
 
-      const programs = progResult.rows;
-
-      return NextResponse.json({
-        institution: institution || {},
-        programs: programs || [],
-      });
-    } finally {
-      client.release();
-    }
+    return NextResponse.json({
+      institution: institution || {},
+      programs: programs || [],
+    });
   } catch (error: any) {
     console.error("Error fetching details:", error);
-    return NextResponse.json(
-      {
-        error: error.message,
-        stack: error.stack,
-        details: "Failed at /api/institution/details GET",
-      },
-      { status: 500 },
-    );
+    return genericErrorResponse("Failed to fetch institution details. Please try again.");
   }
 }
 
@@ -205,6 +193,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     console.error("Error updating details:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return genericErrorResponse("Failed to update institution details. Please try again.");
   }
 }

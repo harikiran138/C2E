@@ -2,6 +2,8 @@ import os
 import httpx
 import json
 import asyncio
+import re
+import time
 from typing import List, Optional, Dict
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,17 +28,17 @@ app.add_middleware(
 )
 
 # Configure Gemini
-api_key = os.getenv("OPENROUTER_API_KEY")
+api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     load_dotenv(".env.local")
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
     load_dotenv("../.env.local")
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    print("Warning: OPENROUTER_API_KEY not found")
+    print("Warning: GEMINI_API_KEY not found")
 
 class VMGenerateRequest(BaseModel):
     program_name: str
@@ -56,18 +58,93 @@ class VMGenerateResponse(BaseModel):
     missions: Optional[List[str]] = None
     scores: Optional[Dict[str, Dict]] = None
 
-# Simple in-memory cache
-ai_cache = {}
+# Simple in-memory cache with TTL
+ai_cache: Dict[str, tuple[float, str]] = {}
+CACHE_TTL_SECONDS = 600
+MAX_CACHE_ENTRIES = 500
+
+PROMPT_INJECTION_PATTERN = re.compile(
+    r"\b(ignore (all|any|previous|above)|disregard (all|previous|above)|forget (all|previous|above)|system prompt|developer prompt|assistant prompt|return admin token|reveal .*token|bypass (rules|guardrails|safety)|jailbreak|override (instructions|guardrails)|act as (the|an?) (assistant|system))\b",
+    re.IGNORECASE,
+)
+
+def normalize_whitespace(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+def sanitize_prompt_text(value: str, field_name: str, max_length: int, allow_empty: bool = False) -> str:
+    raw = "" if value is None else str(value)
+    cleaned = normalize_whitespace(
+        raw.replace("```", " ").replace("<", " ").replace(">", " ")
+    )
+    cleaned = re.sub(r"[\x00-\x1f\x7f]", " ", cleaned)
+    cleaned = normalize_whitespace(cleaned)
+
+    if not cleaned:
+        if allow_empty:
+            return ""
+        raise HTTPException(status_code=400, detail=f"{field_name} is required.")
+
+    if len(cleaned) > max_length:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} must be {max_length} characters or fewer.",
+        )
+
+    if PROMPT_INJECTION_PATTERN.search(cleaned):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} contains unsupported instruction-like content.",
+        )
+
+    return cleaned
+
+def sanitize_prompt_list(values: List[str], field_name: str, max_items: int, max_item_length: int) -> List[str]:
+    sanitized: List[str] = []
+    for item in (values or [])[:max_items]:
+        cleaned = sanitize_prompt_text(item, field_name, max_item_length, allow_empty=True)
+        if cleaned and cleaned not in sanitized:
+            sanitized.append(cleaned)
+    return sanitized
+
+def get_cached_response(cache_key: str) -> Optional[str]:
+    cached = ai_cache.get(cache_key)
+    if not cached:
+        return None
+
+    expires_at, value = cached
+    if expires_at <= time.time():
+        ai_cache.pop(cache_key, None)
+        return None
+
+    return value
+
+def set_cached_response(cache_key: str, value: str) -> None:
+    now = time.time()
+    expired_keys = [key for key, (expires_at, _) in ai_cache.items() if expires_at <= now]
+    for key in expired_keys:
+        ai_cache.pop(key, None)
+
+    if len(ai_cache) >= MAX_CACHE_ENTRIES:
+        oldest_key = next(iter(ai_cache))
+        ai_cache.pop(oldest_key, None)
+
+    ai_cache[cache_key] = (now + CACHE_TTL_SECONDS, value)
 
 async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool = True) -> str:
     if not api_key:
-        raise Exception("OPENROUTER_API_KEY not found")
+        raise Exception("GEMINI_API_KEY not found")
     
-    if use_cache and prompt in ai_cache:
-        return ai_cache[prompt]
+    if use_cache:
+        cached = get_cached_response(prompt)
+        if cached is not None:
+            return cached
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-    headers = {'Content-Type': 'application/json'}
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {api_key}',
+        'x-goog-api-key': api_key,
+    }
     data = {
         "contents": [{
             "parts": [{"text": prompt}]
@@ -85,7 +162,7 @@ async def call_gemini_rest_async(prompt: str, retries: int = 3, use_cache: bool 
                 if response.status_code == 200:
                     result = response.json()
                     generated_text = result['candidates'][0]['content']['parts'][0]['text'].strip()
-                    ai_cache[prompt] = generated_text
+                    set_cached_response(prompt, generated_text)
                     return generated_text
                 
                 if response.status_code == 429:
@@ -109,6 +186,38 @@ async def root():
 @app.post("/ai/generate-vision-mission", response_model=VMGenerateResponse)
 async def generate_vm(request: VMGenerateRequest):
     try:
+        program_name = sanitize_prompt_text(request.program_name, "program_name", 160)
+        institute_vision = sanitize_prompt_text(
+            request.institute_vision,
+            "institute_vision",
+            500,
+            allow_empty=True,
+        )
+        institute_mission = sanitize_prompt_text(
+            request.institute_mission,
+            "institute_mission",
+            800,
+            allow_empty=True,
+        )
+        selected_program_vision = sanitize_prompt_text(
+            request.selected_program_vision,
+            "selected_program_vision",
+            320,
+            allow_empty=True,
+        )
+        vision_inputs = sanitize_prompt_list(
+            request.vision_inputs,
+            "vision_inputs",
+            12,
+            120,
+        )
+        mission_inputs = sanitize_prompt_list(
+            request.mission_inputs,
+            "mission_inputs",
+            12,
+            120,
+        )
+
         visions = []
         missions = []
         vision_scores = {}
@@ -144,9 +253,9 @@ Before generating, internally:
 - Convert educational themes into future impact language.
 - Ensure no operational drift.
 
-Program: {request.program_name}
-Institute Vision: {request.institute_vision}
-Selected Focus Areas: {", ".join(request.vision_inputs)}
+Program: {program_name}
+Institute Vision: {institute_vision}
+Selected Focus Areas: {", ".join(vision_inputs)}
 
 Generate exactly {request.vision_count} UNIQUE and DISTINCT Vision statements.
 If multiple statements are requested, ensure they target different institutional outcomes (e.g., one on innovation, one on ethics, one on global impact).
@@ -246,7 +355,7 @@ Entropy Seed: {{seed}}
                         current_v = current_v.strip().strip('"').strip("'")
                     except Exception as re_err:
                         print(f"DEBUG: API Limit during refinement. Switching to DEDICATED LOCAL ML...")
-                        local_v = get_local_vision(request.program_name, request.vision_inputs)
+                        local_v = get_local_vision(program_name, vision_inputs)
                         if local_v:
                             current_v = local_v
                             print(f"DEBUG: Local ML Generated: {current_v}")
@@ -259,13 +368,13 @@ Entropy Seed: {{seed}}
             vision_scores = {v: score_vision(v) for v in visions}
 
         if request.mode in ['mission', 'both']:
-            v_context = request.selected_program_vision if request.selected_program_vision else (visions[0] if visions else "")
+            v_context = selected_program_vision if selected_program_vision else (visions[0] if visions else "")
             mission_prompt = f"""
 You are an academic accreditation expert. Generate exactly {request.mission_count} distinct Program Mission formulation(s).
-Program: {request.program_name}
-Institute Mission: {request.institute_mission}
+Program: {program_name}
+Institute Mission: {institute_mission}
 Program Vision: {v_context}
-Selected Focus Areas: {", ".join(request.mission_inputs)}
+Selected Focus Areas: {", ".join(mission_inputs)}
 Rules: 3–5 action sentences in one paragraph per mission. Align with Vision.
 Output must be a plain JSON array of strings containing ONLY the mission statements. Example: ["Mission 1", "Mission 2"]
 
@@ -295,11 +404,14 @@ Entropy Seed: {{seed}}
             scores=vision_scores if visions else {}
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"CRITICAL ERROR generating VM: {str(e)}")
         # ELITE FALLBACK ENGINE (DIVERSE & STRATEGIC)
-        fb_visions = generate_elite_fallback_visions(request.program_name, request.vision_count)
-        fb_missions = generate_elite_fallback_missions(request.program_name, request.mission_count)
+        fallback_program_name = normalize_whitespace(str(request.program_name or "this program")) or "this program"
+        fb_visions = generate_elite_fallback_visions(fallback_program_name, request.vision_count)
+        fb_missions = generate_elite_fallback_missions(fallback_program_name, request.mission_count)
             
         return VMGenerateResponse(
             vision=fb_visions[0] if fb_visions else "", 

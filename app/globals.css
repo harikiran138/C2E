@@ -49,8 +49,8 @@
   --sidebar-ring: #3b4fd8;
 
   /* Fonts */
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
-  --font-sans: "Outfit", "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "SFMono-Regular", monospace;
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, system-ui, -apple-system, sans-serif;
 }
 
 .dark {

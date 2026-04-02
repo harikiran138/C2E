@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
-import { signToken, verifyToken } from "@/lib/auth";
+import { createSessionCookieOptions, signToken, verifyToken } from "@/lib/auth";
+import { attachCsrfCookie } from "@/lib/request-security";
+import { AUTH_COOKIE_NAME, LEGACY_AUTH_COOKIE_NAME } from "@/lib/constants";
 
 async function getInstitutionId(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("institution_token")?.value;
@@ -88,13 +90,10 @@ export async function POST(request: NextRequest) {
       });
 
       const response = NextResponse.json({ ok: true });
-      response.cookies.set("institution_token", jwt, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24, // 24 hours
-      });
+      const cookieOptions = createSessionCookieOptions(60 * 60 * 24);
+      response.cookies.set(LEGACY_AUTH_COOKIE_NAME, jwt, cookieOptions);
+      response.cookies.set(AUTH_COOKIE_NAME, jwt, cookieOptions);
+      attachCsrfCookie(response, 60 * 60 * 24);
 
       return response;
     } finally {

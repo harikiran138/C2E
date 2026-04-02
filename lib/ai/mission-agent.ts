@@ -19,7 +19,6 @@ export interface MissionAgentParams {
   count:            number;
   visionRef?:       string;
   institutionName?: string;
-  geminiApiKey?:    string;
 }
 
 export interface RankedMission {
@@ -111,13 +110,11 @@ function rankMissions(
   return ranked.sort((a, b) => b.finalScore - a.finalScore);
 }
 
-async function fetchGeminiMissions(
+async function fetchAIMissions(
   params:  MissionAgentParams,
   attempt: number,
 ): Promise<string[]> {
-  const { geminiApiKey, ...rest } = params;
-
-  const prompt = buildMissionAgentPrompt({ ...rest, attempt });
+  const prompt = buildMissionAgentPrompt({ ...params, attempt });
 
   try {
     const text = await callAI(prompt, "mission");
@@ -150,7 +147,7 @@ export async function missionAgent(params: MissionAgentParams): Promise<MissionA
     attempts = attempt + 1;
 
     // Collect candidates: Gemini AI only (no static fallbacks)
-    const aiCandidates      = await fetchGeminiMissions(params, attempt);
+    const aiCandidates      = await fetchAIMissions(params, attempt);
     const batch             = aiCandidates.map(normalizeWhitespace);
 
     for (const candidate of batch) {

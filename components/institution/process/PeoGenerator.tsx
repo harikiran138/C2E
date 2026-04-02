@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { z } from "zod";
 import { peoSchema, dateRangeSchema } from "@/lib/schemas";
+import { buildMutationHeaders } from "@/lib/client-security";
 
 // --- MASTER UI DESIGN TOKENS ---
 // Typography: System (Inter-like)
@@ -223,7 +224,7 @@ export default function PeoGenerator({
     try {
       const response = await fetch("/api/generate/peos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({
           programId,
           priorities: selectedPriorities,

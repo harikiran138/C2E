@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
+import { resolvePythonBackendUrl } from "@/lib/ai-backend";
 import { computeSemanticSimilarity, calculateLexicalRichness } from "@/lib/ai-validation";
 import { visionAgent }  from "@/lib/ai/vision-agent";
 import { missionAgent } from "@/lib/ai/mission-agent";
 import { resolveProgramAcademicContext, normalizeText } from "@/lib/curriculum/program-context";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { AI_RATE_LIMIT } from "@/lib/constants";
+import {
+  extractClientIp,
+  InputValidationError,
+  rejectCrossSiteRequest,
+  resolveRequesterIdentity,
+  sanitizeAiList,
+  sanitizeAiText,
+  verifyCsrfToken,
+} from "@/lib/request-security";
 
 // Simple in-memory cache for AI results
 const aiCache = new Map<string, string[]>();
@@ -536,8 +544,47 @@ function buildSafeVisionVariant(programName: string, index: number) {
 
 export async function POST(request: Request) {
   try {
+    const crossSiteError = rejectCrossSiteRequest(request);
+    if (crossSiteError) {
+      return NextResponse.json({ error: crossSiteError }, { status: 403 });
+    }
+
+    const csrfError = verifyCsrfToken(request);
+    if (csrfError) {
+      return NextResponse.json({ error: csrfError }, { status: 403 });
+    }
+
+    const clientIp = extractClientIp(request);
+    const rateLimitKey = await resolveRequesterIdentity(
+      request,
+      "ai:legacy-vision-mission",
+    );
+    if (
+      !checkRateLimit({
+        ip: clientIp,
+        key: rateLimitKey,
+        limit: AI_RATE_LIMIT.limit,
+        windowMs: AI_RATE_LIMIT.windowMs,
+      })
+    ) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please wait a minute before retrying." },
+        { status: 429 },
+      );
+    }
+
     const { type, priorities, count, programId, institutionContext, programName: clientProgramName } =
       await request.json();
+    const sanitizedProgramName = sanitizeAiText(clientProgramName, {
+      fieldName: "programName",
+      maxLength: 160,
+      allowEmpty: true,
+    });
+    const sanitizedPriorities = sanitizeAiList(priorities, {
+      fieldName: "priorities",
+      maxItems: 12,
+      maxItemLength: 120,
+    });
 
     if (!programId) {
       return NextResponse.json(
@@ -578,29 +625,44 @@ export async function POST(request: Request) {
 
     // Primary: Python Backend
     try {
-      const response = await fetch("http://localhost:8001/api/v1/generate-vision-mission", {
+      const backendUrl = resolvePythonBackendUrl("/api/v1/generate-vision-mission");
+      if (!backendUrl) {
+        throw new Error("Python backend is not configured");
+      }
+
+      const response = await fetch(backendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          program_name: programName,
-          institute_vision: institutionContext?.vision || "",
-          institute_mission: institutionContext?.mission || "",
-          vision_inputs: type === "vision" ? priorities : [],
-          mission_inputs: type === "mission" ? priorities : [],
-          mode: type,
+          program_name: programName || sanitizedProgramName,
+          institute_vision: sanitizeAiText(institutionContext?.vision, {
+            fieldName: "institutionContext.vision",
+            maxLength: 500,
+            allowEmpty: true,
+          }),
+          institute_mission: sanitizeAiText(institutionContext?.mission, {
+            fieldName: "institutionContext.mission",
+            maxLength: 800,
+            allowEmpty: true,
+          }),
+          vision_inputs: type === "vision" ? sanitizedPriorities : [],
+          mission_inputs: type === "mission" ? sanitizedPriorities : [],
+          mode: type === "vision" ? "vision" : "mission",
           vision_count: type === "vision" ? count : 1,
           mission_count: type === "mission" ? count : 1,
+          selected_program_vision: activeVision || "",
           program_id: programId
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Return full content (visions, missions, and scores) for UI
+        // Return structured content for UI
         return NextResponse.json({
-          visions: data.visions || [],
-          missions: data.missions || [],
-          scores: data.scores || []
+          visions: data.vision_statements?.map((v: any) => v.text) || [],
+          missions: data.mission_statements?.map((m: any) => m.text) || [],
+          scores: [data.alignment_score || 0],
+          quality_summary: data.quality_summary
         });
       }
     } catch (backendError) {
@@ -611,13 +673,12 @@ export async function POST(request: Request) {
     if (type === "vision") {
       const agentResult = await visionAgent({
         programName,
-        priorities,
+        priorities: sanitizedPriorities,
         count,
         institutionName: institutionContext?.name || "the Institution", // Use context name if available
         institution_id:  institutionId,
         program_id:      programId,
         existingVisions: [],
-        geminiApiKey:    GEMINI_API_KEY,
       });
       results = agentResult.visions;
 
@@ -625,11 +686,10 @@ export async function POST(request: Request) {
     } else if (type === "mission") {
       const agentResult = await missionAgent({
         programName,
-        priorities,
+        priorities: sanitizedPriorities,
         count,
         visionRef:       activeVision || normalizeText(String(institutionContext || "")),
         institutionName: institutionContext?.name || "the Institution",
-        geminiApiKey:    GEMINI_API_KEY,
       });
       results = agentResult.missions;
     }
@@ -637,6 +697,10 @@ export async function POST(request: Request) {
     aiCache.set(cacheKey, results);
     return NextResponse.json({ results });
   } catch (error: any) {
+    if (error instanceof InputValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Generation Error:", error);
     return NextResponse.json(
       { error: error.message || "Internal Server Error" },

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "../../utils/supabase/client";
 import { useRouter } from "next/navigation";
+import { buildMutationHeaders } from "@/lib/client-security";
 
 interface Program {
   id: string;
@@ -60,7 +61,7 @@ export default function PeoFormulation() {
     try {
       const resp = await fetch("/api/generate/peos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({
           programId: selectedProgramId,
           count: 4,

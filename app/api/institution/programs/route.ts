@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/postgres";
+import pool, { genericErrorResponse } from "@/lib/postgres";
 import { v4 as uuidv4 } from "uuid";
 import { validateProgramPayload } from "@/lib/validation/onboarding";
 import { authorize, isAuthorized } from "@/lib/api-utils";
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     console.error("Error adding program:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return genericErrorResponse("Failed to add program. Please try again.");
   }
 }
 
@@ -173,7 +173,7 @@ export async function DELETE(request: NextRequest) {
     }
   } catch (error: any) {
     console.error("Error deleting program:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return genericErrorResponse("Failed to delete program. Please try again.");
   }
 }
 
@@ -309,7 +309,7 @@ export async function PUT(request: NextRequest) {
       client.release();
     }
   } catch (error: any) {
-    console.error("Error updating program VM:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Error updating program:", error);
+    return genericErrorResponse("Failed to update program. Please try again.");
   }
 }

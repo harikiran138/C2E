@@ -100,9 +100,8 @@ class PSOGenerateRequest(BaseModel):
     program_id: Optional[str] = None
 
 class PSOGenerateResponse(BaseModel):
-    results: List[str]
-    quality: List[Dict[str, Any]]
-    scores: Optional[Dict[str, Any]] = None
+    results: List[Dict[str, Any]]
+    validation: Dict[str, Any]
 
 class LocalChatRequest(BaseModel):
     prompt: str
@@ -149,7 +148,7 @@ async def local_chat(request: LocalChatRequest) -> LocalChatResponse:
 async def root() -> Dict[str, str]:
     return {"message": "AI Generation Backend (REST) is running with Async & Cache"}
 
-@app.post("/ai/generate-vision-mission", response_model=VMGenerateResponse)
+@app.post("/api/v1/generate-vision-mission", response_model=VMGenerateResponse)
 async def generate_vision_mission(
     request: VMGenerateRequest,
     user: AuthenticatedUser = Depends(get_current_user)
@@ -255,14 +254,14 @@ async def generate_psos(
 
 # --- Validation Endpoints ---
 
-@app.post("/ai/validate-vision")
+@app.post("/api/v1/validate-vision")
 async def validate_vision(request: VisionValidateRequest) -> Dict[str, Any]:
     try:
         return guard.validate_vision(request.vision, request.focus_areas)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/ai/validate-mission")
+@app.post("/api/v1/validate-mission")
 async def validate_mission(request: MissionValidateRequest) -> Dict[str, Any]:
     try:
         return guard.validate_mission(request.mission_list, request.vision)

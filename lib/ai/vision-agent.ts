@@ -95,7 +95,6 @@ export interface AgentParams {
   institution_id:    string;
   program_id:        string;
   existingVisions?:   string[];
-  geminiApiKey?:      string;
 }
 
 export interface AgentResult {
@@ -117,7 +116,6 @@ export async function visionAgent(params: AgentParams): Promise<AgentResult> {
     institution_id,
     program_id,
     existingVisions = [],
-    geminiApiKey,
   } = params;
 
   const qualifiedStatements: string[] = [];

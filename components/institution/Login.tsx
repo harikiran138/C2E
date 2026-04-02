@@ -21,6 +21,7 @@ import Link from "next/link";
 import SignUp from "./SignUp";
 import { motion, AnimatePresence } from "framer-motion";
 import AuthBackground from "../ui/AuthBackground";
+import { buildMutationHeaders } from "@/lib/client-security";
 import { buildProgramLoginEmail } from "@/lib/program-login";
 
 type AuthMode = "institution" | "program" | "stakeholder";
@@ -106,7 +107,11 @@ export default function Login() {
     // Point #3: Always clear existing sessions before entering login flow
     const clearSession = async () => {
       try {
-        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: buildMutationHeaders(),
+        });
         const supabase = (await import("@/utils/supabase/client")).createClient();
         await supabase.auth.signOut();
       } catch (err) {
@@ -234,7 +239,7 @@ export default function Login() {
     try {
       const res = await fetch("/api/auth/institute/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({ identifier: trimmedEmail, password }),
       });
 
@@ -293,7 +298,7 @@ export default function Login() {
     try {
       const res = await fetch("/api/program/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({ email: trimmedEmail, password: programPassword }),
       });
 
@@ -346,7 +351,7 @@ export default function Login() {
     try {
       const res = await fetch("/api/stakeholder/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({
           institute_id: selectedInstituteId,
           program_id: selectedProgramId,
@@ -403,7 +408,7 @@ export default function Login() {
     try {
       const res = await fetch("/api/stakeholder/first-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({
           stakeholder_ref_id: resetStakeholderRefId,
           old_password: stakeholderPassword,

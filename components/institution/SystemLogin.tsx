@@ -16,6 +16,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AuthBackground from "../ui/AuthBackground";
+import { buildMutationHeaders } from "@/lib/client-security";
 
 export default function SystemLogin() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function SystemLogin() {
     try {
       const res = await fetch("/api/auth/super/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({ identifier: trimmedIdentifier, password }),
       });
 

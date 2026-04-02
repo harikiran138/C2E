@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { verifyToken, AUTH_COOKIE_NAME } from './lib/auth';
+import { verifyToken } from './lib/auth';
 import { checkRateLimit } from './lib/rate-limit';
-import { getRoleDashboardPath } from './lib/auth-routing';
+import { getRoleDashboardPath, normalizeRole } from './lib/auth-routing';
+import {
+  AUTH_COOKIE_NAME,
+  LEGACY_AUTH_COOKIE_NAME,
+  STAKEHOLDER_COOKIE_NAME,
+} from './lib/constants';
 
 const PUBLIC_PATHS = new Set([
   '/',
@@ -14,6 +19,7 @@ const PUBLIC_PATHS = new Set([
   '/api/program/login',
   '/api/institution/login',
   '/api/stakeholder/login',
+  '/stakeholder/login',
   '/api/stakeholder/first-password',
   '/favicon.ico'
 ]);
@@ -46,8 +52,10 @@ export async function proxy(request: NextRequest) {
   }
 
   // 3. Identification (Cookie retrieval is slightly expensive)
-  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value || 
-                 request.cookies.get('institution_token')?.value;
+  const token =
+    request.cookies.get(AUTH_COOKIE_NAME)?.value ||
+    request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value ||
+    request.cookies.get(STAKEHOLDER_COOKIE_NAME)?.value;
   
   // 4. Access Control Logic
   if (!token) {
@@ -61,7 +69,8 @@ export async function proxy(request: NextRequest) {
 
   // 5. Verification (JWT decoding)
   const payload = await verifyToken(token);
-  if (!payload || !payload.id) {
+  const principalId = payload?.id || payload?.stakeholder_ref_id;
+  if (!payload || !principalId) {
     if (isPublic) return NextResponse.next();
     
     const loginUrl = new URL('/institution/login', request.url);
@@ -70,18 +79,23 @@ export async function proxy(request: NextRequest) {
     
     // Cleanup invalid tokens
     res.cookies.set(AUTH_COOKIE_NAME, '', { maxAge: 0, path: '/' });
-    res.cookies.set('institution_token', '', { maxAge: 0, path: '/' });
+    res.cookies.set(LEGACY_AUTH_COOKIE_NAME, '', { maxAge: 0, path: '/' });
+    res.cookies.set(STAKEHOLDER_COOKIE_NAME, '', { maxAge: 0, path: '/' });
     return res;
   }
 
-  const userRole = (payload.role as string).toUpperCase();
+  const userRole = normalizeRole(payload.role as string) ?? String(payload.role || '');
   const institutionId = payload.institution_id as string;
   const programId = payload.program_id as string;
   const dashboardPath = getRoleDashboardPath(userRole, programId);
 
   // 6. Support for Logged In users hitting public login pages
   if (isPublic) {
-    if (pathname === '/institution/login') {
+    if (
+      pathname === '/institution/login' ||
+      pathname === '/stakeholder/login' ||
+      pathname === '/login'
+    ) {
       return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
     return NextResponse.next();
@@ -104,6 +118,12 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/program')) {
     if (userRole !== 'PROGRAM_ADMIN' && userRole !== 'SUPER_ADMIN' && userRole !== 'INSTITUTE_ADMIN') {
+      return NextResponse.redirect(new URL(dashboardPath, request.url));
+    }
+  }
+
+  if (pathname.startsWith('/stakeholder')) {
+    if (userRole !== 'STAKEHOLDER' && userRole !== 'SUPER_ADMIN') {
       return NextResponse.redirect(new URL(dashboardPath, request.url));
     }
   }
@@ -134,4 +154,3 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
-

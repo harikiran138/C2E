@@ -20,7 +20,6 @@ export interface POAgentParams {
   institutionName?: string;
   mission?:         string;
   peos?:            string[];
-  geminiApiKey?:    string;
 }
 
 export interface RankedPO {
@@ -110,7 +109,7 @@ function rankPOs(candidates: string[], scores: POScore[], count: number): Ranked
   return ranked.sort((a, b) => b.finalScore - a.finalScore);
 }
 
-async function fetchGeminiPOs(params: POAgentParams, attempt: number): Promise<string[]> {
+async function fetchAIPOs(params: POAgentParams, attempt: number): Promise<string[]> {
   const prompt = buildPOAgentPrompt({
     programName: params.programName,
     count: params.count,
@@ -161,7 +160,7 @@ export async function poAgent(params: POAgentParams): Promise<POAgentResult> {
     attempts = attempt + 1;
 
     // Candidates: Gemini AI only (no static fallbacks)
-    const aiCandidates    = await fetchGeminiPOs(params, attempt);
+    const aiCandidates    = await fetchAIPOs(params, attempt);
     const batch           = aiCandidates.map(normalizeWhitespace);
 
     for (const candidate of batch) {

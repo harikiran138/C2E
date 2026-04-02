@@ -20,7 +20,6 @@ export interface PEOAgentParams {
   institutionName?: string;
   vision?:          string;
   mission?:         string;
-  geminiApiKey?:    string;
 }
 
 export interface RankedPEO {
@@ -109,11 +108,9 @@ function rankPEOs(candidates: string[], scores: PEOScore[], count: number): Rank
   return ranked.sort((a, b) => b.finalScore - a.finalScore);
 }
 
-async function fetchGeminiPEOs(params: PEOAgentParams, attempt: number): Promise<string[]> {
-  const { geminiApiKey, ...rest } = params;
-
-  const priorities = rest.priorities?.length ? rest.priorities : ["Career Growth", "Technical Excellence", "Leadership", "Ethical Responsibility"];
-  const prompt     = buildPEOAgentPrompt({ ...rest, priorities, attempt });
+async function fetchAIPEOs(params: PEOAgentParams, attempt: number): Promise<string[]> {
+  const priorities = params.priorities?.length ? params.priorities : ["Career Growth", "Technical Excellence", "Leadership", "Ethical Responsibility"];
+  const prompt     = buildPEOAgentPrompt({ ...params, priorities, attempt });
 
   try {
     const text = await callAI(prompt, "peo");
@@ -145,8 +142,7 @@ export async function peoAgent(params: PEOAgentParams): Promise<PEOAgentResult> 
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     attempts = attempt + 1;
-
-    const aiCandidates       = await fetchGeminiPEOs({ ...params, priorities }, attempt);
+    const aiCandidates       = await fetchAIPEOs({ ...params, priorities }, attempt);
     const batch              = aiCandidates.map(normalizeWhitespace);
 
     for (const candidate of batch) {

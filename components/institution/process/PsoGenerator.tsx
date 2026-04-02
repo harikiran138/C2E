@@ -10,6 +10,7 @@ import {
   Trash2,
   CheckCircle2,
 } from "lucide-react";
+import { buildMutationHeaders } from "@/lib/client-security";
 
 const LEAD_SOCIETIES = [
   "American Institute of Aeronautics and Astronautics",
@@ -221,7 +222,7 @@ export default function PsoGenerator() {
     try {
       const response = await fetch("/api/generate/psos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({
           selected_societies: {
             lead: selectedSocieties.lead,

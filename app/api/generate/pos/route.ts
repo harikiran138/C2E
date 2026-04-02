@@ -1,13 +1,48 @@
 import { NextResponse } from "next/server";
 import { poAgent }     from "@/lib/ai/po-agent";
 import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
+import { resolvePythonBackendUrl } from "@/lib/ai-backend";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { AI_RATE_LIMIT } from "@/lib/constants";
+import {
+  extractClientIp,
+  rejectCrossSiteRequest,
+  resolveRequesterIdentity,
+  verifyCsrfToken,
+} from "@/lib/request-security";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
 
 export async function POST(request: Request) {
   try {
+    const crossSiteError = rejectCrossSiteRequest(request);
+    if (crossSiteError) {
+      return NextResponse.json({ error: crossSiteError }, { status: 403 });
+    }
+
+    const csrfError = verifyCsrfToken(request);
+    if (csrfError) {
+      return NextResponse.json({ error: csrfError }, { status: 403 });
+    }
+
+    const clientIp = extractClientIp(request);
     const body = await request.json();
     const { programId, count = 3, priorities, institutionName: clientInstitutionName } = body;
+
+    const rateLimitKey = await resolveRequesterIdentity(request, "ai:pos", programId);
+    if (
+      !checkRateLimit({
+        ip: clientIp,
+        key: rateLimitKey,
+        limit: AI_RATE_LIMIT.limit,
+        windowMs: AI_RATE_LIMIT.windowMs,
+      })
+    ) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please wait a minute before retrying." },
+        { status: 429 },
+      );
+    }
 
     if (!programId) {
       return NextResponse.json(
@@ -32,7 +67,12 @@ export async function POST(request: Request) {
 
     // Primary: Python Backend
     try {
-      const response = await fetch("http://localhost:8001/api/v1/generate-pos", {
+      const backendUrl = resolvePythonBackendUrl("/api/v1/generate-pos");
+      if (!backendUrl) {
+        throw new Error("Python backend is not configured");
+      }
+
+      const response = await fetch(backendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -73,7 +113,6 @@ export async function POST(request: Request) {
       institutionName: effectiveInstitutionName,
       mission,
       peos,
-      geminiApiKey: GEMINI_API_KEY,
     });
 
     return NextResponse.json({ pos: result.pos, ranked: result.ranked, prompt: result.prompt });
@@ -85,4 +124,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

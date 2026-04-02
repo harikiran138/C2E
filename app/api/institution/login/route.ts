@@ -1,21 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
 import bcrypt from "bcrypt";
-import { signToken, signRefreshToken } from "@/lib/auth"; // Updated import
+import {
+  createSessionCookieOptions,
+  signRefreshToken,
+  signToken,
+} from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit"; // New utility
 import { logAudit, ACTION_TYPES } from "@/lib/audit"; // New utility
+import {
+  attachCsrfCookie,
+  extractClientIp,
+  rejectCrossSiteRequest,
+} from "@/lib/request-security";
+import {
+  AUTH_COOKIE_NAME,
+  LEGACY_AUTH_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+} from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
-  const forwardedIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwardedIp || "unknown";
+  const crossSiteError = rejectCrossSiteRequest(request);
+  if (crossSiteError) {
+    return NextResponse.json({ error: crossSiteError }, { status: 403 });
+  }
+
+  const ip = extractClientIp(request);
   const userAgent = request.headers.get("user-agent") || "unknown";
   const isLocalDev =
     process.env.NODE_ENV !== "production" &&
     (ip === "127.0.0.1" ||
       ip === "::1" ||
       ip === "::ffff:127.0.0.1" ||
-      ip === "localhost" ||
-      ip === "unknown");
+      ip === "localhost");
 
   try {
     // 1. Rate Limiting (5 attempts / 15 mins)
@@ -34,9 +51,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password } = body;
+    const rawEmail = String(body?.email || "").trim();
+    const password = String(body?.password || "");
+    const normalizedEmail = rawEmail.toLowerCase();
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return NextResponse.json(
         { error: "Email and password are required." },
         { status: 400 },
@@ -48,7 +67,7 @@ export async function POST(request: NextRequest) {
       // 2. Fetch User & Security Fields
       const result = await client.query(
         "SELECT id, password_hash, onboarding_status, failed_attempts, locked_until FROM public.institutions WHERE LOWER(email) = LOWER($1) LIMIT 1",
-        [email.trim()],
+        [normalizedEmail],
       );
 
       const institution = result.rows[0];
@@ -130,7 +149,7 @@ export async function POST(request: NextRequest) {
       // 6. Generate Tokens
       const accessToken = await signToken({
         id: institution.id,
-        email: email.trim(),
+        email: normalizedEmail,
         role: "INSTITUTE_ADMIN",
         institution_id: institution.id,
         onboarding_status: institution.onboarding_status || "PENDING",
@@ -142,9 +161,6 @@ export async function POST(request: NextRequest) {
       });
 
       // 7. Store Refresh Token Hash
-      // We store the hash of the refresh token so if the DB is leaked, tokens can't be forged/used easily without the secret.
-      // But for simplicity/rotation, storing the token itself or a hash is fine.
-      // Let's store hash as per prompt requirement.
       const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
       await client.query(
         "UPDATE public.institutions SET refresh_token_hash = $1 WHERE id = $2",
@@ -160,50 +176,22 @@ export async function POST(request: NextRequest) {
       });
 
       const response = NextResponse.json({ ok: true, id: institution.id });
+      const accessCookieOptions = createSessionCookieOptions(15 * 60);
+      const refreshCookieOptions = createSessionCookieOptions(7 * 24 * 60 * 60);
 
-      // 9. Set Secure Cookies
-      const isProduction = process.env.NODE_ENV === "production";
-      const cookieOptions = {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: "lax" as const, // Changed from strict to lax for better redirect stability
-        path: "/",
-      };
-
-      // Access Token (15 min)
-      response.cookies.set("institution_token", accessToken, {
-        ...cookieOptions,
-        maxAge: 15 * 60, // 15 minutes
-      });
-
-      response.cookies.set("c2e_auth_token", accessToken, {
-        ...cookieOptions,
-        maxAge: 15 * 60,
-      });
-
-      // Refresh Token (7 days)
-      response.cookies.set("institution_refresh", refreshToken, {
-        ...cookieOptions,
-        maxAge: 7 * 24 * 60 * 60, // 7 days
-        path: "/api/institution/auth/refresh", // Restrict path if possible, but for rotation middleware might need it on root. Kept root for simplicity with middleware.
-      });
-
-      // Update path to root for refresh token to ensure middleware can see it if we want transparent refresh
-      // Prompt said "Middleware must reject expired tokens... Automatically issue new access token using refresh token endpoint"
-      // If middleware does it, it needs to see the cookie.
-      response.cookies.set("institution_refresh", refreshToken, {
-        ...cookieOptions,
-        maxAge: 7 * 24 * 60 * 60, // 7 days
-      });
+      response.cookies.set(LEGACY_AUTH_COOKIE_NAME, accessToken, accessCookieOptions);
+      response.cookies.set(AUTH_COOKIE_NAME, accessToken, accessCookieOptions);
+      response.cookies.set(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions);
+      attachCsrfCookie(response, 15 * 60);
 
       return response;
     } finally {
       client.release();
     }
   } catch (error: any) {
-    console.error("Login error details:", error);
+    console.error("Login Error:", error);
     return NextResponse.json(
-      { error: `Login failed: ${error.message}` },
+      { error: "An internal error occurred during login. Please try again." },
       { status: 500 },
     );
   }

@@ -50,21 +50,37 @@ export async function GET(request: Request) {
         }
       };
 
+      // v5.2: Safe Fetcher for generic queries that might fail due to missing tables
+      const safeQuery = async (sql: string, params: unknown[], fallback: any[] = []) => {
+        try {
+          const res = await client.query(sql, params);
+          return res;
+        } catch (error: any) {
+          if (error?.code === "42P01") {
+            console.warn(`Table not found for query: ${sql.substring(0, 100)}...`);
+            return { rows: fallback };
+          }
+          console.error(`Query failed: ${sql}`, error);
+          return { rows: fallback };
+        }
+      };
+
       // Run independent queries in parallel
       const [nameRes, progCount, obeCount, acCount, allProgsRes] = await Promise.all([
-        client.query(
+        safeQuery(
           `SELECT i.institution_name, id.vision, id.mission 
            FROM institutions i
            LEFT JOIN institution_details id ON i.id = id.institution_id
            WHERE i.id = $1`,
           [institutionId],
+          [{ institution_name: "Institution", vision: "", mission: "" }]
         ),
         safeCountQuery("SELECT COUNT(*) as count FROM programs WHERE institution_id = $1", [institutionId]),
         safeCountQuery("SELECT COUNT(*) as count FROM obe_frameworks WHERE institution_id = $1", [institutionId]),
         safeCountQuery("SELECT COUNT(*) as count FROM members WHERE institution_id = $1", [institutionId]),
-        client.query(
+        safeQuery(
           "SELECT id, program_name, degree, level, program_code, academic_year, created_at FROM programs WHERE institution_id = $1 ORDER BY created_at DESC",
-          [institutionId],
+          [institutionId]
         ),
       ]);
 
@@ -73,6 +89,7 @@ export async function GET(request: Request) {
       const mission = nameRes.rows[0]?.mission;
       const programsList = allProgsRes.rows || [];
 
+      // ... existing logic ...
       let stepStatus: Record<string, any> = {};
       stepStatus["process-1"] = obeCount > 0;
       stepStatus["council"] = acCount > 0;
@@ -93,8 +110,6 @@ export async function GET(request: Request) {
       let peoCount = 0;
       let poCount = 0;
       let psoCount = 0;
-      let vmpeoFeedbackSubmissions = 0;
-      let vmpeoFeedbackEntries = 0;
 
       if (programId) {
         const progAuthCheck = await client.query(
@@ -148,7 +163,7 @@ export async function GET(request: Request) {
         programData = { peoCount, poCount, psoCount };
       }
 
-      // Recent Activities
+      // Recent Activities - Use safeQuery
       let recentQuery = "SELECT id, program_name, created_at FROM programs WHERE institution_id = $1";
       let recentParams = [institutionId];
       if (programId) {
@@ -156,7 +171,7 @@ export async function GET(request: Request) {
         recentParams.push(programId);
       }
       recentQuery += " ORDER BY created_at DESC LIMIT 5";
-      const recentRes = await client.query(recentQuery, recentParams);
+      const recentRes = await safeQuery(recentQuery, recentParams);
       
       const activities = (recentRes.rows || []).map((p) => ({
         id: p.id,
@@ -167,21 +182,21 @@ export async function GET(request: Request) {
         type: "program" as const,
       }));
 
-      // Student and Feedback stats
+      // Student and Feedback stats - Use safeQuery for average ratings
       let activeStudents = 0;
       let totalResponses = 0;
       let avgRating = 0;
 
       if (programId) {
         activeStudents = await safeCountQuery("SELECT COUNT(*) as count FROM stakeholders WHERE program_id = $1 AND category = 'Students'", [programId]);
-        const feedback = await client.query("SELECT COUNT(*) as count, AVG(vision_alignment_rating) as avg_rating FROM stakeholder_feedback WHERE program_id = $1", [programId]).catch(() => ({ rows: [{ count: 0, avg_rating: 0 }] }));
-        totalResponses = parseInt(feedback.rows[0]?.count || "0");
-        avgRating = parseFloat(feedback.rows[0]?.avg_rating || "0");
+        const feedbackRes = await safeQuery("SELECT COUNT(*) as count, AVG(vision_alignment_rating) as avg_rating FROM stakeholder_feedback WHERE program_id = $1", [programId]);
+        totalResponses = parseInt(feedbackRes.rows[0]?.count || "0");
+        avgRating = parseFloat(feedbackRes.rows[0]?.avg_rating || "0");
       } else {
         activeStudents = await safeCountQuery("SELECT COUNT(*) as count FROM stakeholders s JOIN programs p ON s.program_id = p.id WHERE p.institution_id = $1 AND s.category = 'Students'", [institutionId]);
-        const feedback = await client.query("SELECT COUNT(*) as count, AVG(vision_alignment_rating) as avg_rating FROM stakeholder_feedback WHERE program_id IN (SELECT id FROM programs WHERE institution_id = $1)", [institutionId]).catch(() => ({ rows: [{ count: 0, avg_rating: 0 }] }));
-        totalResponses = parseInt(feedback.rows[0]?.count || "0");
-        avgRating = parseFloat(feedback.rows[0]?.avg_rating || "0");
+        const feedbackRes = await safeQuery("SELECT COUNT(*) as count, AVG(vision_alignment_rating) as avg_rating FROM stakeholder_feedback WHERE program_id IN (SELECT id FROM programs WHERE institution_id = $1)", [institutionId]);
+        totalResponses = parseInt(feedbackRes.rows[0]?.count || "0");
+        avgRating = parseFloat(feedbackRes.rows[0]?.avg_rating || "0");
       }
 
       return NextResponse.json({
@@ -204,7 +219,7 @@ export async function GET(request: Request) {
         academicCouncilMembers: acCount,
         activeStudents,
         totalResponses,
-        avgRating: parseFloat(avgRating.toFixed(1)),
+        avgRating: isNaN(avgRating) ? 0 : parseFloat(avgRating.toFixed(1)),
         recentActivities: activities,
       });
 

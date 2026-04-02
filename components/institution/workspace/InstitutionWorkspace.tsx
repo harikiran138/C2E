@@ -10,6 +10,7 @@ import {
   SIDE_MENU_STEPS,
   ProcessPhase,
 } from "@/lib/institution/process";
+import { buildMutationHeaders } from "@/lib/client-security";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Icons from "lucide-react";
@@ -146,7 +147,10 @@ export default function InstitutionWorkspace({
       await fetch("/api/auth/logout", { 
         method: "POST",
         cache: "no-store",
-        headers: { "pragma": "no-cache" }
+        headers: {
+          ...buildMutationHeaders(),
+          pragma: "no-cache",
+        },
       }).catch(console.error);
       
       // 3. Destructive local storage and session storage cleanup

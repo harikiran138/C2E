@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenAndBlocklist } from "./auth";
+import {
+  AUTH_COOKIE_NAME,
+  LEGACY_AUTH_COOKIE_NAME,
+} from "./constants";
+import { isRoleAllowed, normalizeRole } from "./auth-routing";
 
 export type AuthorizedContext = {
   userId: string;
@@ -20,8 +25,9 @@ export async function authorize(
   request: NextRequest,
   allowedRoles?: string[]
 ): Promise<AuthorizedContext | NextResponse> {
-  const token = request.cookies.get("c2e_auth_token")?.value || 
-                request.cookies.get("institution_token")?.value;
+  const token =
+    request.cookies.get(AUTH_COOKIE_NAME)?.value ||
+    request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized: No session found." }, { status: 401 });
@@ -36,13 +42,13 @@ export async function authorize(
   const userContext: AuthorizedContext = {
     userId: payload.id as string,
     email: payload.email as string,
-    role: payload.role as string,
+    role: normalizeRole(payload.role as string) ?? String(payload.role || ""),
     institutionId: payload.institution_id as string,
     programId: payload.program_id as string,
     stakeholderId: payload.stakeholder_ref_id as string,
   };
 
-  if (allowedRoles && !allowedRoles.includes(userContext.role)) {
+  if (!isRoleAllowed(userContext.role, allowedRoles)) {
     return NextResponse.json(
       { error: `Forbidden: Access denied for role '${userContext.role}'.` },
       { status: 403 }

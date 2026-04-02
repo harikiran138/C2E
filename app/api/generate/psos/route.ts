@@ -2,13 +2,52 @@ import { NextResponse } from "next/server";
 import { psoAgent } from "@/lib/ai/pso-agent";
 import pool from "@/lib/postgres";
 import { resolveProgramAcademicContext } from "@/lib/curriculum/program-context";
+import { resolvePythonBackendUrl } from "@/lib/ai-backend";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { AI_RATE_LIMIT } from "@/lib/constants";
+import {
+  extractClientIp,
+  rejectCrossSiteRequest,
+  resolveRequesterIdentity,
+  verifyCsrfToken,
+} from "@/lib/request-security";
 
 
 export async function POST(request: Request) {
   try {
+    const crossSiteError = rejectCrossSiteRequest(request);
+    if (crossSiteError) {
+      return NextResponse.json({ error: crossSiteError }, { status: 403 });
+    }
+
+    const csrfError = verifyCsrfToken(request);
+    if (csrfError) {
+      return NextResponse.json({ error: csrfError }, { status: 403 });
+    }
+
+    const clientIp = extractClientIp(request);
     const body = await request.json();
     const { selected_societies, number_of_psos, program_name, mode = "standard", program_id, programId } = body;
     const effectiveProgramId = programId || program_id;
+
+    const rateLimitKey = await resolveRequesterIdentity(
+      request,
+      "ai:psos",
+      effectiveProgramId,
+    );
+    if (
+      !checkRateLimit({
+        ip: clientIp,
+        key: rateLimitKey,
+        limit: AI_RATE_LIMIT.limit,
+        windowMs: AI_RATE_LIMIT.windowMs,
+      })
+    ) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please wait a minute before retrying." },
+        { status: 429 },
+      );
+    }
 
     const hasSelection =
       Boolean(selected_societies?.lead?.length) ||
@@ -53,7 +92,12 @@ export async function POST(request: Request) {
 
     // Primary: Python Backend
     try {
-      const response = await fetch("http://localhost:8001/api/v1/generate-psos", {
+      const backendUrl = resolvePythonBackendUrl("/api/v1/generate-psos");
+      if (!backendUrl) {
+        throw new Error("Python backend is not configured");
+      }
+
+      const response = await fetch(backendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,4 +185,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

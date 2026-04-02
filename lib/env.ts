@@ -13,7 +13,10 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   
   // AI
-  OPENROUTER_API_KEY: z.string().min(1),
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
+  AI_API_URL_INTERNAL: z.string().url().optional(),
+  AI_API_URL: z.string().url().optional(),
+  PYTHON_BACKEND_URL: z.string().url().optional(),
   
   // Node Environment
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -27,6 +30,9 @@ export const validateEnv = () => {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    AI_API_URL_INTERNAL: process.env.AI_API_URL_INTERNAL,
+    AI_API_URL: process.env.AI_API_URL,
+    PYTHON_BACKEND_URL: process.env.PYTHON_BACKEND_URL,
     NODE_ENV: process.env.NODE_ENV,
   });
 
@@ -36,6 +42,17 @@ export const validateEnv = () => {
       JSON.stringify(result.error.format(), null, 2)
     );
     throw new Error('Invalid environment variables. Check your .env file.');
+  }
+
+  if (
+    !result.data.OPENROUTER_API_KEY &&
+    !result.data.AI_API_URL_INTERNAL &&
+    !result.data.AI_API_URL &&
+    !result.data.PYTHON_BACKEND_URL
+  ) {
+    console.warn(
+      "AI configuration is missing. Core app pages can still run, but AI generation features will require OPENROUTER_API_KEY or a configured backend URL.",
+    );
   }
 
   return result.data;

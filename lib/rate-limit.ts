@@ -2,6 +2,7 @@ export interface RateLimitContext {
   ip: string;
   limit: number;
   windowMs: number;
+  key?: string;
 }
 
 const ipHits = new Map<string, { count: number; expiresAt: number }>();
@@ -11,14 +12,15 @@ const ipHits = new Map<string, { count: number; expiresAt: number }>();
  * Returns true if allowed, false if blocked.
  */
 export function checkRateLimit(context: RateLimitContext): boolean {
-  const { ip, limit, windowMs } = context;
+  const { ip, key, limit, windowMs } = context;
   const now = Date.now();
+  const bucketKey = key || ip;
 
-  const record = ipHits.get(ip);
+  const record = ipHits.get(bucketKey);
 
   if (!record || now > record.expiresAt) {
     // New window or expired
-    ipHits.set(ip, { count: 1, expiresAt: now + windowMs });
+    ipHits.set(bucketKey, { count: 1, expiresAt: now + windowMs });
     return true;
   }
 

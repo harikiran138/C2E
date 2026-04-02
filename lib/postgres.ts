@@ -62,4 +62,31 @@ if (!process.env.DATABASE_URL && !process.env.DB_NAME) {
 }
 
 export const query = (text: string, params: any[]) => pool.query(text, params);
+
+/**
+ * Executes a database query but catches errors and returns a fallback value.
+ * Useful for analytical queries that shouldn't crash a whole dashboard.
+ */
+export async function safeQuery<T>(
+  queryText: string,
+  values: any[] = [],
+  fallback: T,
+): Promise<T> {
+  try {
+    const result = await pool.query(queryText, values);
+    return (result.rows as T) || fallback;
+  } catch (error) {
+    console.error(`[DB_SAFE_QUERY_ERROR] Query failed: ${queryText.substring(0, 100)}...`, error);
+    return fallback;
+  }
+}
+
+/**
+ * Generic internal error response to prevent information leakage.
+ */
+export function genericErrorResponse(message = "An internal server error occurred.") {
+  const { NextResponse } = require("next/server");
+  return NextResponse.json({ error: message }, { status: 500 });
+}
+
 export default pool;

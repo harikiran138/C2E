@@ -11,6 +11,7 @@ import {
     Zap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { buildMutationHeaders } from '@/lib/client-security';
 import OverviewCards from '@/components/super-admin/OverviewCards';
 import InstitutionTable from '@/components/super-admin/InstitutionTable';
 import SecurityPanel from '@/components/super-admin/SecurityPanel';
@@ -61,7 +62,10 @@ export default function SuperAdminDashboard() {
     const handleLogout = async () => {
         try {
             // 1. Server-side logout (revokes session)
-            await fetch('/api/auth/logout', { method: 'POST' }); 
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: buildMutationHeaders(),
+            }); 
             
             // 2. Client-side cleanup (Point #3 & #4)
             document.cookie = 'c2e_auth_token=; Max-Age=0; path=/;';

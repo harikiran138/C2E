@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
 import bcrypt from "bcrypt";
-import { signToken } from "@/lib/auth";
+import { createSessionCookieOptions, signToken } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRoleDashboardPath } from "@/lib/auth-routing";
+import {
+  attachCsrfCookie,
+  extractClientIp,
+  rejectCrossSiteRequest,
+} from "@/lib/request-security";
+import { AUTH_COOKIE_NAME, LEGACY_AUTH_COOKIE_NAME } from "@/lib/constants";
 
 /**
  * v5.1 Institute & Program Isolated Login
@@ -11,7 +17,12 @@ import { getRoleDashboardPath } from "@/lib/auth-routing";
  * Rules: ONLY Institute & Program Roles. No hints for Super Admin.
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+  const crossSiteError = rejectCrossSiteRequest(request);
+  if (crossSiteError) {
+    return NextResponse.json({ error: crossSiteError }, { status: 403 });
+  }
+
+  const ip = extractClientIp(request);
   
   try {
     // 1. Rate Limiting
@@ -91,13 +102,10 @@ export async function POST(request: NextRequest) {
       });
 
       // 6. Master Auth Cookie
-      response.cookies.set("c2e_auth_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 3600 // 1 hour for v5.1 production sessions
-      });
+      const cookieOptions = createSessionCookieOptions(3600);
+      response.cookies.set(AUTH_COOKIE_NAME, token, cookieOptions);
+      response.cookies.set(LEGACY_AUTH_COOKIE_NAME, token, cookieOptions);
+      attachCsrfCookie(response, 3600);
 
       return response;
 

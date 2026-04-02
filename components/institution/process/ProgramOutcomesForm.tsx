@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Save, Sparkles, Plus, Trash2, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { buildMutationHeaders } from "@/lib/client-security";
 
 const PO_PRIORITIES = [
   "Technical Excellence",
@@ -236,7 +237,7 @@ export default function ProgramOutcomesForm() {
     try {
       const response = await fetch("/api/generate/pos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({
           programName: program.name,
           institutionName: program.institution_name || "Institution",

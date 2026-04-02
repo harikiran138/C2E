@@ -3,15 +3,22 @@ import bcrypt from "bcrypt";
 import pool from "@/lib/postgres";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { signTokenWithExpiry } from "@/lib/auth";
+import { extractClientIp, rejectCrossSiteRequest } from "@/lib/request-security";
 
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const crossSiteError = rejectCrossSiteRequest(request);
+  if (crossSiteError) {
+    return NextResponse.json({ error: crossSiteError }, { status: 403 });
+  }
+
+  const ip = extractClientIp(request);
 
   try {
     const body = await request.json();
     const instituteId = String(body?.institute_id || "").trim();
     const programId = String(body?.program_id || "").trim();
-    const stakeholderId = String(body?.stakeholder_id || "").trim();
+    const rawStakeholderId = String(body?.stakeholder_id || "").trim();
+    const stakeholderId = rawStakeholderId.toLowerCase();
     const stakeholderPassword = String(body?.stakeholder_password || "");
 
     // Rate Limit by targeted stakeholder ID to prevent IP spoofing brute force

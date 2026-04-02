@@ -3,8 +3,10 @@ import pool from "@/lib/postgres";
 import { validateSignupPayload } from "@/lib/validation/onboarding";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
-import { signToken } from "@/lib/auth";
+import { createSessionCookieOptions, signToken } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { attachCsrfCookie } from "@/lib/request-security";
+import { AUTH_COOKIE_NAME, LEGACY_AUTH_COOKIE_NAME } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,13 +105,10 @@ export async function POST(request: NextRequest) {
       });
 
       const response = NextResponse.json({ ok: true, id: newId });
-      response.cookies.set("institution_token", jwt, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24, // 24 hours
-      });
+      const cookieOptions = createSessionCookieOptions(60 * 60 * 24);
+      response.cookies.set(LEGACY_AUTH_COOKIE_NAME, jwt, cookieOptions);
+      response.cookies.set(AUTH_COOKIE_NAME, jwt, cookieOptions);
+      attachCsrfCookie(response, 60 * 60 * 24);
 
       return response;
     } finally {

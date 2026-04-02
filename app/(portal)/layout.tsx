@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import { useInstitution } from "@/context/InstitutionContext";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 function PortalContent({ children }: { children: React.ReactNode }) {
   const { loading } = useInstitution();
@@ -18,7 +19,12 @@ function PortalContent({ children }: { children: React.ReactNode }) {
   return (
     <>
       {showLoading && <LoadingScreen />}
-      <main className="relative min-h-screen overflow-x-hidden pt-12 pb-24">
+      <main 
+        className={cn(
+          "relative min-h-screen overflow-x-hidden",
+          (!pathname.includes("/login") && !pathname.includes("/signup")) && "pt-12 pb-24"
+        )}
+      >
         {children}
       </main>
     </>

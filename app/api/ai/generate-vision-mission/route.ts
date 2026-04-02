@@ -1,6 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { AI_RATE_LIMIT } from "@/lib/constants";
+import {
+  extractClientIp,
+  InputValidationError,
+  rejectCrossSiteRequest,
+  resolveRequesterIdentity,
+  sanitizeAiList,
+  sanitizeAiText,
+  verifyCsrfToken,
+} from "@/lib/request-security";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+import { callAI } from "@/lib/curriculum/ai-model-router";
 
 // Short-lived in-memory cache (server instance local)
 const ai_cache: Record<string, string> = {};
@@ -3162,7 +3173,7 @@ async function evaluateStrategicValidation(params: {
       pairs,
       approvalThreshold,
     });
-    const raw = await callGemini(prompt);
+    const raw = await callAI(prompt, "vision");
     const parsed = parseJsonResponse(raw);
     if (!parsed) {
       return fallback;
@@ -3683,39 +3694,7 @@ function validateStatements(
   };
 }
 
-async function callGemini(prompt: string): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not found in environment variables");
-  }
 
-  if (ai_cache[prompt]) {
-    return ai_cache[prompt];
-  }
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error: ${errorText}`);
-  }
-
-  const result = await response.json();
-  const generatedText =
-    result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!generatedText) {
-    throw new Error("Unexpected response format from Gemini API");
-  }
-
-  ai_cache[prompt] = generatedText;
-  return generatedText;
-}
 
 function buildVisionPrompt(params: {
   programName: string;
@@ -3939,7 +3918,7 @@ async function generateWithValidation(params: {
 
   for (let attempt = 1; attempt <= MAX_REGEN_ATTEMPTS; attempt += 1) {
     const prompt = promptFactory(feedback);
-    const raw = await callGemini(prompt);
+    const raw = await callAI(prompt, "mission");
 
     const parsed = parseOptions(raw);
     const normalized = parsed.map((statement) =>
@@ -4139,7 +4118,7 @@ async function generateCoupledMissionsWithValidation(params: {
       feedback,
     });
 
-    const raw = await callGemini(prompt);
+    const raw = await callAI(prompt, "vision");
     const parsed = parseOptions(raw);
     const normalized = parsed.map((statement) =>
       normalizeMissionStatement(statement, referenceClusters),
@@ -4241,7 +4220,7 @@ async function generateCoupledMissionsWithValidation(params: {
   };
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let fallbackProgramName = "this program";
   let fallbackInstituteVision = "";
   let fallbackInstituteMission = "";
@@ -4261,6 +4240,35 @@ export async function POST(request: Request) {
   let fallbackExcludedMissions: string[] = [];
 
   try {
+    const crossSiteError = rejectCrossSiteRequest(request);
+    if (crossSiteError) {
+      return NextResponse.json({ error: crossSiteError }, { status: 403 });
+    }
+
+    const csrfError = verifyCsrfToken(request);
+    if (csrfError) {
+      return NextResponse.json({ error: csrfError }, { status: 403 });
+    }
+
+    const clientIp = extractClientIp(request);
+    const rateLimitKey = await resolveRequesterIdentity(
+      request,
+      "ai:generate-vision-mission",
+    );
+    if (
+      !checkRateLimit({
+        ip: clientIp,
+        key: rateLimitKey,
+        limit: AI_RATE_LIMIT.limit,
+        windowMs: AI_RATE_LIMIT.windowMs,
+      })
+    ) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please wait a minute before retrying." },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const {
       program_name,
@@ -4279,16 +4287,67 @@ export async function POST(request: Request) {
       exclude_missions,
     } = body;
 
-    const programName = String(program_name || "the program");
+    const programName = sanitizeAiText(program_name, {
+      fieldName: "program_name",
+      maxLength: 160,
+    });
+    const sanitizedInstituteVision = sanitizeAiText(institute_vision, {
+      fieldName: "institute_vision",
+      maxLength: 500,
+      allowEmpty: true,
+    });
+    const sanitizedInstituteMission = sanitizeAiText(institute_mission, {
+      fieldName: "institute_mission",
+      maxLength: 800,
+      allowEmpty: true,
+    });
+    const sanitizedSelectedProgramVision = sanitizeAiText(
+      selected_program_vision,
+      {
+        fieldName: "selected_program_vision",
+        maxLength: 320,
+        allowEmpty: true,
+      },
+    );
+    const sanitizedVisionInstructions = sanitizeAiText(vision_instructions, {
+      fieldName: "vision_instructions",
+      maxLength: 400,
+      allowEmpty: true,
+    });
+    const sanitizedMissionInstructions = sanitizeAiText(mission_instructions, {
+      fieldName: "mission_instructions",
+      maxLength: 500,
+      allowEmpty: true,
+    });
+    const sanitizedVisionInputs = sanitizeAiList(vision_inputs, {
+      fieldName: "vision_inputs",
+      maxItems: 12,
+      maxItemLength: 120,
+    });
+    const sanitizedMissionInputs = sanitizeAiList(mission_inputs, {
+      fieldName: "mission_inputs",
+      maxItems: 12,
+      maxItemLength: 120,
+    });
+    const sanitizedExcludedVisions = sanitizeAiList(exclude_visions, {
+      fieldName: "exclude_visions",
+      maxItems: 10,
+      maxItemLength: 220,
+    });
+    const sanitizedExcludedMissions = sanitizeAiList(exclude_missions, {
+      fieldName: "exclude_missions",
+      maxItems: 10,
+      maxItemLength: 220,
+    });
     const validInstituteVision = validateInstituteContext(
-      String(institute_vision || ""),
+      sanitizedInstituteVision,
     )
-      ? String(institute_vision)
+      ? sanitizedInstituteVision
       : getBaselineInstituteVision(programName);
     const validInstituteMission = validateInstituteContext(
-      String(institute_mission || ""),
+      sanitizedInstituteMission,
     )
-      ? String(institute_mission)
+      ? sanitizedInstituteMission
       : getBaselineInstituteMission(programName);
 
     if (!program_name) {
@@ -4326,19 +4385,19 @@ export async function POST(request: Request) {
       ? visionCount
       : requestedMissionCount;
 
-    const selectedVisionInputs = normalizeStringArray(vision_inputs);
+    const selectedVisionInputs = normalizeStringArray(sanitizedVisionInputs);
     const visionInputsForGeneration = normalizeStringArray([
       ...selectedVisionInputs,
       "Outcome-oriented education",
     ]);
-    const selectedMissionInputs = normalizeStringArray(mission_inputs);
-    const excludedVisions = normalizeStringArray(exclude_visions);
-    const excludedMissions = normalizeStringArray(exclude_missions);
+    const selectedMissionInputs = normalizeStringArray(sanitizedMissionInputs);
+    const excludedVisions = normalizeStringArray(sanitizedExcludedVisions);
+    const excludedMissions = normalizeStringArray(sanitizedExcludedMissions);
 
     if (
       shouldGenerateMission &&
       !shouldGenerateVision &&
-      !selected_program_vision
+      !sanitizedSelectedProgramVision
     ) {
       return NextResponse.json(
         {
@@ -4373,12 +4432,12 @@ export async function POST(request: Request) {
     );
     const missionPlan = buildDistributionPlan(missionClusters, missionCount);
 
-    fallbackProgramName = String(program_name);
-    fallbackInstituteVision = String(institute_vision || "");
-    fallbackInstituteMission = String(institute_mission || "");
-    fallbackSelectedProgramVision = String(selected_program_vision || "");
-    fallbackVisionInstructions = String(vision_instructions || "");
-    fallbackMissionInstructions = String(mission_instructions || "");
+    fallbackProgramName = programName;
+    fallbackInstituteVision = sanitizedInstituteVision;
+    fallbackInstituteMission = sanitizedInstituteMission;
+    fallbackSelectedProgramVision = sanitizedSelectedProgramVision;
+    fallbackVisionInstructions = sanitizedVisionInstructions;
+    fallbackMissionInstructions = sanitizedMissionInstructions;
     fallbackMode = generationMode;
     fallbackVisionCount = visionCount;
     fallbackMissionCount = missionCount;
@@ -4398,7 +4457,7 @@ export async function POST(request: Request) {
           clusters: visionClusters,
           distributionPlan: visionPlan,
           count: visionCount,
-          customInstructions: String(vision_instructions || ""),
+          customInstructions: sanitizedVisionInstructions,
           excludedStatements: excludedVisions,
           feedback: [],
         })
@@ -4407,13 +4466,13 @@ export async function POST(request: Request) {
       shouldGenerateMission && !coupledGeneration
         ? buildMissionPrompt({
             programName,
-            selectedProgramVision: String(selected_program_vision || ""),
+            selectedProgramVision: sanitizedSelectedProgramVision,
             instituteMission: validInstituteMission,
             semanticOptions: missionSemantic,
             clusters: missionClusters,
             distributionPlan: missionPlan,
             count: missionCount,
-            customInstructions: String(mission_instructions || ""),
+            customInstructions: sanitizedMissionInstructions,
             excludedStatements: excludedMissions,
             feedback: [],
           })
@@ -4428,7 +4487,7 @@ export async function POST(request: Request) {
             distributionPlan: missionPlan,
             visions: [],
             hints: [],
-            customInstructions: String(mission_instructions || ""),
+            customInstructions: sanitizedMissionInstructions,
             excludedStatements: excludedMissions,
             feedback: [],
           })
@@ -4442,7 +4501,7 @@ export async function POST(request: Request) {
 
     if (shouldGenerateVision) {
       visionResult = await generateWithValidation({
-        programName: String(program_name),
+        programName,
         kind: "vision",
         count: visionCount,
         semanticOptions: visionSemantic,
@@ -4457,13 +4516,13 @@ export async function POST(request: Request) {
             clusters: visionClusters,
             distributionPlan: visionPlan,
             count: visionCount,
-            customInstructions: String(vision_instructions || ""),
+            customInstructions: sanitizedVisionInstructions,
             excludedStatements: excludedVisions,
             feedback,
           }),
         fallbackFactory: (index) =>
           buildVisionFallbackStatement(
-            String(program_name),
+            programName,
             visionPlan[index % visionPlan.length] || {
               index,
               categories: ["custom"],
@@ -4492,14 +4551,14 @@ export async function POST(request: Request) {
           missionDistributionPlan: missionPlan,
           visionClusters,
           excludedStatements: excludedMissions,
-          customInstructions: String(mission_instructions || ""),
+          customInstructions: sanitizedMissionInstructions,
         });
       } else {
         const missionReferenceVision = String(
-          selected_program_vision || visionResult?.statements?.[0] || "",
+          sanitizedSelectedProgramVision || visionResult?.statements?.[0] || "",
         );
         missionResult = await generateWithValidation({
-          programName: String(program_name),
+          programName,
           kind: "mission",
           count: missionCount,
           semanticOptions: missionSemantic,
@@ -4513,13 +4572,13 @@ export async function POST(request: Request) {
           promptFactory: (feedback) =>
             buildMissionPrompt({
               programName,
-              selectedProgramVision: String(selected_program_vision || ""),
+              selectedProgramVision: sanitizedSelectedProgramVision,
               instituteMission: validInstituteMission,
               semanticOptions: missionSemantic,
               clusters: missionClusters,
               distributionPlan: missionPlan,
               count: missionCount,
-              customInstructions: String(mission_instructions || ""),
+              customInstructions: sanitizedMissionInstructions,
               excludedStatements: excludedMissions,
               feedback,
             }),
@@ -4554,7 +4613,7 @@ export async function POST(request: Request) {
         ? pairs
         : shouldGenerateMission && missions.length > 0 && !shouldGenerateVision
           ? missions.map((mission) => ({
-              vision: String(selected_program_vision || ""),
+              vision: sanitizedSelectedProgramVision,
               mission,
             }))
           : [];
@@ -4581,9 +4640,9 @@ export async function POST(request: Request) {
         : null);
 
     const strategicValidation = await evaluateStrategicValidation({
-      programName: String(program_name),
-      instituteVision: String(institute_vision || ""),
-      instituteMission: String(institute_mission || ""),
+      programName,
+      instituteVision: sanitizedInstituteVision,
+      instituteMission: sanitizedInstituteMission,
       pairs: validationPairs,
       approvalThreshold: STRATEGIC_APPROVAL_THRESHOLD,
       alignmentResult: validationAlignment,
@@ -4629,6 +4688,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
+    if (error instanceof InputValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("AI Generation API Error:", error);
 
     const shouldGenerateVision =

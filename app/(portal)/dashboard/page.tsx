@@ -15,6 +15,7 @@ import {
     Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { buildMutationHeaders } from '@/lib/client-security';
 import OverviewCards from '@/components/super-admin/OverviewCards';
 import InstitutionTable from '@/components/super-admin/InstitutionTable';
 import dynamic from "next/dynamic";
@@ -80,7 +81,10 @@ export default function SuperAdminDashboard() {
     const handleLogout = async () => {
         try {
             // 1. Unified Logout API (Clears all HTTP-only cookies)
-            await fetch('/api/auth/logout', { method: 'POST' }); 
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: buildMutationHeaders(),
+            }); 
             
             // 2. Client-side storage cleanup
             localStorage.clear();

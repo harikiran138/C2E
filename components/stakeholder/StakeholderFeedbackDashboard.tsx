@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import StakeholderSurvey from "@/components/institution/StakeholderSurvey";
 import StakeholderLayout from "./StakeholderLayout";
 import { Badge } from "@/components/ui/badge";
+import { buildMutationHeaders } from "@/lib/client-security";
 
 type ContextResponse = {
   stakeholder: {
@@ -205,7 +206,10 @@ export default function StakeholderFeedbackDashboard() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: buildMutationHeaders(),
+      });
       localStorage.clear();
       sessionStorage.clear();
       router.push("/institution/login?type=stakeholder");

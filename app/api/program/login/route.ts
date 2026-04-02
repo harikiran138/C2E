@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/postgres";
 import bcrypt from "bcrypt";
-import { signToken } from "@/lib/auth";
+import { createSessionCookieOptions, signToken } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { buildProgramLoginEmail } from "@/lib/program-login";
+import {
+  buildProgramSessionPayload,
+  getProgramLookupCode,
+  matchesProgramLoginIdentifier,
+  normalizeProgramIdentifier,
+} from "@/lib/program-login";
+import {
+  attachCsrfCookie,
+  extractClientIp,
+  rejectCrossSiteRequest,
+} from "@/lib/request-security";
+import { AUTH_COOKIE_NAME, LEGACY_AUTH_COOKIE_NAME } from "@/lib/constants";
 
 /**
  * Program Login
@@ -14,9 +25,12 @@ import { buildProgramLoginEmail } from "@/lib/program-login";
  * set by the institution admin.
  */
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    "127.0.0.1";
+  const crossSiteError = rejectCrossSiteRequest(request);
+  if (crossSiteError) {
+    return NextResponse.json({ error: crossSiteError }, { status: 403 });
+  }
+
+  const ip = extractClientIp(request);
 
   try {
     // Rate limiting
@@ -29,8 +43,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { email, password } = body;
-    const normalizedEmail = email.trim().toLowerCase();
-    const loginProgramCode = normalizedEmail.split("@")[0] || "";
+    const normalizedEmail = normalizeProgramIdentifier(email);
+    const loginProgramCode = getProgramLookupCode(normalizedEmail);
 
     if (!email || !password) {
       return NextResponse.json(
@@ -64,50 +78,35 @@ export async function POST(request: NextRequest) {
       );
 
       const program =
-        result.rows.find((row) => {
-          if ((row.email || "").toLowerCase() === normalizedEmail) {
-            return true;
-          }
+        result.rows.find((row) =>
+          matchesProgramLoginIdentifier(row, normalizedEmail),
+        ) || null;
 
-          const generatedEmail = buildProgramLoginEmail(
-            row.program_code,
-            row.institution_shortform,
-            row.institution_name,
-          );
-
-          return generatedEmail === normalizedEmail;
-        }) || null;
-
-      const invalidResp = () =>
-        NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
-
-      if (!program || !program.password_hash) {
+      if (!program) {
         // Dummy compare to avoid timing attacks
-        await bcrypt.compare(password, "$2b$10$abcdefghijklmnopqrstuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu");
-        return invalidResp();
+        await bcrypt.compare(password, "$2b$10$m3YKKwx6pa06cZpMGcmAsOGzrAaoaLnlhdwJm1GfGqfMmgr6hpfiq");
+        return NextResponse.json({ error: "No such Program found with this email or code." }, { status: 401 });
+      }
+
+      if (!program.password_hash) {
+        return NextResponse.json({ 
+          error: "Password not set for this program. Please contact the Institution Admin to set your password." 
+        }, { status: 401 });
       }
 
       // Verify password
       const match = await bcrypt.compare(password, program.password_hash);
       if (!match) {
-        return invalidResp();
+        return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
       }
 
       // Sign a JWT scoped to this program
-      const token = await signToken({
-        id: program.id,
-        email: program.email,
-        role: "PROGRAM_ADMIN",
-        institution_id: program.institution_id,
-        program_id: program.id,
-        program_code: program.program_code,
-        is_password_set: program.is_password_set,
-        v: "5.2",
-      });
+      const session = buildProgramSessionPayload(program);
+      const token = await signToken(session);
 
       const response = NextResponse.json({
         ok: true,
-        role: "PROGRAM_ADMIN",
+        role: session.role,
         program: {
           id: program.id,
           name: program.program_name,
@@ -115,25 +114,13 @@ export async function POST(request: NextRequest) {
           email: program.email,
           institution: program.institution_name,
         },
-        redirect: `/program/dashboard`,
+        redirect: session.redirect,
       });
 
-      response.cookies.set("c2e_auth_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 3600, // 1 hour
-      });
-
-      // Also set the legacy institution_token so existing middleware works
-      response.cookies.set("institution_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 3600,
-      });
+      const cookieOptions = createSessionCookieOptions(3600);
+      response.cookies.set(AUTH_COOKIE_NAME, token, cookieOptions);
+      response.cookies.set(LEGACY_AUTH_COOKIE_NAME, token, cookieOptions);
+      attachCsrfCookie(response, 3600);
 
       return response;
     } finally {

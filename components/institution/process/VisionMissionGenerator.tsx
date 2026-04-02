@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Sparkles, Save, Check, RefreshCw, AlertCircle, Wand2 } from "lucide-react";
 import PeoGenerator from "@/components/institution/process/PeoGenerator";
+import { buildMutationHeaders } from "@/lib/client-security";
 
 const VISION_APPROVAL_THRESHOLD = 90;
 
@@ -477,7 +478,7 @@ export default function VisionMissionGenerator() {
       );
       const response = await fetch("/api/generate/vision-mission", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildMutationHeaders(),
         body: JSON.stringify({
           type: "vision",
           programId: programId,
@@ -581,7 +582,7 @@ export default function VisionMissionGenerator() {
         "/api/generate/vision-mission",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: buildMutationHeaders(),
           body: JSON.stringify({
             type: "mission",
             programId: programId,

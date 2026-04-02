@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { signToken } from "@/lib/auth";
+import { createSessionCookieOptions, signToken } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import pool from "@/lib/postgres";
 import bcrypt from "bcrypt";
+import {
+  attachCsrfCookie,
+  extractClientIp,
+  rejectCrossSiteRequest,
+} from "@/lib/request-security";
+import { AUTH_COOKIE_NAME, LEGACY_AUTH_COOKIE_NAME } from "@/lib/constants";
 
 /**
  * v5.2 Super Admin Database-Driven Login
@@ -10,7 +16,12 @@ import bcrypt from "bcrypt";
  * Rules: ONLY Super Admin. No hints for other roles.
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+  const crossSiteError = rejectCrossSiteRequest(request);
+  if (crossSiteError) {
+    return NextResponse.json({ error: crossSiteError }, { status: 403 });
+  }
+
+  const ip = extractClientIp(request);
   
   try {
     // 1. Rate Limiting
@@ -58,17 +69,13 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({ 
       ok: true, 
       role: "SUPER_ADMIN",
-      redirect: "/institution/super-admin"
+      redirect: "/dashboard"
     });
 
-    // 5. Master Auth Cookie
-    response.cookies.set("c2e_auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 3600 // 1 hour
-    });
+    const cookieOptions = createSessionCookieOptions(3600);
+    response.cookies.set(AUTH_COOKIE_NAME, token, cookieOptions);
+    response.cookies.set(LEGACY_AUTH_COOKIE_NAME, token, cookieOptions);
+    attachCsrfCookie(response, 3600);
 
     return response;
 
