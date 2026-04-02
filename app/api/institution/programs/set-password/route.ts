@@ -62,7 +62,8 @@ export async function PUT(request: NextRequest) {
       }
 
       // Check for duplicate email if updating
-      if (email && email.toLowerCase() !== program.email.toLowerCase()) {
+      const currentEmail = program.email || "";
+      if (email && email.toLowerCase() !== currentEmail.toLowerCase()) {
         const duplicateCheck = await client.query(
           "SELECT id FROM programs WHERE institution_id = $1 AND LOWER(email) = LOWER($2) AND id <> $3 LIMIT 1",
           [institutionId, email.trim(), program_id],

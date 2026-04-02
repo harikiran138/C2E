@@ -163,11 +163,11 @@ export async function PUT(request: NextRequest) {
           });
           const previousText = normalizeStatement(
             existingSelectedVision?.vision_text || "",
-          );
+          ) || "";
+          const newText = normalizeStatement(selectedVision.vision_text) || "";
           visionChanged =
             !previousText ||
-            previousText.toLowerCase() !==
-              selectedVision.vision_text.toLowerCase();
+            previousText.toLowerCase() !== newText.toLowerCase();
         }
       }
 

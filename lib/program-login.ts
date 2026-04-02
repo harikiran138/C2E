@@ -55,7 +55,8 @@ export function buildProgramLoginEmail(
   return `${cleanCode}@${cleanDomain}.c2x.ai`;
 }
 
-export function normalizeProgramIdentifier(identifier: string): string {
+export function normalizeProgramIdentifier(identifier: string | null | undefined): string {
+  if (!identifier) return "";
   return identifier.trim().toLowerCase();
 }
 

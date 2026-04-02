@@ -118,11 +118,14 @@ export async function verifyTokenAndBlocklist(token: string) {
             }
         } else {
             const userResult = await client.query(
-                "SELECT id FROM public.users WHERE id = $1 LIMIT 1",
+                `SELECT id FROM public.users WHERE id = $1 
+                 UNION 
+                 SELECT id FROM public.institutions WHERE id = $1 
+                 LIMIT 1`,
                 [tokenPayload.id]
             );
             if (userResult.rows.length === 0) {
-                console.warn(`Security Warning: User ID ${tokenPayload.id} no longer exists.`);
+                console.warn(`Security Warning: Auth ID ${tokenPayload.id} missing from users/institutions.`);
                 return null;
             }
         }
