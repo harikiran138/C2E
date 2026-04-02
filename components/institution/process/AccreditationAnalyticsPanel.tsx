@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ResponsiveContainer,
@@ -67,7 +67,7 @@ function AccreditationAnalyticsPanelContent() {
     );
   }, [analytics]);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     if (!programId) return;
     setIsLoading(true);
     setError(null);
@@ -97,11 +97,10 @@ function AccreditationAnalyticsPanelContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [curriculumId, programId, versionId]);
 
   useEffect(() => {
     fetchAnalytics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programId, versionId, curriculumId]);
 
   if (!programId) {

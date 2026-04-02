@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      const programEmail = payload.email.trim();
+      const programEmail = tokenPayload.email.trim();
 
       // 2. Hash password if provided
       const rawPassword = body.password || "progemas"; // Default if not provided

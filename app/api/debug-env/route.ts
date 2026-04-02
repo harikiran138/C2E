@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
+import { ensureDebugRouteEnabled } from "@/lib/debug-route";
 
 export async function GET() {
+  const disabledResponse = ensureDebugRouteEnabled();
+  if (disabledResponse) {
+    return disabledResponse;
+  }
+
   const envKeys = Object.keys(process.env).filter(
     (k) =>
       k.includes("DB") ||

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/postgres";
+import { ensureDebugRouteEnabled } from "@/lib/debug-route";
 
 export async function GET() {
+  const disabledResponse = ensureDebugRouteEnabled();
+  if (disabledResponse) {
+    return disabledResponse;
+  }
+
   try {
     const client = await pool.connect();
 

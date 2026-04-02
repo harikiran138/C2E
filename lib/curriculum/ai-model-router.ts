@@ -9,6 +9,9 @@ export type AiTaskType = "vision" | "peo" | "po" | "mission" | "pso" | "co" | "a
 export async function callAI(prompt: string, taskType: AiTaskType): Promise<string> {
   const rawApiKey = process.env.OPENROUTER_API_KEY;
   const apiKey = rawApiKey?.trim();
+  const isDebugLoggingEnabled =
+    process.env.NODE_ENV !== "production" ||
+    process.env.DEBUG_AI_ROUTER === "true";
   
   if (apiKey && (apiKey.includes(' ') || apiKey.includes('\n'))) {
     console.warn(`[AI Router] WARNING: API Key contains spaces or newlines. Trimming first part...`);
@@ -22,15 +25,13 @@ export async function callAI(prompt: string, taskType: AiTaskType): Promise<stri
     throw new Error(errorMsg);
   }
 
-  // Debugging to see the status of the API key
-  const maskedKey = finalApiKey ? `${finalApiKey.substring(0, 7)}...${finalApiKey.substring(finalApiKey.length - 4)}` : "NOT_FOUND";
-  console.log(`[AI Router] Using API Key: ${maskedKey}`);
-
   // User requested Claude 3.5 Sonnet, but 3.7 Sonnet is currently more stable on OpenRouter
   // and maintains the same high reasoning quality for curriculum tasks.
   const modelId = "anthropic/claude-3.7-sonnet";
 
-  console.log(`[AI Router] Task: ${taskType} | Sending to Model: ${modelId}`);
+  if (isDebugLoggingEnabled) {
+    console.log(`[AI Router] Task: ${taskType} | Sending to Model: ${modelId}`);
+  }
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
