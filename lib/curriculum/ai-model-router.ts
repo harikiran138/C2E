@@ -46,6 +46,7 @@ export async function callAI(prompt: string, taskType: AiTaskType): Promise<stri
         model: modelId,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
+        max_tokens: 250,
         provider: {
           order: ["Anthropic"],
           allow_fallbacks: true

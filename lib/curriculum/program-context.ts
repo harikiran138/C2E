@@ -1,6 +1,16 @@
 import pool from "@/lib/postgres";
 import type { PoolClient } from "pg";
 
+interface PeoRow {
+  peo_number: number;
+  peo_statement: string;
+}
+
+interface PoRow {
+  po_code: string;
+  po_description: string;
+}
+
 interface ProgramRow {
   id: string;
   program_name: string;
@@ -106,14 +116,15 @@ async function tryReadActiveMission(client: PoolClient, programId: string): Prom
 
 async function tryReadPeos(client: PoolClient, programId: string): Promise<string[]> {
   try {
-    const result = await client.query<{ peo_text: string }>(
-      `SELECT peo_text
+    const result = await client.query<PeoRow>(
+      `SELECT peo_number, peo_statement
        FROM program_peos
        WHERE program_id = $1
        ORDER BY peo_number ASC`,
       [programId],
     );
-    return result.rows.map(r => normalizeText(r.peo_text)).filter(Boolean);
+
+    return result.rows.map((r) => normalizeText(r.peo_statement)).filter(Boolean);
   } catch (error: any) {
     if (String(error?.code) === "42P01") return [];
     throw error;
@@ -122,14 +133,20 @@ async function tryReadPeos(client: PoolClient, programId: string): Promise<strin
 
 async function tryReadPos(client: PoolClient, programId: string): Promise<string[]> {
   try {
-    const result = await client.query<{ outcome_text: string }>(
-      `SELECT outcome_text
+    const result = await client.query<PoRow>(
+      `SELECT po_code, po_description
        FROM program_outcomes
        WHERE program_id = $1
-       ORDER BY outcome_number ASC`,
+       ORDER BY po_code ASC`,
       [programId],
     );
-    return result.rows.map(r => normalizeText(r.outcome_text)).filter(Boolean);
+    return result.rows
+      .map((r) => {
+        const code = normalizeText(r.po_code).toUpperCase();
+        const desc = normalizeText(r.po_description);
+        return desc ? `${code} - ${desc}` : code;
+      })
+      .filter(Boolean);
   } catch (error: any) {
     if (String(error?.code) === "42P01") return [];
     throw error;
